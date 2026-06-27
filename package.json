@@ -1,0 +1,50 @@
+{
+  "name": "darkroom",
+  "version": "0.1.0",
+  "description": "Local-first dashboard to manage photo galleries and batch-edit or generate images with AI (free via ChatGPT web, or Higgsfield), with versioning, a prompt builder, and an MCP server for Claude.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zorahrel/darkroom"
+  },
+  "keywords": [
+    "photography",
+    "image-editing",
+    "image-generation",
+    "batch",
+    "gallery",
+    "chatgpt",
+    "mcp",
+    "bun",
+    "sqlite"
+  ],
+  "scripts": {
+    "db:init": "bun run server/cli.ts init",
+    "import": "bun run server/cli.ts import",
+    "server": "bun --hot run server/index.ts",
+    "client": "vite --config client/vite.config.ts",
+    "dev": "bun run scripts/dev.ts",
+    "build:client": "vite build --config client/vite.config.ts",
+    "mcp": "bun run mcp/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "hono": "^4.6.14",
+    "lucide-react": "^1.16.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/bun": "^1.1.14",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

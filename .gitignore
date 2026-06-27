@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local data, DB and secrets — never commit these
+data/
+photos.db
+photos.db-journal
+photos.db-wal
+photos.db-shm
+*.backup-*
+**/higgsfield.json
+
+# Env / secrets
+.env
+.env.local
+
+# Generated preview thumbnails (regenerate with scripts/gen_previews.ts)
+client/public/previews/*
+!client/public/previews/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Caches
+.cache/
+scripts/.match_cache.json
+scripts/.verify_cache.json
+
+# OS
+.DS_Store
