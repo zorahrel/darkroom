@@ -337,8 +337,8 @@ export default function GridPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 text-xs">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((f) => (
           <button
             key={f.id}

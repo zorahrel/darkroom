@@ -141,7 +141,7 @@ export default function DetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Link to="/" className="text-sm text-neutral-400 hover:text-white">
           ← Indietro
         </Link>
@@ -176,7 +176,7 @@ export default function DetailPage() {
           >
             ▶
           </button>
-          <span className="ml-3 text-neutral-600">[g] genera · ←/→ o [/] foto</span>
+          <span className="ml-3 text-neutral-600 hidden md:inline">[g] genera · ←/→ o [/] foto</span>
         </div>
       </div>
 

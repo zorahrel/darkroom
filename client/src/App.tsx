@@ -67,7 +67,7 @@ export default function App() {
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4">
           <Link to="/" className="font-semibold tracking-tight">
             Darkroom
           </Link>
@@ -106,10 +106,14 @@ export default function App() {
                   setLaunching(false);
                 }
               }}
-              className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 disabled:opacity-60 disabled:cursor-wait text-red-200 border border-red-900"
+              className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 disabled:opacity-60 disabled:cursor-wait text-red-200 border border-red-900 whitespace-nowrap"
               title={health.hint ?? ""}
             >
-              {launching ? "⏳ Avvio browser ChatGPT…" : "⚠ Browser ChatGPT offline — click per avviare"}
+              {launching ? (
+                <>⏳ <span className="hidden sm:inline">Avvio browser ChatGPT…</span><span className="sm:hidden">Avvio…</span></>
+              ) : (
+                <>⚠ <span className="hidden sm:inline">Browser ChatGPT offline — click per avviare</span><span className="sm:hidden">Browser offline</span></>
+              )}
             </button>
           )}
           {jobs?.runner?.paused && jobs.runner.paused_until && (

@@ -19,7 +19,7 @@ export default function JobsPanel({
   );
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[420px] max-h-[70vh] flex flex-col bg-neutral-900 border border-neutral-800 rounded-lg shadow-2xl">
+    <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-4 z-50 w-auto sm:w-[420px] max-h-[70vh] flex flex-col bg-neutral-900 border border-neutral-800 rounded-lg shadow-2xl">
       <div className="flex items-center px-4 py-2 border-b border-neutral-800">
         <h3 className="font-semibold text-sm">Jobs</h3>
         <div className="flex-1" />
