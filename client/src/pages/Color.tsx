@@ -208,11 +208,22 @@ export default function PipelineBar({
               <Row k="white balance" v={g.white_balance} />
               <Row k="palette" v={g.palette} />
             </dl>
-            <div className="text-neutral-400 leading-relaxed max-h-28 overflow-auto rounded bg-neutral-950/50 p-2 border border-neutral-800">
-              <span className="text-neutral-500">freeform: </span>
-              {g.freeform.slice(0, 320)}
-              {g.freeform.length > 320 ? "…" : ""}
-            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-neutral-300 content-start">
+              <Row k="composizione" v={g.composition} />
+              <Row k="formato" v={g.aspect_ratio} />
+              <Row k="mood luce" v={g.lighting} />
+              <Row k="cleanup" v={g.cleanup} />
+              <Row k="dettagli" v={g.detail} />
+              {g.freeform.trim() && (
+                <>
+                  <dt className="text-neutral-500">freeform</dt>
+                  <dd className="text-neutral-200">
+                    {g.freeform.slice(0, 160)}
+                    {g.freeform.length > 160 ? "…" : ""}
+                  </dd>
+                </>
+              )}
+            </dl>
           </div>
         )}
         {showPromptEditor && defaultConfig && (

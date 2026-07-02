@@ -31,6 +31,21 @@ export const TIME_OF_DAY = {
 } as const;
 export type TimeOfDay = keyof typeof TIME_OF_DAY;
 
+// Light *mood* — distinct from TIME_OF_DAY (which shifts color temperature). This
+// shapes the quality and drama of the existing light: soft/hard, directional,
+// romantic. Amplifies real light; never invents artificial sources or flares.
+export const LIGHTING = {
+  preserve: "",
+  "dramatic-romantic":
+    "build natural, dramatic and romantic light: soft directional sources, gentle falloff and atmosphere; sculpt the scene with believable existing light, no artificial flares",
+  "soft-directional":
+    "shape soft, directional natural light with gentle falloff and quiet atmosphere",
+  "hard-directional":
+    "strong directional light with defined shadows and high drama",
+  "flat-even": "even, soft, flat lighting with minimal shadow contrast",
+} as const;
+export type Lighting = keyof typeof LIGHTING;
+
 export const PALETTE = {
   preserve: "",
   "warm-earth": "warm earth palette, terracotta and ochre",
@@ -65,6 +80,20 @@ export const COMPOSITION = {
     "recompose the frame more freely for stronger balance and a cleaner layout; reframing may extend or alter the edges",
 } as const;
 export type Composition = keyof typeof COMPOSITION;
+
+// Target output framing. "preserve" keeps the original ratio; the others ask for
+// a real reframe (only meaningful when composition allows recompose/rebalance).
+export const ASPECT_RATIO = {
+  preserve: "",
+  "1:1": "reframe to a square 1:1 crop",
+  "4:5": "reframe to a vertical 4:5 crop (portrait), iconic and cinematic framing",
+  "5:4": "reframe to a horizontal 5:4 crop",
+  "3:2": "reframe to a classic 3:2 crop",
+  "2:3": "reframe to a vertical 2:3 crop",
+  "16:9": "reframe to a wide 16:9 cinematic crop",
+  "9:16": "reframe to a tall 9:16 vertical crop",
+} as const;
+export type AspectRatio = keyof typeof ASPECT_RATIO;
 
 export const HARMONY = {
   off: "",
@@ -149,8 +178,21 @@ export const CLEANUP = {
   off: "",
   minor: "remove only minor distractions; subtle perspective correction",
   aggressive: "remove background distractions and clean up edges",
+  "aggressive-keep":
+    "remove passersby, background distractions and clutter, but keep the subjects and people that give the scene meaning and impact; clean up edges",
 } as const;
 export type Cleanup = keyof typeof CLEANUP;
+
+// Authentic-detail recovery — brings back and strengthens the real textures and
+// atmospheric details of the scene, without inventing anything new.
+export const DETAIL = {
+  off: "",
+  "restore-authentic":
+    "restore and enhance the authentic details of the scene — materials, reflections, smoke, surface texture — so they read true and vivid, without inventing anything",
+  enhance:
+    "enhance micro-detail and texture sharpness without over-processing or haloing",
+} as const;
+export type Detail = keyof typeof DETAIL;
 
 // ---- Preserve & Exclude blocks (multi-select) -----------------------------
 
@@ -220,9 +262,13 @@ export type PromptConfig = {
   white_balance: WhiteBalance;
   geometry: Geometry;
   composition: Composition;
+  /** Target output framing (4:5, 16:9, …). Only bites when composition reframes. */
+  aspect_ratio: AspectRatio;
   harmony: Harmony;
   food: Food;
   time_of_day: TimeOfDay;
+  /** Light *mood* (drama/direction/softness) — separate from time_of_day color. */
+  lighting: Lighting;
   palette: Palette;
   contrast: Contrast;
   grain: Grain;
@@ -233,6 +279,8 @@ export type PromptConfig = {
   skin_tones: SkinTones;
   atmosphere: Atmosphere;
   cleanup: Cleanup;
+  /** Authentic-detail recovery (materials, reflections, smoke, texture). */
+  detail: Detail;
   /** Which "Preserve" clauses to include (multi-select). */
   preserve: PreserveKey[];
   /** Which "Do not" clauses to include (multi-select). */
@@ -260,9 +308,11 @@ export const DEFAULT_CONFIG: PromptConfig = {
   white_balance: "preserve", // keep the warm cinematic grade
   geometry: "correct",       // full "perfect photo": fix converging verticals, level the frame
   composition: "rebalance",  // gentle rebalance toward rule-of-thirds, without inventing content
+  aspect_ratio: "preserve",  // keep the original ratio by default
   harmony: "off",            // shifts color per-image and breaks set consistency — keep off
   food: "enhance",
   time_of_day: "preserve",
+  lighting: "preserve",      // leave the original light mood by default
   palette: "preserve",
   contrast: "punchy",        // amplify light/shadow contrast — drama
   grain: "none",
@@ -273,6 +323,7 @@ export const DEFAULT_CONFIG: PromptConfig = {
   skin_tones: "airy-lift",
   atmosphere: "enhance",     // atmospheric haze/depth for cinematic mood
   cleanup: "minor",          // remove minor distractions + subtle perspective cleanup
+  detail: "off",             // no forced detail recovery by default
   // composition is now actively rebalanced, so it is NOT in preserve.
   // identity stays preserved and no_face_morph is excluded → faces untouched.
   preserve: [
@@ -306,9 +357,11 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
     white_balance: override.white_balance ?? base.white_balance,
     geometry: override.geometry ?? base.geometry,
     composition: override.composition ?? base.composition,
+    aspect_ratio: override.aspect_ratio ?? base.aspect_ratio,
     harmony: override.harmony ?? base.harmony,
     food: override.food ?? base.food,
     time_of_day: override.time_of_day ?? base.time_of_day,
+    lighting: override.lighting ?? base.lighting,
     palette: override.palette ?? base.palette,
     contrast: override.contrast ?? base.contrast,
     grain: override.grain ?? base.grain,
@@ -319,6 +372,7 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
     skin_tones: override.skin_tones ?? base.skin_tones,
     atmosphere: override.atmosphere ?? base.atmosphere,
     cleanup: override.cleanup ?? base.cleanup,
+    detail: override.detail ?? base.detail,
     preserve: Array.isArray(override.preserve) ? override.preserve : base.preserve,
     exclude: Array.isArray(override.exclude) ? override.exclude : base.exclude,
     freeform: (override.freeform ?? base.freeform ?? "").trim() || undefined,
@@ -332,6 +386,7 @@ export function assemblePrompt(c: PromptConfig): string {
   if (FILM_STOCK[c.film_stock]) changes.push(FILM_STOCK[c.film_stock]);
   if (WHITE_BALANCE[c.white_balance]) changes.push(WHITE_BALANCE[c.white_balance]);
   if (TIME_OF_DAY[c.time_of_day]) changes.push(TIME_OF_DAY[c.time_of_day]);
+  if (LIGHTING[c.lighting]) changes.push(LIGHTING[c.lighting]);
   if (PALETTE[c.palette]) changes.push(PALETTE[c.palette]);
   if (HARMONY[c.harmony]) changes.push(HARMONY[c.harmony]);
   changes.push(CONTRAST[c.contrast]);
@@ -343,9 +398,11 @@ export function assemblePrompt(c: PromptConfig): string {
   if (SKIN_TONES[c.skin_tones]) changes.push(SKIN_TONES[c.skin_tones]);
   if (FOOD[c.food]) changes.push(FOOD[c.food]);
   if (ATMOSPHERE[c.atmosphere]) changes.push(ATMOSPHERE[c.atmosphere]);
+  if (DETAIL[c.detail]) changes.push(DETAIL[c.detail]);
   if (CLEANUP[c.cleanup]) changes.push(CLEANUP[c.cleanup]);
   if (GEOMETRY[c.geometry]) changes.push(GEOMETRY[c.geometry]);
   if (COMPOSITION[c.composition]) changes.push(COMPOSITION[c.composition]);
+  if (ASPECT_RATIO[c.aspect_ratio]) changes.push(ASPECT_RATIO[c.aspect_ratio]);
   if (c.freeform?.trim()) changes.push(c.freeform.trim());
 
   const preserveText = (c.preserve ?? DEFAULT_PRESERVE)

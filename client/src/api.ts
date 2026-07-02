@@ -52,9 +52,11 @@ export type PromptConfig = {
   white_balance: "preserve" | "neutral" | "warm" | "cool";
   geometry: "off" | "straighten" | "correct";
   composition: "off" | "rebalance" | "recompose";
+  aspect_ratio: "preserve" | "1:1" | "4:5" | "5:4" | "3:2" | "2:3" | "16:9" | "9:16";
   harmony: "off" | "subtle" | "strong";
   food: "off" | "enhance";
   time_of_day: "preserve" | "golden" | "blue" | "overcast" | "noon" | "tungsten";
+  lighting: "preserve" | "dramatic-romantic" | "soft-directional" | "hard-directional" | "flat-even";
   palette: "preserve" | "warm-earth" | "teal-orange" | "desaturated" | "high-saturation";
   contrast: "flat" | "natural" | "punchy";
   grain: "none" | "fine" | "visible";
@@ -64,7 +66,8 @@ export type PromptConfig = {
   dof: "preserve" | "shallow";
   skin_tones: "preserve" | "airy-lift" | "desaturate" | "saturate" | "porcelain";
   atmosphere: "preserve" | "clean" | "enhance" | "dreamy";
-  cleanup: "off" | "minor" | "aggressive";
+  cleanup: "off" | "minor" | "aggressive" | "aggressive-keep";
+  detail: "off" | "restore-authentic" | "enhance";
   preserve: PreserveKey[];
   exclude: ExcludeKey[];
   freeform?: string;
@@ -318,6 +321,11 @@ export type PipelineStatus = {
     grain: string;
     white_balance: string;
     palette: string;
+    composition: string;
+    aspect_ratio: string;
+    lighting: string;
+    cleanup: string;
+    detail: string;
     freeform: string;
   };
   grade: ColorGrade;
