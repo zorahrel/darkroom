@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type PhotoListItem } from "../api";
-import { thumbRawUrl, thumbGenUrl } from "../api";
+import { thumbRawUrl, thumbGenUrl, gradedUrl } from "../api";
 
 type JobStatus = "pending" | "running" | "failed";
 
@@ -12,6 +12,9 @@ export default function PhotoCard({
   selectMode = false,
   selected = false,
   onToggleSelect,
+  graded = false,
+  bust = 0,
+  previewVersionOverride,
 }: {
   photo: PhotoListItem;
   jobStatus?: JobStatus;
@@ -19,6 +22,9 @@ export default function PhotoCard({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  graded?: boolean;
+  bust?: number;
+  previewVersionOverride?: number;
 }) {
   const [isFavorite, setIsFavorite] = useState(photo.favorite_version_id !== null);
   const [busy, setBusy] = useState(false);
@@ -27,9 +33,16 @@ export default function PhotoCard({
   // any zoom level without srcset complexity. 2400px max-dim covers full screen
   // even on retina @ 200% browser zoom.
   const FULL_W = 2400;
-  const previewVersion = photo.favorite_version_number ?? photo.latest_version_number;
+  const previewVersion =
+    previewVersionOverride ??
+    photo.favorite_version_number ??
+    photo.latest_version_number;
+  // When graded view is on, the base layer renders the version with the global
+  // color look baked in (on the fly). `bust` busts the cache after grade edits.
   const previewUrl = previewVersion
-    ? thumbGenUrl(photo.id, previewVersion, FULL_W)
+    ? graded
+      ? gradedUrl(photo.id, previewVersion, FULL_W, bust)
+      : thumbGenUrl(photo.id, previewVersion, FULL_W)
     : thumbRawUrl(photo.id, FULL_W);
   const rawUrl = thumbRawUrl(photo.id, FULL_W);
   const hasEdit = previewVersion !== null;

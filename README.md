@@ -13,7 +13,9 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Visual prompt builder** — compose looks from labeled controls (film stock, time of day, bloom, skin tones…) with on‑disk previews.
 - **Pluggable backends** — ChatGPT web (default, free), Codex CLI, or Higgsfield (optional, paid).
 - **MCP server** — list galleries, enqueue edits/generations, check jobs, set favorites, export — all from Claude.
-- **Export** — copy all favorites into a clean `final/` folder.
+- **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.
+- **Pipeline & run browser** — run the whole chain (regenerate favorites → color grade → promote → export) as one action, and filter the grid by generation batch ("run") from a dropdown.
+- **Export** — copy all favorites into a clean `final/` folder (graded full‑res JPGs when the grade is on).
 
 ## Stack
 
@@ -26,6 +28,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 1. **Bun** ≥ 1.3 — `brew install oven-sh/bun/bun` (or see bun.sh)
 2. **Python 3** with `websockets` — for the ChatGPT‑web backend: `pip install websockets`
 3. **Google Chrome / Chromium** — only for the ChatGPT‑web backend. Darkroom launches a dedicated instance with its own profile; you log in to chatgpt.com once and it persists.
+4. **ffmpeg + Python `numpy`/`Pillow`** — only for the optional local color grade (`scripts/color_grade.py`): `brew install ffmpeg && pip install numpy pillow`.
 
 ## Setup
 

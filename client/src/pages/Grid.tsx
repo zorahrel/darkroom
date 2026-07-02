@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { api, type PhotoListItem, type PromptConfig } from "../api";
+import { useOutletContext, useSearchParams } from "react-router-dom";
+import { api, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
-import PromptBuilder from "../components/PromptBuilder";
 
 type Filter =
   | "all"
@@ -26,6 +25,13 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "with_override", label: "Con override" },
 ];
 
+function runLabel(r: Run): string {
+  const d = new Date(r.from);
+  const day = d.toLocaleDateString([], { day: "2-digit", month: "short" });
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${day} ${time} · ${r.photos} foto`;
+}
+
 function formatSceneLabel(photos: PhotoListItem[]): string {
   if (photos.length === 0) return "";
   const first = photos[0]?.taken_at ?? 0;
@@ -40,22 +46,41 @@ function formatSceneLabel(photos: PhotoListItem[]): string {
   return `${datePart} ${time}${sameDay ? "" : " (multi-day)"} · ${photos.length} foto`;
 }
 
-export default function GridPage() {
+export default function GridPage({
+  graded = false,
+  bust = 0,
+  reloadKey = 0,
+}: {
+  graded?: boolean;
+  bust?: number;
+  reloadKey?: number;
+} = {}) {
+  // URL is the source of truth for filter/group/zoom, so state survives reload
+  // and is shareable. localStorage stays as a fallback default when the URL is bare.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [photos, setPhotos] = useState<PhotoListItem[] | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [groupMode, setGroupMode] = useState<"scene" | "day" | "none">(
-    () => (localStorage.getItem("darkroom.grid.group") as "scene" | "day" | "none") || "scene",
-  );
-  const [defaultConfig, setDefaultConfig] = useState<PromptConfig | null>(null);
-  const [defaultPromptPreview, setDefaultPromptPreview] = useState<string>("");
-  const [showPromptEditor, setShowPromptEditor] = useState(false);
-  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [filter, setFilter] = useState<Filter>(() => {
+    const f = searchParams.get("filter");
+    return FILTERS.some((x) => x.id === f) ? (f as Filter) : "all";
+  });
+  const [groupMode, setGroupMode] = useState<"scene" | "day" | "none">(() => {
+    const g =
+      searchParams.get("group") ?? localStorage.getItem("darkroom.grid.group");
+    return g === "day" || g === "none" || g === "scene" ? g : "scene";
+  });
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Run browser: pick a generation batch to view its output across the set.
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [selectedRun, setSelectedRun] = useState<number | null>(null);
+  const [runData, setRunData] = useState<
+    { item: PhotoListItem; v: number }[] | null
+  >(null);
   const [zoom, setZoom] = useState<number>(() => {
-    const stored = localStorage.getItem("darkroom.grid.zoom");
-    return stored ? Number(stored) : 180;
+    const z = searchParams.get("zoom") ?? localStorage.getItem("darkroom.grid.zoom");
+    const n = Number(z);
+    return n >= 80 && n <= 400 ? n : 180;
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
 
@@ -83,6 +108,16 @@ export default function GridPage() {
     return m;
   }, [jobs]);
 
+  // Keep the URL in sync with filter/group/zoom (non-default values only).
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (filter !== "all") next.set("filter", filter);
+    if (groupMode !== "scene") next.set("group", groupMode);
+    if (zoom !== 180) next.set("zoom", String(zoom));
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, groupMode, zoom]);
+
   useEffect(() => {
     api.listPhotos(filter).then((r) => setPhotos(r.photos));
   }, [filter]);
@@ -93,12 +128,42 @@ export default function GridPage() {
     api.listPhotos(filter).then((r) => setPhotos(r.photos));
   }, [jobs?.summary?.done, jobs?.summary?.failed, filter]);
 
+  // Refresh when the pipeline promotes/commits (favorites moved under us).
   useEffect(() => {
-    api.getDefaultConfig().then((r) => {
-      setDefaultConfig(r.config);
-      setDefaultPromptPreview(r.prompt);
-    });
-  }, []);
+    if (reloadKey === 0) return;
+    api.listPhotos(filter).then((r) => setPhotos(r.photos));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
+
+  // List of generation runs (batches). Refreshes when the pipeline runs.
+  useEffect(() => {
+    api.runs().then((r) => setRuns(r.runs)).catch(() => {});
+  }, [reloadKey, jobs?.summary?.done]);
+
+  // When a run is picked, resolve its photos to full items + their run version.
+  useEffect(() => {
+    if (selectedRun == null) {
+      setRunData(null);
+      return;
+    }
+    let alive = true;
+    Promise.all([api.runPhotos(selectedRun), api.listPhotos("with_versions")])
+      .then(([rp, all]) => {
+        if (!alive) return;
+        const byId = new Map(all.photos.map((p) => [p.id, p]));
+        const rows = rp.photos
+          .map((x) => {
+            const item = byId.get(x.id);
+            return item ? { item, v: x.version_number } : null;
+          })
+          .filter((x): x is { item: PhotoListItem; v: number } => x !== null);
+        setRunData(rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [selectedRun, reloadKey]);
 
   const counts = useMemo(() => {
     if (!photos) return { total: 0, withVersions: 0, withFavorite: 0, missing: 0 };
@@ -236,12 +301,6 @@ export default function GridPage() {
         >
           {selectMode ? `Esci selezione` : "Selezione"}
         </button>
-        <button
-          onClick={() => setShowPromptEditor((v) => !v)}
-          className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
-        >
-          {showPromptEditor ? "Chiudi prompt" : "Prompt globale"}
-        </button>
       </div>
 
       {selectMode && (
@@ -306,37 +365,6 @@ export default function GridPage() {
         </div>
       )}
 
-      {showPromptEditor && defaultConfig && (
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-3">
-          <div className="text-xs font-medium text-neutral-400">
-            Configurazione prompt globale (default per tutte le foto)
-          </div>
-          <PromptBuilder
-            value={defaultConfig}
-            onChange={setDefaultConfig}
-            previewPrompt={defaultPromptPreview}
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              disabled={savingPrompt}
-              onClick={async () => {
-                setSavingPrompt(true);
-                try {
-                  const res = await api.setDefaultConfig(defaultConfig);
-                  setDefaultPromptPreview(res.prompt);
-                  setShowPromptEditor(false);
-                } finally {
-                  setSavingPrompt(false);
-                }
-              }}
-              className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50"
-            >
-              {savingPrompt ? "Salvo…" : "Salva default"}
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
         <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((f) => (
@@ -378,6 +406,32 @@ export default function GridPage() {
             </button>
           ))}
         </div>
+        {runs.length > 0 && (
+          <div className="flex items-center gap-1 ml-2 border-l border-neutral-800 pl-3">
+            <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">
+              Run
+            </span>
+            <select
+              value={selectedRun ?? ""}
+              onChange={(e) =>
+                setSelectedRun(e.target.value ? Number(e.target.value) : null)
+              }
+              className={
+                "bg-neutral-800 border rounded px-2 py-1.5 text-xs " +
+                (selectedRun != null
+                  ? "border-sky-600 text-sky-200"
+                  : "border-neutral-700 text-neutral-300")
+              }
+            >
+              <option value="">Tutte le versioni</option>
+              {runs.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {runLabel(r)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex-1" />
         <div className="flex items-center gap-2 text-neutral-400">
           <span className="text-[10px] uppercase tracking-wider">Zoom</span>
@@ -398,7 +452,35 @@ export default function GridPage() {
         </div>
       </div>
 
-      {photos === null ? (
+      {selectedRun != null ? (
+        runData === null ? (
+          <div className="py-20 text-center text-neutral-500">Carico run…</div>
+        ) : runData.length === 0 ? (
+          <div className="py-20 text-center text-neutral-500">Run vuota.</div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-xs text-sky-300">
+              Run selezionata · {runData.length} foto — mostro la versione di
+              quella generazione
+            </div>
+            <div
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))` }}
+            >
+              {runData.map(({ item, v }) => (
+                <PhotoCard
+                  key={item.id}
+                  photo={item}
+                  previewVersionOverride={v}
+                  jobStatus={jobStatusByPhoto.get(item.id)}
+                  graded={graded}
+                  bust={bust}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      ) : photos === null ? (
         <div className="py-20 text-center text-neutral-500">Carico…</div>
       ) : photos.length === 0 ? (
         <div className="py-20 text-center text-neutral-500">
@@ -443,6 +525,8 @@ export default function GridPage() {
                     jobStatus={jobStatusByPhoto.get(p.id)}
                     selectMode={selectMode}
                     selected={selected.has(p.id)}
+                    graded={graded}
+                    bust={bust}
                     onToggleSelect={() => toggleSelect(p.id)}
                     onFavoriteChange={() => api.listPhotos(filter).then((r) => setPhotos(r.photos))}
                   />

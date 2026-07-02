@@ -31,6 +31,11 @@ export const GEN_DIR = envPath("GALLERY_GEN_DIR") ?? join(DATA_DIR, "generations
 export const FINAL_DIR = envPath("GALLERY_FINAL_DIR") ?? join(DATA_DIR, "final");
 /** Uploads scratch dir (resized inputs, oriented images). */
 export const UPLOADS_DIR = join(DATA_DIR, "uploads");
+/** Directory scanned (recursively) for .cube LUT files used by the local color
+ *  grade. Drop your own LUTs here; none ship with Darkroom. */
+export const LUT_DIR = envPath("GALLERY_LUT_DIR") ?? join(DATA_DIR, "luts");
+/** On-disk cache for graded renders (keyed by source + grade params + width). */
+export const GRADED_DIR = envPath("GALLERY_GRADED_DIR") ?? join(DATA_DIR, "graded");
 
 export const DB_PATH = envPath("DARKROOM_DB") ?? join(ROOT, "photos.db");
 

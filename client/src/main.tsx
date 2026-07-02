@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
-import GridPage from "./pages/Grid";
+import Home from "./pages/Home";
 import DetailPage from "./pages/Detail";
 import OrphansPage from "./pages/Orphans";
 
@@ -15,7 +15,7 @@ ReactDOM.createRoot(root).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
-          <Route index element={<GridPage />} />
+          <Route index element={<Home />} />
           <Route path="photo/:id" element={<DetailPage />} />
           <Route path="orphans" element={<OrphansPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

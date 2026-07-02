@@ -4,11 +4,14 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   statSync,
   unlinkSync,
 } from "node:fs";
-import { extname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import {
   db,
   initSchema,
@@ -17,6 +20,9 @@ import {
   setGlobalPrompt,
   getDefaultConfig,
   setDefaultConfig,
+  getColorGrade,
+  setColorGrade,
+  DEFAULT_COLOR_GRADE,
   ROOT,
   RAW_DIR,
   GEN_DIR,
@@ -25,7 +31,9 @@ import {
   type PhotoRow,
   type VersionRow,
   type OrphanRow,
+  type ColorGrade,
 } from "./db.ts";
+import { LUT_DIR, GRADED_DIR, REPO_ROOT } from "./config.ts";
 import {
   DEFAULT_CONFIG,
   assemblePrompt,
@@ -95,6 +103,61 @@ function withExtra(cfg: PromptConfig, photo: PhotoRow): PromptConfig {
   if (!extra) return cfg;
   const merged = [cfg.freeform?.trim(), extra].filter(Boolean).join(". ");
   return { ...cfg, freeform: merged };
+}
+
+// ---- Color grade (local look) ---------------------------------------------
+const COLOR_SCRIPT = join(REPO_ROOT, "scripts", "color_grade.py");
+
+/** Cache path for a graded image, keyed by source mtime/size + grade params +
+ *  width. Params change ⇒ new key ⇒ auto-recompute; same params ⇒ instant hit. */
+function gradedFile(
+  photoId: string,
+  filename: string,
+  source: string,
+  cfg: ColorGrade,
+  width: number,
+): string {
+  const st = statSync(source);
+  const key = createHash("sha1")
+    .update(
+      JSON.stringify({
+        m: Math.round(st.mtimeMs),
+        s: st.size,
+        lut: cfg.lut,
+        dose: cfg.dose,
+        awb: cfg.awb,
+        pop: cfg.pop,
+        width,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 16);
+  return join(GRADED_DIR, photoId, `${filename}.${key}.jpg`);
+}
+
+function runColorGrade(
+  source: string,
+  out: string,
+  cfg: ColorGrade,
+  lutAbs: string,
+  maxWidth: number,
+  quality: number,
+  timeoutMs: number,
+): boolean {
+  mkdirSync(dirname(out), { recursive: true });
+  const args = [
+    COLOR_SCRIPT,
+    "--input", source,
+    "--output", out,
+    "--lut", lutAbs,
+    "--dose", String(cfg.dose),
+    "--quality", String(quality),
+  ];
+  if (maxWidth > 0) args.push("--max-width", String(maxWidth));
+  if (cfg.awb) args.push("--awb");
+  if (cfg.pop) args.push("--pop");
+  const r = spawnSync("python3", args, { encoding: "utf8", timeout: timeoutMs });
+  return r.status === 0 && existsSync(out);
 }
 
 // ---- API: photos -----------------------------------------------------------
@@ -562,14 +625,215 @@ app.post("/api/export-favorites", (c) => {
        WHERE p.favorite_version_id IS NOT NULL`,
     )
     .all();
+  const cfg = getColorGrade();
+  const lutAbs = cfg.lut ? join(LUT_DIR, cfg.lut) : "";
+  const graded = cfg.enabled && !!lutAbs && existsSync(lutAbs);
   let copied = 0;
   for (const r of rows) {
     if (!existsSync(r.image_path)) continue;
+    if (graded) {
+      // Full-res graded JPG (no downscale) — the real deliverable.
+      const dst = join(FINAL_DIR, `${r.photo_id}.jpg`);
+      if (runColorGrade(r.image_path, dst, cfg, lutAbs, 0, 95, 120000)) {
+        copied++;
+        continue;
+      }
+      // fall through to raw copy on grade error
+    }
     const dst = join(FINAL_DIR, `${r.photo_id}.png`);
     copyFileSync(r.image_path, dst);
     copied++;
   }
-  return c.json({ copied, total: rows.length, dir: FINAL_DIR });
+  return c.json({ copied, total: rows.length, dir: FINAL_DIR, graded });
+});
+
+// ---- API: color grade ------------------------------------------------------
+
+app.get("/api/luts", (c) => {
+  let files: string[] = [];
+  try {
+    files = readdirSync(LUT_DIR, { recursive: true }) as string[];
+  } catch {}
+  const luts = files
+    .filter((f) => f.toLowerCase().endsWith(".cube"))
+    .map((f) => {
+      const parts = f.split("/");
+      const base = parts[parts.length - 1] ?? f;
+      return {
+        id: f,
+        name: base.replace(/\.cube$/i, ""),
+        group: parts.length > 1 ? (parts[0] ?? "root") : "root",
+      };
+    })
+    .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+  return c.json({ luts, current: getColorGrade() });
+});
+
+app.get("/api/settings/color-grade", (c) => c.json({ grade: getColorGrade() }));
+
+app.put("/api/settings/color-grade", async (c) => {
+  const body = await c.req.json<{ grade: Partial<ColorGrade> }>().catch(() => null);
+  if (!body || typeof body.grade !== "object") {
+    return c.json({ error: "grade missing" }, 400);
+  }
+  const g = body.grade;
+  const next: ColorGrade = {
+    enabled: typeof g.enabled === "boolean" ? g.enabled : DEFAULT_COLOR_GRADE.enabled,
+    lut: typeof g.lut === "string" ? g.lut : DEFAULT_COLOR_GRADE.lut,
+    dose: Math.max(0, Math.min(100, Number(g.dose ?? DEFAULT_COLOR_GRADE.dose))),
+    awb: typeof g.awb === "boolean" ? g.awb : DEFAULT_COLOR_GRADE.awb,
+    pop: typeof g.pop === "boolean" ? g.pop : DEFAULT_COLOR_GRADE.pop,
+  };
+  setColorGrade(next);
+  return c.json({ ok: true, grade: next });
+});
+
+// ---- API: pipeline (AI generation stage as a first-class system step) ------
+
+// Regenerate the whole favorite set through the AI edit worker with the
+// system's effective config. This is the generation stage of the pipeline,
+// exposed as one action instead of a manual per-photo loop.
+app.post("/api/pipeline/regenerate", (c) => {
+  const rows = db()
+    .query<{ id: string }, []>(
+      `SELECT id FROM photos
+       WHERE favorite_version_id IS NOT NULL
+       ORDER BY (taken_at IS NULL) ASC, taken_at ASC, id ASC`,
+    )
+    .all();
+  const jobs: number[] = [];
+  for (const r of rows) {
+    const photo = getPhoto(r.id);
+    if (!photo) continue;
+    const cfg = withExtra(effectiveConfig(photo), photo);
+    const prompt = assemblePrompt(cfg);
+    const job = enqueueJob(r.id, prompt, JSON.stringify(cfg));
+    jobs.push(job.id);
+  }
+  return c.json({ queued: jobs.length, jobs });
+});
+
+// Promote every favorite to its most recent generated version — the "commit"
+// step after a regeneration run, so the set (grid + color) reflects the newest
+// output. Non-destructive: prior versions stay and can be re-promoted.
+app.post("/api/pipeline/promote-latest", (c) => {
+  const rows = db()
+    .query<{ id: string; latest: number | null }, []>(
+      `SELECT p.id AS id,
+         (SELECT v.id FROM versions v WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest
+       FROM photos p WHERE p.favorite_version_id IS NOT NULL`,
+    )
+    .all();
+  const now = Date.now();
+  let promoted = 0;
+  for (const r of rows) {
+    if (r.latest == null) continue;
+    db().run("UPDATE photos SET favorite_version_id = ?, updated_at = ? WHERE id = ?", [
+      r.latest,
+      now,
+      r.id,
+    ]);
+    promoted++;
+  }
+  return c.json({ promoted });
+});
+
+// One shot of the whole pipeline's live state: what the AI stage will run, the
+// local color look, and how the current set is doing in the queue.
+app.get("/api/pipeline/status", (c) => {
+  const cfg = parseConfig(getDefaultConfig()) ?? DEFAULT_CONFIG;
+  const grade = getColorGrade();
+  const favs = db()
+    .query<{ n: number }, []>(
+      "SELECT COUNT(*) AS n FROM photos WHERE favorite_version_id IS NOT NULL",
+    )
+    .get();
+  const q = db()
+    .query<{ status: string; n: number }, []>(
+      `SELECT status, COUNT(*) AS n FROM jobs
+       WHERE photo_id IN (SELECT id FROM photos WHERE favorite_version_id IS NOT NULL)
+       GROUP BY status`,
+    )
+    .all();
+  const jobsBy: Record<string, number> = {};
+  for (const r of q) jobsBy[r.status] = r.n;
+  return c.json({
+    generation: {
+      config: cfg,
+      prompt: assemblePrompt(cfg),
+      film_stock: cfg.film_stock,
+      contrast: cfg.contrast,
+      shadows: cfg.shadows,
+      grain: cfg.grain,
+      white_balance: cfg.white_balance,
+      palette: cfg.palette,
+      freeform: cfg.freeform ?? "",
+    },
+    grade,
+    favorites: favs?.n ?? 0,
+    queue: jobsBy,
+  });
+});
+
+// ---- API: runs (generation batches) ----------------------------------------
+// A "run" is a time-cluster of generated versions — one regeneration batch.
+// The schema has no batch id, so runs are derived from created_at gaps.
+const RUN_GAP_MS = 20 * 60 * 1000;
+type RunItem = { photo_id: string; version_number: number; created_at: number };
+type RunCluster = { id: number; from: number; to: number; items: RunItem[] };
+
+function computeRuns(): RunCluster[] {
+  const rows = db()
+    .query<RunItem, []>(
+      "SELECT photo_id, version_number, created_at FROM versions WHERE source = 'generated' ORDER BY created_at ASC, id ASC",
+    )
+    .all();
+  const runs: RunCluster[] = [];
+  let cur: RunCluster | null = null;
+  for (const r of rows) {
+    if (!cur || r.created_at - cur.to > RUN_GAP_MS) {
+      cur = { id: r.created_at, from: r.created_at, to: r.created_at, items: [] };
+      runs.push(cur);
+    }
+    cur.items.push(r);
+    cur.to = r.created_at;
+  }
+  return runs;
+}
+
+app.get("/api/runs", (c) => {
+  const runs = computeRuns()
+    .map((run) => ({
+      id: run.id,
+      from: run.from,
+      to: run.to,
+      versions: run.items.length,
+      photos: new Set(run.items.map((i) => i.photo_id)).size,
+    }))
+    // Skip single-photo probe edits — a "run" the user browses is a batch.
+    .filter((r) => r.photos >= 3)
+    .sort((a, b) => b.from - a.from); // newest first
+  return c.json({ runs });
+});
+
+app.get("/api/runs/:id/photos", (c) => {
+  const id = Number(c.req.param("id"));
+  const run = computeRuns().find((r) => r.id === id);
+  if (!run) return c.json({ photos: [] });
+  // One version per photo — the latest produced within this run.
+  const latest = new Map<string, number>();
+  for (const it of run.items) {
+    const prev = latest.get(it.photo_id);
+    if (prev == null || it.version_number > prev) latest.set(it.photo_id, it.version_number);
+  }
+  const photos = [...latest.entries()]
+    .map(([pid, v]) => ({
+      id: pid,
+      version_number: v,
+      taken_at: getPhoto(pid)?.taken_at ?? null,
+    }))
+    .sort((a, b) => (a.taken_at ?? 0) - (b.taken_at ?? 0));
+  return c.json({ photos });
 });
 
 // ---- API: health -----------------------------------------------------------
@@ -715,6 +979,36 @@ app.get("/thumb/orphan/:filename", async (c) => {
   } catch (err) {
     return new Response(String(err), { status: 500 });
   }
+});
+
+// Serve a generation with the global color look (LUT + AWB + pink pop) applied
+// on the fly, cached on disk by a params-hash. Grade off / LUT missing / grade
+// error all fail open to the ungraded generation, so the grid never breaks.
+app.get("/graded/:photoId/:filename", (c) => {
+  const photoId = c.req.param("photoId");
+  const filename = c.req.param("filename");
+  if (
+    photoId.includes("..") ||
+    photoId.includes("/") ||
+    filename.includes("..") ||
+    filename.includes("/")
+  ) {
+    return new Response("bad request", { status: 400 });
+  }
+  const source = join(GEN_DIR, photoId, filename);
+  if (!existsSync(source)) return new Response("not found", { status: 404 });
+  const cfg = getColorGrade();
+  const lutAbs = cfg.lut ? join(LUT_DIR, cfg.lut) : "";
+  const width = parseWidth(c, 1600);
+  if (!cfg.enabled || !lutAbs || !existsSync(lutAbs)) {
+    return serveFile(source); // grade disabled or LUT gone → passthrough
+  }
+  const out = gradedFile(photoId, filename, source, cfg, width);
+  if (!existsSync(out)) {
+    const ok = runColorGrade(source, out, cfg, lutAbs, width, 90, 60000);
+    if (!ok) return serveFile(source); // fail-open
+  }
+  return serveFile(out, "image/jpeg");
 });
 
 // ---- Static: built SPA (dist) + live filter previews -----------------------

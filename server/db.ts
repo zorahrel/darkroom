@@ -282,6 +282,51 @@ export function setDefaultConfig(json: string): void {
   );
 }
 
+// ---- Color grade (local, deterministic look applied on top of generations) --
+// One global look for the whole set: same LUT + dose + AWB everywhere, so the
+// output reads as a consistent, uniform base. Stored as JSON in settings.color_grade.
+export type ColorGrade = {
+  enabled: boolean;
+  /** LUT id = path relative to LUT_DIR (see config.ts). "" = no LUT. */
+  lut: string;
+  /** LUT intensity 0-100. */
+  dose: number;
+  /** Robust auto white balance (cast estimated from neutral pixels) before the LUT. */
+  awb: boolean;
+  /** Pink pop: brighten + slightly desaturate pink hues for a coherent look. */
+  pop: boolean;
+};
+
+export const DEFAULT_COLOR_GRADE: ColorGrade = {
+  enabled: false,
+  lut: "",
+  dose: 55,
+  awb: true,
+  pop: true,
+};
+
+export function getColorGrade(): ColorGrade {
+  const row = db()
+    .query<{ value: string }, []>(
+      "SELECT value FROM settings WHERE key = 'color_grade'",
+    )
+    .get();
+  if (!row?.value) return { ...DEFAULT_COLOR_GRADE };
+  try {
+    return { ...DEFAULT_COLOR_GRADE, ...(JSON.parse(row.value) as Partial<ColorGrade>) };
+  } catch {
+    return { ...DEFAULT_COLOR_GRADE };
+  }
+}
+
+export function setColorGrade(cfg: ColorGrade): void {
+  db().run(
+    `INSERT INTO settings (key, value) VALUES ('color_grade', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [JSON.stringify(cfg)],
+  );
+}
+
 export function nextVersionNumber(photoId: string): number {
   const row = db()
     .query<{ n: number }, [string]>(

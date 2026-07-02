@@ -268,11 +268,88 @@ export const api = {
       method: "POST",
     }),
   exportFavorites: () =>
-    jsonFetch<{ copied: number; total: number; dir: string }>(
+    jsonFetch<{ copied: number; total: number; dir: string; graded: boolean }>(
       "/api/export-favorites",
       { method: "POST" },
     ),
+  getColorGrade: () =>
+    jsonFetch<{ grade: ColorGrade }>("/api/settings/color-grade"),
+  setColorGrade: (grade: ColorGrade) =>
+    jsonFetch<{ ok: true; grade: ColorGrade }>("/api/settings/color-grade", {
+      method: "PUT",
+      body: JSON.stringify({ grade }),
+    }),
+  luts: () => jsonFetch<{ luts: Lut[]; current: ColorGrade }>("/api/luts"),
+  pipelineStatus: () => jsonFetch<PipelineStatus>("/api/pipeline/status"),
+  pipelineRegenerate: () =>
+    jsonFetch<{ queued: number; jobs: number[] }>("/api/pipeline/regenerate", {
+      method: "POST",
+    }),
+  pipelinePromoteLatest: () =>
+    jsonFetch<{ promoted: number }>("/api/pipeline/promote-latest", {
+      method: "POST",
+    }),
+  runs: () => jsonFetch<{ runs: Run[] }>("/api/runs"),
+  runPhotos: (id: number) =>
+    jsonFetch<{ photos: RunPhoto[] }>(`/api/runs/${id}/photos`),
 };
+
+export type Run = {
+  id: number;
+  from: number;
+  to: number;
+  versions: number;
+  photos: number;
+};
+
+export type RunPhoto = {
+  id: string;
+  version_number: number;
+  taken_at: number | null;
+};
+
+export type PipelineStatus = {
+  generation: {
+    config: Record<string, unknown>;
+    prompt: string;
+    film_stock: string;
+    contrast: string;
+    shadows: string;
+    grain: string;
+    white_balance: string;
+    palette: string;
+    freeform: string;
+  };
+  grade: ColorGrade;
+  favorites: number;
+  queue: Record<string, number>;
+};
+
+export type ColorGrade = {
+  enabled: boolean;
+  lut: string;
+  dose: number;
+  awb: boolean;
+  pop: boolean;
+};
+
+export type Lut = { id: string; name: string; group: string };
+
+/** URL of a generation with the global color look applied on the fly.
+ *  `bust` changes when grade settings change, to defeat the browser cache. */
+export function gradedUrl(
+  photoId: string,
+  versionNumber: number,
+  w?: number,
+  bust?: string | number,
+): string {
+  const filename = `v${String(versionNumber).padStart(2, "0")}.png`;
+  const params = new URLSearchParams();
+  if (w) params.set("w", String(w));
+  if (bust !== undefined) params.set("b", String(bust));
+  const q = params.toString();
+  return `/graded/${encodeURIComponent(photoId)}/${filename}${q ? "?" + q : ""}`;
+}
 
 export function rawUrl(id: string, _ext?: string): string {
   // Canonical original URL: resolves the stored path server-side, so it works
