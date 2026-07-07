@@ -1,5 +1,6 @@
 import { spawn } from "bun";
-import { existsSync, closeSync, openSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { existsSync, closeSync, mkdirSync, openSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { dirname } from "node:path";
 import {
   PYTHON_SCRIPT,
   CHATGPT_CDP_PORT,
@@ -24,6 +25,9 @@ export type WorkerResult =
 const LOCK_STALE_MS = WORKER_TIMEOUT_MS + 60 * 1000; // > one full session
 
 async function acquireBrowserLock(timeoutMs = 30 * 60 * 1000): Promise<void> {
+  // Ensure the lock's parent dir exists — otherwise openSync("wx") throws ENOENT
+  // on every attempt and the loop below would spin without ever acquiring.
+  mkdirSync(dirname(WORKER_LOCK), { recursive: true });
   const start = Date.now();
   for (;;) {
     try {
@@ -39,7 +43,8 @@ async function acquireBrowserLock(timeoutMs = 30 * 60 * 1000): Promise<void> {
           continue;
         }
       } catch {
-        continue; // lock vanished between checks — retry create
+        // stat failed (lock vanished between checks) — fall through to the
+        // backoff below and retry; never busy-spin.
       }
       if (Date.now() - start > timeoutMs) {
         throw new Error("timed out waiting for ChatGPT browser lock");

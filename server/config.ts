@@ -91,3 +91,12 @@ export const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase(
 export const HIGGSFIELD_ENABLED =
   process.env.HIGGSFIELD_ENABLED === "1" ||
   existsSync(join(DATA_DIR, "higgsfield.json"));
+
+/** ffmpeg for the color-grade LUT step (override with FFMPEG). Resolved to an
+ *  absolute path so the grade works under a minimal launchd PATH. */
+export const FFMPEG_BIN =
+  process.env.FFMPEG ??
+  ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].find((p) =>
+    existsSync(p),
+  ) ??
+  "ffmpeg";

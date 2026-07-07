@@ -3,6 +3,17 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import { api, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutGrid,
+  Images,
+  ImageOff,
+  Star,
+  StarOff,
+  Clock3,
+  AlertTriangle,
+  SlidersHorizontal,
+} from "lucide-react";
 
 type Filter =
   | "all"
@@ -14,21 +25,24 @@ type Filter =
   | "failed"
   | "with_override";
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "Tutte" },
-  { id: "no_versions", label: "Senza versioni" },
-  { id: "with_versions", label: "Con versioni" },
-  { id: "with_favorite", label: "Con preferita" },
-  { id: "no_favorite", label: "Senza preferita" },
-  { id: "in_queue", label: "In coda" },
-  { id: "failed", label: "Falliti" },
-  { id: "with_override", label: "Con override" },
+// accent = colored emphasis when the filter has matches (queue amber, failed red,
+// favorites amber-star). Others use the neutral active style.
+type Accent = "amber" | "red" | "star";
+const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
+  { id: "all", label: "Tutte", icon: LayoutGrid },
+  { id: "with_versions", label: "Con versioni", icon: Images },
+  { id: "no_versions", label: "Senza versioni", icon: ImageOff },
+  { id: "with_favorite", label: "Con preferita", icon: Star, accent: "star" },
+  { id: "no_favorite", label: "Senza preferita", icon: StarOff },
+  { id: "in_queue", label: "In coda", icon: Clock3, accent: "amber" },
+  { id: "failed", label: "Falliti", icon: AlertTriangle, accent: "red" },
+  { id: "with_override", label: "Con override", icon: SlidersHorizontal },
 ];
 
 function runLabel(r: Run): string {
   const d = new Date(r.from);
-  const day = d.toLocaleDateString([], { day: "2-digit", month: "short" });
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day = d.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  const time = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   return `${day} ${time} · ${r.photos} foto`;
 }
 
@@ -83,6 +97,13 @@ export default function GridPage({
     return n >= 80 && n <= 400 ? n : 180;
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
+  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
+
+  // Per-filter counts for the bar. Refetch when jobs move (in_queue/failed
+  // shift) or the pipeline commits, so badges stay live without hammering.
+  useEffect(() => {
+    api.photoCounts().then((r) => setFilterCounts(r.counts)).catch(() => {});
+  }, [jobs?.summary?.done, jobs?.summary?.failed, activeJobs, reloadKey]);
 
   const jobStatusByPhoto = useMemo(() => {
     const m = new Map<string, "pending" | "running" | "failed">();
@@ -255,19 +276,6 @@ export default function GridPage({
           con preferita
         </div>
         <div className="flex-1" />
-        <button
-          onClick={async () => {
-            const prompt = window.prompt("Describe the image to generate from scratch:");
-            if (!prompt || !prompt.trim()) return;
-            const n = Number(window.prompt("How many variations?", "1")) || 1;
-            const r = await api.generateNew(prompt.trim(), n);
-            await api.listPhotos(filter).then((res) => setPhotos(res.photos));
-            alert(`Queued ${r.created} generation${r.created === 1 ? "" : "s"}. Open the Jobs panel to follow.`);
-          }}
-          className="text-sm px-3 py-1.5 rounded bg-violet-700 hover:bg-violet-600 border border-violet-700"
-        >
-          + Generate
-        </button>
         {counts.missing > 0 && (
           <button
             disabled={activeJobs > 0}
@@ -367,22 +375,61 @@ export default function GridPage({
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
         <div className="flex flex-wrap items-center gap-1">
-          {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={
-              "px-3 py-1.5 rounded border transition-colors " +
-              (filter === f.id
-                ? "bg-neutral-800 border-neutral-600 text-white"
-                : "bg-transparent border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600")
+          {FILTERS.map((f) => {
+            const Icon = f.icon;
+            const n = filterCounts[f.id];
+            const known = n !== undefined;
+            const empty = known && n === 0;
+            const isActive = filter === f.id;
+            const hot = !!f.accent && !!n && n > 0; // colored emphasis when non-empty
+            const base =
+              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors ";
+            let cls: string;
+            if (isActive) {
+              cls =
+                f.accent === "red"
+                  ? "bg-red-600/90 border-red-500 text-white"
+                  : f.accent === "amber" || f.accent === "star"
+                    ? "bg-amber-500/90 border-amber-400 text-black"
+                    : "bg-neutral-700 border-neutral-500 text-white";
+            } else if (empty) {
+              cls = "bg-transparent border-neutral-900 text-neutral-600 opacity-50";
+            } else if (hot) {
+              cls =
+                f.accent === "red"
+                  ? "bg-red-950/40 border-red-800 text-red-200 hover:border-red-600"
+                  : "bg-amber-950/30 border-amber-800/70 text-amber-200 hover:border-amber-600";
+            } else {
+              cls =
+                "bg-transparent border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600";
             }
-          >
-            {f.label}
-          </button>
-        ))}
+            return (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                disabled={empty && !isActive}
+                title={known ? `${n} foto` : undefined}
+                className={base + cls + (empty && !isActive ? " cursor-not-allowed" : "")}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                <span>{f.label}</span>
+                {known && (
+                  <span
+                    className={
+                      "ml-0.5 min-w-[1.1rem] text-center rounded-full px-1 text-[10px] font-semibold tabular-nums " +
+                      (isActive
+                        ? "bg-black/20"
+                        : "bg-neutral-800/80 text-neutral-300")
+                    }
+                  >
+                    {n}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-1 ml-2 border-l border-neutral-800 pl-3">
+        <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
           <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">Gruppo</span>
           {([
             { id: "scene", label: "Scena" },
@@ -407,7 +454,7 @@ export default function GridPage({
           ))}
         </div>
         {runs.length > 0 && (
-          <div className="flex items-center gap-1 ml-2 border-l border-neutral-800 pl-3">
+          <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
             <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">
               Run
             </span>
@@ -432,8 +479,7 @@ export default function GridPage({
             </select>
           </div>
         )}
-        <div className="flex-1" />
-        <div className="flex items-center gap-2 text-neutral-400">
+        <div className="flex items-center gap-2 text-neutral-400 ml-auto rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
           <span className="text-[10px] uppercase tracking-wider">Zoom</span>
           <input
             type="range"

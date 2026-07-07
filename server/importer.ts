@@ -1,13 +1,7 @@
 import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync } from "node:fs";
-import { join, extname, basename } from "node:path";
-import {
-  db,
-  initSchema,
-  RAW_DIR,
-  TEST1_DIR,
-  GEN_DIR,
-  getGlobalPrompt,
-} from "./db.ts";
+import { join, extname } from "node:path";
+import { db, initSchema, getGlobalPrompt } from "./db.ts";
+import { rawDir, test1Dir, genDir } from "./project.ts";
 
 const PHOTO_EXTENSIONS = new Set([".jpeg", ".jpg", ".png"]);
 
@@ -33,6 +27,11 @@ export function runImporter(): {
   const d = db();
   const now = Date.now();
   const promptSnapshot = getGlobalPrompt();
+
+  // Resolve the active project's data dirs once for this scan.
+  const RAW_DIR = rawDir();
+  const TEST1_DIR = test1Dir();
+  const GEN_DIR = genDir();
 
   ensureDir(GEN_DIR);
 

@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import { api, type Health, type JobsPayload } from "./api";
+import {
+  api,
+  currentProject,
+  rememberProject,
+  type Health,
+  type JobsPayload,
+  type StudioProject,
+} from "./api";
 
 export type OutletCtx = { jobs: JobsPayload | null; activeJobs: number };
 import JobsPanel from "./components/JobsPanel";
@@ -11,8 +18,23 @@ export default function App() {
   const [orphanCount, setOrphanCount] = useState<number>(0);
   const [showJobs, setShowJobs] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [projects, setProjects] = useState<StudioProject[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
+  const pid = currentProject();
+
+  // Remember the last-opened project so `/` lands back on it.
+  useEffect(() => {
+    if (pid) rememberProject(pid);
+  }, [pid]);
+
+  // Project list for the switcher (also tells us if we're multi-project).
+  useEffect(() => {
+    api
+      .studioProjects()
+      .then((r) => setProjects(r.projects))
+      .catch(() => {});
+  }, []);
 
   // Health check + periodic re-poll (so the offline badge clears once the
   // browser comes up, without a manual page reload).
@@ -72,19 +94,28 @@ export default function App() {
             Darkroom
           </Link>
           <nav className="flex items-center gap-1 text-sm">
-            <NavLink to="/" current={location.pathname === "/"}>
+            <NavLink to="/studio" current={location.pathname.startsWith("/studio")}>
+              Studio
+            </NavLink>
+            <NavLink
+              to={pid ? `/p/${pid}` : "/"}
+              current={location.pathname.startsWith("/p/") && !location.pathname.includes("/orphans")}
+            >
               Griglia
             </NavLink>
             {orphanCount > 0 && (
               <NavLink
-                to="/orphans"
-                current={location.pathname.startsWith("/orphans")}
+                to={pid ? `/p/${pid}/orphans` : "/"}
+                current={location.pathname.includes("/orphans")}
               >
                 Orphan{" "}
                 <span className="ml-1 text-amber-400">{orphanCount}</span>
               </NavLink>
             )}
           </nav>
+          {projects.length > 1 && (
+            <ProjectSwitcher projects={projects} />
+          )}
           <div className="flex-1" />
           {health && !health.browser && (
             <button
@@ -157,11 +188,32 @@ export default function App() {
           onClose={() => setShowJobs(false)}
           onJumpTo={(photoId) => {
             setShowJobs(false);
-            navigate(`/photo/${photoId}`);
+            navigate(pid ? `/p/${pid}/photo/${photoId}` : `/photo/${photoId}`);
           }}
         />
       )}
     </div>
+  );
+}
+
+function ProjectSwitcher({ projects }: { projects: StudioProject[] }) {
+  // The project lives in the URL (`/p/:pid`); switching is a normal SPA nav so
+  // Back/Forward move between projects. Empty (e.g. on /studio) shows the first.
+  const navigate = useNavigate();
+  const active = currentProject() || projects[0]?.id || "";
+  return (
+    <select
+      value={active}
+      onChange={(e) => navigate(`/p/${e.target.value}`)}
+      title="Progetto attivo"
+      className="text-sm bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 max-w-[10rem]"
+    >
+      {projects.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+    </select>
   );
 }
 

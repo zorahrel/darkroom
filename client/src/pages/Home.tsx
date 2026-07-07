@@ -6,6 +6,16 @@ import Library from "./Grid";
 // Unified home: the pipeline toolbar sits atop the single photo library, which
 // is the live preview surface. Grade + graded-view live here and are shared
 // down to both, so toggling the grade re-renders the grid in place.
+// Compact numeric signature of the grade — used as the initial cache-bust seed
+// so an out-of-band grade change is reflected on the next page load, not only
+// after an in-UI edit (which already bumps `bust` on save).
+function gradeSig(g: ColorGrade): number {
+  const s = `${g.enabled ? 1 : 0}|${JSON.stringify(g.steps)}`;
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+
 export default function Home() {
   const [grade, setGrade] = useState<ColorGrade | null>(null);
   const [luts, setLuts] = useState<Lut[]>([]);
@@ -19,6 +29,10 @@ export default function Home() {
     api.luts().then((r) => {
       setLuts(r.luts);
       setGrade(r.current);
+      // Seed the cache-bust from the grade content so an out-of-band change
+      // (grade edited via API, not the slider) refreshes graded previews on the
+      // next load — otherwise a plain reload reuses the cached image (same URL).
+      setBust(gradeSig(r.current));
     });
   }, []);
 
