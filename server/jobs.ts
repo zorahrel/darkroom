@@ -1,5 +1,6 @@
-import { db, nextVersionNumber, GEN_DIR } from "./db.ts";
+import { db, nextVersionNumber } from "./db.ts";
 import type { JobRow, VersionRow } from "./db.ts";
+import { genDir, listProjects, withProject } from "./project.ts";
 import { mkdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, restartChatgptBrowser } from "./worker.ts";
@@ -18,12 +19,13 @@ export function enqueueJob(
   provider: "chatgpt" | "higgsfield" = "chatgpt",
   providerParams: string | null = null,
   mode: "edit" | "generate" = "edit",
+  inputPath: string | null = null,
 ): JobRow {
   const now = Date.now();
   const result = db().run(
-    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    [photoId, prompt, configJson, provider, providerParams, mode, now],
+    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, now],
   );
   const id = Number(result.lastInsertRowid);
   return db()
@@ -32,9 +34,12 @@ export function enqueueJob(
 }
 
 export function listJobs(limit = 100): JobRow[] {
+  // Dismissed (seen) failed/cancelled jobs stay in the DB as a log but drop out
+  // of the panel so old failures don't pile up in front of the thumbnails.
   return db()
     .query<JobRow, [number]>(
       `SELECT * FROM jobs
+       WHERE NOT (seen = 1 AND status IN ('failed','cancelled'))
        ORDER BY
          CASE status WHEN 'running' THEN 0 WHEN 'pending' THEN 1
                      WHEN 'failed' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
@@ -63,6 +68,14 @@ export function jobsSummary() {
 
 export function markJobSeen(jobId: number): boolean {
   return db().run("UPDATE jobs SET seen=1 WHERE id=?", [jobId]).changes > 0;
+}
+
+/** Bulk-dismiss every failed/cancelled job from the panel ("scarta falliti").
+ *  Keeps them in the DB (retention log); listJobs just stops surfacing them. */
+export function markAllFailedSeen(): number {
+  return db().run(
+    "UPDATE jobs SET seen=1 WHERE status IN ('failed','cancelled') AND seen=0",
+  ).changes;
 }
 
 export function listJobsForPhoto(photoId: string, limit = 30): JobRow[] {
@@ -188,18 +201,31 @@ export function cleanupJobs(): { expired: number; orphaned: number } {
   return { expired, orphaned };
 }
 
+/** Run a fn once per registered project, each within its own project context.
+ *  Used for cross-project maintenance (reclaim, retention cleanup). */
+function forEachProject(fn: () => void) {
+  for (const p of listProjects()) withProject(p.id, fn);
+}
+
 export function startRunner() {
   if (runnerStarted) return;
   runnerStarted = true;
-  // Reclaim orphaned jobs that were marked 'running' when the server died.
-  const reclaimed = db().run(
-    "UPDATE jobs SET status='pending', started_at=NULL WHERE status='running'",
-  ).changes;
-  if (reclaimed > 0) console.log(`[jobs] reclaimed ${reclaimed} orphaned running job(s)`);
-  cleanupJobs();
+  // Reclaim orphaned jobs that were marked 'running' when the server died —
+  // across every project (each keeps its jobs in its own DB).
+  forEachProject(() => {
+    const reclaimed = db().run(
+      "UPDATE jobs SET status='pending', started_at=NULL WHERE status='running'",
+    ).changes;
+    if (reclaimed > 0) console.log(`[jobs] reclaimed ${reclaimed} orphaned running job(s)`);
+    cleanupJobs();
+  });
   // Re-run retention hourly while the server is alive.
-  setInterval(cleanupJobs, 60 * 60 * 1000).unref?.();
-  void loop();
+  setInterval(() => forEachProject(cleanupJobs), 60 * 60 * 1000).unref?.();
+  // Defer the processing loop to the next macrotask so it can never run during
+  // module top-level evaluation — otherwise a reclaimed job picked up on boot
+  // would start a worker before the HTTP server binds, and a wedged worker
+  // (e.g. dead ChatGPT browser) could block startup entirely.
+  setTimeout(() => void loop(), 0);
 }
 
 export function stopRunner() {
@@ -218,17 +244,30 @@ async function loop() {
       await sleep(1500);
       continue;
     }
-    await processJob(next);
+    // Process the job in ITS project's context so db()/genDir() resolve there.
+    await withProject(next.pid, () => processJob(next.job));
   }
 }
 
-function pickNextPending(): JobRow | null {
-  const row = db()
-    .query<JobRow, []>(
-      "SELECT * FROM jobs WHERE status='pending' ORDER BY id ASC LIMIT 1",
-    )
-    .get();
-  return row ?? null;
+// Pick the globally-oldest pending job across all active projects. The single
+// shared ChatGPT account means generation is inherently serialized, so one
+// runner draining every project's queue in created_at order is the right model.
+function pickNextPending(): { pid: string; job: JobRow } | null {
+  let best: { pid: string; job: JobRow } | null = null;
+  for (const p of listProjects()) {
+    if (!p.active) continue;
+    const job = withProject(p.id, () =>
+      db()
+        .query<JobRow, []>(
+          "SELECT * FROM jobs WHERE status='pending' ORDER BY created_at ASC, id ASC LIMIT 1",
+        )
+        .get(),
+    );
+    if (job && (!best || job.created_at < best.job.created_at)) {
+      best = { pid: p.id, job };
+    }
+  }
+  return best;
 }
 
 function setProgress(jobId: number, text: string) {
@@ -273,9 +312,11 @@ async function processJob(job: JobRow) {
   }
 
   const isGenerate = job.mode === "generate";
+  // Edit input: an override (bake multi-pass working image) wins over the source.
+  const editInput = job.input_path ?? photo.original_path;
 
   const versionNumber = nextVersionNumber(photo.id);
-  const photoGenDir = join(GEN_DIR, photo.id);
+  const photoGenDir = join(genDir(), photo.id);
   if (!existsSync(photoGenDir)) mkdirSync(photoGenDir, { recursive: true });
   const outputPath = join(
     photoGenDir,
@@ -292,7 +333,7 @@ async function processJob(job: JobRow) {
           })
         : { model: "nano_banana_2" };
       const hfResult = await generateEdit({
-        imagePath: photo.original_path,
+        imagePath: editInput,
         prompt: job.prompt,
         model: pp.model,
         params: pp.params ?? {},
@@ -330,7 +371,7 @@ async function processJob(job: JobRow) {
     const result = isGenerate
       ? await runWorkerGenerate({ prompt: job.prompt, output: outputPath })
       : await runActiveWorker({
-          image: photo.original_path,
+          image: editInput,
           prompt: job.prompt,
           output: outputPath,
         });

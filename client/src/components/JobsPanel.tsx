@@ -18,6 +18,12 @@ export default function JobsPanel({
     [items],
   );
 
+  // Failed/cancelled jobs still showing in the panel — dismissable in bulk.
+  const dismissable = useMemo(
+    () => items.filter((j) => j.status === "failed" || j.status === "cancelled"),
+    [items],
+  );
+
   return (
     <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-4 z-50 w-auto sm:w-[420px] max-h-[70vh] flex flex-col bg-neutral-900 border border-neutral-800 rounded-lg shadow-2xl">
       <div className="flex items-center px-4 py-2 border-b border-neutral-800">
@@ -27,6 +33,17 @@ export default function JobsPanel({
           {summary.pending ?? 0} pending · {summary.running ?? 0} running ·{" "}
           {summary.done ?? 0} done · {summary.failed ?? 0} failed
         </span>
+        {dismissable.length > 0 && (
+          <button
+            onClick={async () => {
+              await api.markAllFailedSeen();
+            }}
+            className="ml-3 text-[11px] text-neutral-500 hover:text-emerald-400"
+            title="Nascondi tutti i job falliti/annullati dal pannello"
+          >
+            scarta falliti ({dismissable.length})
+          </button>
+        )}
         <button
           onClick={onClose}
           className="ml-3 text-neutral-400 hover:text-white"
@@ -56,21 +73,16 @@ export default function JobsPanel({
                 </button>
                 <ProviderChip job={j} />
                 <div className="flex-1" />
-                <span className="text-xs text-neutral-500">
+                <span
+                  className="text-xs text-neutral-500 shrink-0 tabular-nums"
+                  title={eventLabel(j)}
+                >
                   {(j.attempts ?? 0) > 1 && (
                     <span className="text-amber-400/70 mr-1" title="tentativi (retry su rate-limit)">
                       ×{j.attempts}
                     </span>
                   )}
-                  {j.status === "running"
-                    ? secondsAgo(j.first_started_at ?? j.started_at) + "s"
-                    : j.status === "done"
-                      ? "✓"
-                      : j.status === "failed"
-                        ? "✗"
-                        : j.status === "pending"
-                          ? "in coda"
-                          : ""}
+                  {clockFor(j) || (j.status === "pending" ? "in coda" : "")}
                 </span>
                 {j.status === "pending" && (
                   <button
@@ -80,6 +92,17 @@ export default function JobsPanel({
                     className="text-xs text-neutral-500 hover:text-red-400"
                   >
                     cancel
+                  </button>
+                )}
+                {(j.status === "failed" || j.status === "cancelled") && (
+                  <button
+                    onClick={async () => {
+                      await api.markJobSeen(j.id);
+                    }}
+                    className="text-xs text-neutral-600 hover:text-emerald-400"
+                    title="Scarta dal pannello"
+                  >
+                    scarta
                   </button>
                 )}
               </div>
@@ -152,11 +175,15 @@ function JobDetails({ job }: { job: JobsPayload["items"][number] }) {
   const model = parseModelLabel(job);
   const running = job.status === "running";
   const showProgress = running && job.progress;
-  if (!model && !showProgress) return null;
+  const timing = timingLine(job);
   return (
     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-500 truncate">
+      {timing && <span className="shrink-0">{timing}</span>}
+      {timing && model && <span className="text-neutral-700">·</span>}
       {model && <span className="truncate">{model}</span>}
-      {model && showProgress && <span className="text-neutral-700">·</span>}
+      {(timing || model) && showProgress && (
+        <span className="text-neutral-700">·</span>
+      )}
       {showProgress && (
         <span className="text-blue-300 truncate">{job.progress}</span>
       )}
@@ -178,7 +205,86 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`w-2 h-2 rounded-full inline-block ${color}`} />;
 }
 
-function secondsAgo(ts: number | null): number {
-  if (!ts) return 0;
-  return Math.max(0, Math.floor((Date.now() - ts) / 1000));
+// --- Timing helpers (orario + "quanto fa" in italiano + durata) ---
+function fmtClock(ts: number | null | undefined): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtDur(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+function relIt(ts: number | null | undefined): string {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "adesso";
+  if (s < 60) return `${s}s fa`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min fa`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h fa`;
+  const g = Math.floor(h / 24);
+  return `${g} g fa`;
+}
+
+// Orario (HH:MM) dell'evento rilevante per stato: fine per done/failed/cancelled,
+// avvio per running, ingresso in coda per pending.
+function clockFor(job: JobsPayload["items"][number]): string {
+  const start = job.first_started_at ?? job.started_at;
+  switch (job.status) {
+    case "done":
+    case "failed":
+      return fmtClock(job.finished_at ?? start);
+    case "cancelled":
+      return fmtClock(job.finished_at ?? job.created_at);
+    case "running":
+      return fmtClock(start);
+    case "pending":
+      return fmtClock(job.created_at);
+    default:
+      return "";
+  }
+}
+
+// Sottoriga: verbo + "quanto fa" (o durata elapsed per i job in corso) + durata totale.
+function timingLine(job: JobsPayload["items"][number]): string {
+  const start = job.first_started_at ?? job.started_at;
+  const dur =
+    start && job.finished_at ? fmtDur(job.finished_at - start) : null;
+  switch (job.status) {
+    case "done": {
+      const parts = [`fatto ${relIt(job.finished_at)}`];
+      if (dur) parts.push(`durata ${dur}`);
+      return parts.join(" · ");
+    }
+    case "failed": {
+      const parts = [`fallito ${relIt(job.finished_at)}`];
+      if (dur) parts.push(`durata ${dur}`);
+      return parts.join(" · ");
+    }
+    case "cancelled":
+      return `annullato ${relIt(job.finished_at ?? job.created_at)}`;
+    case "running":
+      return start ? `in corso da ${fmtDur(Date.now() - start)}` : "in corso";
+    case "pending":
+      return `in coda da ${relIt(job.created_at).replace(" fa", "")}`;
+    default:
+      return "";
+  }
+}
+
+// Testo esteso per il tooltip sull'orario.
+function eventLabel(job: JobsPayload["items"][number]): string {
+  const clock = clockFor(job);
+  const line = timingLine(job);
+  return clock ? `${line} (ore ${clock})` : line;
 }
