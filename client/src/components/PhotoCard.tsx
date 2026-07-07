@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type PhotoListItem } from "../api";
+import { api, currentProject, type PhotoListItem } from "../api";
 import { thumbRawUrl, thumbGenUrl, gradedUrl } from "../api";
 
 type JobStatus = "pending" | "running" | "failed";
@@ -95,7 +95,7 @@ export default function PhotoCard({
 
   return (
     <Link
-      to={`/photo/${encodeURIComponent(photo.id)}`}
+      to={`/p/${currentProject()}/photo/${encodeURIComponent(photo.id)}`}
       onClick={(e) => {
         if (selectMode) {
           e.preventDefault();

@@ -1,21 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, type PhotoDetail, type PromptConfig, type Job, rawUrl, genUrl } from "../api";
+import {
+  api,
+  type PhotoDetail,
+  type PromptConfig,
+  type ColorGrade,
+  type Lut,
+  type Job,
+  rawUrl,
+  gradedPreviewUrl,
+  STEP_LABELS,
+} from "../api";
 import VersionCarousel from "../components/VersionCarousel";
+import StepEditor from "../components/StepEditor";
 import PromptEditor from "../components/PromptEditor";
 import PromptBuilder from "../components/PromptBuilder";
 import HiggsfieldButton from "../components/HiggsfieldButton";
 import PhotoJobsLog from "../components/PhotoJobsLog";
 
 export default function DetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { pid, id } = useParams<{ pid: string; id: string }>();
   const navigate = useNavigate();
+  const base = pid ? `/p/${pid}` : "";
   const [data, setData] = useState<PhotoDetail | null>(null);
   const [currentVersion, setCurrentVersion] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [allIds, setAllIds] = useState<string[]>([]);
   const [latestJob, setLatestJob] = useState<Job | null>(null);
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
+  const [luts, setLuts] = useState<Lut[]>([]);
+
+  useEffect(() => {
+    api.luts().then((r) => setLuts(r.luts)).catch(() => {});
+  }, []);
 
   const initedRef = useRef<string | null>(null);
   const prevCountRef = useRef(0);
@@ -111,9 +128,9 @@ export default function DetailPage() {
       if (e.key === "g" || e.key === "G") {
         if (!generating) onGenerate();
       } else if ((e.key === "[" || e.key === "ArrowLeft") && siblings.prev) {
-        navigate(`/photo/${encodeURIComponent(siblings.prev)}`);
+        navigate(`${base}/photo/${encodeURIComponent(siblings.prev)}`);
       } else if ((e.key === "]" || e.key === "ArrowRight") && siblings.next) {
-        navigate(`/photo/${encodeURIComponent(siblings.next)}`);
+        navigate(`${base}/photo/${encodeURIComponent(siblings.next)}`);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -142,7 +159,7 @@ export default function DetailPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Link to="/" className="text-sm text-neutral-400 hover:text-white">
+        <Link to={base || "/"} className="text-sm text-neutral-400 hover:text-white">
           ← Indietro
         </Link>
         <span className="font-mono text-sm text-neutral-300">{photo.id}</span>
@@ -152,7 +169,7 @@ export default function DetailPage() {
           <button
             onClick={() =>
               siblings.prev &&
-              navigate(`/photo/${encodeURIComponent(siblings.prev)}`)
+              navigate(`${base}/photo/${encodeURIComponent(siblings.prev)}`)
             }
             disabled={!siblings.prev}
             title={siblings.prev ?? undefined}
@@ -167,7 +184,7 @@ export default function DetailPage() {
           <button
             onClick={() =>
               siblings.next &&
-              navigate(`/photo/${encodeURIComponent(siblings.next)}`)
+              navigate(`${base}/photo/${encodeURIComponent(siblings.next)}`)
             }
             disabled={!siblings.next}
             title={siblings.next ?? undefined}
@@ -237,6 +254,17 @@ export default function DetailPage() {
           />
         </div>
       </div>
+
+      {v && (
+        <PhotoGradeCard
+          photoId={photo.id}
+          versionNumber={v.version_number}
+          effectiveGrade={data.effective_grade}
+          hasOverride={data.has_grade_override}
+          luts={luts}
+          onSaved={refresh}
+        />
+      )}
 
       <ExtraInstructionsCard
         photoId={photo.id}
@@ -425,6 +453,185 @@ function ExtraInstructionsCard({
         >
           {saving ? "Salvo…" : "Salva"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// La pipeline colore per LA SINGOLA foto: anteprima gradata live (tieni premuto
+// per la base) + editor degli step in override dedicato. Salva → override
+// per-foto; reset → torna al grade globale.
+function PhotoGradeCard({
+  photoId,
+  versionNumber,
+  effectiveGrade,
+  hasOverride,
+  luts,
+  onSaved,
+}: {
+  photoId: string;
+  versionNumber: number;
+  effectiveGrade: ColorGrade;
+  hasOverride: boolean;
+  luts: Lut[];
+  onSaved: () => Promise<unknown> | void;
+}) {
+  const [draft, setDraft] = useState<ColorGrade>(effectiveGrade);
+  const [saving, setSaving] = useState(false);
+  const [compare, setCompare] = useState(false);
+  const [baking, setBaking] = useState(false);
+  const [bakeMsg, setBakeMsg] = useState<string | null>(null);
+  // Indice dello step sotto il mouse: l'anteprima mostra la foto FINO a lì.
+  const [hoverStep, setHoverStep] = useState<number | null>(null);
+  const hasAiStep = draft.steps.some((s) => s.enabled && s.type === "ai");
+  const effSig = JSON.stringify(effectiveGrade);
+  // Re-sync when the upstream effective grade changes (after refresh/save).
+  useEffect(() => setDraft(effectiveGrade), [effSig]);
+
+  const W = 720;
+  // In hover, renderizza solo il prefisso [0..hoverStep] della catena: gli step
+  // successivi vengono esclusi, così vedi il risultato cumulativo di quello step.
+  const previewGrade =
+    hoverStep === null
+      ? draft
+      : { ...draft, steps: draft.steps.slice(0, hoverStep + 1) };
+  const previewSrc = gradedPreviewUrl(photoId, versionNumber, previewGrade, W);
+  const baseSrc = `/thumb/gen/${encodeURIComponent(photoId)}/v${String(versionNumber).padStart(2, "0")}.png?w=${W}`;
+  const dirty = JSON.stringify(draft) !== effSig;
+  const showBase = compare || !draft.enabled;
+  const hoveredStep = hoverStep === null ? null : draft.steps[hoverStep] ?? null;
+
+  return (
+    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="text-xs font-medium text-neutral-300">
+          Pipeline colore — questa foto
+        </div>
+        {hasOverride ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">
+            override attivo
+          </span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
+            eredita il grade globale
+          </span>
+        )}
+        <div className="flex-1" />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={draft.enabled}
+            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+          />
+          <span className={draft.enabled ? "text-emerald-400" : "text-neutral-400"}>
+            {draft.enabled ? "Grade ON" : "Grade OFF"}
+          </span>
+        </label>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <div
+          className="relative w-full lg:w-80 flex-none aspect-[4/5] rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 select-none"
+          onMouseDown={() => setCompare(true)}
+          onMouseUp={() => setCompare(false)}
+          onMouseLeave={() => setCompare(false)}
+          title="Tieni premuto per vedere la base (senza grade)"
+        >
+          <img
+            src={previewSrc}
+            alt="anteprima gradata"
+            className="absolute inset-0 w-full h-full object-cover"
+            draggable={false}
+          />
+          <img
+            src={baseSrc}
+            alt="base"
+            className={
+              "absolute inset-0 w-full h-full object-cover transition-opacity " +
+              (showBase ? "opacity-100" : "opacity-0")
+            }
+            draggable={false}
+          />
+          <span className="absolute bottom-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+            {showBase
+              ? "base (no grade)"
+              : hoveredStep
+                ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
+                : "grade completo"}
+          </span>
+        </div>
+
+        <div className="flex-1 w-full space-y-3">
+          <StepEditor
+            grade={draft}
+            onChange={setDraft}
+            luts={luts}
+            onHoverStep={setHoverStep}
+          />
+          <div className="flex items-center justify-end gap-2">
+            {bakeMsg && (
+              <span className="text-[11px] text-neutral-400 mr-auto">{bakeMsg}</span>
+            )}
+            <button
+              disabled={baking || dirty}
+              title={
+                dirty
+                  ? "Salva o resetta l'override prima del bake"
+                  : hasAiStep
+                    ? "Esegue la pipeline (inclusi gli step AI) e committa il risultato"
+                    : "Applica il grade in modo permanente su una nuova versione"
+              }
+              onClick={async () => {
+                setBaking(true);
+                setBakeMsg(hasAiStep ? "Bake in corso (step AI, può richiedere minuti)…" : "Bake…");
+                try {
+                  const res = await api.bake(photoId);
+                  setBakeMsg(res.ok ? "Bake completato ✓" : `Bake fallito: ${res.error ?? "?"}`);
+                  if (res.ok) await onSaved();
+                } catch (e) {
+                  setBakeMsg(`Bake fallito: ${e instanceof Error ? e.message : String(e)}`);
+                } finally {
+                  setBaking(false);
+                }
+              }}
+              className="text-sm px-3 py-1.5 rounded border border-violet-700 text-violet-200 hover:bg-violet-900/40 disabled:opacity-50"
+            >
+              {baking ? "Bake…" : hasAiStep ? "Bake (AI)" : "Bake"}
+            </button>
+            {hasOverride && (
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await api.setPhotoGrade(photoId, null);
+                    await onSaved();
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
+              >
+                Reset al globale
+              </button>
+            )}
+            <button
+              disabled={saving || !dirty}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await api.setPhotoGrade(photoId, draft);
+                  await onSaved();
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50"
+            >
+              {saving ? "Salvo…" : "Salva override (solo questa foto)"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

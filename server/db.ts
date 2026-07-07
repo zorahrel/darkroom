@@ -1,7 +1,11 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { currentProjectId, dirsFor } from "./project.ts";
 
 // Paths are centralized in config.ts (env-driven). Re-exported here so existing
-// imports from "./db.ts" keep working.
+// imports from "./db.ts" keep working. These bind to the ENV/default project;
+// per-project data dirs come from project.ts accessors (genDir(), rawDir()…).
 export {
   ROOT,
   DATA_DIR,
@@ -11,7 +15,6 @@ export {
   FINAL_DIR,
   DB_PATH,
 } from "./config.ts";
-import { DB_PATH } from "./config.ts";
 
 export const DEFAULT_GLOBAL_PROMPT = `Use image generation to edit this photo.
 
@@ -37,14 +40,24 @@ Style: Cinematic, minimal, editorial photography. Soft atmospheric light. Delica
 
 OUTPUT THE EDITED IMAGE.`;
 
-let _db: Database | null = null;
+// One SQLite handle per project, opened lazily and schema-initialized on first
+// use. Keyed by project id so concurrent projects never share a connection.
+const _handles = new Map<string, Database>();
 
 export function db(): Database {
-  if (_db) return _db;
-  _db = new Database(DB_PATH, { create: true });
-  _db.run("PRAGMA journal_mode = WAL");
-  _db.run("PRAGMA foreign_keys = ON");
-  return _db;
+  const pid = currentProjectId();
+  const cached = _handles.get(pid);
+  if (cached) return cached;
+  const path = dirsFor(pid).DB_PATH;
+  mkdirSync(dirname(path), { recursive: true });
+  const d = new Database(path, { create: true });
+  d.run("PRAGMA journal_mode = WAL");
+  d.run("PRAGMA foreign_keys = ON");
+  // Register before initializing so any nested db() during schema init (none
+  // today, but cheap insurance) resolves to this same handle instead of looping.
+  _handles.set(pid, d);
+  initSchemaOn(d);
+  return d;
 }
 
 const SCHEMA_STATEMENTS = [
@@ -94,86 +107,97 @@ const SCHEMA_STATEMENTS = [
   )`,
 ];
 
-function hasColumn(table: string, col: string): boolean {
-  const rows = db()
+function hasColumn(d: Database, table: string, col: string): boolean {
+  const rows = d
     .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
     .all();
   return rows.some((r) => r.name === col);
 }
 
-export function initSchema(): void {
-  const d = db();
+/** Create tables + run idempotent migrations on a specific handle. Called once
+ *  per project when its DB is first opened (see db()). */
+function initSchemaOn(d: Database): void {
   for (const stmt of SCHEMA_STATEMENTS) {
     d.run(stmt);
   }
 
   // Migrations: structured prompt config columns (added later than v0 schema).
-  if (!hasColumn("versions", "config")) {
+  if (!hasColumn(d, "versions", "config")) {
     d.run("ALTER TABLE versions ADD COLUMN config TEXT");
   }
-  if (!hasColumn("photos", "config_override")) {
+  if (!hasColumn(d, "photos", "config_override")) {
     d.run("ALTER TABLE photos ADD COLUMN config_override TEXT");
   }
-  if (!hasColumn("jobs", "config")) {
+  if (!hasColumn(d, "jobs", "config")) {
     d.run("ALTER TABLE jobs ADD COLUMN config TEXT");
   }
-  if (!hasColumn("photos", "taken_at")) {
+  if (!hasColumn(d, "photos", "taken_at")) {
     d.run("ALTER TABLE photos ADD COLUMN taken_at INTEGER");
   }
   // Multi-provider jobs: 'chatgpt' (default, CDP/Codex worker) or 'higgsfield'.
-  if (!hasColumn("jobs", "provider")) {
+  if (!hasColumn(d, "jobs", "provider")) {
     d.run("ALTER TABLE jobs ADD COLUMN provider TEXT NOT NULL DEFAULT 'chatgpt'");
   }
   // For higgsfield jobs: JSON {model, params:{...}} driving generate_image.
-  if (!hasColumn("jobs", "provider_params")) {
+  if (!hasColumn(d, "jobs", "provider_params")) {
     d.run("ALTER TABLE jobs ADD COLUMN provider_params TEXT");
   }
   // Human-readable current step while a job is running (e.g. "upload", "generate").
-  if (!hasColumn("jobs", "progress")) {
+  if (!hasColumn(d, "jobs", "progress")) {
     d.run("ALTER TABLE jobs ADD COLUMN progress TEXT");
   }
   // Acknowledged-by-user flag: hides a failed job from the alert list (kept in
   // the per-photo generation log until retention prunes it).
-  if (!hasColumn("jobs", "seen")) {
+  if (!hasColumn(d, "jobs", "seen")) {
     d.run("ALTER TABLE jobs ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
   }
   // How many times this job was actually picked up by a worker (retries on
   // rate-limit increment this), and when it first started — so the log can show
   // real total elapsed instead of a per-attempt timer that resets on requeue.
-  if (!hasColumn("jobs", "attempts")) {
+  if (!hasColumn(d, "jobs", "attempts")) {
     d.run("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0");
   }
-  if (!hasColumn("jobs", "first_started_at")) {
+  if (!hasColumn(d, "jobs", "first_started_at")) {
     d.run("ALTER TABLE jobs ADD COLUMN first_started_at INTEGER");
   }
   // Record on each version which engine + settings produced it.
-  if (!hasColumn("versions", "provider")) {
+  if (!hasColumn(d, "versions", "provider")) {
     d.run("ALTER TABLE versions ADD COLUMN provider TEXT");
   }
-  if (!hasColumn("versions", "provider_params")) {
+  if (!hasColumn(d, "versions", "provider_params")) {
     d.run("ALTER TABLE versions ADD COLUMN provider_params TEXT");
   }
   // Credits spent to produce this version (Higgsfield). NULL for free/chatgpt.
-  if (!hasColumn("versions", "credits")) {
+  if (!hasColumn(d, "versions", "credits")) {
     d.run("ALTER TABLE versions ADD COLUMN credits REAL");
   }
   // Remember the last Higgsfield selection (model + params) chosen for a photo.
-  if (!hasColumn("photos", "higgsfield_selection")) {
+  if (!hasColumn(d, "photos", "higgsfield_selection")) {
     d.run("ALTER TABLE photos ADD COLUMN higgsfield_selection TEXT");
   }
   // Per-photo extra instructions, appended to the prompt on top of the config.
-  if (!hasColumn("photos", "extra_instructions")) {
+  if (!hasColumn(d, "photos", "extra_instructions")) {
     d.run("ALTER TABLE photos ADD COLUMN extra_instructions TEXT");
+  }
+  // Per-photo color-grade override (JSON ColorGrade). NULL = use the global grade.
+  if (!hasColumn(d, "photos", "grade_override")) {
+    d.run("ALTER TABLE photos ADD COLUMN grade_override TEXT");
   }
   // 'original' = imported source photo; 'generated' = created from scratch via a
   // text-to-image job (no source file; the first render becomes its original).
-  if (!hasColumn("photos", "kind")) {
+  if (!hasColumn(d, "photos", "kind")) {
     d.run("ALTER TABLE photos ADD COLUMN kind TEXT NOT NULL DEFAULT 'original'");
   }
   // 'edit' = transform photo.original_path with the prompt (default);
   // 'generate' = text-to-image, no source image.
-  if (!hasColumn("jobs", "mode")) {
+  if (!hasColumn(d, "jobs", "mode")) {
     d.run("ALTER TABLE jobs ADD COLUMN mode TEXT NOT NULL DEFAULT 'edit'");
+  }
+  // Override input image for an edit job. NULL = use photo.original_path.
+  // Set by the bake orchestrator so a generative ('ai') step edits the working
+  // image produced by the previous step (enables multi-pass pipelines).
+  if (!hasColumn(d, "jobs", "input_path")) {
+    d.run("ALTER TABLE jobs ADD COLUMN input_path TEXT");
   }
 
   const has = d
@@ -191,6 +215,11 @@ export function initSchema(): void {
   );
 }
 
+/** Ensure the active project's DB exists and is schema-initialized. */
+export function initSchema(): void {
+  db();
+}
+
 export type PhotoRow = {
   id: string;
   original_path: string;
@@ -200,6 +229,7 @@ export type PhotoRow = {
   config_override: string | null;
   higgsfield_selection: string | null;
   extra_instructions: string | null;
+  grade_override: string | null;
   kind: "original" | "generated";
   taken_at: number | null;
   created_at: number;
@@ -228,6 +258,7 @@ export type JobRow = {
   provider: "chatgpt" | "higgsfield";
   provider_params: string | null;
   mode: "edit" | "generate";
+  input_path: string | null;
   progress: string | null;
   seen: number;
   attempts: number;
@@ -283,27 +314,114 @@ export function setDefaultConfig(json: string): void {
 }
 
 // ---- Color grade (local, deterministic look applied on top of generations) --
-// One global look for the whole set: same LUT + dose + AWB everywhere, so the
-// output reads as a consistent, uniform base. Stored as JSON in settings.color_grade.
-export type ColorGrade = {
+// The color pipeline is an ORDERED LIST of steps (WB · levels · sakura · LUT ·
+// color). Each step can be toggled, has its own params, and the order is
+// editable. The same structure is overridable per photo (photos.grade_override).
+// Stored as JSON in settings.color_grade.
+// 'ai' is a GENERATIVE step: it re-renders the working image through a provider
+// (ChatGPT/Higgsfield) using an embedded PromptConfig. It is NOT part of the
+// live/deterministic color pipeline (the /graded preview skips it) — it only
+// runs during a "bake", where its output feeds the next step.
+export type GradeStepType = "white_balance" | "levels" | "sakura" | "lut" | "color" | "ai";
+
+export type GradeStep = {
+  /** stable id (React keys / reordering). */
+  id: string;
+  type: GradeStepType;
   enabled: boolean;
-  /** LUT id = path relative to LUT_DIR (see config.ts). "" = no LUT. */
-  lut: string;
-  /** LUT intensity 0-100. */
-  dose: number;
-  /** Robust auto white balance (cast estimated from neutral pixels) before the LUT. */
-  awb: boolean;
-  /** Pink pop: brighten + slightly desaturate pink hues for a coherent look. */
-  pop: boolean;
+  /** Type-specific params. For deterministic steps these are scalars
+   *  (dose/lut for 'lut', temp/tint… for 'color'…); for an 'ai' step they hold
+   *  { provider, config: Partial<PromptConfig> } — hence the loose value type. */
+  params: Record<string, unknown>;
 };
 
-export const DEFAULT_COLOR_GRADE: ColorGrade = {
-  enabled: false,
-  lut: "",
-  dose: 55,
-  awb: true,
-  pop: true,
+export type ColorGrade = {
+  /** Master switch: off = serve the ungraded original. */
+  enabled: boolean;
+  /** Steps executed in order. */
+  steps: GradeStep[];
 };
+
+/** LUT id = path relative to LUT_DIR (see config.ts). "" = no LUT. */
+export const DEFAULT_LUT = "CMG SUMMER 17 LUT/CMG SUMMER LUT '18.cube";
+
+/** Default chain: WB → levels → sakura → LUT → color. Purely DETERMINISTIC —
+ *  AI generation is NOT a chain step, it's the Input bookend (from-zero prompt or
+ *  regenerate favorites). Keeping generation out of the middle removes the
+ *  confusing "repeated + disabled AI step" and matches the input→steps→output model. */
+export function defaultSteps(): GradeStep[] {
+  return [
+    // AI edit = primo step della pipeline completa: rigenera l'immagine di lavoro
+    // (config vuota = eredita il "look del set"). Saltato dal display /graded,
+    // eseguito solo nel bake multi-pass. Vedi grade.ts deterministicSteps.
+    { id: "ai", type: "ai", enabled: true, params: { provider: "chatgpt", config: {} } },
+    { id: "wb", type: "white_balance", enabled: true, params: { awb: true, scene_match: true } },
+    { id: "levels", type: "levels", enabled: true, params: { black: 0.4, white: 99.6 } },
+    { id: "sakura", type: "sakura", enabled: true, params: {} },
+    { id: "lut", type: "lut", enabled: true, params: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 } },
+    { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
+  ];
+}
+
+export const DEFAULT_COLOR_GRADE: ColorGrade = { enabled: false, steps: defaultSteps() };
+
+const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "lut", "color", "ai"];
+let _sid = 0;
+
+/** Build steps from the old flat format (back-compat migration). */
+function stepsFromLegacy(f: Record<string, unknown>): GradeStep[] {
+  const awb = typeof f.awb === "boolean" ? f.awb : true;
+  const scene = typeof f.scene_match === "boolean" ? f.scene_match : true;
+  return [
+    { id: "ai", type: "ai", enabled: true, params: { provider: "chatgpt", config: {} } },
+    { id: "wb", type: "white_balance", enabled: awb || scene, params: { awb, scene_match: scene } },
+    { id: "levels", type: "levels", enabled: true, params: { black: 0.4, white: 99.6 } },
+    { id: "sakura", type: "sakura", enabled: typeof f.pop === "boolean" ? f.pop : true, params: {} },
+    {
+      id: "lut", type: "lut", enabled: true,
+      params: {
+        lut: typeof f.lut === "string" ? f.lut : DEFAULT_LUT,
+        dose: Number(f.dose ?? 80),
+        auto_dose: typeof f.auto_dose === "boolean" ? f.auto_dose : true,
+        dose_night: Number(f.dose_night ?? 30),
+      },
+    },
+    { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
+  ];
+}
+
+/** Sanitize/validate an arbitrary list of steps (from client or storage). */
+export function sanitizeSteps(raw: unknown): GradeStep[] {
+  if (!Array.isArray(raw)) return defaultSteps();
+  const out: GradeStep[] = [];
+  for (const s of raw) {
+    if (!s || typeof s !== "object") continue;
+    const o = s as Record<string, unknown>;
+    if (!STEP_TYPES.includes(o.type as GradeStepType)) continue;
+    const params = o.params && typeof o.params === "object" ? (o.params as Record<string, unknown>) : {};
+    out.push({
+      id: typeof o.id === "string" && o.id ? o.id : `s${++_sid}_${Date.now().toString(36)}`,
+      type: o.type as GradeStepType,
+      enabled: o.enabled !== false,
+      params,
+    });
+  }
+  return out.length ? out : defaultSteps();
+}
+
+/** Normalize any stored/received value into a step-based ColorGrade, migrating
+ *  the old flat format if necessary. */
+export function normalizeGrade(parsed: unknown): ColorGrade {
+  if (parsed && typeof parsed === "object") {
+    const o = parsed as Record<string, unknown>;
+    if (Array.isArray(o.steps)) {
+      return { enabled: o.enabled === true, steps: sanitizeSteps(o.steps) };
+    }
+    // old flat format → migrate
+    return { enabled: o.enabled === true, steps: stepsFromLegacy(o) };
+  }
+  return { enabled: false, steps: defaultSteps() };
+}
 
 export function getColorGrade(): ColorGrade {
   const row = db()
@@ -311,11 +429,11 @@ export function getColorGrade(): ColorGrade {
       "SELECT value FROM settings WHERE key = 'color_grade'",
     )
     .get();
-  if (!row?.value) return { ...DEFAULT_COLOR_GRADE };
+  if (!row?.value) return { enabled: false, steps: defaultSteps() };
   try {
-    return { ...DEFAULT_COLOR_GRADE, ...(JSON.parse(row.value) as Partial<ColorGrade>) };
+    return normalizeGrade(JSON.parse(row.value));
   } catch {
-    return { ...DEFAULT_COLOR_GRADE };
+    return { enabled: false, steps: defaultSteps() };
   }
 }
 
@@ -325,6 +443,18 @@ export function setColorGrade(cfg: ColorGrade): void {
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     [JSON.stringify(cfg)],
   );
+}
+
+/** Effective grade for a photo: per-photo override if present, else the global. */
+export function effectiveGrade(photo: PhotoRow): ColorGrade {
+  if (photo.grade_override) {
+    try {
+      return normalizeGrade(JSON.parse(photo.grade_override));
+    } catch {
+      /* corrupt override → fall back to the global */
+    }
+  }
+  return getColorGrade();
 }
 
 export function nextVersionNumber(photoId: string): number {
