@@ -194,6 +194,14 @@ export const DETAIL = {
 } as const;
 export type Detail = keyof typeof DETAIL;
 
+// High-level "art director" mode. Hands the model editorial agency to make the
+// single strongest edit — decisive cleanup of distracting bystanders/clutter and
+// a bolder recompose toward an iconic, impactful frame — while keeping any
+// retained face exactly as shot. Exposed in the UI as the "Direzione AI" switch;
+// previously this lived hidden inside `freeform`.
+export const ART_DIRECTION =
+  "act as the art director of this frame and commit to the single strongest edit: turn it into an iconic, impactful editorial photograph; use your own judgment on what serves the image — decisively remove bystanders, tourists and background clutter that weaken it, keep and elevate only the subject and elements that carry its meaning and emotion, and reframe to the most powerful composition; keep any retained face exactly as in the original";
+
 // ---- Preserve & Exclude blocks (multi-select) -----------------------------
 
 export const PRESERVE_OPTIONS = {
@@ -285,6 +293,9 @@ export type PromptConfig = {
   preserve: PreserveKey[];
   /** Which "Do not" clauses to include (multi-select). */
   exclude: ExcludeKey[];
+  /** "Direzione AI": give the model art-director agency (decisive cleanup +
+   *  bolder recompose toward an iconic frame). Appends ART_DIRECTION. */
+  art_direction?: boolean;
   /** Optional free-form additions appended to the change block. */
   freeform?: string;
 };
@@ -345,6 +356,7 @@ export const DEFAULT_CONFIG: PromptConfig = {
     "no_face_morph",
     "no_new_objects",
   ],
+  art_direction: true, // let the AI art-direct each frame toward an iconic result
   freeform: "",
 };
 
@@ -375,6 +387,7 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
     detail: override.detail ?? base.detail,
     preserve: Array.isArray(override.preserve) ? override.preserve : base.preserve,
     exclude: Array.isArray(override.exclude) ? override.exclude : base.exclude,
+    art_direction: override.art_direction ?? base.art_direction,
     freeform: (override.freeform ?? base.freeform ?? "").trim() || undefined,
   };
 }
@@ -403,6 +416,7 @@ export function assemblePrompt(c: PromptConfig): string {
   if (GEOMETRY[c.geometry]) changes.push(GEOMETRY[c.geometry]);
   if (COMPOSITION[c.composition]) changes.push(COMPOSITION[c.composition]);
   if (ASPECT_RATIO[c.aspect_ratio]) changes.push(ASPECT_RATIO[c.aspect_ratio]);
+  if (c.art_direction) changes.push(ART_DIRECTION);
   if (c.freeform?.trim()) changes.push(c.freeform.trim());
 
   const preserveText = (c.preserve ?? DEFAULT_PRESERVE)

@@ -26,6 +26,7 @@ import {
   Ban,
   PenLine,
   FileText,
+  Wand2,
 } from "lucide-react";
 import type { PromptConfig, PreserveKey, ExcludeKey } from "../api";
 
@@ -313,6 +314,7 @@ const TEXT_GROUPS: TextGroup[] = [
 const PRESERVE_LIST: { value: PreserveKey; label: string }[] = [
   { value: "composition", label: "Composizione e geometria" },
   { value: "identity", label: "Identità del soggetto / volti" },
+  { value: "faces_exact", label: "Volti identici all'originale" },
   { value: "time_of_day", label: "Ora del giorno e logica scena" },
   { value: "textures", label: "Textures e materiali" },
   { value: "signs_text", label: "Cartelli, testo, scritte" },
@@ -582,6 +584,48 @@ export default function PromptBuilder({
 
   return (
     <div ref={rootRef} className="space-y-4">
+      {/* Direzione AI — high-level art-director switch above the granular knobs.
+          When on, the model gets editorial agency (decisive cleanup + bolder
+          recompose toward an iconic frame); faces stay exactly as shot. */}
+      <button
+        type="button"
+        onClick={() => onChange({ ...value, art_direction: !value.art_direction })}
+        className={
+          "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors " +
+          (value.art_direction
+            ? "border-amber-600/50 bg-amber-900/20"
+            : "border-neutral-800 bg-neutral-950 hover:bg-neutral-900")
+        }
+      >
+        <Wand2
+          className={
+            "h-5 w-5 shrink-0 " +
+            (value.art_direction ? "text-amber-300" : "text-neutral-500")
+          }
+          strokeWidth={1.75}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Direzione AI</div>
+          <div className="text-[11px] leading-snug text-neutral-400">
+            L'AI fa da art director: pulizia decisa dei soggetti di disturbo e
+            ricomposizione per rendere lo scatto iconico. Volti invariati.
+          </div>
+        </div>
+        <span
+          className={
+            "relative ml-auto h-5 w-9 shrink-0 rounded-full transition-colors " +
+            (value.art_direction ? "bg-amber-500" : "bg-neutral-700")
+          }
+        >
+          <span
+            className={
+              "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all " +
+              (value.art_direction ? "left-[18px]" : "left-0.5")
+            }
+          />
+        </span>
+      </button>
+
       {/* Visual groups → icon dropdowns with preview cards */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
         {VISUAL_GROUPS.map((g) => {
