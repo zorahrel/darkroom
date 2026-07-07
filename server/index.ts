@@ -9,9 +9,8 @@ import {
   statSync,
   unlinkSync,
 } from "node:fs";
-import { dirname, extname, join } from "node:path";
+import { extname, join } from "node:path";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import {
   db,
   initSchema,
@@ -22,18 +21,29 @@ import {
   setDefaultConfig,
   getColorGrade,
   setColorGrade,
-  DEFAULT_COLOR_GRADE,
-  ROOT,
-  RAW_DIR,
-  GEN_DIR,
-  FINAL_DIR,
-  TEST1_DIR,
+  effectiveGrade,
+  normalizeGrade,
   type PhotoRow,
   type VersionRow,
   type OrphanRow,
   type ColorGrade,
 } from "./db.ts";
-import { LUT_DIR, GRADED_DIR, REPO_ROOT } from "./config.ts";
+import { LUT_DIR, REPO_ROOT, WORKER_BACKEND } from "./config.ts";
+import {
+  rawDir,
+  genDir,
+  finalDir,
+  test1Dir,
+  gradedDir,
+  withProject,
+  getProject,
+  listProjects,
+  addProject,
+  updateProject,
+  dirsFor,
+} from "./project.ts";
+import { runGradeSteps, deterministicSteps } from "./grade.ts";
+import { wbGainFor } from "./sceneWb.ts";
 import {
   DEFAULT_CONFIG,
   assemblePrompt,
@@ -48,10 +58,12 @@ import {
   listJobs,
   cancelPending,
   markJobSeen,
+  markAllFailedSeen,
   listJobsForPhoto,
   startRunner,
   getRunnerStatus,
 } from "./jobs.ts";
+import { bakePhoto } from "./bake.ts";
 import { thumbnailPath } from "./thumb.ts";
 import { checkChatgptBrowserAlive, launchChatgptBrowser, CHATGPT_CDP_URL } from "./worker.ts";
 import {
@@ -65,6 +77,18 @@ initSchema();
 
 const app = new Hono();
 app.use("*", cors());
+
+// Resolve the active project for every request from `?project=` or the
+// `x-darkroom-project` header, and run the handler inside that project's ALS
+// context so db()/genDir()/… resolve to it. Unknown/absent → the default
+// project (single-project back-compat). Static SPA assets are project-agnostic.
+app.use("*", async (c, next) => {
+  const pid = c.req.query("project") ?? c.req.header("x-darkroom-project") ?? "";
+  if (pid && getProject(pid)) {
+    return withProject(pid, () => next());
+  }
+  return next();
+});
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -85,7 +109,8 @@ function getVersionsFor(photoId: string): VersionRow[] {
 }
 
 function ensureFinalDir() {
-  if (!existsSync(FINAL_DIR)) mkdirSync(FINAL_DIR, { recursive: true });
+  const dir = finalDir();
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 /** Resolve the effective PromptConfig for a photo: photo override > settings default > built-in default. */
@@ -106,16 +131,35 @@ function withExtra(cfg: PromptConfig, photo: PhotoRow): PromptConfig {
 }
 
 // ---- Color grade (local look) ---------------------------------------------
-const COLOR_SCRIPT = join(REPO_ROOT, "scripts", "color_grade.py");
 
-/** Cache path for a graded image, keyed by source mtime/size + grade params +
- *  width. Params change ⇒ new key ⇒ auto-recompute; same params ⇒ instant hit. */
+function safeSeg(s: string): boolean {
+  return !(s.includes("..") || s.includes("/"));
+}
+
+/** The pipeline produces a live render only if enabled and with at least one
+ *  active DETERMINISTIC step. 'ai' steps are generative (bake-only) and never
+ *  drive the /graded preview. */
+function gradeActive(cfg: ColorGrade): boolean {
+  return cfg.enabled && cfg.steps.some((s) => s.enabled && s.type !== "ai");
+}
+
+/** Scene-match requested = there is an active white_balance step with scene_match on. */
+function sceneMatchRequested(cfg: ColorGrade): boolean {
+  return cfg.steps.some(
+    (s) => s.enabled && s.type === "white_balance" && s.params?.scene_match === true,
+  );
+}
+
+/** Cache path for a graded image, keyed by source mtime/size + steps + width.
+ *  Params change ⇒ new key ⇒ auto-recompute; same params ⇒ instant hit.
+ *  Only deterministic steps enter the key — 'ai' steps never affect the preview. */
 function gradedFile(
   photoId: string,
   filename: string,
   source: string,
   cfg: ColorGrade,
   width: number,
+  wbGain?: [number, number, number] | null,
 ): string {
   const st = statSync(source);
   const key = createHash("sha1")
@@ -123,41 +167,26 @@ function gradedFile(
       JSON.stringify({
         m: Math.round(st.mtimeMs),
         s: st.size,
-        lut: cfg.lut,
-        dose: cfg.dose,
-        awb: cfg.awb,
-        pop: cfg.pop,
+        steps: deterministicSteps(cfg.steps),
+        wb: wbGain ?? null,
         width,
       }),
     )
     .digest("hex")
     .slice(0, 16);
-  return join(GRADED_DIR, photoId, `${filename}.${key}.jpg`);
+  return join(gradedDir(), photoId, `${filename}.${key}.jpg`);
 }
 
 function runColorGrade(
   source: string,
   out: string,
   cfg: ColorGrade,
-  lutAbs: string,
   maxWidth: number,
   quality: number,
   timeoutMs: number,
+  wbGain?: [number, number, number] | null,
 ): boolean {
-  mkdirSync(dirname(out), { recursive: true });
-  const args = [
-    COLOR_SCRIPT,
-    "--input", source,
-    "--output", out,
-    "--lut", lutAbs,
-    "--dose", String(cfg.dose),
-    "--quality", String(quality),
-  ];
-  if (maxWidth > 0) args.push("--max-width", String(maxWidth));
-  if (cfg.awb) args.push("--awb");
-  if (cfg.pop) args.push("--pop");
-  const r = spawnSync("python3", args, { encoding: "utf8", timeout: timeoutMs });
-  return r.status === 0 && existsSync(out);
+  return runGradeSteps(source, out, cfg.steps, { maxWidth, quality, timeoutMs, wbGain });
 }
 
 // ---- API: photos -----------------------------------------------------------
@@ -219,6 +248,28 @@ app.get("/api/photos", (c) => {
   return c.json({ photos: rows });
 });
 
+// Per-filter counts for the grid filter bar (one pass, conditional aggregation).
+// Keys match the client Filter ids so the bar can index directly. MUST be
+// registered before "/api/photos/:id" or that route captures "counts" as :id.
+app.get("/api/photos/counts", (c) => {
+  const hasVersions = "(SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id)";
+  const row = db()
+    .query<Record<string, number>, []>(
+      `SELECT
+         COUNT(*) AS "all",
+         SUM(CASE WHEN ${hasVersions} = 0 THEN 1 ELSE 0 END) AS no_versions,
+         SUM(CASE WHEN ${hasVersions} > 0 THEN 1 ELSE 0 END) AS with_versions,
+         SUM(CASE WHEN p.favorite_version_id IS NULL THEN 1 ELSE 0 END) AS no_favorite,
+         SUM(CASE WHEN p.favorite_version_id IS NOT NULL THEN 1 ELSE 0 END) AS with_favorite,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status IN ('pending','running')) THEN 1 ELSE 0 END) AS in_queue,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status = 'failed') AND ${hasVersions} = 0 THEN 1 ELSE 0 END) AS failed,
+         SUM(CASE WHEN p.config_override IS NOT NULL THEN 1 ELSE 0 END) AS with_override
+       FROM photos p`,
+    )
+    .get();
+  return c.json({ counts: row ?? {} });
+});
+
 app.get("/api/photos/:id", (c) => {
   const id = c.req.param("id");
   const photo = getPhoto(id);
@@ -233,6 +284,8 @@ app.get("/api/photos/:id", (c) => {
     has_override: photo.config_override !== null,
     legacy_prompt: effectivePrompt(photo),
     global_prompt: getGlobalPrompt(),
+    effective_grade: effectiveGrade(photo),
+    has_grade_override: photo.grade_override !== null,
   });
 });
 
@@ -299,7 +352,7 @@ app.delete("/api/photos/:id/versions/:vid", (c) => {
   db().run("DELETE FROM versions WHERE id = ?", [vid]);
 
   // Remove the file from disk (only inside generations/)
-  if (v.image_path.startsWith(GEN_DIR) && existsSync(v.image_path)) {
+  if (v.image_path.startsWith(genDir()) && existsSync(v.image_path)) {
     try {
       unlinkSync(v.image_path);
     } catch {}
@@ -531,6 +584,25 @@ app.put("/api/photos/:id/config", async (c) => {
   return c.json({ ok: true, effective: effectiveConfig(fresh) });
 });
 
+// Per-photo color-grade override. body.grade = null → back to the global grade.
+app.put("/api/photos/:id/grade", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ grade: unknown }>().catch(() => null);
+  if (!body || !("grade" in body)) return c.json({ error: "grade missing" }, 400);
+  if (body.grade === null) {
+    db().run("UPDATE photos SET grade_override = NULL, updated_at = ? WHERE id = ?", [Date.now(), id]);
+    return c.json({ ok: true, cleared: true });
+  }
+  if (typeof body.grade !== "object") return c.json({ error: "bad grade" }, 400);
+  const next = normalizeGrade(body.grade);
+  db().run("UPDATE photos SET grade_override = ?, updated_at = ? WHERE id = ?", [
+    JSON.stringify(next), Date.now(), id,
+  ]);
+  return c.json({ ok: true, effective: next });
+});
+
 // ---- API: jobs -------------------------------------------------------------
 
 app.get("/api/jobs", (c) => {
@@ -550,6 +622,11 @@ app.post("/api/jobs/:id/seen", (c) => {
   const id = Number(c.req.param("id"));
   const ok = markJobSeen(id);
   return c.json({ ok });
+});
+
+app.post("/api/jobs/seen-failed", (c) => {
+  const dismissed = markAllFailedSeen();
+  return c.json({ ok: true, dismissed });
 });
 
 app.get("/api/photos/:id/jobs", (c) => {
@@ -581,7 +658,7 @@ app.post("/api/orphans/:filename/assign", async (c) => {
   if (!photo) return c.json({ error: "photo not found" }, 404);
 
   // Copy file into generations/<photo>/ and pick next free version slot
-  const dstDir = join(GEN_DIR, photo.id);
+  const dstDir = join(genDir(), photo.id);
   if (!existsSync(dstDir)) mkdirSync(dstDir, { recursive: true });
   const existing = getVersionsFor(photo.id);
   const nextV = (existing.at(-1)?.version_number ?? 0) + 1;
@@ -625,26 +702,29 @@ app.post("/api/export-favorites", (c) => {
        WHERE p.favorite_version_id IS NOT NULL`,
     )
     .all();
-  const cfg = getColorGrade();
-  const lutAbs = cfg.lut ? join(LUT_DIR, cfg.lut) : "";
-  const graded = cfg.enabled && !!lutAbs && existsSync(lutAbs);
+  const globalGrade = getColorGrade();
+  const graded = gradeActive(globalGrade);
   let copied = 0;
   for (const r of rows) {
     if (!existsSync(r.image_path)) continue;
-    if (graded) {
+    // Each favorite uses ITS effective grade (per-photo override if present).
+    const photo = getPhoto(r.photo_id);
+    const cfg = photo ? effectiveGrade(photo) : globalGrade;
+    if (gradeActive(cfg)) {
       // Full-res graded JPG (no downscale) — the real deliverable.
-      const dst = join(FINAL_DIR, `${r.photo_id}.jpg`);
-      if (runColorGrade(r.image_path, dst, cfg, lutAbs, 0, 95, 120000)) {
+      const dst = join(finalDir(), `${r.photo_id}.jpg`);
+      const wbGain = sceneMatchRequested(cfg) ? wbGainFor(r.photo_id) : null;
+      if (runColorGrade(r.image_path, dst, cfg, 0, 95, 120000, wbGain)) {
         copied++;
         continue;
       }
       // fall through to raw copy on grade error
     }
-    const dst = join(FINAL_DIR, `${r.photo_id}.png`);
+    const dst = join(finalDir(), `${r.photo_id}.png`);
     copyFileSync(r.image_path, dst);
     copied++;
   }
-  return c.json({ copied, total: rows.length, dir: FINAL_DIR, graded });
+  return c.json({ copied, total: rows.length, dir: finalDir(), graded });
 });
 
 // ---- API: color grade ------------------------------------------------------
@@ -672,18 +752,11 @@ app.get("/api/luts", (c) => {
 app.get("/api/settings/color-grade", (c) => c.json({ grade: getColorGrade() }));
 
 app.put("/api/settings/color-grade", async (c) => {
-  const body = await c.req.json<{ grade: Partial<ColorGrade> }>().catch(() => null);
-  if (!body || typeof body.grade !== "object") {
+  const body = await c.req.json<{ grade: unknown }>().catch(() => null);
+  if (!body || typeof body.grade !== "object" || body.grade === null) {
     return c.json({ error: "grade missing" }, 400);
   }
-  const g = body.grade;
-  const next: ColorGrade = {
-    enabled: typeof g.enabled === "boolean" ? g.enabled : DEFAULT_COLOR_GRADE.enabled,
-    lut: typeof g.lut === "string" ? g.lut : DEFAULT_COLOR_GRADE.lut,
-    dose: Math.max(0, Math.min(100, Number(g.dose ?? DEFAULT_COLOR_GRADE.dose))),
-    awb: typeof g.awb === "boolean" ? g.awb : DEFAULT_COLOR_GRADE.awb,
-    pop: typeof g.pop === "boolean" ? g.pop : DEFAULT_COLOR_GRADE.pop,
-  };
+  const next = normalizeGrade(body.grade);
   setColorGrade(next);
   return c.json({ ok: true, grade: next });
 });
@@ -778,6 +851,51 @@ app.get("/api/pipeline/status", (c) => {
     favorites: favs?.n ?? 0,
     queue: jobsBy,
   });
+});
+
+// Bake the full pipeline (deterministic grade + generative 'ai' steps) for one
+// photo into a committed final version. Awaited: fast for grade-only chains,
+// minutes when an 'ai' step is present (the client shows progress).
+app.post("/api/pipeline/bake/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!getPhoto(id)) return c.json({ error: "not found" }, 404);
+  const result = await bakePhoto(id);
+  return c.json(result, result.ok ? 200 : 400);
+});
+
+// Bake every favorite. Runs in the background (a full set with 'ai' steps can
+// take a long time and must stay serialized on the single shared worker) and
+// returns immediately; progress is observable via versions/jobs + bake status.
+let bakeBatch: { running: boolean; total: number; done: number; failed: number; current: string | null } = {
+  running: false, total: 0, done: 0, failed: 0, current: null,
+};
+
+app.get("/api/pipeline/bake-status", (c) => c.json(bakeBatch));
+
+app.post("/api/pipeline/bake-favorites", (c) => {
+  if (bakeBatch.running) return c.json({ error: "bake already running", status: bakeBatch }, 409);
+  const rows = db()
+    .query<{ id: string }, []>(
+      `SELECT id FROM photos WHERE favorite_version_id IS NOT NULL
+       ORDER BY (taken_at IS NULL) ASC, taken_at ASC, id ASC`,
+    )
+    .all();
+  bakeBatch = { running: true, total: rows.length, done: 0, failed: 0, current: null };
+  void (async () => {
+    for (const r of rows) {
+      bakeBatch.current = r.id;
+      try {
+        const res = await bakePhoto(r.id);
+        if (res.ok) bakeBatch.done++;
+        else bakeBatch.failed++;
+      } catch {
+        bakeBatch.failed++;
+      }
+    }
+    bakeBatch.current = null;
+    bakeBatch.running = false;
+  })();
+  return c.json({ started: rows.length });
 });
 
 // ---- API: runs (generation batches) ----------------------------------------
@@ -897,7 +1015,7 @@ app.get("/raw/:filename", (c) => {
   if (filename.includes("..") || filename.includes("/")) {
     return new Response("bad request", { status: 400 });
   }
-  return serveFile(join(RAW_DIR, filename));
+  return serveFile(join(rawDir(), filename));
 });
 
 // Serve a photo's original by id, reading its stored path directly. Works for
@@ -923,7 +1041,7 @@ app.get("/gen/:photoId/:filename", (c) => {
   ) {
     return new Response("bad request", { status: 400 });
   }
-  return serveFile(join(GEN_DIR, photoId, filename));
+  return serveFile(join(genDir(), photoId, filename));
 });
 
 app.get("/orphan/:filename", (c) => {
@@ -931,7 +1049,7 @@ app.get("/orphan/:filename", (c) => {
   if (filename.includes("..") || filename.includes("/")) {
     return new Response("bad request", { status: 400 });
   }
-  return serveFile(join(TEST1_DIR, filename));
+  return serveFile(join(test1Dir(), filename));
 });
 
 function parseWidth(c: { req: { query: (k: string) => string | undefined } }, def: number, max = 3200): number {
@@ -963,7 +1081,7 @@ app.get("/thumb/gen/:photoId/:filename", async (c) => {
   ) {
     return new Response("bad request", { status: 400 });
   }
-  const source = join(GEN_DIR, photoId, filename);
+  const source = join(genDir(), photoId, filename);
   try {
     const path = await thumbnailPath(source, parseWidth(c, 720));
     return serveFile(path, "image/jpeg");
@@ -977,7 +1095,7 @@ app.get("/thumb/orphan/:filename", async (c) => {
   if (filename.includes("..") || filename.includes("/")) {
     return new Response("bad request", { status: 400 });
   }
-  const source = join(TEST1_DIR, filename);
+  const source = join(test1Dir(), filename);
   try {
     const path = await thumbnailPath(source, parseWidth(c, 480));
     return serveFile(path, "image/jpeg");
@@ -986,42 +1104,145 @@ app.get("/thumb/orphan/:filename", async (c) => {
   }
 });
 
-// Serve a generation with the global color look (LUT + AWB + pink pop) applied
-// on the fly, cached on disk by a params-hash. Grade off / LUT missing / grade
-// error all fail open to the ungraded generation, so the grid never breaks.
+// Serve a generation with the color look (step engine: WB + levels + sakura +
+// LUT + color) applied on the fly, cached on disk by a params-hash. Grade off /
+// no active steps / grade error all fail open to the ungraded generation, so the
+// grid never breaks.
 app.get("/graded/:photoId/:filename", (c) => {
   const photoId = c.req.param("photoId");
   const filename = c.req.param("filename");
-  if (
-    photoId.includes("..") ||
-    photoId.includes("/") ||
-    filename.includes("..") ||
-    filename.includes("/")
-  ) {
+  if (!safeSeg(photoId) || !safeSeg(filename)) {
     return new Response("bad request", { status: 400 });
   }
-  const source = join(GEN_DIR, photoId, filename);
+  const source = join(genDir(), photoId, filename);
   if (!existsSync(source)) return new Response("not found", { status: 404 });
-  const cfg = getColorGrade();
-  const lutAbs = cfg.lut ? join(LUT_DIR, cfg.lut) : "";
-  const width = parseWidth(c, 1600);
-  if (!cfg.enabled || !lutAbs || !existsSync(lutAbs)) {
-    return serveFile(source); // grade disabled or LUT gone → passthrough
+
+  // Grade base = per-photo override if present, else the global; then optional
+  // query params (unsaved live preview) override it.
+  const photo = getPhoto(photoId);
+  const base = photo ? effectiveGrade(photo) : getColorGrade();
+  const cfg = gradeFromQuery(c, base);
+  if (!gradeActive(cfg)) {
+    return serveFile(source); // passthrough — ungraded original
   }
-  const out = gradedFile(photoId, filename, source, cfg, width);
+  const width = parseWidth(c, 1600, 3200);
+  const wbGain = sceneMatchRequested(cfg) ? wbGainFor(photoId) : null;
+  const out = gradedFile(photoId, filename, source, cfg, width, wbGain);
   if (!existsSync(out)) {
-    const ok = runColorGrade(source, out, cfg, lutAbs, width, 90, 60000);
-    if (!ok) return serveFile(source); // fail-open
+    const ok = runColorGrade(source, out, cfg, width, 90, 60000, wbGain);
+    if (!ok) return serveFile(source); // fail open on grade error
   }
   return serveFile(out, "image/jpeg");
+});
+
+// Overlay an UNSAVED grade passed as a JSON blob in the `g` query param, so a
+// client (the live preview / per-photo editor) can render a grade before it's
+// persisted. No `g` ⇒ returns `base` untouched (grid keeps stored-grade behavior).
+function gradeFromQuery(
+  c: { req: { query: (k: string) => string | undefined } },
+  base: ColorGrade,
+): ColorGrade {
+  const g = c.req.query("g");
+  if (!g) return base;
+  try {
+    return normalizeGrade(JSON.parse(g));
+  } catch {
+    return base;
+  }
+}
+
+// ---- API: Studio (multi-project overview) ---------------------------------
+// Aggregates, for every registered project, its pipeline/queue state so a
+// single top-level page can supervise all local projects. The worker (shared
+// ChatGPT browser) is global, so its health/runner status is reported once.
+
+/** Gather a project's headline stats within its own DB context. */
+function projectStats(pid: string) {
+  return withProject(pid, () => {
+    const d = db();
+    const one = (sql: string): number =>
+      d.query<{ n: number }, []>(sql).get()?.n ?? 0;
+    const favorites = one(
+      "SELECT COUNT(*) AS n FROM photos WHERE favorite_version_id IS NOT NULL",
+    );
+    const photos = one("SELECT COUNT(*) AS n FROM photos");
+    const versions = one("SELECT COUNT(*) AS n FROM versions");
+    const last =
+      d.query<{ t: number | null }, []>(
+        "SELECT MAX(created_at) AS t FROM versions",
+      ).get()?.t ?? null;
+    return { favorites, photos, versions, queue: jobsSummary(), last_version_at: last };
+  });
+}
+
+app.get("/api/studio/projects", async (c) => {
+  const projects = listProjects().map((p) => {
+    const d = dirsFor(p.id);
+    let stats: ReturnType<typeof projectStats> | null = null;
+    let error: string | null = null;
+    try {
+      stats = projectStats(p.id);
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    return {
+      ...p,
+      db_path: d.DB_PATH,
+      root_exists: existsSync(p.root),
+      stats,
+      error,
+    };
+  });
+  const browserAlive =
+    WORKER_BACKEND === "codex" ? null : await checkChatgptBrowserAlive().catch(() => false);
+  return c.json({
+    projects,
+    worker: {
+      backend: WORKER_BACKEND,
+      browser_alive: browserAlive,
+      runner: getRunnerStatus(),
+    },
+  });
+});
+
+app.post("/api/studio/projects", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    id?: string;
+    name?: string;
+    root?: string;
+  };
+  const root = (body.root ?? "").trim();
+  if (!root || !existsSync(root)) {
+    return c.json({ error: `root inesistente: ${root || "(vuoto)"}` }, 400);
+  }
+  try {
+    const project = addProject({ id: body.id ?? "", name: body.name, root });
+    return c.json({ project });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+  }
+});
+
+app.patch("/api/studio/projects/:pid", async (c) => {
+  const pid = c.req.param("pid");
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string;
+    active?: boolean;
+  };
+  const project = updateProject(pid, body);
+  if (!project) return c.json({ error: "progetto non trovato" }, 404);
+  return c.json({ project });
 });
 
 // ---- Static: built SPA (dist) + live filter previews -----------------------
 // Lets the dashboard be served from the backend port directly (no separate
 // Vite needed). Previews are served live from client/public so freshly
 // generated thumbnails show up without a rebuild.
-const DIST_DIR = join(ROOT, "dist");
-const PUBLIC_DIR = join(ROOT, "client", "public");
+// The built SPA + previews are part of the APP, not a project's data — serve
+// them from the repo (where `vite build` emits dist/), independent of the
+// active project. (Vite's outDir is <repo>/dist.)
+const DIST_DIR = join(REPO_ROOT, "dist");
+const PUBLIC_DIR = join(REPO_ROOT, "client", "public");
 
 app.get("/previews/*", (c) => {
   const rel = c.req.path.replace(/^\/+/, "");
@@ -1044,9 +1265,10 @@ const PORT = Number(process.env.PORT ?? 3535);
 startRunner();
 
 console.log(`Darkroom server listening on http://localhost:${PORT}`);
-console.log(`  RAW:         ${RAW_DIR}`);
-console.log(`  generations: ${GEN_DIR}`);
-console.log(`  final:       ${FINAL_DIR}`);
+console.log(`  projects:    ${listProjects().map((p) => p.id).join(", ")}`);
+console.log(`  RAW:         ${rawDir()}`);
+console.log(`  generations: ${genDir()}`);
+console.log(`  final:       ${finalDir()}`);
 
 export default {
   port: PORT,

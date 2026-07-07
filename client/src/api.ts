@@ -36,7 +36,7 @@ export type Photo = {
 };
 
 export type PreserveKey =
-  | "composition" | "identity" | "time_of_day" | "textures"
+  | "composition" | "identity" | "faces_exact" | "time_of_day" | "textures"
   | "signs_text" | "color_balance" | "weather" | "cast_shadows"
   | "lighting_direction" | "nature_colors" | "natural_grain";
 
@@ -70,6 +70,9 @@ export type PromptConfig = {
   detail: "off" | "restore-authentic" | "enhance";
   preserve: PreserveKey[];
   exclude: ExcludeKey[];
+  /** "Direzione AI": hand the model art-director agency (decisive cleanup +
+   *  bolder recompose toward an iconic frame). */
+  art_direction?: boolean;
   freeform?: string;
 };
 
@@ -80,6 +83,10 @@ export type PhotoDetail = {
   effective_config: PromptConfig;
   has_override: boolean;
   global_prompt: string;
+  /** Effective grade for this photo (per-photo override or the global). */
+  effective_grade: ColorGrade;
+  /** True if this photo has a dedicated grade override. */
+  has_grade_override: boolean;
 };
 
 export type Job = {
@@ -152,11 +159,76 @@ export type Health = {
   hint: string | null;
 };
 
+// ---- Studio (multi-project overview) --------------------------------------
+export type ProjectStats = {
+  favorites: number;
+  photos: number;
+  versions: number;
+  queue: Record<string, number>;
+  last_version_at: number | null;
+};
+
+export type StudioProject = {
+  id: string;
+  name: string;
+  root: string;
+  active: boolean;
+  created_at: number;
+  db_path: string;
+  root_exists: boolean;
+  stats: ProjectStats | null;
+  error: string | null;
+};
+
+export type StudioOverview = {
+  projects: StudioProject[];
+  worker: {
+    backend: string;
+    browser_alive: boolean | null;
+    runner: RunnerStatus;
+  };
+};
+
+// ---- Active project (multi-project / Studio) ------------------------------
+// The active project is taken from the URL path (`/p/:pid/...`) so links are
+// shareable/bookmarkable and Back/Forward move between projects. It's sent on
+// every API call via the `x-darkroom-project` header and appended as
+// `?project=` to image URLs (which can't carry custom headers). No `/p/:pid`
+// segment (e.g. `/studio`) = the server's default project.
+export function currentProject(): string {
+  if (typeof window === "undefined") return "";
+  const m = window.location.pathname.match(/^\/p\/([^/]+)/);
+  return m && m[1] ? decodeURIComponent(m[1]) : "";
+}
+
+/** Remember the last-opened project so `/` can land back on it. */
+export function rememberProject(pid: string): void {
+  if (typeof localStorage === "undefined") return;
+  if (pid) localStorage.setItem("darkroom.project", pid);
+  else localStorage.removeItem("darkroom.project");
+}
+
+/** Last-opened project (for the `/` landing redirect / Studio highlight). */
+export function lastProject(): string {
+  if (typeof localStorage === "undefined") return "";
+  return localStorage.getItem("darkroom.project") || "";
+}
+
+/** Append the active project as a query param (for <img> URLs). */
+function pq(url: string): string {
+  const p = currentProject();
+  if (!p) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}project=${encodeURIComponent(p)}`;
+}
+
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const p = currentProject();
   const res = await fetch(url, {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...(p ? { "x-darkroom-project": p } : {}),
       ...(init?.headers ?? {}),
     },
   });
@@ -232,6 +304,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ config }),
     }),
+  setPhotoGrade: (id: string, grade: ColorGrade | null) =>
+    jsonFetch<{ ok: true; effective?: ColorGrade; cleared?: boolean }>(
+      `/api/photos/${encodeURIComponent(id)}/grade`,
+      { method: "PUT", body: JSON.stringify({ grade }) },
+    ),
   higgsfieldStatus: () =>
     jsonFetch<HiggsfieldStatus>("/api/higgsfield/status"),
   higgsfieldModels: () =>
@@ -251,11 +328,17 @@ export const api = {
       `/api/photos/${encodeURIComponent(id)}/generate-higgsfield`,
       { method: "POST", body: JSON.stringify({ model, params }) },
     ),
+  photoCounts: () =>
+    jsonFetch<{ counts: Record<string, number> }>("/api/photos/counts"),
   jobs: () => jsonFetch<JobsPayload>("/api/jobs"),
   cancelJob: (id: number) =>
     jsonFetch(`/api/jobs/${id}/cancel`, { method: "POST" }),
   markJobSeen: (id: number) =>
     jsonFetch<{ ok: boolean }>(`/api/jobs/${id}/seen`, { method: "POST" }),
+  markAllFailedSeen: () =>
+    jsonFetch<{ ok: true; dismissed: number }>("/api/jobs/seen-failed", {
+      method: "POST",
+    }),
   photoJobs: (id: string) =>
     jsonFetch<{ jobs: Job[] }>(
       `/api/photos/${encodeURIComponent(id)}/jobs`,
@@ -292,9 +375,26 @@ export const api = {
     jsonFetch<{ promoted: number }>("/api/pipeline/promote-latest", {
       method: "POST",
     }),
+  bake: (id: string) =>
+    jsonFetch<BakeResult>(`/api/pipeline/bake/${id}`, { method: "POST" }),
+  bakeFavorites: () =>
+    jsonFetch<{ started: number }>("/api/pipeline/bake-favorites", { method: "POST" }),
+  bakeStatus: () => jsonFetch<BakeStatus>("/api/pipeline/bake-status"),
   runs: () => jsonFetch<{ runs: Run[] }>("/api/runs"),
   runPhotos: (id: number) =>
     jsonFetch<{ photos: RunPhoto[] }>(`/api/runs/${id}/photos`),
+  // Studio: cross-project overview + registry management.
+  studioProjects: () => jsonFetch<StudioOverview>("/api/studio/projects"),
+  studioAddProject: (input: { id: string; name?: string; root: string }) =>
+    jsonFetch<{ project: StudioProject }>("/api/studio/projects", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  studioPatchProject: (pid: string, patch: { name?: string; active?: boolean }) =>
+    jsonFetch<{ project: StudioProject }>(
+      `/api/studio/projects/${encodeURIComponent(pid)}`,
+      { method: "PATCH", body: JSON.stringify(patch) },
+    ),
 };
 
 export type Run = {
@@ -333,15 +433,141 @@ export type PipelineStatus = {
   queue: Record<string, number>;
 };
 
+export type GradeStepType =
+  | "white_balance"
+  | "levels"
+  | "sakura"
+  | "lut"
+  | "color"
+  | "ai";
+
+export type GradeStep = {
+  id: string;
+  type: GradeStepType;
+  enabled: boolean;
+  /** Scalars for deterministic steps; for an 'ai' step: { provider, config }. */
+  params: Record<string, unknown>;
+};
+
+/** Params of an 'ai' (generative) step. */
+export type AiStepParams = {
+  provider: "chatgpt" | "higgsfield";
+  config: Partial<PromptConfig>;
+};
+
+export type BakeStepLog = {
+  index: number;
+  type: string;
+  kind: "grade" | "ai" | "skipped";
+  ok: boolean;
+  detail?: string;
+};
+
+export type BakeResult = {
+  ok: boolean;
+  photo_id: string;
+  version_id?: number;
+  image_path?: string;
+  steps: BakeStepLog[];
+  error?: string;
+};
+
+export type BakeStatus = {
+  running: boolean;
+  total: number;
+  done: number;
+  failed: number;
+  current: string | null;
+};
+
+/** The color pipeline = ordered list of steps (WB · levels · sakura · LUT · color). */
 export type ColorGrade = {
   enabled: boolean;
-  lut: string;
-  dose: number;
-  awb: boolean;
-  pop: boolean;
+  steps: GradeStep[];
 };
 
 export type Lut = { id: string; name: string; group: string };
+
+/** LUT id (relative to LUT_DIR) used as the default for a fresh LUT step —
+ *  kept in sync with the server's defaultSteps(). */
+export const DEFAULT_LUT = "CMG SUMMER 17 LUT/CMG SUMMER LUT '18.cube";
+
+/** Full built-in config, mirrors the server DEFAULT_CONFIG. Seeds a fresh 'ai'
+ *  step so PromptBuilder always edits a complete config. */
+export const DEFAULT_CONFIG: PromptConfig = {
+  preset: "cinematic",
+  film_stock: "none",
+  white_balance: "preserve",
+  geometry: "correct",
+  composition: "rebalance",
+  aspect_ratio: "preserve",
+  harmony: "off",
+  food: "enhance",
+  time_of_day: "preserve",
+  lighting: "preserve",
+  palette: "preserve",
+  contrast: "punchy",
+  grain: "none",
+  shadows: "crushed",
+  highlights: "warm-lift",
+  bloom: "subtle",
+  dof: "preserve",
+  skin_tones: "airy-lift",
+  atmosphere: "enhance",
+  cleanup: "minor",
+  detail: "off",
+  preserve: [
+    "identity", "faces_exact", "time_of_day", "textures",
+    "cast_shadows", "lighting_direction", "nature_colors", "natural_grain",
+  ],
+  exclude: [
+    "no_smoothing", "no_oversaturation", "no_neon_flare",
+    "no_chromatic_vignette", "no_face_morph", "no_new_objects",
+  ],
+  art_direction: true,
+  freeform: "",
+};
+
+export const STEP_LABELS: Record<GradeStepType, string> = {
+  white_balance: "Bilanciamento bianco",
+  levels: "Livelli",
+  sakura: "Sakura",
+  lut: "LUT",
+  color: "Color (finale)",
+  ai: "Generazione AI",
+};
+
+// Addable pipeline steps. "ai" = edit generativo (primo step della pipeline
+// completa): editabile, riordinabile, saltato dal display live, eseguito nel
+// bake multi-pass. Gli altri sono deterministici e applicati al volo su /graded.
+export const STEP_ORDER: GradeStepType[] = [
+  "ai",
+  "white_balance",
+  "levels",
+  "sakura",
+  "lut",
+  "color",
+];
+
+const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
+  white_balance: { awb: true, scene_match: false },
+  levels: { black: 0.4, white: 99.6 },
+  sakura: {},
+  lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
+  color: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 },
+  ai: { provider: "chatgpt", config: { ...DEFAULT_CONFIG } },
+};
+
+let _stepSeq = 0;
+/** New step of the given type with its default params. */
+export function newStep(type: GradeStepType): GradeStep {
+  return {
+    id: `s${Date.now().toString(36)}_${(_stepSeq++).toString(36)}`,
+    type,
+    enabled: true,
+    params: { ...STEP_DEFAULTS[type] },
+  };
+}
 
 /** URL of a generation with the global color look applied on the fly.
  *  `bust` changes when grade settings change, to defeat the browser cache. */
@@ -356,35 +582,51 @@ export function gradedUrl(
   if (w) params.set("w", String(w));
   if (bust !== undefined) params.set("b", String(bust));
   const q = params.toString();
-  return `/graded/${encodeURIComponent(photoId)}/${filename}${q ? "?" + q : ""}`;
+  return pq(`/graded/${encodeURIComponent(photoId)}/${filename}${q ? "?" + q : ""}`);
+}
+
+// Like gradedUrl but overlays an UNSAVED grade passed as a JSON blob in `g`, so
+// a preview can render the current step values before they're persisted. The
+// server caches per (steps,wbGain,width), so a grade already seen is instant.
+export function gradedPreviewUrl(
+  photoId: string,
+  versionNumber: number,
+  grade: ColorGrade,
+  w?: number,
+): string {
+  const filename = `v${String(versionNumber).padStart(2, "0")}.png`;
+  const p = new URLSearchParams();
+  if (w) p.set("w", String(w));
+  p.set("g", JSON.stringify(grade));
+  return pq(`/graded/${encodeURIComponent(photoId)}/${filename}?${p.toString()}`);
 }
 
 export function rawUrl(id: string, _ext?: string): string {
   // Canonical original URL: resolves the stored path server-side, so it works
   // for both imported originals and generated photos.
-  return `/orig/${encodeURIComponent(id)}`;
+  return pq(`/orig/${encodeURIComponent(id)}`);
 }
 
 export function thumbRawUrl(id: string, w?: number): string {
   const q = w ? `?w=${w}` : "";
-  return `/thumb/raw/${encodeURIComponent(id)}${q}`;
+  return pq(`/thumb/raw/${encodeURIComponent(id)}${q}`);
 }
 
 export function genUrl(photoId: string, versionNumber: number): string {
   const filename = `v${String(versionNumber).padStart(2, "0")}.png`;
-  return `/gen/${encodeURIComponent(photoId)}/${filename}`;
+  return pq(`/gen/${encodeURIComponent(photoId)}/${filename}`);
 }
 
 export function thumbGenUrl(photoId: string, versionNumber: number, w?: number): string {
   const filename = `v${String(versionNumber).padStart(2, "0")}.png`;
   const q = w ? `?w=${w}` : "";
-  return `/thumb/gen/${encodeURIComponent(photoId)}/${filename}${q}`;
+  return pq(`/thumb/gen/${encodeURIComponent(photoId)}/${filename}${q}`);
 }
 
 export function orphanUrl(filename: string): string {
-  return `/orphan/${encodeURIComponent(filename)}`;
+  return pq(`/orphan/${encodeURIComponent(filename)}`);
 }
 
 export function thumbOrphanUrl(filename: string): string {
-  return `/thumb/orphan/${encodeURIComponent(filename)}`;
+  return pq(`/thumb/orphan/${encodeURIComponent(filename)}`);
 }
