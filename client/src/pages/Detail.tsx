@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
   type PhotoDetail,
@@ -11,6 +11,7 @@ import {
   gradedPreviewUrl,
   STEP_LABELS,
 } from "../api";
+import { StageConnector } from "./Color";
 import VersionCarousel from "../components/VersionCarousel";
 import StepEditor from "../components/StepEditor";
 import PromptEditor from "../components/PromptEditor";
@@ -21,6 +22,7 @@ import PhotoJobsLog from "../components/PhotoJobsLog";
 export default function DetailPage() {
   const { pid, id } = useParams<{ pid: string; id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const base = pid ? `/p/${pid}` : "";
   const [data, setData] = useState<PhotoDetail | null>(null);
   const [currentVersion, setCurrentVersion] = useState(0);
@@ -46,9 +48,14 @@ export default function DetailPage() {
       : -1;
     const lastIdx = Math.max(0, d.versions.length - 1);
     if (initedRef.current !== id) {
-      // First load of this photo: prefer the favorite, else the newest version.
+      // First load of this photo: honor ?v=<version_number> deep-link,
+      // else prefer the favorite, else the newest version.
       initedRef.current = id;
-      setCurrentVersion(favIdx >= 0 ? favIdx : lastIdx);
+      const vParam = searchParams.get("v");
+      const vIdx = vParam
+        ? d.versions.findIndex((v) => v.version_number === Number(vParam))
+        : -1;
+      setCurrentVersion(vIdx >= 0 ? vIdx : favIdx >= 0 ? favIdx : lastIdx);
     } else if (d.versions.length > prevCountRef.current) {
       // A new version was just generated → jump to it.
       setCurrentVersion(lastIdx);
@@ -237,7 +244,15 @@ export default function DetailPage() {
           <VersionCarousel
             versions={versions}
             current={Math.min(currentVersion, Math.max(0, versions.length - 1))}
-            onChange={setCurrentVersion}
+            onChange={(idx) => {
+              setCurrentVersion(idx);
+              const vn = versions[idx]?.version_number;
+              if (vn != null) {
+                const next = new URLSearchParams(searchParams);
+                next.set("v", String(vn));
+                setSearchParams(next, { replace: true });
+              }
+            }}
             isFavorite={isFavorite}
             beforeSrc={rawUrl(photo.id, photo.original_ext)}
             onFavoriteToggle={async () => {
@@ -255,28 +270,19 @@ export default function DetailPage() {
         </div>
       </div>
 
-      {v && (
-        <PhotoGradeCard
-          photoId={photo.id}
-          versionNumber={v.version_number}
-          effectiveGrade={data.effective_grade}
-          hasOverride={data.has_grade_override}
-          luts={luts}
-          onSaved={refresh}
-        />
-      )}
-
-      <ExtraInstructionsCard
+      {/* Pipeline della foto: stessa grammatica della home (bookend colorati +
+          StageConnector). Input = generazione ChatGPT · Step = colore locale.
+          Un'unica anteprima sticky serve tutta la pipeline (hover-step incluso). */}
+      <PhotoPipeline
         photoId={photo.id}
-        initial={photo.extra_instructions ?? ""}
-        onSaved={refresh}
-      />
-
-      <PhotoConfigCard
-        photoId={photo.id}
-        config={effective_config}
-        hasOverride={has_override}
+        versionNumber={v ? v.version_number : null}
+        effectiveConfig={effective_config}
+        hasConfigOverride={has_override}
         prompt={effective_prompt}
+        extraInitial={photo.extra_instructions ?? ""}
+        effectiveGrade={data.effective_grade}
+        hasGradeOverride={data.has_grade_override}
+        luts={luts}
         onSaved={refresh}
       />
 
@@ -397,7 +403,7 @@ function ExtraInstructionsCard({
   const dirty = text.trim() !== initial.trim();
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-2">
+    <div className="space-y-2 border-t border-neutral-800/70 pt-3">
       <div className="flex items-center gap-2">
         <div className="text-xs font-medium text-neutral-300">
           Istruzioni extra per questa foto
@@ -461,21 +467,33 @@ function ExtraInstructionsCard({
 // La pipeline colore per LA SINGOLA foto: anteprima gradata live (tieni premuto
 // per la base) + editor degli step in override dedicato. Salva → override
 // per-foto; reset → torna al grade globale.
-function PhotoGradeCard({
+// L'intera pipeline della foto: un'unica anteprima sticky a sinistra (condivisa
+// da TUTTI gli stage, guidata dall'hover-step del colore) e gli stage a destra
+// nella stessa grammatica bookend della home — Input (viola) → Step (fucsia).
+function PhotoPipeline({
   photoId,
   versionNumber,
+  effectiveConfig,
+  hasConfigOverride,
+  prompt,
+  extraInitial,
   effectiveGrade,
-  hasOverride,
+  hasGradeOverride,
   luts,
   onSaved,
 }: {
   photoId: string;
-  versionNumber: number;
+  versionNumber: number | null;
+  effectiveConfig: PromptConfig;
+  hasConfigOverride: boolean;
+  prompt: string;
+  extraInitial: string;
   effectiveGrade: ColorGrade;
-  hasOverride: boolean;
+  hasGradeOverride: boolean;
   luts: Lut[];
   onSaved: () => Promise<unknown> | void;
 }) {
+  // Stato del colore condiviso fra l'anteprima (sinistra) e i controlli (destra).
   const [draft, setDraft] = useState<ColorGrade>(effectiveGrade);
   const [saving, setSaving] = useState(false);
   const [compare, setCompare] = useState(false);
@@ -488,6 +506,7 @@ function PhotoGradeCard({
   // Re-sync when the upstream effective grade changes (after refresh/save).
   useEffect(() => setDraft(effectiveGrade), [effSig]);
 
+  const hasVersion = versionNumber != null;
   const W = 720;
   // In hover, renderizza solo il prefisso [0..hoverStep] della catena: gli step
   // successivi vengono esclusi, così vedi il risultato cumulativo di quello step.
@@ -495,142 +514,195 @@ function PhotoGradeCard({
     hoverStep === null
       ? draft
       : { ...draft, steps: draft.steps.slice(0, hoverStep + 1) };
-  const previewSrc = gradedPreviewUrl(photoId, versionNumber, previewGrade, W);
-  const baseSrc = `/thumb/gen/${encodeURIComponent(photoId)}/v${String(versionNumber).padStart(2, "0")}.png?w=${W}`;
+  const previewSrc = hasVersion
+    ? gradedPreviewUrl(photoId, versionNumber, previewGrade, W)
+    : "";
+  const baseSrc = hasVersion
+    ? `/thumb/gen/${encodeURIComponent(photoId)}/v${String(versionNumber).padStart(2, "0")}.png?w=${W}`
+    : "";
   const dirty = JSON.stringify(draft) !== effSig;
   const showBase = compare || !draft.enabled;
   const hoveredStep = hoverStep === null ? null : draft.steps[hoverStep] ?? null;
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="text-xs font-medium text-neutral-300">
-          Pipeline colore — questa foto
-        </div>
-        {hasOverride ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">
-            override attivo
-          </span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
-            eredita il grade globale
-          </span>
-        )}
-        <div className="flex-1" />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={draft.enabled}
-            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-          />
-          <span className={draft.enabled ? "text-emerald-400" : "text-neutral-400"}>
-            {draft.enabled ? "Grade ON" : "Grade OFF"}
-          </span>
-        </label>
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-lg font-semibold">Pipeline — questa foto</h1>
+        <p className="text-sm text-neutral-400 max-w-2xl">
+          Override locali sopra il default del set: prima la{" "}
+          <b className="text-neutral-200">generazione</b> ChatGPT, poi il{" "}
+          <b className="text-neutral-200">colore</b>. L'anteprima a lato segue la
+          pipeline — passa sopra uno step del colore per vederci fino a lì.
+        </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
-        <div
-          className="relative w-full lg:w-80 flex-none aspect-[4/5] rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 select-none"
-          onMouseDown={() => setCompare(true)}
-          onMouseUp={() => setCompare(false)}
-          onMouseLeave={() => setCompare(false)}
-          title="Tieni premuto per vedere la base (senza grade)"
-        >
-          <img
-            src={previewSrc}
-            alt="anteprima gradata"
-            className="absolute inset-0 w-full h-full object-cover"
-            draggable={false}
-          />
-          <img
-            src={baseSrc}
-            alt="base"
-            className={
-              "absolute inset-0 w-full h-full object-cover transition-opacity " +
-              (showBase ? "opacity-100" : "opacity-0")
-            }
-            draggable={false}
-          />
-          <span className="absolute bottom-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-            {showBase
-              ? "base (no grade)"
-              : hoveredStep
-                ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
-                : "grade completo"}
-          </span>
-        </div>
-
-        <div className="flex-1 w-full space-y-3">
-          <StepEditor
-            grade={draft}
-            onChange={setDraft}
-            luts={luts}
-            onHoverStep={setHoverStep}
-          />
-          <div className="flex items-center justify-end gap-2">
-            {bakeMsg && (
-              <span className="text-[11px] text-neutral-400 mr-auto">{bakeMsg}</span>
-            )}
-            <button
-              disabled={baking || dirty}
-              title={
-                dirty
-                  ? "Salva o resetta l'override prima del bake"
-                  : hasAiStep
-                    ? "Esegue la pipeline (inclusi gli step AI) e committa il risultato"
-                    : "Applica il grade in modo permanente su una nuova versione"
+      <div
+        className={
+          hasVersion
+            ? "grid gap-5 lg:grid-cols-[20rem_1fr] items-start"
+            : "space-y-1"
+        }
+      >
+        {/* ANTEPRIMA UNICA — sticky, condivisa da tutta la pipeline */}
+        {hasVersion && (
+          <div
+            className="relative w-full aspect-[4/5] rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 select-none lg:sticky lg:top-16 self-start"
+            onMouseEnter={() => setCompare(true)}
+            onMouseLeave={() => setCompare(false)}
+            title="Passa il mouse per vedere l'originale ChatGPT (senza grade)"
+          >
+            <img
+              src={previewSrc}
+              alt="anteprima gradata"
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+            />
+            <img
+              src={baseSrc}
+              alt="base"
+              className={
+                "absolute inset-0 w-full h-full object-cover transition-opacity " +
+                (showBase ? "opacity-100" : "opacity-0")
               }
-              onClick={async () => {
-                setBaking(true);
-                setBakeMsg(hasAiStep ? "Bake in corso (step AI, può richiedere minuti)…" : "Bake…");
-                try {
-                  const res = await api.bake(photoId);
-                  setBakeMsg(res.ok ? "Bake completato ✓" : `Bake fallito: ${res.error ?? "?"}`);
-                  if (res.ok) await onSaved();
-                } catch (e) {
-                  setBakeMsg(`Bake fallito: ${e instanceof Error ? e.message : String(e)}`);
-                } finally {
-                  setBaking(false);
-                }
-              }}
-              className="text-sm px-3 py-1.5 rounded border border-violet-700 text-violet-200 hover:bg-violet-900/40 disabled:opacity-50"
-            >
-              {baking ? "Bake…" : hasAiStep ? "Bake (AI)" : "Bake"}
-            </button>
-            {hasOverride && (
-              <button
-                disabled={saving}
-                onClick={async () => {
-                  setSaving(true);
-                  try {
-                    await api.setPhotoGrade(photoId, null);
-                    await onSaved();
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
-              >
-                Reset al globale
-              </button>
-            )}
-            <button
-              disabled={saving || !dirty}
-              onClick={async () => {
-                setSaving(true);
-                try {
-                  await api.setPhotoGrade(photoId, draft);
-                  await onSaved();
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50"
-            >
-              {saving ? "Salvo…" : "Salva override (solo questa foto)"}
-            </button>
+              draggable={false}
+            />
+            <span className="absolute bottom-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+              {showBase
+                ? "originale ChatGPT (no grade)"
+                : hoveredStep
+                  ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
+                  : "grade completo"}
+            </span>
           </div>
+        )}
+
+        {/* GLI STAGE — a destra dell'anteprima, uno sotto l'altro */}
+        <div className="space-y-1 min-w-0">
+          {/* STAGE — INPUT: la generazione ChatGPT (config + istruzioni) */}
+          <section className="p-3 rounded-xl border border-violet-900/50 bg-violet-950/10 space-y-4">
+            <PhotoConfigCard
+              photoId={photoId}
+              config={effectiveConfig}
+              hasOverride={hasConfigOverride}
+              prompt={prompt}
+              onSaved={onSaved}
+            />
+            <ExtraInstructionsCard
+              photoId={photoId}
+              initial={extraInitial}
+              onSaved={onSaved}
+            />
+          </section>
+
+          <StageConnector label="colore" />
+
+          {/* STAGE — STEP: il colore locale sopra la versione (per il display) */}
+          <section className="p-3 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-fuchsia-900/50 text-fuchsia-300 border border-fuchsia-900">
+                Step
+              </span>
+              <h2 className="text-sm font-semibold">Colore</h2>
+              {hasGradeOverride ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">
+                  override attivo
+                </span>
+              ) : (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
+                  eredita il grade globale
+                </span>
+              )}
+              <div className="flex-1" />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.enabled}
+                  onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+                />
+                <span className={draft.enabled ? "text-emerald-400" : "text-neutral-400"}>
+                  {draft.enabled ? "Grade ON" : "Grade OFF"}
+                </span>
+              </label>
+            </div>
+
+            {hasVersion ? (
+              <div className="space-y-3">
+                <StepEditor
+                  grade={draft}
+                  onChange={setDraft}
+                  luts={luts}
+                  onHoverStep={setHoverStep}
+                />
+                <div className="flex items-center justify-end gap-2">
+                  {bakeMsg && (
+                    <span className="text-[11px] text-neutral-400 mr-auto">{bakeMsg}</span>
+                  )}
+                  <button
+                    disabled={baking || dirty}
+                    title={
+                      dirty
+                        ? "Salva o resetta l'override prima del bake"
+                        : hasAiStep
+                          ? "Esegue la pipeline (inclusi gli step AI) e committa il risultato"
+                          : "Applica il grade in modo permanente su una nuova versione"
+                    }
+                    onClick={async () => {
+                      setBaking(true);
+                      setBakeMsg(hasAiStep ? "Bake in corso (step AI, può richiedere minuti)…" : "Bake…");
+                      try {
+                        const res = await api.bake(photoId);
+                        setBakeMsg(res.ok ? "Bake completato ✓" : `Bake fallito: ${res.error ?? "?"}`);
+                        if (res.ok) await onSaved();
+                      } catch (e) {
+                        setBakeMsg(`Bake fallito: ${e instanceof Error ? e.message : String(e)}`);
+                      } finally {
+                        setBaking(false);
+                      }
+                    }}
+                    className="text-sm px-3 py-1.5 rounded border border-violet-700 text-violet-200 hover:bg-violet-900/40 disabled:opacity-50"
+                  >
+                    {baking ? "Bake…" : hasAiStep ? "Bake (AI)" : "Bake"}
+                  </button>
+                  {hasGradeOverride && (
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        setSaving(true);
+                        try {
+                          await api.setPhotoGrade(photoId, null);
+                          await onSaved();
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
+                    >
+                      Reset al globale
+                    </button>
+                  )}
+                  <button
+                    disabled={saving || !dirty}
+                    onClick={async () => {
+                      setSaving(true);
+                      try {
+                        await api.setPhotoGrade(photoId, draft);
+                        await onSaved();
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {saving ? "Salvo…" : "Salva override (solo questa foto)"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-500">
+                Genera una versione per attivare il grade colore.
+              </p>
+            )}
+          </section>
         </div>
       </div>
     </div>
@@ -656,11 +728,12 @@ function PhotoConfigCard({
   useEffect(() => setDraft(config), [config]);
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="text-xs font-medium text-neutral-300">
-          Configurazione prompt per questa foto
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
+          Input
+        </span>
+        <h2 className="text-sm font-semibold">Generazione — ChatGPT</h2>
         {hasOverride ? (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">override attivo</span>
         ) : (

@@ -29,10 +29,11 @@ export default function PhotoCard({
   const [isFavorite, setIsFavorite] = useState(photo.favorite_version_id !== null);
   const [busy, setBusy] = useState(false);
 
-  // Serve a single high-res thumb regardless of card/zoom — keeps it sharp at
-  // any zoom level without srcset complexity. 2400px max-dim covers full screen
-  // even on retina @ 200% browser zoom.
-  const FULL_W = 2400;
+  // One thumb size for every zoom level (no srcset complexity). The grid tile
+  // maxes at 400px (zoom slider), so 1000px stays crisp even at max zoom on
+  // retina while rendering/transferring ~6x less than the old 2400px — the grid
+  // (esp. the on-the-fly /graded pass) was the load bottleneck.
+  const FULL_W = 1000;
   const previewVersion =
     previewVersionOverride ??
     photo.favorite_version_number ??

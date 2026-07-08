@@ -200,7 +200,7 @@ export type Detail = keyof typeof DETAIL;
 // retained face exactly as shot. Exposed in the UI as the "Direzione AI" switch;
 // previously this lived hidden inside `freeform`.
 export const ART_DIRECTION =
-  "act as the art director of this frame and commit to the single strongest edit: turn it into an iconic, impactful editorial photograph; use your own judgment on what serves the image — decisively remove bystanders, tourists and background clutter that weaken it, keep and elevate only the subject and elements that carry its meaning and emotion, and reframe to the most powerful composition; keep any retained face exactly as in the original";
+  "act as the art director of this frame and commit to the single strongest edit: turn it into an iconic, impactful editorial photograph; use your own judgment on what serves the image — decisively remove bystanders, tourists and background clutter that weaken it, keep and elevate only the subject and elements that carry its meaning and emotion, and reframe to the most powerful composition, cropping in tight or shifting the vantage point radically when it makes the image stronger; keep any retained face exactly as in the original";
 
 // ---- Preserve & Exclude blocks (multi-select) -----------------------------
 
@@ -314,40 +314,44 @@ export type PromptConfig = {
 // film_stock/harmony stay off: they shifted color per-image and broke set
 // consistency without adding to the cinematic look.
 export const DEFAULT_CONFIG: PromptConfig = {
-  preset: "cinematic",
-  film_stock: "none",
-  white_balance: "preserve", // keep the warm cinematic grade
-  geometry: "correct",       // full "perfect photo": fix converging verticals, level the frame
-  composition: "rebalance",  // gentle rebalance toward rule-of-thirds, without inventing content
-  aspect_ratio: "preserve",  // keep the original ratio by default
+  preset: "editorial",       // refined clean editorial grade
+  film_stock: "none",        // color is native — comes from the local LUT, not GPT
+  white_balance: "preserve", // keep native color/WB (LUT owns the grade)
+  geometry: "correct",       // fix converging verticals + level: real lens correction
+  composition: "recompose",  // bold recompose toward the iconic crop
+  aspect_ratio: "4:5",       // editorial vertical framing
   harmony: "off",            // shifts color per-image and breaks set consistency — keep off
   food: "enhance",
   time_of_day: "preserve",
-  lighting: "preserve",      // leave the original light mood by default
+  lighting: "hard-directional", // strong directional drama
   palette: "preserve",
   contrast: "punchy",        // amplify light/shadow contrast — drama
-  grain: "none",
+  grain: "fine",             // barely-visible 35mm grain: the strongest "real photo" tell, hides AI smoothness
   shadows: "crushed",        // deep moody shadows without clipping — drama
-  highlights: "warm-lift",   // gently lift + warm natural highlights
-  bloom: "subtle",           // was "glow" (too aggressive) — controlled glow on existing sources only
-  dof: "preserve",
-  skin_tones: "airy-lift",
-  atmosphere: "enhance",     // atmospheric haze/depth for cinematic mood
-  cleanup: "minor",          // remove minor distractions + subtle perspective cleanup
-  detail: "off",             // no forced detail recovery by default
-  // composition is now actively rebalanced, so it is NOT in preserve.
-  // identity stays preserved and no_face_morph is excluded → faces untouched.
+  highlights: "neutral",     // boost highlights without color shift (LUT owns color)
+  bloom: "glow",             // pronounced cinematic night-glow — drama
+  dof: "preserve",           // NO fake depth-of-field — believable optics across any lens
+  skin_tones: "preserve",
+  atmosphere: "clean",       // remove haze / increase clarity (drama)
+  cleanup: "aggressive-keep", // strip passersby/clutter, KEEP the iconic subject that carries the frame
+  detail: "restore-authentic", // bring back REAL materials/texture/reflections → reads photographic
+  // Drama stays, but grounded in the real scene: light DIRECTION, cast shadows and
+  // surface textures are preserved so the bold relight still reads as a true photo.
   preserve: [
-    "identity",
+    // NB: "identity" (subject identity/faces/POSES) intentionally dropped — it
+    // pinned every person's pose and blocked the declutter. Only the retained
+    // subject's FACE is locked, via faces_exact.
     "faces_exact",
-    "time_of_day",
-    "textures",
-    "cast_shadows",
-    "lighting_direction",
+    "signs_text",   // keep Japanese signage/writing/kanji — characterful, not clutter
     "nature_colors",
-    "natural_grain",
+    "color_balance",
+    // NB: "lighting_direction" + "cast_shadows" intentionally dropped — they
+    // leashed the model to "amplify existing light only", which flattened the
+    // temples. The opener now lets it reinterpret the light (plausibly).
+    "textures",
   ],
-  // no_added_elements removed (it would block cleanup/recompose); face protection added.
+  // Anti-"AI look" guardrails that don't soften the drama: no dreamy Orton haze,
+  // no painterly/illustrative rendering — on top of the usual face/HDR guards.
   exclude: [
     "no_smoothing",
     "no_oversaturation",
@@ -355,6 +359,8 @@ export const DEFAULT_CONFIG: PromptConfig = {
     "no_chromatic_vignette",
     "no_face_morph",
     "no_new_objects",
+    "no_orton",
+    "no_painterly",
   ],
   art_direction: true, // let the AI art-direct each frame toward an iconic result
   freeform: "",
@@ -427,7 +433,7 @@ export function assemblePrompt(c: PromptConfig): string {
     .filter(Boolean);
 
   const parts: string[] = [
-    "Edit this photo using the original as the strict base — modify it, do not regenerate the content from scratch. Output the edited image.",
+    "Reinterpret this scene as a single iconic editorial photograph, not a faithful retouch of the snapshot. You have full creative agency over framing: recompose boldly — change the vantage point and perspective decisively, and crop as hard as the image needs, even in tight to isolate one powerful detail or subject. Declutter with a photographer's eye: strip out passersby, tourists and incidental background clutter that merely crowd or unbalance the frame — but in EVERY frame first find the one element that carries the image and build around it. Recognise and KEEP any person who is iconic to the scene (someone praying, a decisive or deeply human gesture, a figure that gives the image its meaning or emotion) and elevate them as the subject. Treat authentic cultural and characterful details — Japanese signage and writing, kanji, lanterns and banners bearing text, shrine and street detail — as meaningful content to preserve exactly, never as clutter to erase. Cut only the incidental; keep and strengthen the meaningful. Relight it decisively and creatively — strong, directional, sculpted light with deep, dimensional shadows. Do not just amplify what is there: reinterpret the illumination to make the frame compelling — introduce believable practical light sources (lanterns, candles, windows, shafts of light through trees, a low raking key light), reposition the key light, and deepen the mood — as long as it stays physically plausible for this place and time of day and never looks artificial, staged or CGI. Keep the same place and its identity, the original colors and white balance, and keep any retained face EXACTLY as in the original. Above all it must look like a genuine photograph captured on a real camera and lens — believable optics and perspective, true surface texture and a faint natural film grain — never a digital render, a 3D or CGI look, an illustration or an over-processed HDR image. Edit the real scene; do not fabricate a different place or invent new objects or signage. Output the edited image.",
     "",
     "Apply:",
     ...changes.map((c) => `- ${c}`),

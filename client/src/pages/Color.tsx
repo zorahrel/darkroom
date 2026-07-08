@@ -398,8 +398,9 @@ export default function PipelineBar({
 }
 
 // Connettore verticale fra due stage-cornice: la freccia + etichetta rendono
-// esplicito che input/output "avvolgono" gli step nel mezzo.
-function StageConnector({ label }: { label: string }) {
+// esplicito che input/output "avvolgono" gli step nel mezzo. Esportato così la
+// Detail riusa la stessa grammatica pipeline invece di reinventarla.
+export function StageConnector({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 my-1.5 pl-4 text-[10px] uppercase tracking-wider text-neutral-600">
       <span aria-hidden>↓</span>

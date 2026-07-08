@@ -73,6 +73,10 @@ export default function StepEditor({
   return (
     <div className="space-y-2" onMouseLeave={() => onHoverStep?.(null)}>
       {steps.map((s, i) => (
+        // The AI/generative step is bake-only and configured from the photo's
+        // AI-edit card, not here — hide it so the pipeline reads as color-only
+        // and there's a single AI-edit surface.
+        s.type === "ai" ? null : (
         <div
           key={s.id}
           onMouseEnter={() => onHoverStep?.(i)}
@@ -112,11 +116,6 @@ export default function StepEditor({
                 {STEP_LABELS[s.type]}
               </span>
             </label>
-            {s.type === "ai" && (
-              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
-                generativo
-              </span>
-            )}
             <div className="flex-1" />
             <span
               className="text-[11px] text-neutral-500 truncate max-w-[48%] text-right hidden sm:inline"
@@ -143,6 +142,7 @@ export default function StepEditor({
             </div>
           )}
         </div>
+        )
       ))}
 
       <AddStep onAdd={add} />
@@ -154,7 +154,7 @@ function AddStep({ onAdd }: { onAdd: (t: GradeStepType) => void }) {
   return (
     <div className="flex items-center gap-2 pt-1">
       <span className="text-xs text-neutral-500">aggiungi step:</span>
-      {STEP_ORDER.map((t) => (
+      {STEP_ORDER.filter((t) => t !== "ai").map((t) => (
         <button
           key={t}
           onClick={() => onAdd(t)}
