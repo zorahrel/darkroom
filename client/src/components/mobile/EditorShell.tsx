@@ -16,10 +16,10 @@ export type MasterControls = {
   info?: string;
 };
 
-// Full-screen editing shell for <lg viewports: fixed header, photo filling the
-// space, a master row, then the pipeline step strip with a sliding param panel
-// above it. Desktop (lg+) never mounts this — callers gate it with `lg:hidden`
-// and keep their existing layout in a `hidden lg:block` sibling.
+// Full-screen editing shell: fixed header, photo filling the space, a master
+// row, then the pipeline step strip with a sliding param panel above it. Used at
+// every width on the per-photo editor (the pipeline bar is the single editor UI);
+// callers that only want it on mobile keep gating their mount with `lg:hidden`.
 export default function EditorShell({
   title,
   leftAction,
@@ -52,7 +52,7 @@ export default function EditorShell({
   }
 
   return (
-    <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100">
       <div className="flex items-center gap-2 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         {leftAction}
         <span className="text-sm font-medium text-neutral-200 truncate flex-1">{title}</span>

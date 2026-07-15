@@ -10,14 +10,13 @@ import {
   type Job,
   rawUrl,
   gradedPreviewUrl,
+  gradedUrl,
   STEP_LABELS,
   STEP_ORDER,
   newStep,
 } from "../api";
-import { StageConnector } from "./Color";
-import Accordion from "../components/Accordion";
 import VersionCarousel from "../components/VersionCarousel";
-import StepEditor, { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
+import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptEditor from "../components/PromptEditor";
 import PromptBuilder from "../components/PromptBuilder";
 import HiggsfieldButton from "../components/HiggsfieldButton";
@@ -34,6 +33,7 @@ import {
   IconLayers,
   IconUndo,
   IconRedo,
+  IconDownload,
 } from "../components/mobile/icons";
 import { useHistory } from "../lib/useHistory";
 
@@ -286,9 +286,13 @@ export default function DetailPage() {
 
       <JobStatusBanner pausedUntil={pausedUntil} />
 
+      {/* Con una versione, l'editor a schermo intero (EditorShell) copre la
+          pagina e mostra le generazioni nel gruppo "Versioni": qui nascondiamo
+          Originale+Generazioni per non renderizzare due volte il carosello.
+          Senza versione, resta visibile per poter generare. */}
       <div
         className={
-          (versions.length > 0 ? "hidden lg:grid" : "grid") +
+          (versions.length > 0 ? "hidden" : "grid") +
           " grid-cols-1 lg:grid-cols-2 gap-4 items-start"
         }
       >
@@ -347,28 +351,34 @@ export default function DetailPage() {
         }}
       />
 
-      <PhotoJobsLog photoId={photo.id} />
+      {/* Con una versione l'editor a schermo intero copre la pagina: log job e
+          legacy prompt restano solo quando non c'è ancora nulla da editare. */}
+      {versions.length === 0 && (
+        <>
+          <PhotoJobsLog photoId={photo.id} />
 
-      <details className="border border-neutral-800 rounded-lg">
-        <summary className="cursor-pointer px-3 py-2 text-xs text-neutral-500 hover:text-neutral-300">
-          Legacy: prompt freeform raw (deprecato — usa la config sopra)
-        </summary>
-        <div className="p-3">
-          <PromptEditor
-            effective={global_prompt}
-            global={global_prompt}
-            hasOverride={hasOverride}
-            onSave={async (next) => {
-              await api.setPrompt(photo.id, next);
-              await refresh();
-            }}
-            onResetToGlobal={async () => {
-              await api.setPrompt(photo.id, null);
-              await refresh();
-            }}
-          />
-        </div>
-      </details>
+          <details className="border border-neutral-800 rounded-lg">
+            <summary className="cursor-pointer px-3 py-2 text-xs text-neutral-500 hover:text-neutral-300">
+              Legacy: prompt freeform raw (deprecato — usa la config sopra)
+            </summary>
+            <div className="p-3">
+              <PromptEditor
+                effective={global_prompt}
+                global={global_prompt}
+                hasOverride={hasOverride}
+                onSave={async (next) => {
+                  await api.setPrompt(photo.id, next);
+                  await refresh();
+                }}
+                onResetToGlobal={async () => {
+                  await api.setPrompt(photo.id, null);
+                  await refresh();
+                }}
+              />
+            </div>
+          </details>
+        </>
+      )}
     </div>
   );
 }
@@ -582,8 +592,6 @@ function PhotoPipeline({
   const [compare, setCompare] = useState(false);
   const [baking, setBaking] = useState(false);
   const [bakeMsg, setBakeMsg] = useState<string | null>(null);
-  // Indice dello step sotto il mouse: l'anteprima mostra la foto FINO a lì.
-  const [hoverStep, setHoverStep] = useState<number | null>(null);
   const hasAiStep = draft.steps.some((s) => s.enabled && s.type === "ai");
   const effSig = JSON.stringify(effectiveGrade);
   // Re-sync (and clear history) when the upstream effective grade changes,
@@ -611,14 +619,8 @@ function PhotoPipeline({
 
   const hasVersion = versionNumber != null;
   const W = 720;
-  // In hover, renderizza solo il prefisso [0..hoverStep] della catena: gli step
-  // successivi vengono esclusi, così vedi il risultato cumulativo di quello step.
-  const previewGrade =
-    hoverStep === null
-      ? draft
-      : { ...draft, steps: draft.steps.slice(0, hoverStep + 1) };
   const previewSrc = hasVersion
-    ? gradedPreviewUrl(photoId, versionNumber, previewGrade, W)
+    ? gradedPreviewUrl(photoId, versionNumber, draft, W)
     : "";
   // Debounce + preload the graded preview so dragging a slider fires a few
   // renders (not one per pixel) and never flashes blank between frames.
@@ -629,7 +631,6 @@ function PhotoPipeline({
     : "";
   const dirty = JSON.stringify(draft) !== effSig;
   const showBase = compare || !draft.enabled;
-  const hoveredStep = hoverStep === null ? null : draft.steps[hoverStep] ?? null;
 
   // Salva/bake/reset condivisi fra la action row desktop e la toolbar mobile.
   async function doSave() {
@@ -662,6 +663,16 @@ function PhotoPipeline({
     } finally {
       setBaking(false);
     }
+  }
+  // Esporta l'immagine gradata full-res della versione corrente (download).
+  function doExport() {
+    if (versionNumber == null) return;
+    const a = document.createElement("a");
+    a.href = gradedUrl(photoId, versionNumber, undefined, Date.now());
+    a.download = `${photoId}-v${String(versionNumber).padStart(2, "0")}-graded.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
   function patchStepAt(idx: number, patch: Partial<ColorGrade["steps"][number]>) {
     setDraft({ ...draft, steps: draft.steps.map((s, j) => (j === idx ? { ...s, ...patch } : s)) });
@@ -776,212 +787,16 @@ function PhotoPipeline({
     icon: <StepIcon type={t} className="w-4 h-4" />,
   }));
 
-  return (
-    <Accordion
-      storageKey="darkroom.photo-pipeline.open"
-      defaultOpen
-      bodyClassName="mt-3 space-y-3"
-      title={<h1 className="text-lg font-semibold">Pipeline — questa foto</h1>}
-      summary={
-        <>
-          <span className="shrink-0 text-neutral-500">
-            {draft.enabled ? "grade ON" : "grade OFF"}
-          </span>
-          {hasGradeOverride && (
-            <span className="shrink-0 text-amber-300">override</span>
-          )}
-          {!hasVersion && (
-            <span className="shrink-0 text-neutral-600">· nessuna versione</span>
-          )}
-        </>
-      }
-      trailing={
-        dirty ? (
-          <span className="shrink-0 text-xs text-amber-400">non salvato</span>
-        ) : saving ? (
-          <span className="shrink-0 text-xs text-amber-400">salvo…</span>
-        ) : null
-      }
-    >
-      <p className="text-sm text-neutral-400 max-w-2xl">
-        Override locali sopra il default del set: prima la{" "}
-        <b className="text-neutral-200">generazione</b> ChatGPT, poi il{" "}
-        <b className="text-neutral-200">colore</b>. L'anteprima a lato segue la
-        pipeline — passa sopra uno step del colore per vederci fino a lì.
-      </p>
-
-      <div
-        className={
-          hasVersion
-            ? "hidden lg:grid gap-5 lg:grid-cols-[20rem_1fr] items-start"
-            : "hidden lg:block space-y-1"
-        }
-      >
-        {/* ANTEPRIMA UNICA — sticky, condivisa da tutta la pipeline */}
-        {hasVersion && (
-          <div
-            className="relative w-full aspect-[4/5] rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 select-none lg:sticky lg:top-16 self-start"
-            onMouseEnter={() => setCompare(true)}
-            onMouseLeave={() => setCompare(false)}
-            title="Passa il mouse per vedere l'originale ChatGPT (senza grade)"
-          >
-            <img
-              src={displaySrc}
-              alt="anteprima gradata"
-              className="absolute inset-0 w-full h-full object-cover"
-              draggable={false}
-            />
-            <img
-              src={baseSrc}
-              alt="base"
-              className={
-                "absolute inset-0 w-full h-full object-cover transition-opacity " +
-                (showBase ? "opacity-100" : "opacity-0")
-              }
-              draggable={false}
-            />
-            <span className="absolute bottom-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-              {showBase
-                ? "originale ChatGPT (no grade)"
-                : hoveredStep
-                  ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
-                  : "grade completo"}
-            </span>
-          </div>
-        )}
-
-        {/* GLI STAGE — a destra dell'anteprima, uno sotto l'altro */}
-        <div className="space-y-1 min-w-0">
-          {/* STAGE — INPUT: la generazione ChatGPT (config + istruzioni) */}
-          <section className="p-3 rounded-xl border border-violet-900/50 bg-violet-950/10 space-y-4">
-            <PhotoConfigCard
-              photoId={photoId}
-              config={effectiveConfig}
-              hasOverride={hasConfigOverride}
-              prompt={prompt}
-              onSaved={onSaved}
-            />
-            <ExtraInstructionsCard
-              photoId={photoId}
-              initial={extraInitial}
-              onSaved={onSaved}
-            />
-          </section>
-
-          <StageConnector label="colore" />
-
-          {/* STAGE — STEP: il colore locale sopra la versione (per il display) */}
-          <section className="p-3 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs px-1.5 py-0.5 rounded bg-fuchsia-900/50 text-fuchsia-300 border border-fuchsia-900">
-                Step
-              </span>
-              <h2 className="text-sm font-semibold">Colore</h2>
-              {hasGradeOverride ? (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">
-                  override attivo
-                </span>
-              ) : (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
-                  eredita il grade globale
-                </span>
-              )}
-              <div className="flex-1" />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.enabled}
-                  onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-                />
-                <span className={draft.enabled ? "text-emerald-400" : "text-neutral-400"}>
-                  {draft.enabled ? "Grade ON" : "Grade OFF"}
-                </span>
-              </label>
-            </div>
-
-            {hasVersion ? (
-              <div className="space-y-3">
-                <StepEditor
-                  grade={draft}
-                  onChange={setDraft}
-                  luts={luts}
-                  onHoverStep={setHoverStep}
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <div className="flex items-center gap-1 mr-auto">
-                    <button
-                      disabled={!canUndo}
-                      onClick={undo}
-                      title="Annulla (⌘Z)"
-                      aria-label="annulla"
-                      className="p-1.5 rounded border border-neutral-700 text-neutral-300 hover:text-white disabled:opacity-30"
-                    >
-                      <IconUndo />
-                    </button>
-                    <button
-                      disabled={!canRedo}
-                      onClick={redo}
-                      title="Ripristina (⌘⇧Z)"
-                      aria-label="ripristina"
-                      className="p-1.5 rounded border border-neutral-700 text-neutral-300 hover:text-white disabled:opacity-30"
-                    >
-                      <IconRedo />
-                    </button>
-                    {bakeMsg && (
-                      <span className="text-[11px] text-neutral-400 ml-1">{bakeMsg}</span>
-                    )}
-                  </div>
-                  <button
-                    disabled={baking || dirty}
-                    title={
-                      dirty
-                        ? "Salva o resetta l'override prima del bake"
-                        : hasAiStep
-                          ? "Esegue la pipeline (inclusi gli step AI) e committa il risultato"
-                          : "Applica il grade in modo permanente su una nuova versione"
-                    }
-                    onClick={doBake}
-                    className="text-sm px-3 py-1.5 rounded border border-violet-700 text-violet-200 hover:bg-violet-900/40 disabled:opacity-50"
-                  >
-                    {baking ? "Bake…" : hasAiStep ? "Bake (AI)" : "Bake"}
-                  </button>
-                  {hasGradeOverride && (
-                    <button
-                      disabled={saving}
-                      onClick={doReset}
-                      className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
-                    >
-                      Reset al globale
-                    </button>
-                  )}
-                  <button
-                    disabled={saving || !dirty}
-                    onClick={doSave}
-                    className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    {saving ? "Salvo…" : "Salva override (solo questa foto)"}
-                  </button>
-                </div>
-                <details className="rounded-lg border border-neutral-800 bg-neutral-900/30">
-                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2">
-                    <IconBookmark className="w-4 h-4" /> Preset &amp; template
-                  </summary>
-                  <div className="p-3 border-t border-neutral-800">
-                    <PresetsPanel grade={draft} onApply={applyGrade} applyLabel="Applica alla foto" />
-                  </div>
-                </details>
-              </div>
-            ) : (
-              <p className="text-xs text-neutral-500">
-                Genera una versione per attivare il grade colore.
-              </p>
-            )}
-          </section>
-        </div>
+  if (!hasVersion) {
+    return (
+      <div className="text-sm text-neutral-500">
+        Genera una versione per attivare il grade colore.
       </div>
+    );
+  }
 
-      {hasVersion ? (
-        <EditorShell
+  return (
+    <EditorShell
           title={
             photoNav && photoNav.index >= 0
               ? `${photoId} · ${photoNav.index + 1}/${photoNav.total}`
@@ -1037,6 +852,14 @@ function PhotoPipeline({
                 <IconRedo />
               </button>
               {dirty && <span className="text-[10px] text-amber-400">•</span>}
+              <button
+                onClick={doExport}
+                aria-label="esporta immagine gradata (full-res)"
+                title="Esporta full-res"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-white"
+              >
+                <IconDownload />
+              </button>
               {hasGradeOverride && (
                 <button
                   disabled={saving}
@@ -1067,7 +890,7 @@ function PhotoPipeline({
             onToggle: (val) => setDraft({ ...draft, enabled: val }),
             compare,
             onCompare: setCompare,
-            info: hasGradeOverride ? "override locale" : "eredita il grade globale",
+            info: bakeMsg ?? (hasGradeOverride ? "override locale" : "eredita il grade globale"),
           }}
           addable={addableSteps}
           onAdd={(t) => addStep(t as GradeStepType)}
@@ -1095,22 +918,12 @@ function PhotoPipeline({
                 draggable={false}
               />
               <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-                {showBase
-                  ? "originale ChatGPT (no grade)"
-                  : hoveredStep
-                    ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
-                    : "grade completo"}
+                {showBase ? "originale ChatGPT (no grade)" : "grade completo"}
               </span>
             </div>
           }
           groups={mobileGroups}
         />
-      ) : (
-        <div className="lg:hidden text-xs text-neutral-500">
-          Genera una versione per attivare il grade colore.
-        </div>
-      )}
-    </Accordion>
   );
 }
 
