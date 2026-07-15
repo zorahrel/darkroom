@@ -27,6 +27,8 @@ logs/
 
 # Caches
 .cache/
+__pycache__/
+*.pyc
 scripts/.match_cache.json
 scripts/.verify_cache.json
 
