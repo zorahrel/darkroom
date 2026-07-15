@@ -350,6 +350,47 @@ def apply_lut(arr, lut_path, tmpdir):
     return np.asarray(Image.open(dst).convert("RGB")).astype(np.float32)
 
 
+def build_mask(shape, mp):
+    """Build a per-step local mask (H,W,1) in 0..1 from mask params `mp`.
+
+    Types:
+      radial — soft ellipse. cx,cy = center (0..1 relative), rx,ry = radii
+               (0..1), feather = 0..1 fraction of the radius used as falloff.
+      linear — gradient perpendicular to `angle` (deg), centered at `pos`
+               (0..1), transition band width = feather (0..1).
+    `invert` flips the mask. Returns None if the type is unknown.
+    """
+    h, w = shape[0], shape[1]
+    ys = ((np.arange(h) + 0.5) / h).astype(np.float32)
+    xs = ((np.arange(w) + 0.5) / w).astype(np.float32)
+    X, Y = np.meshgrid(xs, ys)
+    t = mp.get("type")
+    feather = float(mp.get("feather", 0.4))
+    feather = min(max(feather, 0.0), 0.99)
+    if t == "radial":
+        cx = float(mp.get("cx", 0.5)); cy = float(mp.get("cy", 0.5))
+        rx = max(float(mp.get("rx", 0.4)), 1e-3)
+        ry = max(float(mp.get("ry", 0.4)), 1e-3)
+        dx = (X - cx) / rx
+        dy = (Y - cy) / ry
+        d = np.sqrt(dx * dx + dy * dy)  # 1.0 at the ellipse edge
+        inner = 1.0 - feather
+        m = np.clip((1.0 - d) / max(1.0 - inner, 1e-3), 0.0, 1.0)
+    elif t == "linear":
+        ang = np.deg2rad(float(mp.get("angle", 0.0)))
+        pos = float(mp.get("pos", 0.5))
+        proj = (X - 0.5) * np.cos(ang) + (Y - 0.5) * np.sin(ang)
+        center = pos - 0.5
+        half = max(feather, 1e-3) * 0.5
+        m = np.clip((proj - (center - half)) / (2.0 * half), 0.0, 1.0)
+    else:
+        return None
+    m = m * m * (3.0 - 2.0 * m)  # smoothstep for a natural falloff
+    if mp.get("invert"):
+        m = 1.0 - m
+    return m[..., None].astype(np.float32)
+
+
 def run_step(a, step, wb_gain):
     """Apply a single step to the array (float32 0-255) and return it."""
     t = step.get("type")
@@ -399,7 +440,15 @@ def grade_steps(inp, out, steps, max_width, quality, wb_gain=None):
     for step in steps:
         if not step.get("enabled", True):
             continue
-        a = run_step(a, step, wb_gain)
+        b = run_step(a, step, wb_gain)
+        # Optional local mask: blend the step's result over the input by the
+        # mask alpha, so the effect applies only where the mask is > 0.
+        mp = (step.get("params", {}) or {}).get("mask")
+        if mp and mp.get("enabled", True) and b is not a:
+            m = build_mask(a.shape, mp)
+            if m is not None:
+                b = a * (1.0 - m) + b * m
+        a = b
 
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))

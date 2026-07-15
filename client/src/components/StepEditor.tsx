@@ -205,6 +205,14 @@ export function isStepTouched(s: GradeStep): boolean {
 // whole pipeline reads at a glance — and so the AI step never looks inert.
 // Exported for reuse by the mobile bottom-toolbar panel (same digest, same source).
 export function stepSummary(s: GradeStep): string {
+  const base = summaryBody(s);
+  const mask = (s.params.mask as { type?: string } | undefined)?.type;
+  if (mask === "radial") return `${base} · mask ◎`;
+  if (mask === "linear") return `${base} · mask ▤`;
+  return base;
+}
+
+function summaryBody(s: GradeStep): string {
   const p = s.params;
   switch (s.type) {
     case "white_balance":
@@ -277,7 +285,23 @@ export function stepSummary(s: GradeStep): string {
 
 // Exported for reuse by the mobile bottom-toolbar panel — same per-type
 // controls, rendered inside a ToolPanel instead of an always-expanded card.
-export function StepParams({
+// Wraps the per-type body with the shared local-mask controls (every step but
+// the generative one can be masked to a radial/linear region).
+export function StepParams(props: {
+  step: GradeStep;
+  lutGroups: [string, Lut[]][];
+  onParams: (p: Record<string, unknown>) => void;
+}) {
+  if (props.step.type === "ai") return <StepBody {...props} />;
+  return (
+    <div className="space-y-3">
+      <StepBody {...props} />
+      <MaskControls params={props.step.params} onParams={props.onParams} />
+    </div>
+  );
+}
+
+function StepBody({
   step,
   lutGroups,
   onParams,
@@ -704,5 +728,141 @@ function RegionTint({
         />
       </label>
     </div>
+  );
+}
+
+// Defaults when a step's local mask is first turned on.
+const MASK_RADIAL = { type: "radial", enabled: true, cx: 0.5, cy: 0.5, rx: 0.4, ry: 0.4, feather: 0.4, invert: false };
+const MASK_LINEAR = { type: "linear", enabled: true, angle: 0, pos: 0.5, feather: 0.4, invert: false };
+
+// Shared local-mask editor: limits a step's effect to a radial or linear region.
+// Numeric controls (no canvas) so it works identically on desktop and mobile;
+// the engine (scripts/color_grade.py build_mask) blends the step over the input
+// by the mask alpha. Collapsed by default so it never clutters a pristine step.
+function MaskControls({
+  params,
+  onParams,
+}: {
+  params: Record<string, unknown>;
+  onParams: (p: Record<string, unknown>) => void;
+}) {
+  const mask = (params.mask as Record<string, unknown> | undefined) ?? null;
+  const type = mask ? String(mask.type) : "";
+  const set = (patch: Record<string, unknown>) =>
+    onParams({ mask: { ...(mask ?? {}), ...patch } });
+
+  return (
+    <details className="rounded-lg border border-neutral-800 bg-neutral-950/40" open={!!mask}>
+      <summary className="cursor-pointer px-2.5 py-1.5 text-xs text-neutral-400 hover:text-white flex items-center gap-2">
+        Maschera locale
+        {mask ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-200">
+            {type === "radial" ? "radiale" : "lineare"}
+            {bool(mask.invert) ? " · invertita" : ""}
+          </span>
+        ) : (
+          <span className="text-[10px] text-neutral-600">nessuna</span>
+        )}
+      </summary>
+      <div className="px-2.5 pb-2.5 pt-1 space-y-2">
+        <div className="flex gap-1">
+          {[
+            ["", "Nessuna"],
+            ["radial", "Radiale"],
+            ["linear", "Lineare"],
+          ].map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() =>
+                onParams({
+                  mask: val === "" ? null : val === "radial" ? MASK_RADIAL : MASK_LINEAR,
+                })
+              }
+              className={
+                "px-2 py-1 rounded text-xs border " +
+                (type === val
+                  ? "border-sky-500 text-white bg-sky-900/30"
+                  : "border-neutral-700 text-neutral-400 hover:text-white")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mask && type === "radial" && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            <MaskSlider label="Centro X" k="cx" p={mask} set={set} />
+            <MaskSlider label="Centro Y" k="cy" p={mask} set={set} />
+            <MaskSlider label="Raggio X" k="rx" p={mask} set={set} def={0.4} />
+            <MaskSlider label="Raggio Y" k="ry" p={mask} set={set} def={0.4} />
+            <MaskSlider label="Sfumatura" k="feather" p={mask} set={set} def={0.4} />
+          </div>
+        )}
+
+        {mask && type === "linear" && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            <MaskSlider label="Angolo" k="angle" p={mask} set={set} min={0} max={360} step={1} pct={false} />
+            <MaskSlider label="Posizione" k="pos" p={mask} set={set} />
+            <MaskSlider label="Sfumatura" k="feather" p={mask} set={set} def={0.4} />
+          </div>
+        )}
+
+        {mask && (
+          <label className="flex items-center gap-2 text-xs pt-0.5">
+            <input
+              type="checkbox"
+              checked={bool(mask.invert)}
+              onChange={(e) => set({ invert: e.target.checked })}
+            />
+            Inverti maschera
+          </label>
+        )}
+        <p className="text-[11px] text-neutral-500">
+          Applica lo step solo dentro la regione (radiale) o su un lato del
+          gradiente (lineare). Il resto dell'immagine resta invariato.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+function MaskSlider({
+  label,
+  k,
+  p,
+  set,
+  min = 0,
+  max = 1,
+  step = 0.01,
+  def = 0.5,
+  pct = true,
+}: {
+  label: string;
+  k: string;
+  p: Record<string, unknown>;
+  set: (patch: Record<string, unknown>) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  def?: number;
+  pct?: boolean;
+}) {
+  const v = num(p[k], def);
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="text-[11px] text-neutral-500 flex items-center justify-between">
+        <span>{label}</span>
+        <span className="tabular-nums">{pct ? `${Math.round(v * 100)}%` : Math.round(v)}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={v}
+        onChange={(e) => set({ [k]: Number(e.target.value) })}
+      />
+    </label>
   );
 }
