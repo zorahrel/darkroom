@@ -29,6 +29,8 @@ export default function EditorShell({
   master,
   addable,
   onAdd,
+  onClose,
+  variant = "responsive",
 }: {
   title: string;
   leftAction?: ReactNode;
@@ -38,6 +40,12 @@ export default function EditorShell({
   master?: MasterControls;
   addable?: AddableStep[];
   onAdd?: (type: string) => void;
+  // Esc closes the open step panel first, then calls this (e.g. leave the editor).
+  onClose?: () => void;
+  // "responsive" = fullscreen on mobile, bottom dock on desktop (per-photo editor).
+  // "dock" = always a bottom dock with no photo area (e.g. the Home grid: the
+  // grid itself is the live preview).
+  variant?: "responsive" | "dock";
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = groups.find((g) => g.id === activeId) ?? null;
@@ -47,21 +55,51 @@ export default function EditorShell({
     if (activeId && !groups.some((g) => g.id === activeId)) setActiveId(null);
   }, [groups, activeId]);
 
+  // Esc: close the open panel first, otherwise leave the editor.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+      if (activeId) {
+        e.preventDefault();
+        setActiveId(null);
+      } else if (onClose) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeId, onClose]);
+
   function select(id: string) {
     setActiveId((cur) => (cur === id ? null : id));
   }
 
+  const rootClass =
+    variant === "dock"
+      ? "fixed inset-x-0 bottom-0 z-50 flex flex-col bg-neutral-950 text-neutral-100 border-t border-neutral-800 shadow-2xl"
+      : "fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100 lg:inset-x-0 lg:top-auto lg:bottom-0 lg:border-t lg:border-neutral-800 lg:shadow-2xl";
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100 lg:inset-x-0 lg:top-auto lg:bottom-0 lg:border-t lg:border-neutral-800 lg:shadow-2xl">
+    <div className={rootClass}>
       <div className="flex items-center gap-2 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         {leftAction}
         <span className="text-sm font-medium text-neutral-200 truncate flex-1">{title}</span>
         {rightAction}
       </div>
 
-      {/* On desktop the shell is a bottom dock: the photo lives in the page
-          above it (a large preview), so hide the shell's own photo area. */}
-      <div className="relative flex-1 min-h-0 bg-black lg:hidden">{photo}</div>
+      {/* On desktop (and always in dock variant) the photo lives in the page
+          above — the grid or a large preview — so hide the shell's photo area. */}
+      <div
+        className={
+          "relative flex-1 min-h-0 bg-black " +
+          (variant === "dock" ? "hidden" : "lg:hidden")
+        }
+      >
+        {photo}
+      </div>
 
       {master && (
         <div className="flex items-center gap-2 px-3 py-2 border-t border-neutral-800 bg-neutral-950 shrink-0">

@@ -37,6 +37,14 @@ import {
 } from "../components/mobile/icons";
 import { useHistory } from "../lib/useHistory";
 
+function Spinner() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="w-9 h-9 rounded-full border-2 border-neutral-600 border-t-white animate-spin" />
+    </div>
+  );
+}
+
 export default function DetailPage() {
   const { pid, id } = useParams<{ pid: string; id: string }>();
   const navigate = useNavigate();
@@ -56,10 +64,14 @@ export default function DetailPage() {
 
   const initedRef = useRef<string | null>(null);
   const prevCountRef = useRef(0);
+  // Warm cache of adjacent photos so prev/next switches instantly instead of
+  // showing the previous photo while the fetch is in flight.
+  const cacheRef = useRef<Map<string, PhotoDetail>>(new Map());
 
   const refresh = useCallback(async () => {
     if (!id) return;
     const d = await api.getPhoto(id);
+    cacheRef.current.set(id, d);
     setData(d);
     const favIdx = d.photo.favorite_version_id
       ? d.versions.findIndex((v) => v.id === d.photo.favorite_version_id)
@@ -82,6 +94,12 @@ export default function DetailPage() {
   }, [id]);
 
   useEffect(() => {
+    // Switch to the cached photo immediately (no stale-photo flash), then
+    // refresh in the background.
+    if (id) {
+      const cached = cacheRef.current.get(id);
+      if (cached) setData(cached);
+    }
     refresh();
   }, [refresh]);
 
@@ -144,6 +162,18 @@ export default function DetailPage() {
     };
   }, [id, allIds]);
 
+  // Prefetch the adjacent photos' data so prev/next feels instant.
+  useEffect(() => {
+    for (const sid of [siblings.prev, siblings.next]) {
+      if (sid && !cacheRef.current.has(sid)) {
+        api
+          .getPhoto(sid)
+          .then((d) => cacheRef.current.set(sid, d))
+          .catch(() => {});
+      }
+    }
+  }, [siblings.prev, siblings.next]);
+
   // Keyboard: g = generate, [ / ] = prev/next photo
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -167,6 +197,9 @@ export default function DetailPage() {
   if (!data) return <div className="py-20 text-center text-neutral-500">Carico…</div>;
 
   const { photo, versions, effective_prompt, global_prompt, effective_config, has_override } = data;
+  // Route id changed but the loaded photo hasn't caught up yet → show a spinner
+  // instead of the previous photo.
+  const navigating = photo.id !== id;
   const v = versions[currentVersion];
   const isFavorite = v ? v.id === photo.favorite_version_id : false;
   const hasOverride = photo.custom_prompt !== null;
@@ -335,6 +368,7 @@ export default function DetailPage() {
         hasGradeOverride={data.has_grade_override}
         luts={luts}
         onSaved={refresh}
+        navigating={navigating}
         onExit={() => navigate(base || "/")}
         mobileExtras={versionsPanel}
         photoNav={{
@@ -552,6 +586,7 @@ function PhotoPipeline({
   hasGradeOverride,
   luts,
   onSaved,
+  navigating,
   onExit,
   mobileExtras,
   photoNav,
@@ -566,6 +601,7 @@ function PhotoPipeline({
   hasGradeOverride: boolean;
   luts: Lut[];
   onSaved: () => Promise<unknown> | void;
+  navigating?: boolean;
   onExit: () => void;
   mobileExtras?: ReactNode;
   photoNav?: {
@@ -624,13 +660,16 @@ function PhotoPipeline({
     : "";
   // Debounce + preload the graded preview so dragging a slider fires a few
   // renders (not one per pixel) and never flashes blank between frames.
-  const { shown: previewShown } = useDebouncedImage(previewSrc || null, 150);
+  const { shown: previewShown, loading: previewLoading } = useDebouncedImage(previewSrc || null, 150);
   const displaySrc = previewShown ?? previewSrc;
   const baseSrc = hasVersion
     ? `/thumb/gen/${encodeURIComponent(photoId)}/v${String(versionNumber).padStart(2, "0")}.png?w=${W}`
     : "";
   const dirty = JSON.stringify(draft) !== effSig;
-  const showBase = compare || !draft.enabled;
+  // While loading the graded render (or switching photo) show the ungraded base
+  // underneath + a spinner, so it's clear something is happening.
+  const busy = !!navigating || previewLoading;
+  const showBase = compare || !draft.enabled || busy;
 
   // Salva/bake/reset condivisi fra la action row desktop e la toolbar mobile.
   async function doSave() {
@@ -847,8 +886,9 @@ function PhotoPipeline({
           draggable={false}
         />
         <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-          {showBase ? "originale ChatGPT (no grade)" : "grade completo"}
+          {busy ? "carico…" : showBase ? "originale ChatGPT (no grade)" : "grade completo"}
         </span>
+        {busy && <Spinner />}
       </div>
     </div>
   );
@@ -946,6 +986,7 @@ function PhotoPipeline({
           }}
           addable={addableSteps}
           onAdd={(t) => addStep(t as GradeStepType)}
+          onClose={onExit}
           photo={
             <div
               className="absolute inset-0 select-none"
@@ -970,8 +1011,9 @@ function PhotoPipeline({
                 draggable={false}
               />
               <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-                {showBase ? "originale ChatGPT (no grade)" : "grade completo"}
+                {busy ? "carico…" : showBase ? "originale ChatGPT (no grade)" : "grade completo"}
               </span>
+              {busy && <Spinner />}
             </div>
           }
           groups={mobileGroups}
