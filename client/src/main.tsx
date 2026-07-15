@@ -1,13 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import Home from "./pages/Home";
-import DetailPage from "./pages/Detail";
-import OrphansPage from "./pages/Orphans";
-import StudioPage from "./pages/Studio";
 import { api, lastProject } from "./api";
+
+// Home is the landing surface — keep it in the main chunk so the grid paints
+// without a flash. The secondary pages (per-photo editor, orphans, studio) are
+// code-split so their heavier deps (StepEditor, PromptBuilder, masks) don't
+// weigh down first paint of the grid.
+const DetailPage = lazy(() => import("./pages/Detail"));
+const OrphansPage = lazy(() => import("./pages/Orphans"));
+const StudioPage = lazy(() => import("./pages/Studio"));
+
+function PageFallback() {
+  return <div className="p-6 text-neutral-500 text-sm">Carico…</div>;
+}
 
 // `/` lands on the last-opened project's grid (or the first registered one,
 // or the Studio if there are none). Keeps the single-project muscle memory
@@ -40,10 +49,31 @@ ReactDOM.createRoot(root).render(
       <Routes>
         <Route path="/" element={<App />}>
           <Route index element={<RootRedirect />} />
-          <Route path="studio" element={<StudioPage />} />
+          <Route
+            path="studio"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <StudioPage />
+              </Suspense>
+            }
+          />
           <Route path="p/:pid" element={<Home />} />
-          <Route path="p/:pid/photo/:id" element={<DetailPage />} />
-          <Route path="p/:pid/orphans" element={<OrphansPage />} />
+          <Route
+            path="p/:pid/photo/:id"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <DetailPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/orphans"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <OrphansPage />
+              </Suspense>
+            }
+          />
           <Route path="*" element={<Navigate to="/studio" replace />} />
         </Route>
       </Routes>
