@@ -49,10 +49,21 @@ def awb(a):
     return np.clip(a * gain, 0, 255)
 
 
-def levels(a, black=0.4, white=99.6):
+def levels(a, black=0.4, white=99.6, soft=False):
     luma = (a * LUMA).sum(-1)
     lo = np.percentile(luma, black); hi = np.percentile(luma, white)
-    return np.clip((a - lo) * 255.0 / max(hi - lo, 1.0), 0, 255)
+    y = (a - lo) * 255.0 / max(hi - lo, 1.0)
+    if not soft:
+        return np.clip(y, 0, 255)
+    # Soft highlight knee: instead of hard-clipping the stretched top to pure
+    # white, roll it off with a tanh shoulder above `knee` so highlights
+    # compress toward (but never reach) 255 — keeps texture in bright skies /
+    # signage instead of a burnt flat patch. Shadows/black point untouched.
+    x = y / 255.0
+    knee = 0.82
+    comp = knee + (1.0 - knee) * np.tanh(np.clip((x - knee) / (1.0 - knee), 0, None))
+    x = np.where(x > knee, comp, x)
+    return np.clip(x * 255.0, 0, 255)
 
 
 def pink_lift(a):
@@ -402,7 +413,7 @@ def run_step(a, step, wb_gain):
             return awb(a)
         return a
     if t == "levels":
-        return levels(a, float(p.get("black", 0.4)), float(p.get("white", 99.6)))
+        return levels(a, float(p.get("black", 0.4)), float(p.get("white", 99.6)), bool(p.get("soft", False)))
     if t == "sakura":
         return pink_lift(a)
     if t == "sky":

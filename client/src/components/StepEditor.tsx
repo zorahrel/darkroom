@@ -218,7 +218,7 @@ function summaryBody(s: GradeStep): string {
     case "white_balance":
       return bool(p.scene_match) ? "scene-match" : bool(p.awb) ? "AWB" : "off";
     case "levels":
-      return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}`;
+      return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}${bool(p.soft) ? " · alte luci protette" : ""}`;
     case "sakura":
       return "auto";
     case "sky":
@@ -366,6 +366,21 @@ function StepBody({
             value={num(p.white, 99.6)}
             onChange={(e) => onParams({ white: Number(e.target.value) })}
           />
+        </label>
+        <label className="flex items-start gap-2 basis-full">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={bool(p.soft)}
+            onChange={(e) => onParams({ soft: e.target.checked })}
+          />
+          <span className="text-neutral-400">
+            Proteggi le alte luci
+            <span className="block text-[11px] text-neutral-500">
+              Comprime i toni chiari verso il bianco invece di bruciarli — utile
+              su cieli e insegne molto luminose.
+            </span>
+          </span>
         </label>
       </div>
     );
