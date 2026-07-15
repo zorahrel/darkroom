@@ -52,14 +52,16 @@ export default function EditorShell({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100 lg:inset-x-0 lg:top-auto lg:bottom-0 lg:border-t lg:border-neutral-800 lg:shadow-2xl">
       <div className="flex items-center gap-2 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         {leftAction}
         <span className="text-sm font-medium text-neutral-200 truncate flex-1">{title}</span>
         {rightAction}
       </div>
 
-      <div className="relative flex-1 min-h-0 bg-black">{photo}</div>
+      {/* On desktop the shell is a bottom dock: the photo lives in the page
+          above it (a large preview), so hide the shell's own photo area. */}
+      <div className="relative flex-1 min-h-0 bg-black lg:hidden">{photo}</div>
 
       {master && (
         <div className="flex items-center gap-2 px-3 py-2 border-t border-neutral-800 bg-neutral-950 shrink-0">

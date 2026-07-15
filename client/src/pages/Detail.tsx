@@ -819,8 +819,44 @@ function PhotoPipeline({
     );
   }
 
+  // Desktop (lg+): la shell è una dock in basso, quindi l'anteprima grande vive
+  // qui in pagina, sopra la dock (padding per non finirci sotto). Su mobile è
+  // nascosta: lì la foto la mostra la shell a schermo intero.
+  const desktopPhoto = (
+    <div className="hidden lg:block lg:pb-[188px]">
+      <div
+        className="relative mx-auto w-full max-w-4xl h-[62vh] rounded-lg overflow-hidden border border-neutral-800 bg-black select-none"
+        onMouseDown={() => setCompare(true)}
+        onMouseUp={() => setCompare(false)}
+        onMouseLeave={() => setCompare(false)}
+        title="Tieni premuto per l'originale (senza grade)"
+      >
+        <img
+          src={displaySrc}
+          alt="anteprima gradata"
+          className="absolute inset-0 w-full h-full object-contain"
+          draggable={false}
+        />
+        <img
+          src={baseSrc}
+          alt="base"
+          className={
+            "absolute inset-0 w-full h-full object-contain transition-opacity " +
+            (showBase ? "opacity-100" : "opacity-0")
+          }
+          draggable={false}
+        />
+        <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+          {showBase ? "originale ChatGPT (no grade)" : "grade completo"}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
-    <EditorShell
+    <>
+      {desktopPhoto}
+      <EditorShell
           title={
             photoNav && photoNav.index >= 0
               ? `${photoId} · ${photoNav.index + 1}/${photoNav.total}`
@@ -940,6 +976,7 @@ function PhotoPipeline({
           }
           groups={mobileGroups}
         />
+    </>
   );
 }
 
