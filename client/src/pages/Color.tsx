@@ -195,9 +195,41 @@ export default function PipelineBar({
           ),
       });
     });
+    // OUTPUT — ultimo chip: esporta le preferite col grade, a piena risoluzione.
+    groups.push({
+      id: "esporta",
+      label: "Esporta",
+      icon: <IconDownload />,
+      render: () => (
+        <div className="space-y-3">
+          <p className="text-sm text-neutral-400">
+            Renderizza le preferite col grade a piena risoluzione e le copia
+            nella cartella di export.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => oneStage(stageExport, "Esporta")}
+              disabled={run.active}
+              className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50"
+            >
+              <IconDownload /> Esporta {status?.favorites ?? 0} preferite
+            </button>
+            {run.msg && <span className="text-xs text-neutral-400">{run.msg}</span>}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-neutral-400">
+            <input
+              type="checkbox"
+              checked={gradedView}
+              onChange={(e) => setGradedView(e.target.checked)}
+            />
+            Anteprima gradata nella griglia
+          </label>
+        </div>
+      ),
+    });
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grade, lutGroups]);
+  }, [grade, lutGroups, run, status, gradedView]);
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
@@ -510,21 +542,7 @@ export default function PipelineBar({
                   <IconChevronLeft />
                 </button>
               }
-              rightAction={
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => oneStage(stageExport, "Esporta")}
-                    disabled={run.active}
-                    aria-label="esporta le preferite"
-                    title="Esporta le preferite (full-res)"
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-emerald-800 text-emerald-200 disabled:opacity-50"
-                  >
-                    <IconDownload />
-                    Esporta
-                  </button>
-                  {saving && <span className="text-xs text-amber-400">salvo…</span>}
-                </div>
-              }
+              rightAction={saving ? <span className="text-xs text-amber-400">salvo…</span> : null}
               master={{
                 enabled: grade.enabled,
                 onToggle: (val) => patch({ enabled: val }),

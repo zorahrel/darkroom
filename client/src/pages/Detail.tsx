@@ -777,9 +777,33 @@ function PhotoPipeline({
           ),
       });
     });
+    // OUTPUT — ultimo chip della barra: esporta la versione gradata full-res.
+    groups.push({
+      id: "esporta",
+      label: "Esporta",
+      icon: <IconDownload />,
+      render: () => (
+        <div className="space-y-3">
+          <p className="text-sm text-neutral-400">
+            Scarica questa versione con il grade applicato, a piena risoluzione
+            (render al volo, come il deliverable finale).
+          </p>
+          <button
+            onClick={doExport}
+            className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
+          >
+            <IconDownload /> Scarica full-res
+          </button>
+          <p className="text-[11px] text-neutral-500">
+            Per applicarlo in modo permanente su una nuova versione usa invece{" "}
+            <b className="text-neutral-300">Bake</b> (in alto).
+          </p>
+        </div>
+      ),
+    });
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, lutGroups, photoId, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras]);
+  }, [draft, lutGroups, photoId, versionNumber, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras]);
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
@@ -852,14 +876,6 @@ function PhotoPipeline({
                 <IconRedo />
               </button>
               {dirty && <span className="text-[10px] text-amber-400">•</span>}
-              <button
-                onClick={doExport}
-                aria-label="esporta immagine gradata (full-res)"
-                title="Esporta full-res"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-white"
-              >
-                <IconDownload />
-              </button>
               {hasGradeOverride && (
                 <button
                   disabled={saving}
