@@ -17,7 +17,7 @@ import PromptBuilder from "../components/PromptBuilder";
 import Accordion from "../components/Accordion";
 import PresetsPanel from "../components/PresetsPanel";
 import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
-import { StepIcon, IconChevronLeft, IconChevronDown, IconBookmark } from "../components/mobile/icons";
+import { StepIcon, IconChevronLeft, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
 // INPUT (source: folder-editing or from-zero prompt) → STEPS (the deterministic
@@ -510,13 +510,27 @@ export default function PipelineBar({
                   <IconChevronLeft />
                 </button>
               }
-              rightAction={saving ? <span className="text-xs text-amber-400">salvo…</span> : null}
+              rightAction={
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => oneStage(stageExport, "Esporta")}
+                    disabled={run.active}
+                    aria-label="esporta le preferite"
+                    title="Esporta le preferite (full-res)"
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-emerald-800 text-emerald-200 disabled:opacity-50"
+                  >
+                    <IconDownload />
+                    Esporta
+                  </button>
+                  {saving && <span className="text-xs text-amber-400">salvo…</span>}
+                </div>
+              }
               master={{
                 enabled: grade.enabled,
                 onToggle: (val) => patch({ enabled: val }),
                 compare: lv.compare,
                 onCompare: lv.setCompare,
-                info: "autosalvato",
+                info: run.msg || "autosalvato",
               }}
               addable={addableSteps}
               onAdd={(t) => addStep(t as GradeStepType)}
