@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDebouncedImage } from "../lib/useDebouncedImage";
 import {
   api,
-  gradedPreviewUrl,
   STEP_LABELS,
   STEP_ORDER,
   newStep,
@@ -12,12 +10,11 @@ import {
   type PipelineStatus,
   type PromptConfig,
 } from "../api";
-import StepEditor, { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
+import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptBuilder from "../components/PromptBuilder";
-import Accordion from "../components/Accordion";
 import PresetsPanel from "../components/PresetsPanel";
 import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
-import { StepIcon, IconChevronLeft, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
+import { StepIcon, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
 // INPUT (source: folder-editing or from-zero prompt) → STEPS (the deterministic
@@ -50,11 +47,7 @@ export default function PipelineBar({
   });
   const [browserAlive, setBrowserAlive] = useState<boolean | null>(null);
 
-  // Anteprima live (dati) + shell mobile (<lg): un'unica sorgente di stato dietro
-  // sia la vista desktop sia l'area foto dell'EditorShell, niente fetch doppio.
-  const lv = useLivePreview(grade);
   const lutGroups = useMemo(() => groupLuts(luts), [luts]);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Input stage: the pipeline's source. Two modes — "folder" (edit the existing
   // library) or "prompt" (text-to-image from zero). Persisted so the choice sticks.
@@ -117,8 +110,6 @@ export default function PipelineBar({
     };
   }, [status?.favorites]);
 
-  const q = status?.queue ?? {};
-  const active = (q.pending ?? 0) + (q.running ?? 0);
   const enabledSteps = grade.steps.filter((s) => s.enabled);
 
   function patchStepAt(idx: number, p: Partial<ColorGrade["steps"][number]>) {
@@ -155,8 +146,100 @@ export default function PipelineBar({
   // livello globale non è uno step — vive nell'Input/Output qui sopra). Ogni chip
   // è uno step riordinabile; il pannello mostra i parametri, la gestione (enable/
   // riordino/rimuovi) sta nel suo header.
-  const mobileGroups: ToolGroup[] = useMemo(() => {
+  // Ricalcolata a ogni render (non memoizzata): il gruppo Input contiene controlli
+  // con stato che cambia spesso (prompt, conteggio) e deve restare fresco.
+  const mobileGroups: ToolGroup[] = (() => {
     const groups: ToolGroup[] = [
+      {
+        id: "input",
+        label: "Input",
+        icon: <StepIcon type="ai" />,
+        render: () => (
+          <div className="space-y-3">
+            <div className="inline-flex rounded-lg border border-neutral-700 overflow-hidden text-xs">
+              <button
+                onClick={() => pickInputMode("folder")}
+                className={
+                  "px-3 py-1.5 " +
+                  (inputMode === "folder"
+                    ? "bg-neutral-700 text-white"
+                    : "text-neutral-400 hover:text-white")
+                }
+              >
+                Da cartella
+              </button>
+              <button
+                onClick={() => pickInputMode("prompt")}
+                className={
+                  "px-3 py-1.5 border-l border-neutral-700 " +
+                  (inputMode === "prompt"
+                    ? "bg-violet-600 text-white"
+                    : "text-neutral-400 hover:text-white")
+                }
+              >
+                Da prompt
+              </button>
+            </div>
+            {inputMode === "folder" ? (
+              <div className="space-y-2">
+                <p className="text-sm text-neutral-400">
+                  La griglia qui è la sorgente ({total ?? "—"} scatti). Gli step
+                  di trasformazione lavorano su questi.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={reindexTimes}
+                    disabled={run.active}
+                    className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
+                  >
+                    Reindicizza orari
+                  </button>
+                  <button
+                    onClick={regenerateFavorites}
+                    disabled={run.active}
+                    className="text-sm px-3 py-1.5 rounded bg-violet-700/80 hover:bg-violet-600 text-white disabled:opacity-50"
+                  >
+                    {run.active && run.msg.startsWith("Rigenero") ? "Rigenero…" : "Rigenera preferite"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <textarea
+                  value={genPrompt}
+                  onChange={(e) => setGenPrompt(e.target.value)}
+                  rows={3}
+                  placeholder="Descrivi l'immagine da generare da zero…"
+                  className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm resize-y focus:border-violet-600 outline-none"
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-neutral-400">
+                    variazioni
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={genCount}
+                      onChange={(e) => setGenCount(Number(e.target.value) || 1)}
+                      className="w-16 rounded bg-neutral-950 border border-neutral-700 px-2 py-1 text-sm"
+                    />
+                  </label>
+                  <button
+                    onClick={generateFromPrompt}
+                    disabled={run.active || !genPrompt.trim()}
+                    className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-medium text-sm"
+                  >
+                    {run.active && run.msg.startsWith("Genero") ? "Genero…" : "Genera da prompt"}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="pt-1">
+              <GenerationLook />
+            </div>
+          </div>
+        ),
+      },
       {
         id: "preset",
         label: "Preset",
@@ -214,6 +297,13 @@ export default function PipelineBar({
             >
               <IconDownload /> Esporta {status?.favorites ?? 0} preferite
             </button>
+            <button
+              onClick={() => oneStage(stagePromote, "Promuovo le ultime versioni")}
+              disabled={run.active}
+              className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
+            >
+              Promuovi ultime versioni
+            </button>
             {run.msg && <span className="text-xs text-neutral-400">{run.msg}</span>}
           </div>
           <label className="flex items-center gap-2 text-sm text-neutral-400">
@@ -228,8 +318,7 @@ export default function PipelineBar({
       ),
     });
     return groups;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grade, lutGroups, run, status, gradedView]);
+  })();
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
@@ -305,335 +394,32 @@ export default function PipelineBar({
   }
 
   return (
-    <div>
-      <Accordion
-        storageKey="darkroom.pipeline.open"
-        title={<h1 className="text-lg font-semibold">Pipeline</h1>}
-        summary={
-          <>
-            <span className="shrink-0 text-neutral-500">
-              {enabledSteps.length} step · {grade.enabled ? "grade ON" : "grade OFF"}
-            </span>
-            {active > 0 ? (
-              <span className="shrink-0 text-amber-300">
-                coda {active} ({q.running ?? 0} attivi)
-              </span>
-            ) : (
-              <span className="shrink-0 text-neutral-600">coda idle</span>
-            )}
-            {status?.favorites != null && (
-              <span className="shrink-0 text-neutral-600">· {status.favorites} preferite</span>
-            )}
-          </>
-        }
-        trailing={
-          <>
-            {browserAlive === false && (
-              <span
-                className="shrink-0 text-xs px-2 py-1 rounded bg-red-900/40 text-red-200 border border-red-900 whitespace-nowrap"
-                title="La generazione AI richiede il browser ChatGPT. Avvialo dall'header."
-              >
-                ⚠ worker offline
-              </span>
-            )}
-            {saving && <span className="shrink-0 text-xs text-amber-400">salvo…</span>}
-          </>
-        }
-      >
-        <p className="text-sm text-neutral-400 max-w-2xl mb-3">
-          Dall'<b className="text-neutral-200">input</b> agli step di{" "}
-          <b className="text-neutral-200">trasformazione</b> fino all'
-          <b className="text-neutral-200">output</b>. Scegli la sorgente (cartella
-          o prompt), componi la catena, poi cuoci ed esporta i finali.
-        </p>
-
-        {run.msg && (
-          <div className="mb-3 text-sm px-3 py-2 rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-200">
-            {run.msg}
-          </div>
-        )}
-
-        <div className="space-y-1">
-        {/* ============ STAGE 1 — INPUT (bookend: la sorgente) ============ */}
-      <section className="p-3 rounded-xl border border-violet-900/50 bg-violet-950/10">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
-            Input
-          </span>
-          <h2 className="text-sm font-semibold">Sorgente</h2>
-          <div className="flex-1" />
-          <div className="inline-flex rounded-lg border border-neutral-700 overflow-hidden text-xs">
-            <button
-              onClick={() => pickInputMode("folder")}
-              className={
-                "px-3 py-1.5 transition-colors " +
-                (inputMode === "folder"
-                  ? "bg-neutral-700 text-white"
-                  : "bg-transparent text-neutral-400 hover:text-white")
-              }
+    <EditorShell
+      variant="dock"
+      title="Pipeline — default del set"
+      rightAction={
+        <div className="flex items-center gap-2">
+          {browserAlive === false && (
+            <span
+              className="text-[11px] px-2 py-1 rounded bg-red-900/40 text-red-200 border border-red-900 whitespace-nowrap"
+              title="La generazione AI richiede il browser ChatGPT (avvialo dall'header)."
             >
-              Da cartella (editing)
-            </button>
-            <button
-              onClick={() => pickInputMode("prompt")}
-              className={
-                "px-3 py-1.5 border-l border-neutral-700 transition-colors " +
-                (inputMode === "prompt"
-                  ? "bg-violet-600 text-white"
-                  : "bg-transparent text-neutral-400 hover:text-white")
-              }
-            >
-              Da prompt (genera da 0)
-            </button>
-          </div>
-        </div>
-
-        {inputMode === "folder" ? (
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-neutral-400 flex-1 min-w-[16rem]">
-                La libreria qui sotto è la sorgente:{" "}
-                <b className="text-neutral-200">{total ?? "—"}</b> scatti dalla cartella
-                del progetto. Gli step di trasformazione lavorano su questi.
-              </p>
-              <button
-                onClick={reindexTimes}
-                disabled={run.active}
-                title="Rilegge gli orari EXIF/file per riordinare gli scatti."
-                className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
-              >
-                Reindicizza orari
-              </button>
-            </div>
-            <div className="pt-2 mt-1 border-t border-neutral-800/70 flex flex-wrap items-center gap-3">
-              <span className="text-xs text-neutral-500">
-                Rigenera i preferiti via ChatGPT col look del set (edit da cartella):
-              </span>
-              <button
-                onClick={regenerateFavorites}
-                disabled={run.active}
-                title="Rigenera da zero ogni preferita via ChatGPT col look del set."
-                className="text-sm px-3 py-1.5 rounded bg-violet-700/80 hover:bg-violet-600 text-white disabled:opacity-50"
-              >
-                {run.active && run.msg.startsWith("Rigenero") ? "Rigenero…" : "Rigenera preferite"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <textarea
-              value={genPrompt}
-              onChange={(e) => setGenPrompt(e.target.value)}
-              rows={3}
-              placeholder="Descrivi l'immagine da generare da zero…"
-              className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm resize-y focus:border-violet-600 outline-none"
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-neutral-400">
-                variazioni
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={genCount}
-                  onChange={(e) => setGenCount(Number(e.target.value) || 1)}
-                  className="w-16 rounded bg-neutral-950 border border-neutral-700 px-2 py-1 text-sm"
-                />
-              </label>
-              <button
-                onClick={generateFromPrompt}
-                disabled={run.active || !genPrompt.trim()}
-                className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm"
-              >
-                {run.active && run.msg.startsWith("Genero") ? "Genero…" : "Genera da prompt"}
-              </button>
-              <span className="text-[11px] text-neutral-500">
-                Serializzato sul worker ChatGPT condiviso.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Look condiviso: guida la generazione da prompt E gli step AI che ereditano */}
-        <div className="mt-3">
-          <GenerationLook />
-        </div>
-      </section>
-
-      <StageConnector label="trasformazioni" />
-
-      {/* ============ STAGE 2 — STEP (le trasformazioni, riordinabili) ============ */}
-      <section className="p-3 rounded-xl border border-neutral-800 bg-neutral-900/40">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-xs px-1.5 py-0.5 rounded bg-fuchsia-900/50 text-fuchsia-300 border border-fuchsia-900">
-            Step
-          </span>
-          <h2 className="text-sm font-semibold">Trasformazioni</h2>
-          <span className="text-xs text-neutral-500">
-            {enabledSteps.length} attivi
-          </span>
-          <div className="flex-1" />
-          {active > 0 ? (
-            <span className="text-xs text-amber-300">
-              coda: {active} ({q.running ?? 0} attivi)
+              worker offline
             </span>
-          ) : (
-            <span className="text-xs text-neutral-500">coda idle</span>
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={grade.enabled}
-              onChange={(e) => patch({ enabled: e.target.checked })}
-            />
-            <span className={grade.enabled ? "text-emerald-400" : "text-neutral-400"}>
-              {grade.enabled ? "Grade ON" : "Grade OFF"}
-            </span>
-          </label>
           {saving && <span className="text-xs text-amber-400">salvo…</span>}
         </div>
-
-        <p className="text-[11px] text-neutral-500 mb-2">
-          Catena deterministica eseguita in ordine. Lo step{" "}
-          <b className="text-neutral-300">Color</b> a fine catena è la correzione
-          finale dopo la LUT. La generazione via ChatGPT non è uno step: sta
-          nell'<b className="text-neutral-300">Input</b> (da prompt o rigenera preferite).
-        </p>
-        <div className="hidden lg:block">
-          <StepEditor grade={grade} onChange={(g) => patch(g)} luts={luts} />
-          <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/30">
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2">
-              <IconBookmark className="w-4 h-4" /> Preset &amp; template
-            </summary>
-            <div className="p-3 border-t border-neutral-800">
-              <PresetsPanel grade={grade} onApply={applyGrade} applyLabel="Applica al set" />
-            </div>
-          </details>
-          <LivePreviewView grade={grade} {...lv} />
-        </div>
-
-        <div className="lg:hidden">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="w-full flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-2 text-left"
-          >
-            {lv.shown ? (
-              <img src={lv.shown} alt="anteprima" className="w-14 h-14 rounded object-cover shrink-0" />
-            ) : (
-              <span className="w-14 h-14 rounded bg-neutral-800 shrink-0" />
-            )}
-            <span className="flex-1 min-w-0">
-              <span className="block text-sm font-medium text-neutral-100">Modifica pipeline</span>
-              <span className="block text-xs text-neutral-500 truncate">
-                {grade.enabled ? `${enabledSteps.length} step attivi` : "grade OFF"}
-              </span>
-            </span>
-            <IconChevronLeft className="w-5 h-5 rotate-180 text-neutral-600 shrink-0" />
-          </button>
-          {mobileOpen && (
-            <EditorShell
-              title="Pipeline — default del set"
-              leftAction={
-                <button
-                  onClick={() => setMobileOpen(false)}
-                  className="p-1.5 rounded text-neutral-400 hover:text-white"
-                  aria-label="chiudi"
-                >
-                  <IconChevronLeft />
-                </button>
-              }
-              rightAction={saving ? <span className="text-xs text-amber-400">salvo…</span> : null}
-              master={{
-                enabled: grade.enabled,
-                onToggle: (val) => patch({ enabled: val }),
-                compare: lv.compare,
-                onCompare: lv.setCompare,
-                info: run.msg || "autosalvato",
-              }}
-              addable={addableSteps}
-              onAdd={(t) => addStep(t as GradeStepType)}
-              photo={
-                <div
-                  className="absolute inset-0 select-none"
-                  onMouseDown={() => lv.setCompare(true)}
-                  onMouseUp={() => lv.setCompare(false)}
-                  onTouchStart={() => lv.setCompare(true)}
-                  onTouchEnd={() => lv.setCompare(false)}
-                >
-                  {lv.shown && (
-                    <img
-                      src={lv.shown}
-                      alt="anteprima live"
-                      className="absolute inset-0 w-full h-full object-contain"
-                      draggable={false}
-                    />
-                  )}
-                  {lv.baseSrc && (
-                    <img
-                      src={lv.baseSrc}
-                      alt="base"
-                      className={
-                        "absolute inset-0 w-full h-full object-contain transition-opacity " +
-                        (lv.compare || !grade.enabled ? "opacity-100" : "opacity-0")
-                      }
-                      draggable={false}
-                    />
-                  )}
-                  <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-                    {lv.compare || !grade.enabled ? "base (no grade)" : gradeLabel(grade)}
-                  </span>
-                </div>
-              }
-              groups={mobileGroups}
-            />
-          )}
-        </div>
-      </section>
-
-      <StageConnector label="output" />
-
-      {/* ============ STAGE 3 — OUTPUT (bookend: esporta i finali) ============ */}
-      <section className="p-3 rounded-xl border border-emerald-900/50 bg-emerald-950/10">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-900">
-            Output
-          </span>
-          <h2 className="text-sm font-semibold">Esporta</h2>
-          <span className="text-xs text-neutral-500">{status?.favorites ?? 0} preferite</span>
-          <div className="flex-1" />
-          <label className="flex items-center gap-2 text-xs text-neutral-400">
-            <input
-              type="checkbox"
-              checked={gradedView}
-              onChange={(e) => setGradedView(e.target.checked)}
-            />
-            Anteprima gradata nella griglia
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => oneStage(stageExport, "Esporto i finali")}
-            disabled={run.active}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50"
-          >
-            Esporta finali
-          </button>
-          <button
-            onClick={() => oneStage(stagePromote, "Promuovo le ultime versioni")}
-            disabled={run.active}
-            className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
-          >
-            Promuovi ultime versioni
-          </button>
-        </div>
-        <p className="text-[11px] text-neutral-500 mt-2">
-          L'export renderizza il grade a piena risoluzione al volo su ogni preferita
-          e copia i finali fuori — il look è già applicato, niente bake manuale.
-        </p>
-      </section>
-        </div>
-      </Accordion>
-    </div>
+      }
+      master={{
+        enabled: grade.enabled,
+        onToggle: (v) => patch({ enabled: v }),
+        info: run.msg || `${enabledSteps.length} step · ${grade.enabled ? "ON" : "OFF"}`,
+      }}
+      addable={addableSteps}
+      onAdd={(t) => addStep(t as GradeStepType)}
+      photo={null}
+      groups={mobileGroups}
+    />
   );
 }
 
@@ -735,113 +521,6 @@ function GenerationLook() {
         ))}
     </section>
   );
-}
-
-// Stato dietro l'anteprima live: uno scatto preferito rappresentativo, rigradato
-// al volo mentre gli step cambiano (debounced). Estratto in hook così una sola
-// chiamata in PipelineBar alimenta sia la vista desktop sia l'area foto della
-// shell mobile — nessun fetch/timer duplicato fra le due.
-function useLivePreview(grade: ColorGrade) {
-  const [fav, setFav] = useState<{ id: string; v: number } | null>(null);
-  const [compare, setCompare] = useState(false);
-  const W = 720;
-
-  useEffect(() => {
-    api
-      .listPhotos("with_favorite")
-      .then((r) => {
-        const p =
-          r.photos.find((x) => x.favorite_version_number != null) ?? r.photos[0];
-        if (p?.favorite_version_number != null)
-          setFav({ id: p.id, v: p.favorite_version_number });
-      })
-      .catch(() => {});
-  }, []);
-
-  // Recompute the URL every render (cheap string); the shared hook debounces the
-  // switch + preloads, so a drag fires a few renders, not one per pixel.
-  const url = fav ? gradedPreviewUrl(fav.id, fav.v, grade, W) : null;
-  const { shown, loading } = useDebouncedImage(url, 150);
-
-  const baseSrc = fav
-    ? `/thumb/gen/${encodeURIComponent(fav.id)}/v${String(fav.v).padStart(2, "0")}.png?w=${W}`
-    : null;
-
-  return { shown, baseSrc, loading, compare, setCompare };
-}
-
-// Vista desktop dell'anteprima live (solo presentazione — lo stato viene da
-// useLivePreview, condiviso con la shell mobile). Tieni premuto per la base.
-function LivePreviewView({
-  grade,
-  shown,
-  baseSrc,
-  loading,
-  compare,
-  setCompare,
-}: {
-  grade: ColorGrade;
-  shown: string | null;
-  baseSrc: string | null;
-  loading: boolean;
-  compare: boolean;
-  setCompare: (v: boolean) => void;
-}) {
-  return (
-    <div className="mt-3 flex flex-col sm:flex-row gap-3 items-start">
-      <div
-        className="relative w-full sm:w-72 aspect-[4/5] rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 select-none"
-        onMouseDown={() => setCompare(true)}
-        onMouseUp={() => setCompare(false)}
-        onMouseLeave={() => setCompare(false)}
-        title="Tieni premuto per vedere la base (senza grade)"
-      >
-        {shown && (
-          <img
-            src={shown}
-            alt="anteprima live"
-            className="absolute inset-0 w-full h-full object-cover"
-            draggable={false}
-          />
-        )}
-        {baseSrc && (
-          <img
-            src={baseSrc}
-            alt="base"
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity ${
-              compare || !grade.enabled ? "opacity-100" : "opacity-0"
-            }`}
-            draggable={false}
-          />
-        )}
-        {loading && (
-          <span className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-amber-300">
-            aggiorno…
-          </span>
-        )}
-        <span className="absolute bottom-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-          {compare || !grade.enabled ? "base (no grade)" : gradeLabel(grade)}
-        </span>
-      </div>
-      <div className="text-xs text-neutral-400 max-w-xs space-y-1">
-        <div className="text-neutral-300 font-medium">Anteprima live</div>
-        <p>
-          Segue gli step deterministici in tempo reale su uno scatto campione. Gli
-          step AI non compaiono qui (solo nel bake). Tieni premuto sull'immagine
-          per confrontare la base senza grade.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Etichetta compatta dello stato grade per l'anteprima: dose della LUT attiva,
-// o il numero di step attivi se non c'è una LUT nella catena.
-function gradeLabel(grade: ColorGrade): string {
-  const lut = grade.steps.find((s) => s.enabled && s.type === "lut");
-  if (lut) return `LUT ${Number(lut.params.dose ?? 0)}%`;
-  const n = grade.steps.filter((s) => s.enabled).length;
-  return `${n} step`;
 }
 
 function shortResult(r: unknown): string {

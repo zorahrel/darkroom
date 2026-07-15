@@ -11,8 +11,9 @@ export type { ToolGroup, AddableStep };
 export type MasterControls = {
   enabled: boolean;
   onToggle: (v: boolean) => void;
-  compare: boolean;
-  onCompare: (v: boolean) => void;
+  // Hold-to-compare — only meaningful when there's a photo (omit in dock mode).
+  compare?: boolean;
+  onCompare?: (v: boolean) => void;
   info?: string;
 };
 
@@ -127,18 +128,20 @@ export default function EditorShell({
 
           <div className="flex-1" />
 
-          <button
-            onClick={() => master.onCompare(!master.compare)}
-            className={
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs " +
-              (master.compare
-                ? "bg-sky-900/50 text-sky-200"
-                : "bg-neutral-800 text-neutral-300")
-            }
-          >
-            <IconCompare />
-            {master.compare ? "Originale" : "Confronta"}
-          </button>
+          {master.onCompare && (
+            <button
+              onClick={() => master.onCompare!(!master.compare)}
+              className={
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs " +
+                (master.compare
+                  ? "bg-sky-900/50 text-sky-200"
+                  : "bg-neutral-800 text-neutral-300")
+              }
+            >
+              <IconCompare />
+              {master.compare ? "Originale" : "Confronta"}
+            </button>
+          )}
         </div>
       )}
 

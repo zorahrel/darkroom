@@ -57,7 +57,12 @@ export default function Home() {
   if (!grade) return <div className="p-6 text-neutral-400">Carico…</div>;
 
   return (
-    <div className="space-y-4">
+    <div>
+      {/* La griglia è la superficie di anteprima; la pipeline vive in una dock
+          fissa in basso (PipelineBar) — padding sotto per non finirci sotto. */}
+      <div className="pb-[200px]">
+        <Library graded={gradedView && grade.enabled} bust={bust} reloadKey={reload} />
+      </div>
       <PipelineBar
         grade={grade}
         luts={luts}
@@ -70,9 +75,6 @@ export default function Home() {
           setReload((n) => n + 1);
         }}
       />
-      <div className="pt-3 border-t border-neutral-800">
-        <Library graded={gradedView && grade.enabled} bust={bust} reloadKey={reload} />
-      </div>
     </div>
   );
 }
