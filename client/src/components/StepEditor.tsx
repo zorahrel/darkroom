@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   type ColorGrade,
   type GradeStep,
@@ -7,6 +7,7 @@ import {
   type PromptConfig,
   type AiStepParams,
   DEFAULT_CONFIG,
+  HSL_BANDS,
   STEP_LABELS,
   STEP_ORDER,
   newStep,
@@ -30,16 +31,7 @@ export default function StepEditor({
   onHoverStep?: (index: number | null) => void;
 }) {
   const steps = grade.steps;
-
-  const lutGroups = useMemo(() => {
-    const m = new Map<string, Lut[]>();
-    for (const l of luts) {
-      const arr = m.get(l.group) ?? [];
-      arr.push(l);
-      m.set(l.group, arr);
-    }
-    return [...m.entries()];
-  }, [luts]);
+  const lutGroups = useMemo(() => groupLuts(luts), [luts]);
 
   function setSteps(next: GradeStep[]) {
     onChange({ ...grade, steps: next });
@@ -150,6 +142,18 @@ export default function StepEditor({
   );
 }
 
+// Exported so the mobile toolbar panel can group LUTs the same way without
+// duplicating the grouping logic.
+export function groupLuts(luts: Lut[]): [string, Lut[]][] {
+  const m = new Map<string, Lut[]>();
+  for (const l of luts) {
+    const arr = m.get(l.group) ?? [];
+    arr.push(l);
+    m.set(l.group, arr);
+  }
+  return [...m.entries()];
+}
+
 function AddStep({ onAdd }: { onAdd: (t: GradeStepType) => void }) {
   return (
     <div className="flex items-center gap-2 pt-1">
@@ -177,7 +181,8 @@ function bool(v: unknown): boolean {
 
 // One-line digest of a step's params, shown in the (collapsed) header so the
 // whole pipeline reads at a glance — and so the AI step never looks inert.
-function stepSummary(s: GradeStep): string {
+// Exported for reuse by the mobile bottom-toolbar panel (same digest, same source).
+export function stepSummary(s: GradeStep): string {
   const p = s.params;
   switch (s.type) {
     case "white_balance":
@@ -186,6 +191,8 @@ function stepSummary(s: GradeStep): string {
       return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}`;
     case "sakura":
       return "auto";
+    case "sky":
+      return `+${num(p.amount, 40)}%`;
     case "lut": {
       const name =
         String(p.lut ?? "")
@@ -198,13 +205,37 @@ function stepSummary(s: GradeStep): string {
         : `${num(p.dose, 80)}%`;
       return `${name} · ${dose}`;
     }
+    case "hsl": {
+      const bands = ["red", "orange", "yellow", "green", "aqua", "blue", "purple", "magenta"];
+      const active = bands.filter(
+        (b) => num(p[`hue_${b}`]) || num(p[`sat_${b}`]) || num(p[`lum_${b}`]),
+      );
+      return active.length ? `${active.length} bande` : "neutro";
+    }
+    case "curve": {
+      if (Array.isArray(p.points) && p.points.length >= 2) return `curva · ${p.points.length} punti`;
+      const perCh = ["points_r", "points_g", "points_b"].some((k) => Array.isArray(p[k]));
+      if (perCh) return "curve per-canale";
+      const active = ["shadows", "darks", "lights", "highlights"].filter((k) => num(p[k]));
+      return active.length ? `${active.length} zone` : "lineare";
+    }
+    case "split_tone": {
+      const active = ["shadows", "midtones", "highlights"].filter((r) => num(p[`${r}_sat`]));
+      return active.length ? `${active.length} tinte` : "neutro";
+    }
     case "color": {
       const keys: [string, string][] = [
+        ["exposure", "esp"],
+        ["contrast", "contr"],
+        ["highlights", "alte"],
+        ["shadows", "ombre"],
+        ["whites", "bianchi"],
+        ["blacks", "neri"],
         ["temp", "temp"],
         ["tint", "tint"],
         ["saturation", "sat"],
         ["brightness", "lum"],
-        ["contrast", "contr"],
+        ["vibrance", "vibr"],
       ];
       const active = keys
         .filter(([k]) => num(p[k], 0) !== 0)
@@ -222,7 +253,9 @@ function stepSummary(s: GradeStep): string {
   }
 }
 
-function StepParams({
+// Exported for reuse by the mobile bottom-toolbar panel — same per-type
+// controls, rendered inside a ToolPanel instead of an always-expanded card.
+export function StepParams({
   step,
   lutGroups,
   onParams,
@@ -232,6 +265,9 @@ function StepParams({
   onParams: (p: Record<string, unknown>) => void;
 }) {
   const p = step.params;
+  // Selected HSL band (only meaningful for the 'hsl' step); declared here so the
+  // hook order stays stable across step types.
+  const [hslBand, setHslBand] = useState<string>("red");
 
   if (step.type === "white_balance") {
     return (
@@ -297,6 +333,28 @@ function StepParams({
     );
   }
 
+  if (step.type === "sky") {
+    return (
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-neutral-400 flex items-center justify-between">
+          <span>Schiarisci i celesti (cielo)</span>
+          <span className="tabular-nums text-neutral-200">{num(p.amount, 40)}%</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={num(p.amount, 40)}
+          onChange={(e) => onParams({ amount: Number(e.target.value) })}
+        />
+        <p className="text-[11px] text-neutral-500">
+          Maschera solo le tonalità ciano/blu chiare (cielo) e le schiarisce —
+          non tocca insegne, vestiti o acqua molto saturi.
+        </p>
+      </label>
+    );
+  }
+
   if (step.type === "lut") {
     const autoDose = bool(p.auto_dose);
     return (
@@ -358,14 +416,140 @@ function StepParams({
     );
   }
 
+  if (step.type === "hsl") {
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="flex flex-wrap gap-1">
+          {HSL_BANDS.map((b) => {
+            const active = hslBand === b.key;
+            const touched =
+              num(p[`hue_${b.key}`]) || num(p[`sat_${b.key}`]) || num(p[`lum_${b.key}`]);
+            return (
+              <button
+                key={b.key}
+                onClick={() => setHslBand(b.key)}
+                className={
+                  "px-2 py-1 rounded text-xs border " +
+                  (active
+                    ? "border-sky-500 text-white bg-sky-900/30"
+                    : "border-neutral-700 text-neutral-400 hover:text-white")
+                }
+              >
+                {b.label}
+                {touched ? <span className="ml-1 text-sky-400">•</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-1 gap-y-2">
+          <ColorSlider label="Tonalità" k={`hue_${hslBand}`} p={p} onParams={onParams} />
+          <ColorSlider label="Saturazione" k={`sat_${hslBand}`} p={p} onParams={onParams} />
+          <ColorSlider label="Luminanza" k={`lum_${hslBand}`} p={p} onParams={onParams} />
+        </div>
+        <p className="text-[11px] text-neutral-500">
+          Regola una banda di colore alla volta (come il Color Mixer di Lightroom).
+        </p>
+      </div>
+    );
+  }
+
+  if (step.type === "curve") {
+    const importedPoints = Array.isArray(p.points) ? (p.points as unknown[]) : null;
+    return (
+      <div className="space-y-3 text-sm">
+        {importedPoints && importedPoints.length >= 2 ? (
+          <div className="flex items-center gap-2 rounded-lg border border-sky-900/60 bg-sky-950/20 px-3 py-2">
+            <span className="text-sky-200 text-xs flex-1">
+              Curva importata · {importedPoints.length} punti
+            </span>
+            <button
+              onClick={() => onParams({ points: null })}
+              className="text-xs px-2 py-1 rounded border border-neutral-700 text-neutral-300 hover:text-white"
+            >
+              Rimuovi
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <ColorSlider label="Alte luci" k="highlights" p={p} onParams={onParams} />
+            <ColorSlider label="Chiari" k="lights" p={p} onParams={onParams} />
+            <ColorSlider label="Scuri" k="darks" p={p} onParams={onParams} />
+            <ColorSlider label="Ombre" k="shadows" p={p} onParams={onParams} />
+          </div>
+        )}
+        {(["points_r", "points_g", "points_b"] as const).some((k) => Array.isArray(p[k])) && (
+          <div className="flex items-center gap-2 rounded-lg border border-sky-900/60 bg-sky-950/20 px-3 py-2">
+            <span className="text-sky-200 text-xs flex-1">
+              Curve per-canale:{" "}
+              {(["points_r", "points_g", "points_b"] as const)
+                .filter((k) => Array.isArray(p[k]))
+                .map((k) => k.slice(-1).toUpperCase())
+                .join(" · ")}
+            </span>
+            <button
+              onClick={() => onParams({ points_r: null, points_g: null, points_b: null })}
+              className="text-xs px-2 py-1 rounded border border-neutral-700 text-neutral-300 hover:text-white"
+            >
+              Rimuovi
+            </button>
+          </div>
+        )}
+        <p className="text-[11px] text-neutral-500">
+          Curva parametrica sui quarti tonali. Un import Lightroom con curva a punti
+          (composita o per-canale R/G/B) la applica esattamente.
+        </p>
+      </div>
+    );
+  }
+
+  if (step.type === "split_tone") {
+    return (
+      <div className="space-y-2 text-sm">
+        <RegionTint label="Ombre" region="shadows" p={p} onParams={onParams} />
+        <RegionTint label="Mezzitoni" region="midtones" p={p} onParams={onParams} />
+        <RegionTint label="Alte luci" region="highlights" p={p} onParams={onParams} />
+        <label className="flex flex-col gap-1 pt-1">
+          <span className="text-neutral-400 flex items-center justify-between">
+            <span>Bilanciamento (ombre ↔ luci)</span>
+            <span className="tabular-nums text-neutral-200">{num(p.balance, 0)}</span>
+          </span>
+          <input
+            type="range"
+            min={-100}
+            max={100}
+            value={num(p.balance, 0)}
+            onChange={(e) => onParams({ balance: Number(e.target.value) })}
+            onDoubleClick={() => onParams({ balance: 0 })}
+          />
+        </label>
+      </div>
+    );
+  }
+
   if (step.type === "color") {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <ColorSlider label="Temperatura (freddo ↔ caldo)" k="temp" p={p} onParams={onParams} />
-        <ColorSlider label="Tinta (verde ↔ magenta)" k="tint" p={p} onParams={onParams} />
-        <ColorSlider label="Saturazione" k="saturation" p={p} onParams={onParams} />
-        <ColorSlider label="Luminosità" k="brightness" p={p} onParams={onParams} />
-        <ColorSlider label="Contrasto" k="contrast" p={p} onParams={onParams} />
+      <div className="space-y-3 text-sm">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Toni</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <ColorSlider label="Esposizione" k="exposure" p={p} onParams={onParams} />
+            <ColorSlider label="Contrasto" k="contrast" p={p} onParams={onParams} />
+            <ColorSlider label="Alte luci" k="highlights" p={p} onParams={onParams} />
+            <ColorSlider label="Ombre" k="shadows" p={p} onParams={onParams} />
+            <ColorSlider label="Bianchi" k="whites" p={p} onParams={onParams} />
+            <ColorSlider label="Neri" k="blacks" p={p} onParams={onParams} />
+            <ColorSlider label="Luminosità" k="brightness" p={p} onParams={onParams} />
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Colore</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <ColorSlider label="Temperatura (freddo ↔ caldo)" k="temp" p={p} onParams={onParams} />
+            <ColorSlider label="Tinta (verde ↔ magenta)" k="tint" p={p} onParams={onParams} />
+            <ColorSlider label="Saturazione" k="saturation" p={p} onParams={onParams} />
+            <ColorSlider label="Vividezza (protegge i colori già saturi)" k="vibrance" p={p} onParams={onParams} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -444,5 +628,59 @@ function ColorSlider({
         title="doppio click = 0"
       />
     </label>
+  );
+}
+
+// One tonal region of the split-tone step: a hue (0-360) + saturation (0-100)
+// pair with a live swatch of the resulting tint.
+function RegionTint({
+  label,
+  region,
+  p,
+  onParams,
+}: {
+  label: string;
+  region: string;
+  p: Record<string, unknown>;
+  onParams: (p: Record<string, unknown>) => void;
+}) {
+  const hue = num(p[`${region}_hue`], 0);
+  const sat = num(p[`${region}_sat`], 0);
+  return (
+    <div className="rounded-lg border border-neutral-800 p-2 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span
+          className="w-4 h-4 rounded-full border border-neutral-700"
+          style={{ background: sat > 0 ? `hsl(${hue} ${sat}% 55%)` : "transparent" }}
+        />
+        <span className="text-neutral-300">{label}</span>
+      </div>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[11px] text-neutral-500 flex items-center justify-between">
+          <span>Tonalità</span>
+          <span className="tabular-nums">{hue}°</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={360}
+          value={hue}
+          onChange={(e) => onParams({ [`${region}_hue`]: Number(e.target.value) })}
+        />
+      </label>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[11px] text-neutral-500 flex items-center justify-between">
+          <span>Saturazione</span>
+          <span className="tabular-nums">{sat}</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={sat}
+          onChange={(e) => onParams({ [`${region}_sat`]: Number(e.target.value) })}
+        />
+      </label>
+    </div>
   );
 }

@@ -1,14 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useDebouncedImage } from "../lib/useDebouncedImage";
 import {
   api,
   gradedPreviewUrl,
+  STEP_LABELS,
+  STEP_ORDER,
+  newStep,
   type ColorGrade,
+  type GradeStepType,
   type Lut,
   type PipelineStatus,
   type PromptConfig,
 } from "../api";
-import StepEditor from "../components/StepEditor";
+import StepEditor, { StepParams, stepSummary, groupLuts } from "../components/StepEditor";
 import PromptBuilder from "../components/PromptBuilder";
+import Accordion from "../components/Accordion";
+import PresetsPanel from "../components/PresetsPanel";
+import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
+import { StepIcon, IconChevronLeft, IconChevronDown, IconBookmark } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
 // INPUT (source: folder-editing or from-zero prompt) → STEPS (the deterministic
@@ -40,6 +49,12 @@ export default function PipelineBar({
     msg: "",
   });
   const [browserAlive, setBrowserAlive] = useState<boolean | null>(null);
+
+  // Anteprima live (dati) + shell mobile (<lg): un'unica sorgente di stato dietro
+  // sia la vista desktop sia l'area foto dell'EditorShell, niente fetch doppio.
+  const lv = useLivePreview(grade);
+  const lutGroups = useMemo(() => groupLuts(luts), [luts]);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Input stage: the pipeline's source. Two modes — "folder" (edit the existing
   // library) or "prompt" (text-to-image from zero). Persisted so the choice sticks.
@@ -105,6 +120,87 @@ export default function PipelineBar({
   const q = status?.queue ?? {};
   const active = (q.pending ?? 0) + (q.running ?? 0);
   const enabledSteps = grade.steps.filter((s) => s.enabled);
+
+  function patchStepAt(idx: number, p: Partial<ColorGrade["steps"][number]>) {
+    patch({ steps: grade.steps.map((s, j) => (j === idx ? { ...s, ...p } : s)) });
+  }
+  function patchParamsAt(idx: number, p: Record<string, unknown>) {
+    patch({
+      steps: grade.steps.map((s, j) => (j === idx ? { ...s, params: { ...s.params, ...p } } : s)),
+    });
+  }
+  function moveStepAt(idx: number, dir: -1 | 1) {
+    const j = idx + dir;
+    if (j < 0 || j >= grade.steps.length) return;
+    const next = grade.steps.slice();
+    const a = next[idx];
+    const b = next[j];
+    if (!a || !b) return;
+    next[idx] = b;
+    next[j] = a;
+    patch({ steps: next });
+  }
+  function removeStepAt(idx: number) {
+    patch({ steps: grade.steps.filter((_, j) => j !== idx) });
+  }
+  function addStep(type: GradeStepType) {
+    patch({ steps: [...grade.steps, newStep(type)] });
+  }
+  // Applica un preset al look globale del set (autosave via patch).
+  function applyGrade(g: ColorGrade) {
+    patch({ enabled: g.enabled, steps: g.steps });
+  }
+
+  // Gruppi della toolbar mobile: solo step deterministici (niente Genera, che a
+  // livello globale non è uno step — vive nell'Input/Output qui sopra). Ogni chip
+  // è uno step riordinabile; il pannello mostra i parametri, la gestione (enable/
+  // riordino/rimuovi) sta nel suo header.
+  const mobileGroups: ToolGroup[] = useMemo(() => {
+    const groups: ToolGroup[] = [
+      {
+        id: "preset",
+        label: "Preset",
+        icon: <IconBookmark />,
+        render: () => <PresetsPanel grade={grade} onApply={applyGrade} applyLabel="Applica al set" />,
+      },
+    ];
+    let order = 0;
+    grade.steps.forEach((s, idx) => {
+      if (s.type === "ai") return;
+      order += 1;
+      groups.push({
+        id: s.id,
+        label: STEP_LABELS[s.type],
+        icon: <StepIcon type={s.type} />,
+        step: {
+          order,
+          enabled: s.enabled,
+          onToggle: (v) => patchStepAt(idx, { enabled: v }),
+          canUp: idx > 0,
+          canDown: idx < grade.steps.length - 1,
+          onMove: (dir) => moveStepAt(idx, dir),
+          onRemove: () => removeStepAt(idx),
+          summary: stepSummary(s),
+        },
+        render: () =>
+          s.enabled ? (
+            <StepParams step={s} lutGroups={lutGroups} onParams={(p) => patchParamsAt(idx, p)} />
+          ) : (
+            <p className="text-sm text-neutral-500">
+              Step disattivo. Attivalo dall'interruttore qui sopra per modificarne i parametri.
+            </p>
+          ),
+      });
+    });
+    return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grade, lutGroups]);
+
+  const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
+    type: t,
+    label: STEP_LABELS[t],
+    icon: <StepIcon type={t} className="w-4 h-4" />,
+  }));
 
   // Direct regeneration of every favorite through the ChatGPT worker using the
   // set's default look — the primary "generate photos" action (restored). It
@@ -175,34 +271,55 @@ export default function PipelineBar({
 
   return (
     <div>
-      <div className="flex flex-wrap items-end gap-4 mb-4">
-        <div>
-          <h1 className="text-lg font-semibold">Pipeline</h1>
-          <p className="text-sm text-neutral-400 max-w-2xl">
-            Dall'<b className="text-neutral-200">input</b> agli step di{" "}
-            <b className="text-neutral-200">trasformazione</b> fino all'
-            <b className="text-neutral-200">output</b>. Scegli la sorgente (cartella
-            o prompt), componi la catena, poi cuoci ed esporta i finali.
-          </p>
-        </div>
-        <div className="flex-1" />
-        {browserAlive === false && (
-          <span
-            className="text-xs px-2 py-1 rounded bg-red-900/40 text-red-200 border border-red-900 self-center whitespace-nowrap"
-            title="La generazione AI richiede il browser ChatGPT. Avvialo dall'header."
-          >
-            ⚠ worker offline
-          </span>
+      <Accordion
+        storageKey="darkroom.pipeline.open"
+        title={<h1 className="text-lg font-semibold">Pipeline</h1>}
+        summary={
+          <>
+            <span className="shrink-0 text-neutral-500">
+              {enabledSteps.length} step · {grade.enabled ? "grade ON" : "grade OFF"}
+            </span>
+            {active > 0 ? (
+              <span className="shrink-0 text-amber-300">
+                coda {active} ({q.running ?? 0} attivi)
+              </span>
+            ) : (
+              <span className="shrink-0 text-neutral-600">coda idle</span>
+            )}
+            {status?.favorites != null && (
+              <span className="shrink-0 text-neutral-600">· {status.favorites} preferite</span>
+            )}
+          </>
+        }
+        trailing={
+          <>
+            {browserAlive === false && (
+              <span
+                className="shrink-0 text-xs px-2 py-1 rounded bg-red-900/40 text-red-200 border border-red-900 whitespace-nowrap"
+                title="La generazione AI richiede il browser ChatGPT. Avvialo dall'header."
+              >
+                ⚠ worker offline
+              </span>
+            )}
+            {saving && <span className="shrink-0 text-xs text-amber-400">salvo…</span>}
+          </>
+        }
+      >
+        <p className="text-sm text-neutral-400 max-w-2xl mb-3">
+          Dall'<b className="text-neutral-200">input</b> agli step di{" "}
+          <b className="text-neutral-200">trasformazione</b> fino all'
+          <b className="text-neutral-200">output</b>. Scegli la sorgente (cartella
+          o prompt), componi la catena, poi cuoci ed esporta i finali.
+        </p>
+
+        {run.msg && (
+          <div className="mb-3 text-sm px-3 py-2 rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-200">
+            {run.msg}
+          </div>
         )}
-      </div>
 
-      {run.msg && (
-        <div className="mb-4 text-sm px-3 py-2 rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-200">
-          {run.msg}
-        </div>
-      )}
-
-      {/* ============ STAGE 1 — INPUT (bookend: la sorgente) ============ */}
+        <div className="space-y-1">
+        {/* ============ STAGE 1 — INPUT (bookend: la sorgente) ============ */}
       <section className="p-3 rounded-xl border border-violet-900/50 bg-violet-950/10">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
@@ -263,7 +380,7 @@ export default function PipelineBar({
                 title="Rigenera da zero ogni preferita via ChatGPT col look del set."
                 className="text-sm px-3 py-1.5 rounded bg-violet-700/80 hover:bg-violet-600 text-white disabled:opacity-50"
               >
-                {run.active && run.msg.startsWith("Rigenero") ? "⏳ Rigenero…" : "✨ Rigenera preferite"}
+                {run.active && run.msg.startsWith("Rigenero") ? "Rigenero…" : "Rigenera preferite"}
               </button>
             </div>
           </div>
@@ -293,7 +410,7 @@ export default function PipelineBar({
                 disabled={run.active || !genPrompt.trim()}
                 className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm"
               >
-                {run.active && run.msg.startsWith("Genero") ? "⏳ Genero…" : "✨ Genera da prompt"}
+                {run.active && run.msg.startsWith("Genero") ? "Genero…" : "Genera da prompt"}
               </button>
               <span className="text-[11px] text-neutral-500">
                 Serializzato sul worker ChatGPT condiviso.
@@ -347,9 +464,95 @@ export default function PipelineBar({
           finale dopo la LUT. La generazione via ChatGPT non è uno step: sta
           nell'<b className="text-neutral-300">Input</b> (da prompt o rigenera preferite).
         </p>
-        <StepEditor grade={grade} onChange={(g) => patch(g)} luts={luts} />
+        <div className="hidden lg:block">
+          <StepEditor grade={grade} onChange={(g) => patch(g)} luts={luts} />
+          <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/30">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2">
+              <IconBookmark className="w-4 h-4" /> Preset &amp; template
+            </summary>
+            <div className="p-3 border-t border-neutral-800">
+              <PresetsPanel grade={grade} onApply={applyGrade} applyLabel="Applica al set" />
+            </div>
+          </details>
+          <LivePreviewView grade={grade} {...lv} />
+        </div>
 
-        <LivePreview grade={grade} />
+        <div className="lg:hidden">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="w-full flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-2 text-left"
+          >
+            {lv.shown ? (
+              <img src={lv.shown} alt="anteprima" className="w-14 h-14 rounded object-cover shrink-0" />
+            ) : (
+              <span className="w-14 h-14 rounded bg-neutral-800 shrink-0" />
+            )}
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-medium text-neutral-100">Modifica pipeline</span>
+              <span className="block text-xs text-neutral-500 truncate">
+                {grade.enabled ? `${enabledSteps.length} step attivi` : "grade OFF"}
+              </span>
+            </span>
+            <IconChevronLeft className="w-5 h-5 rotate-180 text-neutral-600 shrink-0" />
+          </button>
+          {mobileOpen && (
+            <EditorShell
+              title="Pipeline — default del set"
+              leftAction={
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="p-1.5 rounded text-neutral-400 hover:text-white"
+                  aria-label="chiudi"
+                >
+                  <IconChevronLeft />
+                </button>
+              }
+              rightAction={saving ? <span className="text-xs text-amber-400">salvo…</span> : null}
+              master={{
+                enabled: grade.enabled,
+                onToggle: (val) => patch({ enabled: val }),
+                compare: lv.compare,
+                onCompare: lv.setCompare,
+                info: "autosalvato",
+              }}
+              addable={addableSteps}
+              onAdd={(t) => addStep(t as GradeStepType)}
+              photo={
+                <div
+                  className="absolute inset-0 select-none"
+                  onMouseDown={() => lv.setCompare(true)}
+                  onMouseUp={() => lv.setCompare(false)}
+                  onTouchStart={() => lv.setCompare(true)}
+                  onTouchEnd={() => lv.setCompare(false)}
+                >
+                  {lv.shown && (
+                    <img
+                      src={lv.shown}
+                      alt="anteprima live"
+                      className="absolute inset-0 w-full h-full object-contain"
+                      draggable={false}
+                    />
+                  )}
+                  {lv.baseSrc && (
+                    <img
+                      src={lv.baseSrc}
+                      alt="base"
+                      className={
+                        "absolute inset-0 w-full h-full object-contain transition-opacity " +
+                        (lv.compare || !grade.enabled ? "opacity-100" : "opacity-0")
+                      }
+                      draggable={false}
+                    />
+                  )}
+                  <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+                    {lv.compare || !grade.enabled ? "base (no grade)" : gradeLabel(grade)}
+                  </span>
+                </div>
+              }
+              groups={mobileGroups}
+            />
+          )}
+        </div>
       </section>
 
       <StageConnector label="output" />
@@ -378,7 +581,7 @@ export default function PipelineBar({
             disabled={run.active}
             className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50"
           >
-            ▶ Esporta finali
+            Esporta finali
           </button>
           <button
             onClick={() => oneStage(stagePromote, "Promuovo le ultime versioni")}
@@ -393,6 +596,8 @@ export default function PipelineBar({
           e copia i finali fuori — il look è già applicato, niente bake manuale.
         </p>
       </section>
+        </div>
+      </Accordion>
     </div>
   );
 }
@@ -460,7 +665,10 @@ function GenerationLook() {
         </span>
         <div className="flex-1" />
         {dirty && <span className="text-xs text-amber-400">non salvato</span>}
-        <span className="text-neutral-500 text-xs">{open ? "▲ chiudi" : "▼ apri"}</span>
+        <span className="flex items-center gap-1 text-neutral-500 text-xs">
+          {open ? "Chiudi" : "Apri"}
+          <IconChevronDown className={"w-4 h-4 transition-transform " + (open ? "rotate-180" : "")} />
+        </span>
       </button>
       {open &&
         (cfg ? (
@@ -494,16 +702,13 @@ function GenerationLook() {
   );
 }
 
-// Live preview: one representative favorite, re-graded on the fly as the steps
-// change (debounced), so the LUT dose is judged instantly without waiting for
-// the whole grid to re-render. Hold the image to compare the base.
-function LivePreview({ grade }: { grade: ColorGrade }) {
+// Stato dietro l'anteprima live: uno scatto preferito rappresentativo, rigradato
+// al volo mentre gli step cambiano (debounced). Estratto in hook così una sola
+// chiamata in PipelineBar alimenta sia la vista desktop sia l'area foto della
+// shell mobile — nessun fetch/timer duplicato fra le due.
+function useLivePreview(grade: ColorGrade) {
   const [fav, setFav] = useState<{ id: string; v: number } | null>(null);
-  const [src, setSrc] = useState<string | null>(null);
-  const [shown, setShown] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [compare, setCompare] = useState(false);
-  const timer = useRef<number | null>(null);
   const W = 720;
 
   useEffect(() => {
@@ -518,43 +723,35 @@ function LivePreview({ grade }: { grade: ColorGrade }) {
       .catch(() => {});
   }, []);
 
-  // Debounce the URL recompute so a drag fires a few requests, not one per pixel.
-  useEffect(() => {
-    if (!fav) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      setSrc(gradedPreviewUrl(fav.id, fav.v, grade, W));
-    }, 150);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-    // Re-run when the grade (steps) changes — serialize as the dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fav, grade.enabled, JSON.stringify(grade.steps)]);
-
-  // Preload → swap so dragging never flashes blank while the server renders.
-  useEffect(() => {
-    if (!src) return;
-    setLoading(true);
-    let cancelled = false;
-    const img = new Image();
-    img.onload = () => {
-      if (!cancelled) {
-        setShown(src);
-        setLoading(false);
-      }
-    };
-    img.onerror = () => !cancelled && setLoading(false);
-    img.src = src;
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
+  // Recompute the URL every render (cheap string); the shared hook debounces the
+  // switch + preloads, so a drag fires a few renders, not one per pixel.
+  const url = fav ? gradedPreviewUrl(fav.id, fav.v, grade, W) : null;
+  const { shown, loading } = useDebouncedImage(url, 150);
 
   const baseSrc = fav
     ? `/thumb/gen/${encodeURIComponent(fav.id)}/v${String(fav.v).padStart(2, "0")}.png?w=${W}`
     : null;
 
+  return { shown, baseSrc, loading, compare, setCompare };
+}
+
+// Vista desktop dell'anteprima live (solo presentazione — lo stato viene da
+// useLivePreview, condiviso con la shell mobile). Tieni premuto per la base.
+function LivePreviewView({
+  grade,
+  shown,
+  baseSrc,
+  loading,
+  compare,
+  setCompare,
+}: {
+  grade: ColorGrade;
+  shown: string | null;
+  baseSrc: string | null;
+  loading: boolean;
+  compare: boolean;
+  setCompare: (v: boolean) => void;
+}) {
   return (
     <div className="mt-3 flex flex-col sm:flex-row gap-3 items-start">
       <div

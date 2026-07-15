@@ -7,6 +7,7 @@ export type PhotoListItem = {
   latest_version_number: number | null;
   version_count: number;
   taken_at: number | null;
+  feedback: string | null;
 };
 
 export type Version = {
@@ -262,6 +263,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ extra }),
     }),
+  setFeedback: (id: string, feedback: string | null) =>
+    jsonFetch<{ ok: boolean; feedback: string | null }>(
+      `/api/photos/${encodeURIComponent(id)}/feedback`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ feedback }),
+      },
+    ),
   deleteVersion: (id: string, vid: number) =>
     jsonFetch(
       `/api/photos/${encodeURIComponent(id)}/versions/${vid}`,
@@ -395,6 +404,41 @@ export const api = {
       `/api/studio/projects/${encodeURIComponent(pid)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
     ),
+  // Presets / templates
+  presets: () => jsonFetch<{ presets: Preset[] }>("/api/presets"),
+  createPreset: (name: string, grade: ColorGrade) =>
+    jsonFetch<{ ok: true; preset: Preset }>("/api/presets", {
+      method: "POST",
+      body: JSON.stringify({ name, grade }),
+    }),
+  renamePreset: (id: number, name: string) =>
+    jsonFetch<{ ok: true; preset: Preset }>(`/api/presets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    }),
+  deletePreset: (id: number) =>
+    jsonFetch<{ ok: true }>(`/api/presets/${id}`, { method: "DELETE" }),
+  importTemplate: (filename: string, text: string, save = false) =>
+    jsonFetch<ImportTemplateResult>("/api/templates/import", {
+      method: "POST",
+      body: JSON.stringify({ filename, text, save }),
+    }),
+};
+
+export type Preset = {
+  id: number;
+  name: string;
+  grade: ColorGrade;
+  source: string;
+  created_at: number;
+};
+
+export type ImportTemplateResult = {
+  ok: true;
+  grade: ColorGrade;
+  name: string;
+  notes: string[];
+  preset: Preset | null;
 };
 
 export type Run = {
@@ -437,7 +481,11 @@ export type GradeStepType =
   | "white_balance"
   | "levels"
   | "sakura"
+  | "sky"
   | "lut"
+  | "hsl"
+  | "curve"
+  | "split_tone"
   | "color"
   | "ai";
 
@@ -532,10 +580,26 @@ export const STEP_LABELS: Record<GradeStepType, string> = {
   white_balance: "Bilanciamento bianco",
   levels: "Livelli",
   sakura: "Sakura",
+  sky: "Cielo (celesti)",
   lut: "LUT",
+  hsl: "HSL / Colore",
+  curve: "Curva",
+  split_tone: "Split Tone",
   color: "Color (finale)",
   ai: "Generazione AI",
 };
+
+// The 8 Lightroom HSL bands, in order, with a display label.
+export const HSL_BANDS: { key: string; label: string }[] = [
+  { key: "red", label: "Rosso" },
+  { key: "orange", label: "Arancio" },
+  { key: "yellow", label: "Giallo" },
+  { key: "green", label: "Verde" },
+  { key: "aqua", label: "Acqua" },
+  { key: "blue", label: "Blu" },
+  { key: "purple", label: "Viola" },
+  { key: "magenta", label: "Magenta" },
+];
 
 // Addable pipeline steps. "ai" = edit generativo (primo step della pipeline
 // completa): editabile, riordinabile, saltato dal display live, eseguito nel
@@ -546,15 +610,40 @@ export const STEP_ORDER: GradeStepType[] = [
   "levels",
   "sakura",
   "lut",
+  "sky",
+  "hsl",
+  "curve",
+  "split_tone",
   "color",
 ];
+
+// Zeroed hue/sat/lum for every HSL band — the neutral starting point.
+const HSL_ZERO: Record<string, number> = Object.fromEntries(
+  ["red", "orange", "yellow", "green", "aqua", "blue", "purple", "magenta"].flatMap((b) => [
+    [`hue_${b}`, 0],
+    [`sat_${b}`, 0],
+    [`lum_${b}`, 0],
+  ]),
+);
 
 const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   white_balance: { awb: true, scene_match: false },
   levels: { black: 0.4, white: 99.6 },
   sakura: {},
+  sky: { amount: 40 },
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
-  color: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 },
+  hsl: { ...HSL_ZERO },
+  curve: { shadows: 0, darks: 0, lights: 0, highlights: 0 },
+  split_tone: {
+    shadows_hue: 0, shadows_sat: 0,
+    midtones_hue: 0, midtones_sat: 0,
+    highlights_hue: 0, highlights_sat: 0,
+    balance: 0,
+  },
+  color: {
+    exposure: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0,
+    brightness: 0, temp: 0, tint: 0, saturation: 0, vibrance: 0,
+  },
   ai: { provider: "chatgpt", config: { ...DEFAULT_CONFIG } },
 };
 
