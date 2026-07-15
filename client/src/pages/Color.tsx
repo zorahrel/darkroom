@@ -14,6 +14,7 @@ import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components
 import PromptBuilder from "../components/PromptBuilder";
 import PresetsPanel from "../components/PresetsPanel";
 import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
+import LivePreview from "../components/LivePreview";
 import { StepIcon, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
@@ -418,6 +419,7 @@ export default function PipelineBar({
       addable={addableSteps}
       onAdd={(t) => addStep(t as GradeStepType)}
       photo={null}
+      livePreview={<LivePreview grade={grade} />}
       groups={mobileGroups}
     />
   );

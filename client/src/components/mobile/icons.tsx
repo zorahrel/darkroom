@@ -138,6 +138,12 @@ export const IconChevronLeft = ({ className = "w-5 h-5" }: IconProps) => (
   </svg>
 );
 
+export const IconChevronRight = ({ className = "w-5 h-5" }: IconProps) => (
+  <svg {...svg(className)}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 export const IconChevronUp = ({ className = "w-4 h-4" }: IconProps) => (
   <svg {...svg(className)}>
     <path d="M6 15l6-6 6 6" />

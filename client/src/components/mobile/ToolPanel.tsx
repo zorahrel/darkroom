@@ -9,14 +9,23 @@ import { IconClose, IconChevronUp, IconChevronDown, IconTrash, IconReset } from 
 export default function ToolPanel({
   group,
   onClose,
+  bare = false,
 }: {
   group: ToolGroup | null;
   onClose: () => void;
+  // `bare` drops the panel's own top border/rounding/shadow — used when it's
+  // embedded in the dock's two-pane (preview + controls) row, which owns those.
+  bare?: boolean;
 }) {
   if (!group) return null;
   const step = group.step;
   return (
-    <div className="dr-panel-in bg-neutral-900 border-t border-neutral-800 rounded-t-2xl shadow-2xl">
+    <div
+      className={
+        "dr-panel-in bg-neutral-900 " +
+        (bare ? "" : "border-t border-neutral-800 rounded-t-2xl shadow-2xl")
+      }
+    >
       <div className="flex items-center gap-1 px-3 py-2.5 border-b border-neutral-800">
         <span className="text-neutral-300">{group.icon}</span>
         <span className="text-sm font-medium text-neutral-100 flex-1 truncate ml-1">

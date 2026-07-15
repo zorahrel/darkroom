@@ -31,6 +31,7 @@ export default function EditorShell({
   addable,
   onAdd,
   onClose,
+  livePreview,
   variant = "responsive",
 }: {
   title: string;
@@ -43,6 +44,10 @@ export default function EditorShell({
   onAdd?: (type: string) => void;
   // Esc closes the open step panel first, then calls this (e.g. leave the editor).
   onClose?: () => void;
+  // A focused live preview shown while a panel is open (dock variant only): the
+  // page behind the dock (e.g. the grid) isn't a live, focused surface. On
+  // desktop it sits to the left of the controls; on mobile it stacks on top.
+  livePreview?: ReactNode;
   // "responsive" = fullscreen on mobile, bottom dock on desktop (per-photo editor).
   // "dock" = always a bottom dock with no photo area (e.g. the Home grid: the
   // grid itself is the live preview).
@@ -146,7 +151,20 @@ export default function EditorShell({
       )}
 
       <div className="shrink-0">
-        <ToolPanel group={active} onClose={() => setActiveId(null)} />
+        {active && livePreview ? (
+          // Open state with a live preview: two panes on desktop (preview left,
+          // controls right), stacked on mobile (compact preview atop the panel).
+          <div className="flex flex-col lg:flex-row lg:items-stretch border-t border-neutral-800">
+            <div className="h-40 sm:h-52 lg:h-auto lg:w-[42%] lg:max-w-2xl lg:border-r border-neutral-800 shrink-0">
+              {livePreview}
+            </div>
+            <div className="flex-1 min-w-0">
+              <ToolPanel group={active} onClose={() => setActiveId(null)} bare />
+            </div>
+          </div>
+        ) : (
+          <ToolPanel group={active} onClose={() => setActiveId(null)} />
+        )}
         <BottomToolbar
           groups={groups}
           activeId={activeId}
