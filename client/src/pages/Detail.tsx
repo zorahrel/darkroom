@@ -34,6 +34,7 @@ import {
   IconUndo,
   IconRedo,
   IconDownload,
+  IconInfo,
 } from "../components/mobile/icons";
 import { useHistory } from "../lib/useHistory";
 
@@ -276,6 +277,55 @@ export default function DetailPage() {
     </div>
   );
 
+  // The full-screen editor also hid the page's metadata, the exact prompt that
+  // was sent, and the generation log. They all move into an "Info" panel in the
+  // dock so nothing is lost on the single-photo view.
+  const fmtTs = (t?: number | null) => {
+    if (!t) return "—";
+    const d = new Date(t < 1e12 ? t * 1000 : t);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString("it-IT");
+  };
+  const infoRow = (k: string, val: string) => (
+    <div className="flex justify-between gap-3 py-1 border-b border-neutral-800/60">
+      <span className="text-neutral-500">{k}</span>
+      <span className="text-neutral-200 text-right break-all">{val}</span>
+    </div>
+  );
+  const infoPanel = (
+    <div className="space-y-4 text-sm">
+      <div className="tabular-nums">
+        {infoRow("ID", photo.id)}
+        {infoRow("Aggiunta", fmtTs(photo.created_at))}
+        {infoRow("Versioni", String(versions.length))}
+        {infoRow(
+          "Versione mostrata",
+          v ? `v${v.version_number}${v.provider ? ` · ${v.provider}` : ""}` : "—",
+        )}
+        {infoRow("Generata", v ? fmtTs(v.created_at) : "—")}
+        {v?.credits != null && infoRow("Crediti", String(v.credits))}
+        {infoRow("Preferita", isFavorite ? "sì" : "no")}
+        {infoRow("Override generazione", has_override ? "sì" : "eredita globale")}
+        {infoRow("Override colore", data.has_grade_override ? "sì" : "eredita globale")}
+      </div>
+
+      <details>
+        <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300">
+          Prompt inviato (effettivo)
+        </summary>
+        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-400 bg-neutral-950 border border-neutral-800 rounded p-2">
+          {effective_prompt || "—"}
+        </pre>
+      </details>
+
+      <div>
+        <div className="text-xs uppercase tracking-wider text-neutral-500 mb-1">
+          Log generazioni
+        </div>
+        <PhotoJobsLog photoId={photo.id} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -371,6 +421,7 @@ export default function DetailPage() {
         navigating={navigating}
         onExit={() => navigate(base || "/")}
         mobileExtras={versionsPanel}
+        infoPanel={infoPanel}
         photoNav={{
           prev: siblings.prev ?? null,
           next: siblings.next ?? null,
@@ -589,6 +640,7 @@ function PhotoPipeline({
   navigating,
   onExit,
   mobileExtras,
+  infoPanel,
   photoNav,
 }: {
   photoId: string;
@@ -604,6 +656,7 @@ function PhotoPipeline({
   navigating?: boolean;
   onExit: () => void;
   mobileExtras?: ReactNode;
+  infoPanel?: ReactNode;
   photoNav?: {
     prev: string | null;
     next: string | null;
@@ -784,6 +837,16 @@ function PhotoPipeline({
           </div>
         ),
       },
+      ...(infoPanel
+        ? [
+            {
+              id: "info",
+              label: "Info",
+              icon: <IconInfo />,
+              render: () => <>{infoPanel}</>,
+            } satisfies ToolGroup,
+          ]
+        : []),
     ];
     let order = 0;
     draft.steps.forEach((s, idx) => {
@@ -842,7 +905,7 @@ function PhotoPipeline({
     });
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, lutGroups, photoId, versionNumber, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras]);
+  }, [draft, lutGroups, photoId, versionNumber, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras, infoPanel]);
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
