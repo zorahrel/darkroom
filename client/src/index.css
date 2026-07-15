@@ -24,3 +24,74 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Touch-grade range sliders — scoped to the mobile editor panel (.dr-touch) so
+   the desktop card-list keeps the native thin control. Big thumb + tall track
+   so a fingertip can grab and drag it. */
+.dr-touch input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none; /* let the thumb own vertical drags, don't scroll the panel */
+}
+.dr-touch input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #3f3f46; /* neutral-700 */
+}
+.dr-touch input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -10px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 2px solid #71717a; /* neutral-500 */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+.dr-touch input[type="range"]:focus {
+  outline: none;
+}
+.dr-touch input[type="range"]:focus::-webkit-slider-thumb {
+  border-color: #38bdf8; /* sky-400 */
+}
+.dr-touch input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #3f3f46;
+}
+.dr-touch input[type="range"]::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 2px solid #71717a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+/* Larger checkboxes inside the touch panel, same reasoning. */
+.dr-touch input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981; /* emerald-500 */
+}
+
+/* Slide-up entrance for the mobile step panel (no layout overflow — the panel
+   is in normal flow, this only animates its first paint). */
+@keyframes dr-slide-up {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.dr-panel-in {
+  animation: dr-slide-up 0.18s ease-out;
+}
