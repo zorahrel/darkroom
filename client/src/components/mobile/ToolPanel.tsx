@@ -1,5 +1,5 @@
 import type { ToolGroup } from "./BottomToolbar";
-import { IconClose, IconChevronUp, IconChevronDown, IconTrash } from "./icons";
+import { IconClose, IconChevronUp, IconChevronDown, IconTrash, IconReset } from "./icons";
 
 // The parameter panel: sits in normal flow directly above the step strip (both
 // inside the shell's bottom dock), so it can never render off-screen — the photo
@@ -58,6 +58,16 @@ export default function ToolPanel({
             >
               <IconChevronDown />
             </button>
+            {step.onReset && (
+              <button
+                onClick={step.onReset}
+                className="p-1.5 rounded text-neutral-400 hover:text-white"
+                aria-label="ripristina valori di default"
+                title="ripristina default"
+              >
+                <IconReset />
+              </button>
+            )}
             <button
               onClick={step.onRemove}
               className="p-1.5 rounded text-neutral-400 hover:text-red-400"

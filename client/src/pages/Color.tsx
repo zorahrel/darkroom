@@ -12,7 +12,7 @@ import {
   type PipelineStatus,
   type PromptConfig,
 } from "../api";
-import StepEditor, { StepParams, stepSummary, groupLuts } from "../components/StepEditor";
+import StepEditor, { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptBuilder from "../components/PromptBuilder";
 import Accordion from "../components/Accordion";
 import PresetsPanel from "../components/PresetsPanel";
@@ -180,6 +180,9 @@ export default function PipelineBar({
           canDown: idx < grade.steps.length - 1,
           onMove: (dir) => moveStepAt(idx, dir),
           onRemove: () => removeStepAt(idx),
+          onReset: isStepTouched(s)
+            ? () => patchStepAt(idx, { params: newStep(s.type).params })
+            : undefined,
           summary: stepSummary(s),
         },
         render: () =>

@@ -58,6 +58,11 @@ export default function StepEditor({
   function remove(i: number) {
     setSteps(steps.filter((_, idx) => idx !== i));
   }
+  function resetParams(i: number) {
+    const s = steps[i];
+    if (!s) return;
+    patchStep(i, { params: newStep(s.type).params });
+  }
   function add(type: GradeStepType) {
     setSteps([...steps, newStep(type)]);
   }
@@ -115,6 +120,16 @@ export default function StepEditor({
             >
               {stepSummary(s)}
             </span>
+            {isStepTouched(s) && (
+              <button
+                onClick={() => resetParams(i)}
+                className="text-neutral-500 hover:text-white text-sm px-1 leading-none"
+                aria-label="ripristina valori di default"
+                title="ripristina default"
+              >
+                ↺
+              </button>
+            )}
             <button
               onClick={() => remove(i)}
               className="text-neutral-500 hover:text-red-400 text-sm px-1"
@@ -177,6 +192,13 @@ function num(v: unknown, def = 0): number {
 }
 function bool(v: unknown): boolean {
   return v === true;
+}
+
+// True when a step's params have been edited away from its type's defaults —
+// used to show the per-step reset affordance only when it would do something.
+export function isStepTouched(s: GradeStep): boolean {
+  if (s.type === "ai") return false;
+  return JSON.stringify(s.params) !== JSON.stringify(newStep(s.type).params);
 }
 
 // One-line digest of a step's params, shown in the (collapsed) header so the

@@ -12,6 +12,9 @@ export type StepControls = {
   canDown: boolean;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
+  // Reset this step's params to their defaults. Present only when the step has
+  // been edited away from default, so a pristine step shows no reset affordance.
+  onReset?: () => void;
   summary?: string;
 };
 
