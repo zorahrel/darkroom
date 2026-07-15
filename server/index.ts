@@ -23,11 +23,17 @@ import {
   setColorGrade,
   effectiveGrade,
   normalizeGrade,
+  listPresets,
+  getPreset,
+  createPreset,
+  renamePreset,
+  deletePreset,
   type PhotoRow,
   type VersionRow,
   type OrphanRow,
   type ColorGrade,
 } from "./db.ts";
+import { importTemplate } from "./templates.ts";
 import { LUT_DIR, REPO_ROOT, WORKER_BACKEND } from "./config.ts";
 import {
   rawDir,
@@ -219,6 +225,7 @@ app.get("/api/photos", (c) => {
       p.original_ext,
       p.favorite_version_id,
       p.taken_at,
+      p.feedback,
       (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) AS version_count,
       (SELECT v.version_number FROM versions v
          WHERE v.photo_id = p.id AND v.id = p.favorite_version_id) AS favorite_version_number,
@@ -237,6 +244,7 @@ app.get("/api/photos", (c) => {
         original_ext: string;
         favorite_version_id: number | null;
         taken_at: number | null;
+        feedback: string | null;
         version_count: number;
         favorite_version_number: number | null;
         latest_version_id: number | null;
@@ -268,6 +276,18 @@ app.get("/api/photos/counts", (c) => {
     )
     .get();
   return c.json({ counts: row ?? {} });
+});
+
+// Every photo that carries a review note — for distilling the next run's
+// direction in one pass. Registered before "/api/photos/:id" so "feedback"
+// isn't captured as an :id.
+app.get("/api/feedback", (c) => {
+  const rows = db()
+    .query<{ id: string; feedback: string; updated_at: number }, []>(
+      "SELECT id, feedback, updated_at FROM photos WHERE feedback IS NOT NULL AND TRIM(feedback) <> '' ORDER BY updated_at DESC",
+    )
+    .all();
+  return c.json({ feedback: rows, count: rows.length });
 });
 
 app.get("/api/photos/:id", (c) => {
@@ -332,6 +352,22 @@ app.put("/api/photos/:id/extra", async (c) => {
     [value, Date.now(), id],
   );
   return c.json({ ok: true });
+});
+
+// Freeform per-photo review note jotted on the grid. Read in bulk (below) to
+// steer the next run; NOT injected into the prompt.
+app.put("/api/photos/:id/feedback", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ feedback: string | null }>();
+  const value = (body.feedback ?? "").trim() || null;
+  db().run("UPDATE photos SET feedback = ?, updated_at = ? WHERE id = ?", [
+    value,
+    Date.now(),
+    id,
+  ]);
+  return c.json({ ok: true, feedback: value });
 });
 
 app.delete("/api/photos/:id/versions/:vid", (c) => {
@@ -759,6 +795,54 @@ app.put("/api/settings/color-grade", async (c) => {
   const next = normalizeGrade(body.grade);
   setColorGrade(next);
   return c.json({ ok: true, grade: next });
+});
+
+// ---- API: presets / templates --------------------------------------------
+
+app.get("/api/presets", (c) => c.json({ presets: listPresets() }));
+
+app.post("/api/presets", async (c) => {
+  const body = await c.req.json<{ name?: string; grade?: unknown }>().catch(() => null);
+  if (!body || typeof body.grade !== "object" || body.grade === null) {
+    return c.json({ error: "grade missing" }, 400);
+  }
+  const preset = createPreset(String(body.name ?? "Senza nome"), normalizeGrade(body.grade));
+  return c.json({ ok: true, preset });
+});
+
+app.put("/api/presets/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const body = await c.req.json<{ name?: string }>().catch(() => null);
+  if (!id || !body || typeof body.name !== "string") {
+    return c.json({ error: "name missing" }, 400);
+  }
+  if (!getPreset(id)) return c.json({ error: "not found" }, 404);
+  renamePreset(id, body.name);
+  return c.json({ ok: true, preset: getPreset(id) });
+});
+
+app.delete("/api/presets/:id", (c) => {
+  const id = Number(c.req.param("id"));
+  if (!id) return c.json({ error: "bad id" }, 400);
+  deletePreset(id);
+  return c.json({ ok: true });
+});
+
+// Import an external template (Lightroom .xmp/.lrtemplate, a .cube LUT, or our
+// own JSON). Body: { filename, text }. Returns the mapped grade + `notes` on
+// what couldn't be reproduced; the client decides whether to apply or save it.
+app.post("/api/templates/import", async (c) => {
+  const body = await c.req.json<{ filename?: string; text?: string; save?: boolean }>().catch(() => null);
+  if (!body || typeof body.text !== "string" || !body.text.trim()) {
+    return c.json({ error: "text missing" }, 400);
+  }
+  try {
+    const res = importTemplate(String(body.filename ?? "template"), body.text);
+    const preset = body.save ? createPreset(res.name, res.grade, "import") : null;
+    return c.json({ ok: true, ...res, preset });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : "import fallito" }, 400);
+  }
 });
 
 // ---- API: pipeline (AI generation stage as a first-class system step) ------

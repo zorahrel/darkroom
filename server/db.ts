@@ -105,6 +105,16 @@ const SCHEMA_STATEMENTS = [
     skipped INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   )`,
+  // Saved color-grade templates. `grade` is a full ColorGrade JSON; `source`
+  // records where it came from (manual save, or an imported Lightroom/LUT/JSON
+  // template) so the UI can badge provenance.
+  `CREATE TABLE IF NOT EXISTS presets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    grade TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at INTEGER NOT NULL
+  )`,
 ];
 
 function hasColumn(d: Database, table: string, col: string): boolean {
@@ -183,6 +193,13 @@ function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "photos", "grade_override")) {
     d.run("ALTER TABLE photos ADD COLUMN grade_override TEXT");
   }
+  // Per-photo freeform review note the human jots on the grid ("too dark",
+  // "keep the sign", "recompose tighter"). Distinct from extra_instructions:
+  // NOT auto-injected into the prompt — it's read in bulk to distill the next
+  // run's generic + per-photo direction. NULL = no note.
+  if (!hasColumn(d, "photos", "feedback")) {
+    d.run("ALTER TABLE photos ADD COLUMN feedback TEXT");
+  }
   // 'original' = imported source photo; 'generated' = created from scratch via a
   // text-to-image job (no source file; the first render becomes its original).
   if (!hasColumn(d, "photos", "kind")) {
@@ -230,6 +247,7 @@ export type PhotoRow = {
   higgsfield_selection: string | null;
   extra_instructions: string | null;
   grade_override: string | null;
+  feedback: string | null;
   kind: "original" | "generated";
   taken_at: number | null;
   created_at: number;
@@ -322,7 +340,7 @@ export function setDefaultConfig(json: string): void {
 // (ChatGPT/Higgsfield) using an embedded PromptConfig. It is NOT part of the
 // live/deterministic color pipeline (the /graded preview skips it) — it only
 // runs during a "bake", where its output feeds the next step.
-export type GradeStepType = "white_balance" | "levels" | "sakura" | "lut" | "color" | "ai";
+export type GradeStepType = "white_balance" | "levels" | "sakura" | "sky" | "lut" | "hsl" | "curve" | "split_tone" | "color" | "ai";
 
 export type GradeStep = {
   /** stable id (React keys / reordering). */
@@ -359,13 +377,14 @@ export function defaultSteps(): GradeStep[] {
     { id: "levels", type: "levels", enabled: true, params: { black: 0.4, white: 99.6 } },
     { id: "sakura", type: "sakura", enabled: true, params: {} },
     { id: "lut", type: "lut", enabled: true, params: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 } },
+    { id: "sky", type: "sky", enabled: false, params: { amount: 40 } },
     { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
   ];
 }
 
 export const DEFAULT_COLOR_GRADE: ColorGrade = { enabled: false, steps: defaultSteps() };
 
-const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "lut", "color", "ai"];
+const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "sky", "lut", "hsl", "curve", "split_tone", "color", "ai"];
 let _sid = 0;
 
 /** Build steps from the old flat format (back-compat migration). */
@@ -386,6 +405,7 @@ function stepsFromLegacy(f: Record<string, unknown>): GradeStep[] {
         dose_night: Number(f.dose_night ?? 30),
       },
     },
+    { id: "sky", type: "sky", enabled: false, params: { amount: 40 } },
     { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
   ];
 }
@@ -455,6 +475,66 @@ export function effectiveGrade(photo: PhotoRow): ColorGrade {
     }
   }
   return getColorGrade();
+}
+
+// ---- Presets (saved color-grade templates) --------------------------------
+
+export type PresetRow = {
+  id: number;
+  name: string;
+  grade: string; // ColorGrade JSON
+  source: string;
+  created_at: number;
+};
+
+export type Preset = {
+  id: number;
+  name: string;
+  grade: ColorGrade;
+  source: string;
+  created_at: number;
+};
+
+function rowToPreset(r: PresetRow): Preset {
+  let grade: ColorGrade;
+  try {
+    grade = normalizeGrade(JSON.parse(r.grade));
+  } catch {
+    grade = { enabled: false, steps: defaultSteps() };
+  }
+  return { id: r.id, name: r.name, grade, source: r.source, created_at: r.created_at };
+}
+
+export function listPresets(): Preset[] {
+  return db()
+    .query<PresetRow, []>("SELECT * FROM presets ORDER BY created_at DESC, id DESC")
+    .all()
+    .map(rowToPreset);
+}
+
+export function getPreset(id: number): Preset | null {
+  const r = db()
+    .query<PresetRow, [number]>("SELECT * FROM presets WHERE id = ?")
+    .get(id);
+  return r ? rowToPreset(r) : null;
+}
+
+export function createPreset(name: string, grade: ColorGrade, source = "manual"): Preset {
+  const now = Date.now();
+  const clean = { enabled: grade.enabled === true, steps: sanitizeSteps(grade.steps) };
+  const res = db().run(
+    "INSERT INTO presets (name, grade, source, created_at) VALUES (?, ?, ?, ?)",
+    [name.trim() || "Senza nome", JSON.stringify(clean), source, now],
+  );
+  return { id: Number(res.lastInsertRowid), name: name.trim() || "Senza nome", grade: clean, source, created_at: now };
+}
+
+export function renamePreset(id: number, name: string): void {
+  db().run("UPDATE presets SET name = ? WHERE id = ?", [name.trim() || "Senza nome", id]);
+}
+
+export function deletePreset(id: number): void {
+  db().run("DELETE FROM presets WHERE id = ?", [id]);
 }
 
 export function nextVersionNumber(photoId: string): number {
