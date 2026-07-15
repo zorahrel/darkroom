@@ -17,7 +17,7 @@ import {
 import { StageConnector } from "./Color";
 import Accordion from "../components/Accordion";
 import VersionCarousel from "../components/VersionCarousel";
-import StepEditor, { StepParams, stepSummary, groupLuts } from "../components/StepEditor";
+import StepEditor, { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptEditor from "../components/PromptEditor";
 import PromptBuilder from "../components/PromptBuilder";
 import HiggsfieldButton from "../components/HiggsfieldButton";
@@ -32,7 +32,10 @@ import {
   IconBookmark,
   IconClose,
   IconLayers,
+  IconUndo,
+  IconRedo,
 } from "../components/mobile/icons";
+import { useHistory } from "../lib/useHistory";
 
 export default function DetailPage() {
   const { pid, id } = useParams<{ pid: string; id: string }>();
@@ -564,8 +567,17 @@ function PhotoPipeline({
     onNext: () => void;
   };
 }) {
-  // Stato del colore condiviso fra l'anteprima (sinistra) e i controlli (destra).
-  const [draft, setDraft] = useState<ColorGrade>(effectiveGrade);
+  // Stato del colore con undo/redo: `setDraft` registra la storia, i drag degli
+  // slider collassano in un passo solo (coalescing nell'hook).
+  const {
+    state: draft,
+    set: setDraft,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetHistory,
+  } = useHistory<ColorGrade>(effectiveGrade);
   const [saving, setSaving] = useState(false);
   const [compare, setCompare] = useState(false);
   const [baking, setBaking] = useState(false);
@@ -574,8 +586,23 @@ function PhotoPipeline({
   const [hoverStep, setHoverStep] = useState<number | null>(null);
   const hasAiStep = draft.steps.some((s) => s.enabled && s.type === "ai");
   const effSig = JSON.stringify(effectiveGrade);
-  // Re-sync when the upstream effective grade changes (after refresh/save).
-  useEffect(() => setDraft(effectiveGrade), [effSig]);
+  // Re-sync (and clear history) when the upstream effective grade changes,
+  // e.g. after a save/reset/refresh — that becomes the new undo baseline.
+  useEffect(() => resetHistory(effectiveGrade), [effSig, resetHistory]);
+
+  // Undo/redo scorciatoie da tastiera (⌘Z / ⌘⇧Z), ignorate quando si scrive.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   // Editor mobile a schermo intero (<lg): appena c'è una versione lo shell è
   // già lì sotto la foto (niente bottone d'ingresso). Le generazioni vivono in
@@ -724,6 +751,9 @@ function PhotoPipeline({
           canDown: idx < draft.steps.length - 1,
           onMove: (dir) => moveStepAt(idx, dir),
           onRemove: () => removeStepAt(idx),
+          onReset: isStepTouched(s)
+            ? () => patchStepAt(idx, { params: newStep(s.type).params })
+            : undefined,
           summary: stepSummary(s),
         },
         render: () =>
@@ -878,9 +908,29 @@ function PhotoPipeline({
                   onHoverStep={setHoverStep}
                 />
                 <div className="flex items-center justify-end gap-2">
-                  {bakeMsg && (
-                    <span className="text-[11px] text-neutral-400 mr-auto">{bakeMsg}</span>
-                  )}
+                  <div className="flex items-center gap-1 mr-auto">
+                    <button
+                      disabled={!canUndo}
+                      onClick={undo}
+                      title="Annulla (⌘Z)"
+                      aria-label="annulla"
+                      className="p-1.5 rounded border border-neutral-700 text-neutral-300 hover:text-white disabled:opacity-30"
+                    >
+                      <IconUndo />
+                    </button>
+                    <button
+                      disabled={!canRedo}
+                      onClick={redo}
+                      title="Ripristina (⌘⇧Z)"
+                      aria-label="ripristina"
+                      className="p-1.5 rounded border border-neutral-700 text-neutral-300 hover:text-white disabled:opacity-30"
+                    >
+                      <IconRedo />
+                    </button>
+                    {bakeMsg && (
+                      <span className="text-[11px] text-neutral-400 ml-1">{bakeMsg}</span>
+                    )}
+                  </div>
                   <button
                     disabled={baking || dirty}
                     title={
@@ -970,6 +1020,22 @@ function PhotoPipeline({
           }
           rightAction={
             <div className="flex items-center gap-1.5">
+              <button
+                disabled={!canUndo}
+                onClick={undo}
+                aria-label="annulla"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-white disabled:opacity-25"
+              >
+                <IconUndo />
+              </button>
+              <button
+                disabled={!canRedo}
+                onClick={redo}
+                aria-label="ripristina"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-white disabled:opacity-25"
+              >
+                <IconRedo />
+              </button>
               {dirty && <span className="text-[10px] text-amber-400">•</span>}
               {hasGradeOverride && (
                 <button

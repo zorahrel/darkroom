@@ -163,6 +163,20 @@ export const IconReset = ({ className = "w-4 h-4" }: IconProps) => (
   </svg>
 );
 
+export const IconUndo = ({ className = "w-4 h-4" }: IconProps) => (
+  <svg {...svg(className)}>
+    <path d="M9 7 4 12l5 5" />
+    <path d="M4 12h11a5 5 0 0 1 0 10h-2" />
+  </svg>
+);
+
+export const IconRedo = ({ className = "w-4 h-4" }: IconProps) => (
+  <svg {...svg(className)}>
+    <path d="m15 7 5 5-5 5" />
+    <path d="M20 12H9a5 5 0 0 0 0 10h2" />
+  </svg>
+);
+
 export const IconCompare = ({ className = "w-4 h-4" }: IconProps) => (
   <svg {...svg(className)}>
     <rect x="3.5" y="6" width="17" height="12" rx="1.5" />
