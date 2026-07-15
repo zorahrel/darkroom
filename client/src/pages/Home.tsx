@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type ColorGrade, type Lut } from "../api";
 import PipelineBar from "./Color";
 import Library from "./Grid";
+import { IconLayers, IconClose } from "../components/mobile/icons";
 
 // Unified home: the pipeline toolbar sits atop the single photo library, which
 // is the live preview surface. Grade + graded-view live here and are shared
@@ -23,6 +24,7 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [gradedView, setGradedView] = useState(true);
   const [reload, setReload] = useState(0);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -56,25 +58,75 @@ export default function Home() {
 
   if (!grade) return <div className="p-6 text-neutral-400">Carico…</div>;
 
+  const panel = (
+    <PipelineBar
+      grade={grade}
+      luts={luts}
+      patch={patch}
+      saving={saving}
+      gradedView={gradedView}
+      setGradedView={setGradedView}
+      onChanged={() => {
+        setBust(Date.now());
+        setReload((n) => n + 1);
+      }}
+    />
+  );
+
+  // Grid (gallery) and pipeline are visible together: grid scrolls on the left,
+  // the pipeline rail stays pinned on the right (desktop). On mobile the rail
+  // becomes a bottom sheet behind a floating button — the grid keeps the width.
   return (
-    <div>
-      {/* La griglia è la galleria; il look del set si modifica nell'editor a rail
-          che apre sopra (PipelineBar). Sotto resta solo la barra-launcher sottile. */}
-      <div className="pb-16">
+    <div className="lg:flex lg:items-start lg:gap-4">
+      <div className="flex-1 min-w-0 pb-20 lg:pb-4">
         <Library graded={gradedView && grade.enabled} bust={bust} reloadKey={reload} />
       </div>
-      <PipelineBar
-        grade={grade}
-        luts={luts}
-        patch={patch}
-        saving={saving}
-        gradedView={gradedView}
-        setGradedView={setGradedView}
-        onChanged={() => {
-          setBust(Date.now());
-          setReload((n) => n + 1);
-        }}
-      />
+
+      <aside className="hidden lg:flex flex-col w-[340px] shrink-0 sticky top-[68px] h-[calc(100vh-88px)] rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950">
+        {panel}
+      </aside>
+
+      {/* Mobile: floating button opens the pipeline as a bottom sheet. */}
+      <button
+        onClick={() => setSheetOpen(true)}
+        className="lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-100 text-neutral-900 shadow-lg font-medium text-sm"
+      >
+        <IconLayers /> Pipeline
+        <span
+          className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
+        />
+      </button>
+      {sheetOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 h-[86dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 overflow-hidden shadow-2xl">
+            <div className="flex items-center px-3 py-2 border-b border-neutral-800 shrink-0">
+              <span className="text-sm font-medium flex-1">Pipeline — default del set</span>
+              <button
+                onClick={() => setSheetOpen(false)}
+                className="p-1.5 rounded text-neutral-400 hover:text-white"
+                aria-label="chiudi"
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <PipelineBar
+                grade={grade}
+                luts={luts}
+                patch={patch}
+                saving={saving}
+                gradedView={gradedView}
+                setGradedView={setGradedView}
+                onChanged={() => {
+                  setBust(Date.now());
+                  setReload((n) => n + 1);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

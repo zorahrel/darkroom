@@ -50,30 +50,11 @@ export default function EditorRail({
     () => localStorage.getItem(`${storageKey}.open`) !== "0",
   );
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [open, setOpen] = useState<Set<string>>(new Set());
 
   function toggleRail(v: boolean) {
     setRailOpen(v);
     localStorage.setItem(`${storageKey}.open`, v ? "1" : "0");
   }
-  function toggleSection(id: string) {
-    setOpen((cur) => {
-      const next = new Set(cur);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  // If an open section disappears (step removed/reordered away), drop it.
-  useEffect(() => {
-    setOpen((cur) => {
-      const ids = new Set(groups.map((g) => g.id));
-      let changed = false;
-      const next = new Set<string>();
-      cur.forEach((id) => (ids.has(id) ? next.add(id) : (changed = true)));
-      return changed ? next : cur;
-    });
-  }, [groups]);
 
   // Esc: close the mobile sheet first, else leave the editor.
   useEffect(() => {
@@ -94,14 +75,7 @@ export default function EditorRail({
   }, [sheetOpen, onClose]);
 
   const pipeline = (
-    <PipelineList
-      groups={groups}
-      open={open}
-      onToggle={toggleSection}
-      master={master}
-      addable={addable}
-      onAdd={onAdd}
-    />
+    <PipelineList groups={groups} master={master} addable={addable} onAdd={onAdd} />
   );
 
   return (
@@ -171,23 +145,39 @@ export default function EditorRail({
 }
 
 // The scrollable pipeline: master row on top, one accordion section per group,
-// an add-step row at the bottom. Shared by the desktop rail and the mobile sheet.
-function PipelineList({
+// an add-step row at the bottom. Self-contained (owns which sections are open)
+// so it drops straight into the desktop rail, the mobile sheet, or the Home
+// side-panel next to the grid.
+export function PipelineList({
   groups,
-  open,
-  onToggle,
   master,
   addable,
   onAdd,
 }: {
   groups: ToolGroup[];
-  open: Set<string>;
-  onToggle: (id: string) => void;
   master?: MasterControls;
   addable?: AddableStep[];
   onAdd?: (type: string) => void;
 }) {
   const [addOpen, setAddOpen] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const onToggle = (id: string) =>
+    setOpen((cur) => {
+      const next = new Set(cur);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // If an open section disappears (step removed/reordered away), drop it.
+  useEffect(() => {
+    setOpen((cur) => {
+      const ids = new Set(groups.map((g) => g.id));
+      let changed = false;
+      const next = new Set<string>();
+      cur.forEach((id) => (ids.has(id) ? next.add(id) : (changed = true)));
+      return changed ? next : cur;
+    });
+  }, [groups]);
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {master && (
