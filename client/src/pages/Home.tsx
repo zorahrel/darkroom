@@ -58,9 +58,9 @@ export default function Home() {
 
   return (
     <div>
-      {/* La griglia è la superficie di anteprima; la pipeline vive in una dock
-          fissa in basso (PipelineBar) — padding sotto per non finirci sotto. */}
-      <div className="pb-[200px]">
+      {/* La griglia è la galleria; il look del set si modifica nell'editor a rail
+          che apre sopra (PipelineBar). Sotto resta solo la barra-launcher sottile. */}
+      <div className="pb-16">
         <Library graded={gradedView && grade.enabled} bust={bust} reloadKey={reload} />
       </div>
       <PipelineBar

@@ -13,9 +13,9 @@ import {
 import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptBuilder from "../components/PromptBuilder";
 import PresetsPanel from "../components/PresetsPanel";
-import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
+import EditorRail, { type ToolGroup, type AddableStep } from "../components/mobile/EditorRail";
 import LivePreview from "../components/LivePreview";
-import { StepIcon, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
+import { StepIcon, IconChevronDown, IconBookmark, IconDownload, IconLayers, IconClose } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
 // INPUT (source: folder-editing or from-zero prompt) → STEPS (the deterministic
@@ -47,6 +47,8 @@ export default function PipelineBar({
     msg: "",
   });
   const [browserAlive, setBrowserAlive] = useState<boolean | null>(null);
+  // The set-look editor opens over the gallery (grid stays the landing).
+  const [open, setOpen] = useState(false);
 
   const lutGroups = useMemo(() => groupLuts(luts), [luts]);
 
@@ -394,10 +396,60 @@ export default function PipelineBar({
     }
   }
 
+  // Closed: a slim launcher over the grid (the gallery stays the landing). Open:
+  // the full rail editor — big live reference preview + pipeline accordion.
+  if (!open) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-3 py-2.5 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur">
+        <button
+          onClick={() => patch({ enabled: !grade.enabled })}
+          className={
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium " +
+            (grade.enabled ? "bg-emerald-900/50 text-emerald-300" : "bg-neutral-800 text-neutral-400")
+          }
+        >
+          <span className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-400" : "bg-neutral-500")} />
+          {grade.enabled ? "Grade ON" : "Grade OFF"}
+        </button>
+        <span className="text-[11px] text-neutral-500 truncate hidden sm:block">
+          {run.msg || `${enabledSteps.length} step attivi · default del set`}
+        </span>
+        <div className="flex-1" />
+        {browserAlive === false && (
+          <span className="text-[11px] px-2 py-1 rounded bg-red-900/40 text-red-200 border border-red-900 whitespace-nowrap">
+            worker offline
+          </span>
+        )}
+        {saving && <span className="text-xs text-amber-400">salvo…</span>}
+        <label className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+          <input type="checkbox" checked={gradedView} onChange={(e) => setGradedView(e.target.checked)} />
+          <span className="hidden sm:inline">anteprima gradata</span>
+        </label>
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm text-neutral-100 border border-neutral-700"
+        >
+          <IconLayers /> Modifica pipeline
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <EditorShell
-      variant="dock"
+    <EditorRail
+      storageKey="darkroom.rail.set"
+      preview={<LivePreview grade={grade} />}
       title="Pipeline — default del set"
+      onClose={() => setOpen(false)}
+      leftAction={
+        <button
+          onClick={() => setOpen(false)}
+          className="p-1.5 rounded text-neutral-400 hover:text-white"
+          aria-label="chiudi editor"
+        >
+          <IconClose />
+        </button>
+      }
       rightAction={
         <div className="flex items-center gap-2">
           {browserAlive === false && (
@@ -413,13 +465,11 @@ export default function PipelineBar({
       }
       master={{
         enabled: grade.enabled,
-        onToggle: (v) => patch({ enabled: v }),
+        onToggle: (v: boolean) => patch({ enabled: v }),
         info: run.msg || `${enabledSteps.length} step · ${grade.enabled ? "ON" : "OFF"}`,
       }}
       addable={addableSteps}
-      onAdd={(t) => addStep(t as GradeStepType)}
-      photo={null}
-      livePreview={<LivePreview grade={grade} />}
+      onAdd={(t: string) => addStep(t as GradeStepType)}
       groups={mobileGroups}
     />
   );
