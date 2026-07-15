@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
@@ -25,7 +25,14 @@ import PhotoJobsLog from "../components/PhotoJobsLog";
 import PresetsPanel from "../components/PresetsPanel";
 import { useDebouncedImage } from "../lib/useDebouncedImage";
 import EditorShell, { type ToolGroup, type AddableStep } from "../components/mobile/EditorShell";
-import { StepIcon, IconChevronLeft, IconRefresh, IconBookmark } from "../components/mobile/icons";
+import {
+  StepIcon,
+  IconChevronLeft,
+  IconRefresh,
+  IconBookmark,
+  IconClose,
+  IconLayers,
+} from "../components/mobile/icons";
 
 export default function DetailPage() {
   const { pid, id } = useParams<{ pid: string; id: string }>();
@@ -171,6 +178,68 @@ export default function DetailPage() {
     }
   }
 
+  // Version handlers — shared by the desktop "Generazioni" column and the mobile
+  // editor's "Versioni" panel, so switch/favorite/delete behave identically.
+  function onVersionChange(idx: number) {
+    setCurrentVersion(idx);
+    const vn = versions[idx]?.version_number;
+    if (vn != null) {
+      const next = new URLSearchParams(searchParams);
+      next.set("v", String(vn));
+      setSearchParams(next, { replace: true });
+    }
+  }
+  async function onFavoriteToggle() {
+    if (!v) return;
+    await api.setFavorite(photo.id, isFavorite ? null : v.id);
+    await refresh();
+  }
+  async function onDeleteVersion() {
+    if (!v) return;
+    await api.deleteVersion(photo.id, v.id);
+    setCurrentVersion(0);
+    await refresh();
+  }
+
+  const generateButtons = (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onGenerate}
+        disabled={generating}
+        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-50 normal-case font-medium tracking-normal text-white"
+      >
+        <IconRefresh className="w-3.5 h-3.5" />
+        {generating ? "Enqueue…" : "ChatGPT"}
+      </button>
+      <HiggsfieldButton
+        photoId={photo.id}
+        initialSelection={photo.higgsfield_selection}
+        onEnqueued={refresh}
+      />
+    </div>
+  );
+
+  const versionCarousel = (
+    <VersionCarousel
+      versions={versions}
+      current={Math.min(currentVersion, Math.max(0, versions.length - 1))}
+      onChange={onVersionChange}
+      isFavorite={isFavorite}
+      beforeSrc={rawUrl(photo.id, photo.original_ext)}
+      onFavoriteToggle={onFavoriteToggle}
+      onDelete={onDeleteVersion}
+    />
+  );
+
+  // On mobile the editor shell covers the page, so the generations move inside it
+  // as a "Versioni" panel — nothing is lost behind the full-screen editor.
+  const versionsPanel = (
+    <div className="space-y-3">
+      {generateButtons}
+      {versionCarousel}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -214,7 +283,12 @@ export default function DetailPage() {
 
       <JobStatusBanner pausedUntil={pausedUntil} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div
+        className={
+          (versions.length > 0 ? "hidden lg:grid" : "grid") +
+          " grid-cols-1 lg:grid-cols-2 gap-4 items-start"
+        }
+      >
         {/* Original */}
         <div className="space-y-2">
           <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-500">
@@ -234,48 +308,9 @@ export default function DetailPage() {
           <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-500">
             <span>Generazioni</span>
             <div className="flex-1" />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onGenerate}
-                disabled={generating}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-50 normal-case font-medium tracking-normal text-white"
-              >
-                <IconRefresh className="w-3.5 h-3.5" />
-                {generating ? "Enqueue…" : "ChatGPT"}
-              </button>
-              <HiggsfieldButton
-                photoId={photo.id}
-                initialSelection={photo.higgsfield_selection}
-                onEnqueued={refresh}
-              />
-            </div>
+            {generateButtons}
           </div>
-          <VersionCarousel
-            versions={versions}
-            current={Math.min(currentVersion, Math.max(0, versions.length - 1))}
-            onChange={(idx) => {
-              setCurrentVersion(idx);
-              const vn = versions[idx]?.version_number;
-              if (vn != null) {
-                const next = new URLSearchParams(searchParams);
-                next.set("v", String(vn));
-                setSearchParams(next, { replace: true });
-              }
-            }}
-            isFavorite={isFavorite}
-            beforeSrc={rawUrl(photo.id, photo.original_ext)}
-            onFavoriteToggle={async () => {
-              if (!v) return;
-              await api.setFavorite(photo.id, isFavorite ? null : v.id);
-              await refresh();
-            }}
-            onDelete={async () => {
-              if (!v) return;
-              await api.deleteVersion(photo.id, v.id);
-              setCurrentVersion(0);
-              await refresh();
-            }}
-          />
+          {versionCarousel}
         </div>
       </div>
 
@@ -293,6 +328,20 @@ export default function DetailPage() {
         hasGradeOverride={data.has_grade_override}
         luts={luts}
         onSaved={refresh}
+        onExit={() => navigate(base || "/")}
+        mobileExtras={versionsPanel}
+        photoNav={{
+          prev: siblings.prev ?? null,
+          next: siblings.next ?? null,
+          index: siblings.index,
+          total: siblings.total,
+          onPrev: () =>
+            siblings.prev &&
+            navigate(`${base}/photo/${encodeURIComponent(siblings.prev)}`),
+          onNext: () =>
+            siblings.next &&
+            navigate(`${base}/photo/${encodeURIComponent(siblings.next)}`),
+        }}
       />
 
       <PhotoJobsLog photoId={photo.id} />
@@ -490,6 +539,9 @@ function PhotoPipeline({
   hasGradeOverride,
   luts,
   onSaved,
+  onExit,
+  mobileExtras,
+  photoNav,
 }: {
   photoId: string;
   versionNumber: number | null;
@@ -501,6 +553,16 @@ function PhotoPipeline({
   hasGradeOverride: boolean;
   luts: Lut[];
   onSaved: () => Promise<unknown> | void;
+  onExit: () => void;
+  mobileExtras?: ReactNode;
+  photoNav?: {
+    prev: string | null;
+    next: string | null;
+    index: number;
+    total: number;
+    onPrev: () => void;
+    onNext: () => void;
+  };
 }) {
   // Stato del colore condiviso fra l'anteprima (sinistra) e i controlli (destra).
   const [draft, setDraft] = useState<ColorGrade>(effectiveGrade);
@@ -515,9 +577,9 @@ function PhotoPipeline({
   // Re-sync when the upstream effective grade changes (after refresh/save).
   useEffect(() => setDraft(effectiveGrade), [effSig]);
 
-  // Editor mobile a schermo intero (<lg): entry point esplicito, non sostituisce
-  // la pagina finché non lo apri — header/originale/carosello restano intatti.
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // Editor mobile a schermo intero (<lg): appena c'è una versione lo shell è
+  // già lì sotto la foto (niente bottone d'ingresso). Le generazioni vivono in
+  // un pannello "Versioni" dentro lo shell, così l'overlay non nasconde nulla.
   const lutGroups = useMemo(() => groupLuts(luts), [luts]);
 
   const hasVersion = versionNumber != null;
@@ -610,6 +672,16 @@ function PhotoPipeline({
   // mostra SOLO i parametri; enable/riordino/rimuovi vivono nel suo header (step).
   const mobileGroups: ToolGroup[] = useMemo(() => {
     const groups: ToolGroup[] = [
+      ...(mobileExtras
+        ? [
+            {
+              id: "versioni",
+              label: "Versioni",
+              icon: <IconLayers />,
+              render: () => <>{mobileExtras}</>,
+            } satisfies ToolGroup,
+          ]
+        : []),
       {
         id: "preset",
         label: "Preset",
@@ -666,7 +738,7 @@ function PhotoPipeline({
     });
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, lutGroups, photoId, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved]);
+  }, [draft, lutGroups, photoId, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras]);
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
@@ -859,108 +931,114 @@ function PhotoPipeline({
       </div>
 
       {hasVersion ? (
-        <div className="lg:hidden">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="w-full flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-2 text-left"
-          >
-            <img src={displaySrc} alt="anteprima" className="w-14 h-14 rounded object-cover shrink-0" />
-            <span className="flex-1 min-w-0">
-              <span className="block text-sm font-medium text-neutral-100">Modifica pipeline</span>
-              <span className="block text-xs text-neutral-500 truncate">
-                {draft.enabled
-                  ? `${draft.steps.filter((s) => s.enabled && s.type !== "ai").length} step attivi`
-                  : "grade OFF"}
-                {hasGradeOverride ? " · override" : ""}
-              </span>
-            </span>
-            {dirty && <span className="text-[10px] text-amber-400 shrink-0">non salvato</span>}
-            <IconChevronLeft className="w-5 h-5 rotate-180 text-neutral-600 shrink-0" />
-          </button>
-          {mobileOpen && (
-            <EditorShell
-              title={photoId}
-              leftAction={
+        <EditorShell
+          title={
+            photoNav && photoNav.index >= 0
+              ? `${photoId} · ${photoNav.index + 1}/${photoNav.total}`
+              : photoId
+          }
+          leftAction={
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={onExit}
+                className="p-1.5 rounded text-neutral-400 hover:text-white"
+                aria-label="torna alla libreria"
+              >
+                <IconClose />
+              </button>
+              {photoNav && (
+                <>
+                  <button
+                    onClick={photoNav.onPrev}
+                    disabled={!photoNav.prev}
+                    className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-30"
+                    aria-label="foto precedente"
+                  >
+                    <IconChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={photoNav.onNext}
+                    disabled={!photoNav.next}
+                    className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-30"
+                    aria-label="foto successiva"
+                  >
+                    <IconChevronLeft className="w-4 h-4 rotate-180" />
+                  </button>
+                </>
+              )}
+            </div>
+          }
+          rightAction={
+            <div className="flex items-center gap-1.5">
+              {dirty && <span className="text-[10px] text-amber-400">•</span>}
+              {hasGradeOverride && (
                 <button
-                  onClick={() => setMobileOpen(false)}
-                  className="p-1.5 rounded text-neutral-400 hover:text-white"
-                  aria-label="chiudi"
+                  disabled={saving}
+                  onClick={doReset}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50"
                 >
-                  <IconChevronLeft />
+                  Reset
                 </button>
-              }
-              rightAction={
-                <div className="flex items-center gap-1.5">
-                  {hasGradeOverride && (
-                    <button
-                      disabled={saving}
-                      onClick={doReset}
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50"
-                    >
-                      Reset
-                    </button>
-                  )}
-                  <button
-                    disabled={baking || dirty}
-                    onClick={doBake}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50"
-                  >
-                    {baking ? "…" : "Bake"}
-                  </button>
-                  <button
-                    disabled={saving || !dirty}
-                    onClick={doSave}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 text-white disabled:opacity-50"
-                  >
-                    {saving ? "…" : "Salva"}
-                  </button>
-                </div>
-              }
-              master={{
-                enabled: draft.enabled,
-                onToggle: (val) => setDraft({ ...draft, enabled: val }),
-                compare,
-                onCompare: setCompare,
-                info: hasGradeOverride ? "override locale" : "eredita il grade globale",
-              }}
-              addable={addableSteps}
-              onAdd={(t) => addStep(t as GradeStepType)}
-              photo={
-                <div
-                  className="absolute inset-0 select-none"
-                  onMouseDown={() => setCompare(true)}
-                  onMouseUp={() => setCompare(false)}
-                  onTouchStart={() => setCompare(true)}
-                  onTouchEnd={() => setCompare(false)}
-                >
-                  <img
-                    src={displaySrc}
-                    alt="anteprima gradata"
-                    className="absolute inset-0 w-full h-full object-contain"
-                    draggable={false}
-                  />
-                  <img
-                    src={baseSrc}
-                    alt="base"
-                    className={
-                      "absolute inset-0 w-full h-full object-contain transition-opacity " +
-                      (showBase ? "opacity-100" : "opacity-0")
-                    }
-                    draggable={false}
-                  />
-                  <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-                    {showBase
-                      ? "originale ChatGPT (no grade)"
-                      : hoveredStep
-                        ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
-                        : "grade completo"}
-                  </span>
-                </div>
-              }
-              groups={mobileGroups}
-            />
-          )}
-        </div>
+              )}
+              <button
+                disabled={baking || dirty}
+                onClick={doBake}
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50"
+              >
+                {baking ? "…" : "Bake"}
+              </button>
+              <button
+                disabled={saving || !dirty}
+                onClick={doSave}
+                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 text-white disabled:opacity-50"
+              >
+                {saving ? "…" : "Salva"}
+              </button>
+            </div>
+          }
+          master={{
+            enabled: draft.enabled,
+            onToggle: (val) => setDraft({ ...draft, enabled: val }),
+            compare,
+            onCompare: setCompare,
+            info: hasGradeOverride ? "override locale" : "eredita il grade globale",
+          }}
+          addable={addableSteps}
+          onAdd={(t) => addStep(t as GradeStepType)}
+          photo={
+            <div
+              className="absolute inset-0 select-none"
+              onMouseDown={() => setCompare(true)}
+              onMouseUp={() => setCompare(false)}
+              onTouchStart={() => setCompare(true)}
+              onTouchEnd={() => setCompare(false)}
+            >
+              <img
+                src={displaySrc}
+                alt="anteprima gradata"
+                className="absolute inset-0 w-full h-full object-contain"
+                draggable={false}
+              />
+              <img
+                src={baseSrc}
+                alt="base"
+                className={
+                  "absolute inset-0 w-full h-full object-contain transition-opacity " +
+                  (showBase ? "opacity-100" : "opacity-0")
+                }
+                draggable={false}
+              />
+              <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+                {showBase
+                  ? "originale ChatGPT (no grade)"
+                  : hoveredStep
+                    ? `fino a: ${STEP_LABELS[hoveredStep.type]}`
+                    : "grade completo"}
+              </span>
+            </div>
+          }
+          groups={mobileGroups}
+        />
       ) : (
         <div className="lg:hidden text-xs text-neutral-500">
           Genera una versione per attivare il grade colore.

@@ -192,6 +192,14 @@ export const IconBookmark = ({ className = "w-5 h-5" }: IconProps) => (
   </svg>
 );
 
+// Stacked cards = versions / generations of the same photo.
+export const IconLayers = ({ className = "w-5 h-5" }: IconProps) => (
+  <svg {...svg(className)}>
+    <rect x="4" y="4" width="12" height="12" rx="1.5" />
+    <path d="M8 20h10a2 2 0 0 0 2-2V8" />
+  </svg>
+);
+
 export const IconDownload = ({ className = "w-4 h-4" }: IconProps) => (
   <svg {...svg(className)}>
     <path d="M12 4v11M8 11l4 4 4-4" />
