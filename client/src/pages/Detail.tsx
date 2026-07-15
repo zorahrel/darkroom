@@ -354,9 +354,9 @@ export default function DetailPage() {
         </div>
       </div>
 
-      {/* Pipeline della foto: stessa grammatica della home (bookend colorati +
-          StageConnector). Input = generazione ChatGPT · Step = colore locale.
-          Un'unica anteprima sticky serve tutta la pipeline (hover-step incluso). */}
+      {/* Pipeline della foto: EditorShell (barra unica) a tutte le larghezze —
+          mobile fullscreen, desktop dock in basso con l'anteprima grande sopra.
+          Input = generazione ChatGPT · Step = colore locale. */}
       <PhotoPipeline
         photoId={photo.id}
         versionNumber={v ? v.version_number : null}
