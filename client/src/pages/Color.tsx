@@ -14,7 +14,6 @@ import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components
 import PromptBuilder from "../components/PromptBuilder";
 import PresetsPanel from "../components/PresetsPanel";
 import { PipelineList, type ToolGroup, type AddableStep } from "../components/mobile/EditorRail";
-import LivePreview from "../components/LivePreview";
 import { StepIcon, IconChevronDown, IconBookmark, IconDownload } from "../components/mobile/icons";
 
 // The pipeline toolbar that sits ATOP the photo library, as three bookend stages:
@@ -400,9 +399,8 @@ export default function PipelineBar({
   // so the grid and the pipeline are visible together.
   return (
     <div className="flex flex-col h-full min-h-0 bg-neutral-950">
-      <div className="h-44 lg:h-52 shrink-0 border-b border-neutral-800">
-        <LivePreview grade={grade} />
-      </div>
+      {/* Su Home la griglia stessa È l'anteprima (tutte le foto mostrano il grade),
+          quindi niente riquadro anteprima qui: tutto lo spazio va agli step. */}
       <PipelineList
         groups={mobileGroups}
         master={{
