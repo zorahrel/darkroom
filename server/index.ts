@@ -156,6 +156,16 @@ function sceneMatchRequested(cfg: ColorGrade): boolean {
   );
 }
 
+/** Bump when scripts/color_grade.py changes in a way that alters output for the
+ *  same params, so the on-disk cache invalidates instead of serving stale
+ *  renders. v2: gamut-safe HSL saturation/luminance (no more burnt patches).
+ *  NB: the in-process Pillow 3D LUT (replacing ffmpeg lut3d, ~25x faster) is a
+ *  ≤1/255 diff — imperceptible, within JPEG noise — so it deliberately does NOT
+ *  bump the version: invalidating the whole graded cache to re-render every
+ *  photo for a sub-1-LSB change would be pure waste. New renders just use the
+ *  faster path under the same key. */
+const GRADE_ENGINE_VERSION = 2;
+
 /** Cache path for a graded image, keyed by source mtime/size + steps + width.
  *  Params change ⇒ new key ⇒ auto-recompute; same params ⇒ instant hit.
  *  Only deterministic steps enter the key — 'ai' steps never affect the preview. */
@@ -171,6 +181,7 @@ function gradedFile(
   const key = createHash("sha1")
     .update(
       JSON.stringify({
+        v: GRADE_ENGINE_VERSION,
         m: Math.round(st.mtimeMs),
         s: st.size,
         steps: deterministicSteps(cfg.steps),

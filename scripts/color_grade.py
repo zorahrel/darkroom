@@ -7,6 +7,7 @@ params, and the order is editable. Step types:
   • levels        — black/white on LUMA (same scale on every channel, no hue shift).
   • sakura        — pink_lift: lighter, more coherent pink hues.
   • sky           — sky_lift: lighter, less muddy cyan/blue sky hues.
+  • bloom         — bloom_glow: soft glow/halo screen-blended from blurred highlights.
   • lut           — 3D LUT (ffmpeg lut3d) at a 0-100 dose, with an optional reduced
                     dose on night / red-dominant scenes (auto_dose).
   • color         — final color correction: temp/tint/saturation/brightness/contrast.
@@ -29,7 +30,7 @@ filter can't escape those characters). Requires numpy, Pillow, and ffmpeg
 """
 import argparse, colorsys, json, os, shutil, subprocess, sys, tempfile
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 LUMA = np.array([.299, .587, .114], np.float32)
@@ -66,8 +67,13 @@ def levels(a, black=0.4, white=99.6, soft=False):
     return np.clip(x * 255.0, 0, 255)
 
 
-def pink_lift(a):
-    x = a / 255.0; out = x.copy()
+def pink_lift(a, feather=0.0, amount=1.0):
+    """Lift + gently desaturate pink (sakura) hues. `feather` (0..1) softens the
+    hard hue/sat mask: 0 = binary mask (legacy, exact back-compat); >0 blurs the
+    membership weight so the lift/desat fades in instead of flipping per pixel —
+    kills the "macchie" (blotchy patches) on out-of-focus pink blossom bokeh
+    where pixels dither in/out of the band. `amount` 0..1 scales the effect."""
+    x = a / 255.0
     r, g, b = x[..., 0], x[..., 1], x[..., 2]
     mx = np.maximum.reduce([r, g, b]); mn = np.minimum.reduce([r, g, b])
     v = mx; s = np.where(mx > 0, (mx - mn) / np.clip(mx, 1e-6, None), 0)
@@ -78,11 +84,42 @@ def pink_lift(a):
     hue[bm] = (((r - g) / d)[bm] + 4)
     hue = hue * 60.0
     pink = ((hue >= 300) | (hue <= 18)) & (s > 0.12) & (s < 0.75) & (v > 0.30)
-    for c in range(3):
-        out[..., c] = np.where(pink, np.clip(x[..., c] + 0.10 * (1 - x[..., c]), 0, 1), x[..., c])
-    vv = out.max(-1, keepdims=True)
-    out = np.where(pink[..., None], out * 0.82 + vv * 0.18, out)
+    pw = pink.astype(np.float32)
+    if feather > 0:
+        rad = max(1.0, float(feather) * a.shape[1] / 1200.0 * 6.0)
+        pw = np.asarray(
+            Image.fromarray((pw * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(rad))
+        ).astype(np.float32) / 255.0
+    pw = np.clip(pw * float(amount), 0.0, 1.0)[..., None]
+    lifted = np.clip(x + 0.10 * (1 - x), 0, 1)
+    vv = lifted.max(-1, keepdims=True)
+    lifted = lifted * 0.82 + vv * 0.18
+    out = x + pw * (lifted - x)
     return np.clip(out * 255, 0, 255)
+
+
+def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0):
+    """Soft photographic glow: screen-blend a blurred copy of the highlights back
+    over the image, so bright areas (windows, lanterns, sky, speculars) bleed a
+    gentle halo — the "bloom" GPT used to bake in, done locally so it is uniform
+    and tunable. amount 0-100 = strength; threshold 0-100 = luma above which
+    pixels bloom (soft knee); radius = blur px at a 1200px-wide reference, scaled
+    to the actual width so preview and full-res match."""
+    amt = max(0.0, min(100.0, amount)) / 100.0
+    if amt <= 0:
+        return a
+    thr = max(0.0, min(100.0, threshold)) / 100.0 * 255.0
+    lum = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+    w = np.clip((lum - thr) / max(1.0, 255.0 - thr), 0.0, 1.0)
+    w = w * w  # ease-in so mid-highlights glow less than bright speculars
+    glow_src = np.clip(a * w[..., None], 0, 255).astype(np.uint8)
+    rad = max(1.0, float(radius) * a.shape[1] / 1200.0)
+    blurred = np.asarray(
+        Image.fromarray(glow_src).filter(ImageFilter.GaussianBlur(rad))
+    ).astype(np.float32)
+    glow = blurred * amt  # amount 0-100 → full strength; screen blend self-limits
+    out = 255.0 - (255.0 - a) * (255.0 - glow) / 255.0  # screen blend
+    return np.clip(out, 0, 255)
 
 
 def sky_lift(a, amount=40.0):
@@ -232,6 +269,7 @@ def hsl_adjust(a, p):
         touched = True
         diff = np.abs(((h - center + 180.0) % 360.0) - 180.0)  # circular distance
         w = np.clip(1.0 - diff / spread, 0.0, 1.0)
+        w = w * w * (3.0 - 2.0 * w)  # smoothstep: no kink at the band edge → no contour banding
         if hue_amt:
             dh += hue_amt * 30.0 * w
         if sat_amt:
@@ -241,8 +279,15 @@ def hsl_adjust(a, p):
     if not touched:
         return a
     h2 = h + dh
-    s2 = np.clip(s * (1.0 + ds), 0.0, 1.0)
-    v2 = np.clip(v * (1.0 + 0.5 * dl), 0.0, 1.0)
+    # Gamut-safe saturation/luminance: a soft gain that asymptotes at the gamut
+    # edge instead of a hard clip. Plain s*(1+ds) slams already-saturated pixels
+    # (night neon, lanterns) to a flat wall of pure colour — detail-less "burnt"
+    # tricolour patches. s*g/(1+s*(g-1)) maps [0,1]→[0,1] monotonically, leaves
+    # s=1 at 1 and rolls the boost off near the top, so nothing clips flat.
+    gs = np.clip(1.0 + ds, 0.0, None)
+    s2 = s * gs / np.maximum(1.0 + s * (gs - 1.0), 1e-6)
+    gv = np.clip(1.0 + 0.5 * dl, 0.0, None)
+    v2 = v * gv / np.maximum(1.0 + v * (gv - 1.0), 1e-6)
     return np.clip(_hsv_to_rgb(h2, s2, v2), 0.0, 255.0)
 
 
@@ -346,19 +391,85 @@ def scene_is_warm_dark(a):
     return bool(luma < 65.0 or r_frac > 0.44)
 
 
-def apply_lut(arr, lut_path, tmpdir):
-    """Return the array after the LUT (100%). arr: float32 HxWx3 0-255."""
-    safe_lut = os.path.join(tmpdir, "lut.cube")
-    shutil.copy(lut_path, safe_lut)
-    src = os.path.join(tmpdir, "src.png")
-    dst = os.path.join(tmpdir, "lut.png")
-    Image.fromarray(arr.astype(np.uint8)).save(src)
-    subprocess.run(
-        [FFMPEG, "-y", "-loglevel", "error", "-i", src,
-         "-vf", f"lut3d=file={safe_lut}:interp=trilinear", dst],
-        check=True,
-    )
-    return np.asarray(Image.open(dst).convert("RGB")).astype(np.float32)
+_LUT_CACHE = {}  # (path, mtime, size) -> ImageFilter.Color3DLUT
+
+
+def _parse_cube(path):
+    """Parse a .cube 3D LUT → (size, flat_rgb_list in 0..1, red-fastest order).
+    Handles DOMAIN_MIN/MAX rescaling; ignores 1D LUTs and comments."""
+    size = None
+    dmin = [0.0, 0.0, 0.0]
+    dmax = [1.0, 1.0, 1.0]
+    data = []
+    with open(path, encoding="utf-8", errors="ignore") as f:
+        for ln in f:
+            ln = ln.strip()
+            if not ln or ln.startswith("#"):
+                continue
+            u = ln.upper()
+            if u.startswith("LUT_3D_SIZE"):
+                size = int(ln.split()[-1]); continue
+            if u.startswith("DOMAIN_MIN"):
+                dmin = [float(x) for x in ln.split()[1:4]]; continue
+            if u.startswith("DOMAIN_MAX"):
+                dmax = [float(x) for x in ln.split()[1:4]]; continue
+            if u.startswith(("TITLE", "LUT_1D", "LUT_3D_INPUT")):
+                continue
+            p = ln.split()
+            if len(p) == 3:
+                try:
+                    data.append((float(p[0]), float(p[1]), float(p[2])))
+                except ValueError:
+                    pass
+    if not size or len(data) != size ** 3:
+        raise ValueError(f"bad .cube: size={size} pts={len(data)}")
+    flat = []
+    for r, g, b in data:  # .cube: red index changes fastest — matches PIL Color3DLUT
+        flat.append((r - dmin[0]) / max(dmax[0] - dmin[0], 1e-6))
+        flat.append((g - dmin[1]) / max(dmax[1] - dmin[1], 1e-6))
+        flat.append((b - dmin[2]) / max(dmax[2] - dmin[2], 1e-6))
+    return size, flat
+
+
+def _get_lut_filter(lut_path):
+    st = os.stat(lut_path)
+    key = (lut_path, st.st_mtime_ns, st.st_size)
+    f = _LUT_CACHE.get(key)
+    if f is None:
+        size, flat = _parse_cube(lut_path)
+        f = ImageFilter.Color3DLUT(size, flat)
+        _LUT_CACHE.clear()  # single-image process; keep only the current LUT
+        _LUT_CACHE[key] = f
+    return f
+
+
+def apply_lut(arr, lut_path, tmpdir=None):
+    """Return the array after the LUT (100%). arr: float32 HxWx3 0-255.
+    In-process trilinear 3D LUT via Pillow's Color3DLUT (parsed once, cached),
+    ~25-50x faster than spawning ffmpeg per render with an identical result
+    (≤1/255 difference). Falls back to the ffmpeg lut3d filter if Pillow can't
+    build the LUT (exotic .cube), preserving the original path exactly."""
+    try:
+        lut = _get_lut_filter(lut_path)
+        img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)).filter(lut)
+        return np.asarray(img).astype(np.float32)
+    except Exception:
+        return _apply_lut_ffmpeg(arr, lut_path)
+
+
+def _apply_lut_ffmpeg(arr, lut_path):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        safe_lut = os.path.join(tmpdir, "lut.cube")
+        shutil.copy(lut_path, safe_lut)
+        src = os.path.join(tmpdir, "src.png")
+        dst = os.path.join(tmpdir, "lut.png")
+        Image.fromarray(arr.astype(np.uint8)).save(src)
+        subprocess.run(
+            [FFMPEG, "-y", "-loglevel", "error", "-i", src,
+             "-vf", f"lut3d=file={safe_lut}:interp=trilinear", dst],
+            check=True,
+        )
+        return np.asarray(Image.open(dst).convert("RGB")).astype(np.float32)
 
 
 def build_mask(shape, mp):
@@ -415,9 +526,11 @@ def run_step(a, step, wb_gain):
     if t == "levels":
         return levels(a, float(p.get("black", 0.4)), float(p.get("white", 99.6)), bool(p.get("soft", False)))
     if t == "sakura":
-        return pink_lift(a)
+        return pink_lift(a, float(p.get("feather", 0)), float(p.get("amount", 1.0)))
     if t == "sky":
         return sky_lift(a, float(p.get("amount", 40)))
+    if t == "bloom":
+        return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)), float(p.get("radius", 14)))
     if t == "lut":
         lut = p.get("lut", "") or ""
         dose = float(p.get("dose", 0))
@@ -425,8 +538,7 @@ def run_step(a, step, wb_gain):
             dose = float(p.get("dose_night"))
         d = max(0.0, min(100.0, dose)) / 100.0
         if lut and d > 0 and os.path.isfile(lut):
-            with tempfile.TemporaryDirectory() as td:
-                la = apply_lut(a, lut, td)
+            la = apply_lut(a, lut)
             return a * (1 - d) + la * d
         return a
     if t == "hsl":

@@ -13,6 +13,8 @@ import {
   CloudFog,
   Sparkles,
   Aperture,
+  Camera,
+  Zap,
   Focus,
   Blend,
   UtensilsCrossed,
@@ -127,6 +129,17 @@ const VISUAL_GROUPS: VisualGroup[] = [
     ],
   },
   {
+    key: "drama",
+    icon: Zap,
+    label: "Drammaticità",
+    base: "off",
+    options: [
+      { value: "off", label: "Off", hint: "Nessuna clausola drama dedicata" },
+      { value: "clean", label: "Pulita", hint: "Drama forte ma pulito: contrasto e luce decisi, ombre nitide e leggibili, niente foschia o neri impastati" },
+      { value: "bold", label: "Spinta", hint: "Drama pesante: contrasto intenso, ombre profonde, luce dura d'impatto" },
+    ],
+  },
+  {
     key: "shadows",
     icon: Moon,
     label: "Ombre",
@@ -206,6 +219,21 @@ const VISUAL_GROUPS: VisualGroup[] = [
     options: [
       { value: "preserve", label: "Mantieni DoF", hint: "Lascia la profondità di campo" },
       { value: "shallow", label: "Shallow bokeh", hint: "Stacca il soggetto con bokeh" },
+    ],
+  },
+  {
+    key: "camera",
+    icon: Camera,
+    label: "Camera",
+    base: "off",
+    options: [
+      { value: "off", label: "Off", hint: "Nessuna firma ottica" },
+      { value: "leica-m", label: "Leica M", hint: "35mm Summilux: micro-contrasto, resa 3D, bokeh organico" },
+      { value: "fuji-x100", label: "Fuji X100", hint: "35mm compatta: resa moderna pulita, roll-off morbido" },
+      { value: "sony-a7-prime", label: "Sony A7", hint: "Full-frame + prime: nitidezza pulita, DoF ridotta" },
+      { value: "hasselblad", label: "Hasselblad", hint: "Medio formato: chiarezza, micro-dettaglio, tonalità morbide" },
+      { value: "ricoh-gr", label: "Ricoh GR", hint: "28mm street: micro-contrasto alto, toni puliti" },
+      { value: "contax-t2", label: "Contax T2", hint: "Zeiss 38mm: resa caratteriale, look point-and-shoot" },
     ],
   },
   {
@@ -464,44 +492,54 @@ function DropdownShell({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  // The panel opens INLINE as a full-width band (`col-span-full`) right below its
+  // trigger — not an absolute dropdown. An absolute panel gets clipped by the
+  // editor rail's `overflow-y-auto` (both axes) and a fixed 320px overflows a
+  // 360px rail / narrow phone; the in-flow band scrolls with the panel and never
+  // clips, at any width. It's the native mobile-picker idiom (Lightroom-style).
   return (
-    <div className="relative" data-group={groupKey}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        className={
-          "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors " +
-          (isOpen
-            ? "border-neutral-600 bg-neutral-800"
-            : "border-neutral-800 bg-neutral-950 hover:border-neutral-700")
-        }
-      >
-        <Icon className="h-4 w-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
-        {thumb}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[10px] uppercase tracking-wide text-neutral-500">
-            {label}
-          </span>
-          <span className="block truncate text-xs text-neutral-200">
-            {selectedLabel}
-          </span>
-        </span>
-        <span
+    <>
+      <div className="relative" data-group={groupKey}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
           className={
-            "text-[10px] text-neutral-500 transition-transform " +
-            (isOpen ? "rotate-180" : "")
+            "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors " +
+            (isOpen
+              ? "border-neutral-600 bg-neutral-800"
+              : "border-neutral-800 bg-neutral-950 hover:border-neutral-700")
           }
         >
-          ▼
-        </span>
-      </button>
+          <Icon className="h-4 w-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
+          {thumb}
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] uppercase tracking-wide text-neutral-500">
+              {label}
+            </span>
+            <span className="block truncate text-xs text-neutral-200">
+              {selectedLabel}
+            </span>
+          </span>
+          <span
+            className={
+              "text-[10px] text-neutral-500 transition-transform " +
+              (isOpen ? "rotate-180" : "")
+            }
+          >
+            ▼
+          </span>
+        </button>
+      </div>
       {isOpen && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-[320px] max-w-[85vw] rounded-lg border border-neutral-700 bg-neutral-900 p-2 shadow-2xl shadow-black/50">
+        <div
+          data-group={groupKey}
+          className="col-span-full rounded-lg border border-neutral-700 bg-neutral-900/70 p-2"
+        >
           {children}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -583,7 +621,7 @@ export default function PromptBuilder({
   const toggle = (k: string) => setOpenKey((cur) => (cur === k ? null : k));
 
   return (
-    <div ref={rootRef} className="space-y-4">
+    <div ref={rootRef} className="@container space-y-4">
       {/* Direzione AI — high-level art-director switch above the granular knobs.
           When on, the model gets editorial agency (decisive cleanup + bolder
           recompose toward an iconic frame); faces stay exactly as shot. */}
@@ -626,8 +664,11 @@ export default function PromptBuilder({
         </span>
       </button>
 
-      {/* Visual groups → icon dropdowns with preview cards */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+      {/* Visual groups → icon dropdowns with preview cards. Container queries
+          (not viewport): this block lives in a ~336px editor rail even on a wide
+          desktop, so it must react to ITS OWN width — 1 clean column when narrow,
+          more only when the container is actually wide (global editor / big sheet). */}
+      <div className="grid grid-cols-1 gap-2 @sm:grid-cols-2 @lg:grid-cols-3 @2xl:grid-cols-4">
         {VISUAL_GROUPS.map((g) => {
           const current = String(value[g.key] ?? "");
           const opt = g.options.find((o) => o.value === current);
@@ -674,7 +715,7 @@ export default function PromptBuilder({
       </div>
 
       {/* Non-visual structural knobs → icon dropdowns with a text list */}
-      <div className="grid grid-cols-2 gap-2 border-t border-neutral-800 pt-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 border-t border-neutral-800 pt-3 @sm:grid-cols-2 @lg:grid-cols-3">
         {TEXT_GROUPS.map((g) => {
           const current = String(value[g.key] ?? "");
           const opt = g.options.find((o) => o.value === current);

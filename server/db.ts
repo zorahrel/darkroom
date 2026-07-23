@@ -340,7 +340,7 @@ export function setDefaultConfig(json: string): void {
 // (ChatGPT/Higgsfield) using an embedded PromptConfig. It is NOT part of the
 // live/deterministic color pipeline (the /graded preview skips it) — it only
 // runs during a "bake", where its output feeds the next step.
-export type GradeStepType = "white_balance" | "levels" | "sakura" | "sky" | "lut" | "hsl" | "curve" | "split_tone" | "color" | "ai";
+export type GradeStepType = "white_balance" | "levels" | "sakura" | "sky" | "bloom" | "lut" | "hsl" | "curve" | "split_tone" | "color" | "ai";
 
 export type GradeStep = {
   /** stable id (React keys / reordering). */
@@ -377,14 +377,14 @@ export function defaultSteps(): GradeStep[] {
     { id: "levels", type: "levels", enabled: true, params: { black: 0.4, white: 99.6 } },
     { id: "sakura", type: "sakura", enabled: true, params: {} },
     { id: "lut", type: "lut", enabled: true, params: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 } },
-    { id: "sky", type: "sky", enabled: false, params: { amount: 40 } },
+    { id: "sky_mixer", type: "hsl", enabled: true, params: { hue_aqua: 12, sat_aqua: -35, lum_aqua: -8, sat_blue: -12, lum_blue: -6 } },
     { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
   ];
 }
 
 export const DEFAULT_COLOR_GRADE: ColorGrade = { enabled: false, steps: defaultSteps() };
 
-const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "sky", "lut", "hsl", "curve", "split_tone", "color", "ai"];
+const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "sky", "bloom", "lut", "hsl", "curve", "split_tone", "color", "ai"];
 let _sid = 0;
 
 /** Build steps from the old flat format (back-compat migration). */
@@ -405,7 +405,7 @@ function stepsFromLegacy(f: Record<string, unknown>): GradeStep[] {
         dose_night: Number(f.dose_night ?? 30),
       },
     },
-    { id: "sky", type: "sky", enabled: false, params: { amount: 40 } },
+    { id: "sky_mixer", type: "hsl", enabled: true, params: { hue_aqua: 12, sat_aqua: -35, lum_aqua: -8, sat_blue: -12, lum_blue: -6 } },
     { id: "color", type: "color", enabled: false, params: { temp: 0, tint: 0, saturation: 0, brightness: 0, contrast: 0 } },
   ];
 }

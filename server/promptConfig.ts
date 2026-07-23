@@ -133,7 +133,7 @@ export const SHADOWS = {
 export type Shadows = keyof typeof SHADOWS;
 
 export const BLOOM = {
-  off: "no bloom",
+  off: "",
   subtle:
     "soft cinematic bloom and gentle glow around existing bright light sources (lamps, signs, neon, windows); haloed, luminous highlights that feel filmic without washing out the scene",
   glow:
@@ -148,12 +148,45 @@ export const DOF = {
 } as const;
 export type Dof = keyof typeof DOF;
 
+// Camera *body/lens signature* — imparts a coherent optical rendering ("shot on
+// X") so the whole set reads like one camera. Deliberately describes OPTICS
+// (micro-contrast, sharpness, bokeh, falloff), NOT color: color stays owned by
+// the local LUT, so the camera clause must not fight the grade.
+export const CAMERA = {
+  off: "",
+  "leica-m":
+    "shot on a Leica M rangefinder with a 35mm Summilux: crisp micro-contrast, natural three-dimensional optical rendering, smooth organic bokeh and a subtle corner vignette",
+  "fuji-x100":
+    "shot on a Fujifilm X100-series compact with its fixed 35mm-equivalent lens: clean modern rendering, sharp yet gentle, smooth highlight roll-off",
+  "sony-a7-prime":
+    "shot on a Sony A7 full-frame with a fast prime lens: high-resolution clarity, clean edge-to-edge sharpness and shallow depth-of-field falloff",
+  hasselblad:
+    "shot on a Hasselblad medium-format: large-format clarity, exceptional micro-detail and smooth tonal gradation with gentle depth falloff",
+  "ricoh-gr":
+    "shot on a Ricoh GR with its 28mm lens: crisp high-micro-contrast street rendering, deep clean tones and snapshot immediacy",
+  "contax-t2":
+    "shot on a Contax T2 with its Zeiss Sonnar 38mm: characterful sharp-centre rendering, gentle edge falloff, classic point-and-shoot look",
+} as const;
+export type Camera = keyof typeof CAMERA;
+
+// Drama, defined as a single knob. "clean" = strong, dimensional contrast that
+// stays crisp and readable (no haze/murk/crushed blacks) — the look the set
+// wants. Coexists with contrast/shadows/lighting: it qualifies their intensity
+// as CLEAN rather than muddy.
+export const DRAMA = {
+  off: "",
+  clean:
+    "clean, controlled cinematic drama: strong directional light and deep, confident contrast, but shadows stay crisp and readable and highlights stay controlled — punchy and dimensional without haze, murk or crushed blacks",
+  bold: "bold, heavy cinematic drama: intense contrast, deep shadows and hard directional light for a striking, high-impact frame",
+} as const;
+export type Drama = keyof typeof DRAMA;
+
 export const HIGHLIGHTS = {
   preserve: "",
   "warm-lift": "gently lift and warm natural highlights without clipping",
   "cool-lift": "lift highlights with a slightly cool tint",
   muted: "tame bright highlights, recover detail in whites",
-  neutral: "boost highlights subtly without color shift",
+  neutral: "push highlights bright and luminous, glowing whites, without color shift or clipping detail",
 } as const;
 export type Highlights = keyof typeof HIGHLIGHTS;
 
@@ -284,6 +317,10 @@ export type PromptConfig = {
   highlights: Highlights;
   bloom: Bloom;
   dof: Dof;
+  /** Camera body/lens signature — coherent optical rendering across the set. */
+  camera: Camera;
+  /** Drama as one knob (clean/bold) — qualifies the contrast/light intensity. */
+  drama: Drama;
   skin_tones: SkinTones;
   atmosphere: Atmosphere;
   cleanup: Cleanup;
@@ -321,16 +358,18 @@ export const DEFAULT_CONFIG: PromptConfig = {
   composition: "recompose",  // bold recompose toward the iconic crop
   aspect_ratio: "4:5",       // editorial vertical framing
   harmony: "off",            // shifts color per-image and breaks set consistency — keep off
-  food: "enhance",
+  food: "off",               // per-photo only; a global food clause was noise on every non-food frame
   time_of_day: "preserve",
   lighting: "hard-directional", // strong directional drama
   palette: "preserve",
   contrast: "punchy",        // amplify light/shadow contrast — drama
   grain: "fine",             // barely-visible 35mm grain: the strongest "real photo" tell, hides AI smoothness
   shadows: "crushed",        // deep moody shadows without clipping — drama
-  highlights: "neutral",     // boost highlights without color shift (LUT owns color)
-  bloom: "glow",             // pronounced cinematic night-glow — drama
+  highlights: "neutral",     // push highlights bright/luminous — the "boost" that helps the glow read
+  bloom: "off",              // glow is the "fake look" and contradicted no_orton/no_neon_flare — cut it
   dof: "preserve",           // NO fake depth-of-field — believable optics across any lens
+  camera: "off",             // opt-in "shot on X" optical signature (see DB default for the set)
+  drama: "off",              // opt-in; the set enables "clean" via the DB default
   skin_tones: "preserve",
   atmosphere: "clean",       // remove haze / increase clarity (drama)
   cleanup: "aggressive-keep", // strip passersby/clutter, KEEP the iconic subject that carries the frame
@@ -352,17 +391,17 @@ export const DEFAULT_CONFIG: PromptConfig = {
   ],
   // Anti-"AI look" guardrails that don't soften the drama: no dreamy Orton haze,
   // no painterly/illustrative rendering — on top of the usual face/HDR guards.
+  // NB: no_neon_flare + no_orton intentionally DROPPED — they suppressed exactly
+  // the neon/lantern glow and dreamy bloom the look wants (they fought the relight).
   exclude: [
     "no_smoothing",
     "no_oversaturation",
-    "no_neon_flare",
     "no_chromatic_vignette",
     "no_face_morph",
     "no_new_objects",
-    "no_orton",
     "no_painterly",
   ],
-  art_direction: true, // let the AI art-direct each frame toward an iconic result
+  art_direction: false, // the opener already carries the art-direction; the extra paragraph was pure redundancy
   freeform: "",
 };
 
@@ -387,6 +426,8 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
     highlights: override.highlights ?? base.highlights,
     bloom: override.bloom ?? base.bloom,
     dof: override.dof ?? base.dof,
+    camera: override.camera ?? base.camera,
+    drama: override.drama ?? base.drama,
     skin_tones: override.skin_tones ?? base.skin_tones,
     atmosphere: override.atmosphere ?? base.atmosphere,
     cleanup: override.cleanup ?? base.cleanup,
@@ -409,11 +450,13 @@ export function assemblePrompt(c: PromptConfig): string {
   if (PALETTE[c.palette]) changes.push(PALETTE[c.palette]);
   if (HARMONY[c.harmony]) changes.push(HARMONY[c.harmony]);
   changes.push(CONTRAST[c.contrast]);
+  if (DRAMA[c.drama]) changes.push(DRAMA[c.drama]);
   if (GRAIN[c.grain]) changes.push(GRAIN[c.grain]);
   changes.push(SHADOWS[c.shadows]);
   if (HIGHLIGHTS[c.highlights]) changes.push(HIGHLIGHTS[c.highlights]);
   if (BLOOM[c.bloom]) changes.push(BLOOM[c.bloom]);
   if (DOF[c.dof]) changes.push(DOF[c.dof]);
+  if (CAMERA[c.camera]) changes.push(CAMERA[c.camera]);
   if (SKIN_TONES[c.skin_tones]) changes.push(SKIN_TONES[c.skin_tones]);
   if (FOOD[c.food]) changes.push(FOOD[c.food]);
   if (ATMOSPHERE[c.atmosphere]) changes.push(ATMOSPHERE[c.atmosphere]);
@@ -433,7 +476,7 @@ export function assemblePrompt(c: PromptConfig): string {
     .filter(Boolean);
 
   const parts: string[] = [
-    "Reinterpret this scene as a single iconic editorial photograph, not a faithful retouch of the snapshot. You have full creative agency over framing: recompose boldly — change the vantage point and perspective decisively, and crop as hard as the image needs, even in tight to isolate one powerful detail or subject. Declutter with a photographer's eye: strip out passersby, tourists and incidental background clutter that merely crowd or unbalance the frame — but in EVERY frame first find the one element that carries the image and build around it. Recognise and KEEP any person who is iconic to the scene (someone praying, a decisive or deeply human gesture, a figure that gives the image its meaning or emotion) and elevate them as the subject. Treat authentic cultural and characterful details — Japanese signage and writing, kanji, lanterns and banners bearing text, shrine and street detail — as meaningful content to preserve exactly, never as clutter to erase. Cut only the incidental; keep and strengthen the meaningful. Relight it decisively and creatively — strong, directional, sculpted light with deep, dimensional shadows. Do not just amplify what is there: reinterpret the illumination to make the frame compelling — introduce believable practical light sources (lanterns, candles, windows, shafts of light through trees, a low raking key light), reposition the key light, and deepen the mood — as long as it stays physically plausible for this place and time of day and never looks artificial, staged or CGI. Keep the same place and its identity, the original colors and white balance, and keep any retained face EXACTLY as in the original. Above all it must look like a genuine photograph captured on a real camera and lens — believable optics and perspective, true surface texture and a faint natural film grain — never a digital render, a 3D or CGI look, an illustration or an over-processed HDR image. Edit the real scene; do not fabricate a different place or invent new objects or signage. Output the edited image.",
+    "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden in the scene and commit to it — a bold tight detail, an unexpected angle, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Leave the colors and white balance untouched — the color grade is applied later. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent nothing. Output the edited image.",
     "",
     "Apply:",
     ...changes.map((c) => `- ${c}`),
