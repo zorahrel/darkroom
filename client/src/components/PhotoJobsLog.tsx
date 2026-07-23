@@ -30,6 +30,19 @@ function fmtDur(ms: number): string {
   return `${m}m ${s % 60}s`;
 }
 
+function relIt(ts: number | null | undefined): string {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "adesso";
+  if (s < 60) return `${s}s fa`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min fa`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h fa`;
+  const g = Math.floor(h / 24);
+  return `${g} g fa`;
+}
+
 function JobTiming({ job }: { job: Job }) {
   const attempts = job.attempts ?? 0;
   const start = job.first_started_at ?? job.started_at;
@@ -110,13 +123,22 @@ export default function PhotoJobsLog({ photoId }: { photoId: string }) {
                     )}
                     <div className="flex-1" />
                     <span className="text-neutral-500">{meta.label}</span>
-                    <span className="text-neutral-600">
+                    <span
+                      className="text-neutral-600"
+                      title={`${relIt(j.finished_at ?? j.created_at)} · ${new Date(
+                        j.created_at,
+                      ).toLocaleString("it-IT")}`}
+                    >
                       {new Date(j.created_at).toLocaleString("it-IT", {
                         day: "2-digit",
                         month: "2-digit",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                      <span className="text-neutral-700">
+                        {" · "}
+                        {relIt(j.finished_at ?? j.created_at)}
+                      </span>
                     </span>
                   </div>
                   <JobTiming job={j} />

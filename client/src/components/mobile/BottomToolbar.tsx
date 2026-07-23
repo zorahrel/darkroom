@@ -5,7 +5,8 @@ import { IconPlus } from "./icons";
 // step (absent for non-step groups like "Genera"). Drives the reorder / enable /
 // remove controls shown in the panel header and the chip's on/off + order badge.
 export type StepControls = {
-  order: number; // 1-based position in the chain
+  order: number; // 1-based position in the chain (display)
+  index: number; // 0-based position in the real steps[] array (for drag-reorder)
   enabled: boolean;
   onToggle: (v: boolean) => void;
   canUp: boolean;

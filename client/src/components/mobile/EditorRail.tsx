@@ -10,6 +10,7 @@ import {
   IconTrash,
   IconPlus,
   IconLayers,
+  IconGrip,
 } from "./icons";
 
 export type { ToolGroup, AddableStep };
@@ -30,6 +31,7 @@ export default function EditorRail({
   master,
   addable,
   onAdd,
+  onReorderStep,
   onClose,
   storageKey = "darkroom.rail",
 }: {
@@ -41,6 +43,8 @@ export default function EditorRail({
   master?: MasterControls;
   addable?: AddableStep[];
   onAdd?: (type: string) => void;
+  // Reorder a pipeline step from one steps[] index to another (drag-and-drop).
+  onReorderStep?: (from: number, to: number) => void;
   onClose?: () => void;
   // Distinct key per surface (Home vs Detail) so their rail-open / open-section
   // preferences don't collide in localStorage.
@@ -75,19 +79,28 @@ export default function EditorRail({
   }, [sheetOpen, onClose]);
 
   const pipeline = (
-    <PipelineList groups={groups} master={master} addable={addable} onAdd={onAdd} />
+    <PipelineList
+      groups={groups}
+      master={master}
+      addable={addable}
+      onAdd={onAdd}
+      onReorderStep={onReorderStep}
+    />
   );
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100">
-      <div className="flex items-center gap-2 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
-        {leftAction}
-        <span className="text-sm font-medium text-neutral-200 truncate flex-1">{title}</span>
-        {rightAction}
+      {/* Header a riga singola che non sfora mai: le due barre d'azione sono
+          shrink-0 (non si comprimono), il titolo è l'unico a cedere spazio
+          (min-w-0 + truncate → ellissi) quando la larghezza scarseggia. */}
+      <div className="flex items-center gap-1.5 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
+        <div className="shrink-0">{leftAction}</div>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-200">{title}</span>
+        <div className="shrink-0">{rightAction}</div>
         {/* Desktop-only rail collapse toggle. */}
         <button
           onClick={() => toggleRail(!railOpen)}
-          className="hidden lg:flex items-center gap-1 p-1.5 rounded text-neutral-400 hover:text-white"
+          className="hidden lg:flex shrink-0 items-center gap-1 p-1.5 rounded text-neutral-400 hover:text-white"
           aria-label={railOpen ? "nascondi pannello" : "mostra pannello"}
           title={railOpen ? "nascondi pannello" : "mostra pannello"}
         >
@@ -153,11 +166,13 @@ export function PipelineList({
   master,
   addable,
   onAdd,
+  onReorderStep,
 }: {
   groups: ToolGroup[];
   master?: MasterControls;
   addable?: AddableStep[];
   onAdd?: (type: string) => void;
+  onReorderStep?: (from: number, to: number) => void;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -167,6 +182,19 @@ export function PipelineList({
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+  // Drag-to-reorder state, lifted here so any step section can be the drop
+  // target while another is dragged. Indices are into the real steps[] array.
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const endDrag = () => {
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+  const dropOn = (target: number) => {
+    if (onReorderStep && dragIdx !== null && dragIdx !== target) onReorderStep(dragIdx, target);
+    endDrag();
+  };
 
   // If an open section disappears (step removed/reordered away), drop it.
   useEffect(() => {
@@ -206,9 +234,32 @@ export function PipelineList({
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {groups.map((g) => (
-          <Section key={g.id} group={g} open={open.has(g.id)} onToggle={() => onToggle(g.id)} />
-        ))}
+        {groups.map((g) => {
+          const idx = g.step?.index;
+          const dnd =
+            onReorderStep && idx !== undefined
+              ? {
+                  dragging: dragIdx === idx,
+                  // Drop line: after this step when dragging down onto it,
+                  // before it when dragging up onto it (matches the splice).
+                  lineBelow: dragIdx !== null && overIdx === idx && dragIdx < idx,
+                  lineAbove: dragIdx !== null && overIdx === idx && dragIdx > idx,
+                  onStart: () => setDragIdx(idx),
+                  onOver: () => setOverIdx(idx),
+                  onDrop: () => dropOn(idx),
+                  onEnd: endDrag,
+                }
+              : undefined;
+          return (
+            <Section
+              key={g.id}
+              group={g}
+              open={open.has(g.id)}
+              onToggle={() => onToggle(g.id)}
+              dnd={dnd}
+            />
+          );
+        })}
       </div>
 
       {addable && onAdd && (
@@ -245,25 +296,82 @@ export function PipelineList({
   );
 }
 
-// One accordion section: header (order · icon · label · summary · enable dot ·
-// chevron) always shown; body (per-step controls + params) when expanded.
+// Drag-and-drop wiring for a single step section (undefined for non-step
+// groups, which are neither draggable nor drop targets).
+type SectionDnd = {
+  dragging: boolean;
+  lineAbove: boolean;
+  lineBelow: boolean;
+  onStart: () => void;
+  onOver: () => void;
+  onDrop: () => void;
+  onEnd: () => void;
+};
+
+// One accordion section: header (grip · order · icon · label · summary · enable
+// dot · chevron) always shown; body (per-step controls + params) when expanded.
+// A step section can be dragged by its grip and reordered while the preview
+// stays live; the grip is separate from the toggle button so tapping the row
+// still expands it.
 function Section({
   group,
   open,
   onToggle,
+  dnd,
 }: {
   group: ToolGroup;
   open: boolean;
   onToggle: () => void;
+  dnd?: SectionDnd;
 }) {
   const step = group.step;
   const dim = step && !step.enabled;
   return (
-    <div className="border-b border-neutral-800/70">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-neutral-900"
-      >
+    <div
+      className={"border-b border-neutral-800/70 relative " + (dnd?.dragging ? "opacity-40" : "")}
+      onDragOver={
+        dnd
+          ? (e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              dnd.onOver();
+            }
+          : undefined
+      }
+      onDrop={
+        dnd
+          ? (e) => {
+              e.preventDefault();
+              dnd.onDrop();
+            }
+          : undefined
+      }
+    >
+      {dnd?.lineAbove && <div className="absolute inset-x-0 top-0 h-0.5 bg-sky-500 z-10" />}
+      {dnd?.lineBelow && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-sky-500 z-10" />}
+      <div className="w-full flex items-center gap-1.5 pl-1 pr-3 hover:bg-neutral-900">
+        {dnd ? (
+          <span
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", group.id);
+              dnd.onStart();
+            }}
+            onDragEnd={dnd.onEnd}
+            className="shrink-0 py-2.5 px-0.5 text-neutral-600 hover:text-neutral-300 cursor-grab active:cursor-grabbing"
+            title="trascina per riordinare"
+            aria-label="trascina per riordinare"
+          >
+            <IconGrip className="w-4 h-4" />
+          </span>
+        ) : (
+          <span className="w-1.5 shrink-0" />
+        )}
+        <button
+          onClick={onToggle}
+          className="flex-1 min-w-0 flex items-center gap-2 py-2.5 text-left"
+        >
         {step && (
           <span className="text-[10px] tabular-nums text-neutral-600 w-3 shrink-0">
             {step.order}
@@ -291,7 +399,8 @@ function Section({
         <span className={"text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>
           <IconChevronRight className="w-4 h-4" />
         </span>
-      </button>
+        </button>
+      </div>
 
       {open && (
         <div className="px-3 pb-3 pt-1 dr-touch">

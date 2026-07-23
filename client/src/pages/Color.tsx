@@ -131,6 +131,14 @@ export default function PipelineBar({
     next[j] = a;
     patch({ steps: next });
   }
+  function reorderStepAt(from: number, to: number) {
+    if (from === to) return;
+    const next = grade.steps.slice();
+    const [moved] = next.splice(from, 1);
+    if (!moved) return;
+    next.splice(to, 0, moved);
+    patch({ steps: next });
+  }
   function removeStepAt(idx: number) {
     patch({ steps: grade.steps.filter((_, j) => j !== idx) });
   }
@@ -257,6 +265,7 @@ export default function PipelineBar({
         icon: <StepIcon type={s.type} />,
         step: {
           order,
+          index: idx,
           enabled: s.enabled,
           onToggle: (v) => patchStepAt(idx, { enabled: v }),
           canUp: idx > 0,
@@ -410,6 +419,7 @@ export default function PipelineBar({
         }}
         addable={addableSteps}
         onAdd={(t: string) => addStep(t as GradeStepType)}
+        onReorderStep={reorderStepAt}
       />
       <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-neutral-800 text-[11px] text-neutral-400">
         {browserAlive === false && (
@@ -480,21 +490,22 @@ function GenerationLook() {
   }
 
   return (
-    <section className="mb-3 p-3 rounded-xl border border-neutral-800 bg-neutral-900/40">
+    <section className="@container mb-3 p-3 rounded-xl border border-neutral-800 bg-neutral-900/40">
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2 text-left"
       >
-        <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
+        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
           Generazione
         </span>
-        <h2 className="text-sm font-semibold">Look del set (prompt di default)</h2>
-        <span className="hidden sm:inline text-xs text-neutral-500">
-          — guida ChatGPT quando rigeneri o fai un bake AI
+        <span className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold truncate">Look del set (prompt di default)</h2>
+          <span className="hidden @sm:block text-xs text-neutral-500 truncate">
+            guida ChatGPT quando rigeneri o fai un bake AI
+          </span>
         </span>
-        <div className="flex-1" />
-        {dirty && <span className="text-xs text-amber-400">non salvato</span>}
-        <span className="flex items-center gap-1 text-neutral-500 text-xs">
+        {dirty && <span className="shrink-0 text-xs text-amber-400">non salvato</span>}
+        <span className="shrink-0 flex items-center gap-1 text-neutral-500 text-xs">
           {open ? "Chiudi" : "Apri"}
           <IconChevronDown className={"w-4 h-4 transition-transform " + (open ? "rotate-180" : "")} />
         </span>

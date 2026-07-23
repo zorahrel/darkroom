@@ -66,6 +66,50 @@ export default function PhotoCard({
     };
   }, [previewUrl, displayedUrl]);
 
+  // ---- Feedback note (hover-revealed, ⏎ saves) ----------------------------
+  // Freeform review jot per photo. Read in bulk later to steer the next run;
+  // deliberately NOT injected into the prompt (that's extra_instructions).
+  //
+  // MODIFICA (nota vecchia in preview): prima il box textarea si pre-riempiva
+  // con la nota salvata, quindi rivedendo il risultato di una run ti ritrovavi
+  // la vecchia nota già dentro il campo e la editavi sopra. Ora la nota salvata
+  // ("vecchia") è mostrata read-only sopra il campo (vedi overlay più sotto) e
+  // il box parte SEMPRE vuoto: serve a scrivere la nota NUOVA per il giro
+  // corrente. Salvare una nota nuova sostituisce quella di record; il box vuoto
+  // è un no-op (non azzera la nota esistente) — per questo non si può più
+  // "cancellare" una nota dalla griglia, scelta voluta per non perderle a vuoto.
+  const [fb, setFb] = useState("");
+  const [savedFb, setSavedFb] = useState(photo.feedback ?? "");
+  const [fbSaving, setFbSaving] = useState(false);
+  const [fbSaved, setFbSaved] = useState(false);
+  const [fbFocused, setFbFocused] = useState(false);
+  // Adotta la verità del server quando la lista si aggiorna — ma solo la nota
+  // salvata (read-only). Il box `fb` (nota nuova) non si tocca mai qui: resta
+  // vuoto/quello che stai scrivendo, così non ti ricompare la nota vecchia dentro.
+  useEffect(() => {
+    if (fbFocused) return;
+    setSavedFb(photo.feedback ?? "");
+  }, [photo.feedback]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveFb() {
+    const value = fb.trim();
+    if (!value) return; // box vuoto = nessuna nota nuova → non azzerare la vecchia
+    if (value === savedFb.trim()) {
+      setFb("");
+      return;
+    }
+    setFbSaving(true);
+    try {
+      await api.setFeedback(photo.id, value);
+      setSavedFb(value);
+      setFb(""); // svuota il box: pronto per la prossima nota, la salvata sta in preview
+      setFbSaved(true);
+      setTimeout(() => setFbSaved(false), 1200);
+    } finally {
+      setFbSaving(false);
+    }
+  }
+
   const targetFavoriteId = photo.favorite_version_id ?? photo.latest_version_id;
 
   async function toggleFavorite(e: React.MouseEvent) {
@@ -120,7 +164,9 @@ export default function PhotoCard({
           alt={`${photo.id} (originale)`}
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
+            fbFocused ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+          }`}
         />
       )}
 
@@ -227,10 +273,70 @@ export default function PhotoCard({
         </button>
       )}
 
-      {/* Bottom hint: hover reveals "vedi originale" */}
-      {hasEdit && (
-        <div className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          hover = RAW
+      {/* Feedback note: hover/focus reveals a field; ⏎ salva, ⇧⏎ a capo. */}
+      <div
+        onClick={(e) => {
+          // Keep clicks inside the note from navigating to the detail page.
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className={`absolute inset-x-0 bottom-0 z-20 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${
+          fbFocused
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+        }`}
+      >
+        <div className="relative">
+          {/* Nota vecchia (già salvata): read-only, come riferimento mentre
+              scrivi quella nuova. Sta nella preview, non dentro il box. */}
+          {savedFb.trim().length > 0 && (
+            <div className="mb-1 max-h-16 overflow-y-auto whitespace-pre-wrap rounded border border-amber-500/30 bg-black/50 px-1.5 py-1 text-[10px] leading-snug text-amber-200/80">
+              <span className="font-semibold text-amber-300/90">nota vecchia</span>{" "}
+              {savedFb}
+            </div>
+          )}
+          <textarea
+            value={fb}
+            rows={2}
+            placeholder={savedFb.trim() ? "nota nuova… ⏎ salva" : "feedback… ⏎ salva"}
+            onChange={(e) => setFb(e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              // Interactive child of the card's <Link>: cancel the anchor's
+              // native navigation, else clicking the field opens the photo.
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onFocus={() => setFbFocused(true)}
+            onBlur={() => {
+              setFbFocused(false);
+              void saveFb();
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void saveFb();
+                (e.target as HTMLTextAreaElement).blur();
+              }
+            }}
+            className="w-full resize-none rounded bg-black/70 border border-neutral-600 focus:border-amber-400 outline-none px-1.5 py-1 text-[11px] leading-snug text-neutral-100 placeholder:text-neutral-500"
+          />
+          {(fbSaving || fbSaved) && (
+            <span className="absolute right-1 bottom-1.5 text-[9px] font-medium text-amber-300 pointer-events-none">
+              {fbSaving ? "…" : "salvato ✓"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Persistent badge: this photo carries a note (hidden while editing) */}
+      {savedFb.trim().length > 0 && !fbFocused && (
+        <div className="absolute bottom-1 left-1 z-10 flex items-center gap-1 rounded bg-amber-400/90 text-amber-950 text-[9px] font-semibold px-1 py-0.5 opacity-100 group-hover:opacity-0 transition-opacity pointer-events-none">
+          <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="currentColor">
+            <path d="M4 4h16v11H8l-4 4V4z" />
+          </svg>
+          nota
         </div>
       )}
     </Link>

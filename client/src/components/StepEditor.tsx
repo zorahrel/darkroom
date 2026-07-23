@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   type ColorGrade,
   type GradeStep,
@@ -478,37 +478,67 @@ function StepBody({
   }
 
   if (step.type === "hsl") {
+    const hue = BAND_HUE[hslBand] ?? 0;
+    const bandTouched = (key: string) =>
+      num(p[`hue_${key}`]) || num(p[`sat_${key}`]) || num(p[`lum_${key}`]);
+    const bandLabel = HSL_BANDS.find((b) => b.key === hslBand)?.label ?? hslBand;
+    const isCeleste = hslBand === "aqua" || hslBand === "blue";
+    const resetBand = () =>
+      onParams({ [`hue_${hslBand}`]: 0, [`sat_${hslBand}`]: 0, [`lum_${hslBand}`]: 0 });
     return (
       <div className="space-y-3 text-sm">
-        <div className="flex flex-wrap gap-1">
+        {/* All 8 bands as their own colour — the whole mixer is legible at a
+            glance, and the target band (e.g. the celesti) is one tap away. */}
+        <div className="grid grid-cols-8 gap-1">
           {HSL_BANDS.map((b) => {
+            const bh = BAND_HUE[b.key] ?? 0;
             const active = hslBand === b.key;
-            const touched =
-              num(p[`hue_${b.key}`]) || num(p[`sat_${b.key}`]) || num(p[`lum_${b.key}`]);
             return (
               <button
                 key={b.key}
                 onClick={() => setHslBand(b.key)}
+                title={b.label}
+                aria-label={b.label}
                 className={
-                  "px-2 py-1 rounded text-xs border " +
+                  "relative h-7 rounded-md border transition " +
                   (active
-                    ? "border-sky-500 text-white bg-sky-900/30"
-                    : "border-neutral-700 text-neutral-400 hover:text-white")
+                    ? "border-white ring-2 ring-white/70"
+                    : "border-black/40 hover:border-white/70")
                 }
+                style={{ background: bandColor(bh) }}
               >
-                {b.label}
-                {touched ? <span className="ml-1 text-sky-400">•</span> : null}
+                {bandTouched(b.key) ? (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white border border-black/50" />
+                ) : null}
               </button>
             );
           })}
         </div>
-        <div className="grid grid-cols-1 gap-y-2">
-          <ColorSlider label="Tonalità" k={`hue_${hslBand}`} p={p} onParams={onParams} />
-          <ColorSlider label="Saturazione" k={`sat_${hslBand}`} p={p} onParams={onParams} />
-          <ColorSlider label="Luminanza" k={`lum_${hslBand}`} p={p} onParams={onParams} />
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-100 font-medium flex items-center gap-2">
+            <span
+              className="w-3.5 h-3.5 rounded-full border border-black/40"
+              style={{ background: bandColor(hue) }}
+            />
+            {bandLabel}
+            {isCeleste && <span className="text-[10px] text-sky-300/80">· celeste</span>}
+          </span>
+          <button
+            onClick={resetBand}
+            disabled={!bandTouched(hslBand)}
+            className="text-[11px] px-2 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:text-white disabled:opacity-30"
+          >
+            azzera banda
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-y-2.5">
+          <MixerSlider label="Tonalità" k={`hue_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="hue" />
+          <MixerSlider label="Saturazione" k={`sat_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="sat" />
+          <MixerSlider label="Luminanza" k={`lum_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="lum" />
         </div>
         <p className="text-[11px] text-neutral-500">
-          Regola una banda di colore alla volta (come il Color Mixer di Lightroom).
+          Color mixer per banda (8 colori). Per abbassare i celesti: seleziona
+          Acqua e Blu e riduci Saturazione/Luminanza.
         </p>
       </div>
     );
@@ -681,6 +711,62 @@ function ColorSlider({
       </span>
       <input
         type="range"
+        min={-100}
+        max={100}
+        value={v}
+        onChange={(e) => onParams({ [k]: Number(e.target.value) })}
+        onDoubleClick={() => onParams({ [k]: 0 })}
+        title="doppio click = 0"
+      />
+    </label>
+  );
+}
+
+// Hue-band centres, mirrored from color_grade.py HSL_BANDS. Drive the coloured
+// mixer swatches and slider tracks so what you see matches what the engine does.
+const BAND_HUE: Record<string, number> = {
+  red: 0, orange: 30, yellow: 60, green: 120,
+  aqua: 180, blue: 240, purple: 290, magenta: 330,
+};
+
+function bandColor(hue: number, sat = 72, light = 52) {
+  return `hsl(${hue} ${sat}% ${light}%)`;
+}
+
+// A color-mixer slider (à la DaVinci/Lightroom): the track is tinted to show the
+// effect — a hue sweep, a grey→vivid ramp, or a dark→light ramp for the band.
+function MixerSlider({
+  label,
+  k,
+  p,
+  onParams,
+  hue,
+  kind,
+}: {
+  label: string;
+  k: string;
+  p: Record<string, unknown>;
+  onParams: (p: Record<string, unknown>) => void;
+  hue: number;
+  kind: "hue" | "sat" | "lum";
+}) {
+  const v = num(p[k], 0);
+  const track =
+    kind === "hue"
+      ? `linear-gradient(90deg, hsl(${hue - 40} 65% 50%), hsl(${hue} 72% 52%), hsl(${hue + 40} 65% 50%))`
+      : kind === "sat"
+        ? `linear-gradient(90deg, hsl(${hue} 4% 55%), hsl(${hue} 82% 50%))`
+        : `linear-gradient(90deg, hsl(${hue} 45% 13%), hsl(${hue} 55% 52%), hsl(${hue} 38% 92%))`;
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-neutral-400 flex items-center justify-between">
+        <span>{label}</span>
+        <span className="tabular-nums text-neutral-200">{v > 0 ? `+${v}` : v}</span>
+      </span>
+      <input
+        type="range"
+        className="dr-hue"
+        style={{ "--dr-track": track } as CSSProperties}
         min={-100}
         max={100}
         value={v}

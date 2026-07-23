@@ -80,6 +80,63 @@ body {
   accent-color: #10b981; /* emerald-500 */
 }
 
+/* Color-mixer sliders (DaVinci/Lightroom-style): a coloured track that shows,
+   in situ, what the control does — the hue sweep, the desaturated→vivid ramp,
+   the dark→light ramp. The gradient is passed per-instance via --dr-track so
+   the same rule paints every band. A neutral notch marks the 0 midpoint. Works
+   at every width; the .dr-touch scope only enlarges the thumb for fingertips. */
+input[type="range"].dr-hue {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].dr-hue::-webkit-slider-runnable-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--dr-track, #3f3f46);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+input[type="range"].dr-hue::-moz-range-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--dr-track, #3f3f46);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+input[type="range"].dr-hue::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 2px solid #18181b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+input[type="range"].dr-hue::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 2px solid #18181b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.dr-touch input[type="range"].dr-hue {
+  height: 30px;
+}
+.dr-touch input[type="range"].dr-hue::-webkit-slider-thumb {
+  width: 24px;
+  height: 24px;
+  margin-top: -8px;
+}
+.dr-touch input[type="range"].dr-hue::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+}
+
 /* Slide-up entrance for the mobile step panel (no layout overflow — the panel
    is in normal flow, this only animates its first paint). */
 @keyframes dr-slide-up {

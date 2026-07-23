@@ -35,6 +35,9 @@ import {
   IconRedo,
   IconDownload,
   IconInfo,
+  IconText,
+  IconReset,
+  IconBake,
 } from "../components/mobile/icons";
 import { useHistory } from "../lib/useHistory";
 
@@ -560,7 +563,7 @@ function ExtraInstructionsCard({
 
   return (
     <div className="space-y-2 border-t border-neutral-800/70 pt-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <div className="text-xs font-medium text-neutral-300">
           Istruzioni extra per questa foto
         </div>
@@ -569,8 +572,7 @@ function ExtraInstructionsCard({
             attive
           </span>
         )}
-        <div className="flex-1" />
-        <span className="text-[10px] text-neutral-500">
+        <span className="ml-auto text-[10px] text-neutral-500">
           si sommano alla config, valgono solo qui
         </span>
       </div>
@@ -616,6 +618,54 @@ function ExtraInstructionsCard({
           {saving ? "Salvo…" : "Salva"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Il prompt finale COMPLETO effettivamente inviato a ChatGPT per questa foto —
+// config globale + override foto + istruzioni extra, già assemblato dal server.
+// Sola lettura, scrollabile, con copia negli appunti.
+function FinalPromptView({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  const text = prompt?.trim() || "";
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
+          Prompt finale
+        </span>
+        <span className="text-[11px] text-neutral-500">
+          quello che riceve ChatGPT, già assemblato
+        </span>
+        <div className="flex-1" />
+        <span className="text-[10px] tabular-nums text-neutral-600">
+          {text.length} car.
+        </span>
+        <button
+          disabled={!text}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            } catch {
+              /* clipboard non disponibile: no-op */
+            }
+          }}
+          className="text-xs px-2.5 py-1 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-40"
+        >
+          {copied ? "Copiato ✓" : "Copia"}
+        </button>
+      </div>
+      {text ? (
+        <pre className="max-h-[60dvh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-neutral-800 bg-neutral-950 p-3 text-[12px] leading-relaxed text-neutral-200">
+          {text}
+        </pre>
+      ) : (
+        <p className="text-sm text-neutral-500">
+          Nessun prompt: genera una versione o imposta la config sopra.
+        </p>
+      )}
     </div>
   );
 }
@@ -786,6 +836,14 @@ function PhotoPipeline({
     next[j] = a;
     setDraft({ ...draft, steps: next });
   }
+  function reorderStepAt(from: number, to: number) {
+    if (from === to) return;
+    const next = draft.steps.slice();
+    const [moved] = next.splice(from, 1);
+    if (!moved) return;
+    next.splice(to, 0, moved);
+    setDraft({ ...draft, steps: next });
+  }
   function removeStepAt(idx: number) {
     setDraft({ ...draft, steps: draft.steps.filter((_, j) => j !== idx) });
   }
@@ -837,6 +895,12 @@ function PhotoPipeline({
           </div>
         ),
       },
+      {
+        id: "prompt",
+        label: "Prompt",
+        icon: <IconText />,
+        render: () => <FinalPromptView prompt={prompt} />,
+      },
       ...(infoPanel
         ? [
             {
@@ -858,6 +922,7 @@ function PhotoPipeline({
         icon: <StepIcon type={s.type} />,
         step: {
           order,
+          index: idx,
           enabled: s.enabled,
           onToggle: (v) => patchStepAt(idx, { enabled: v }),
           canUp: idx > 0,
@@ -959,6 +1024,7 @@ function PhotoPipeline({
       <EditorRail
           storageKey="darkroom.rail.detail"
           preview={previewNode}
+          onReorderStep={reorderStepAt}
           title={
             photoNav && photoNav.index >= 0
               ? `${photoId} · ${photoNav.index + 1}/${photoNav.total}`
@@ -1018,17 +1084,24 @@ function PhotoPipeline({
                 <button
                   disabled={saving}
                   onClick={doReset}
-                  className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50"
+                  aria-label="reset override"
+                  title="Reset override"
+                  className="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50"
                 >
-                  Reset
+                  <IconReset className="w-4 h-4 sm:hidden" />
+                  <span className="hidden sm:inline">Reset</span>
                 </button>
               )}
               <button
                 disabled={baking || dirty}
                 onClick={doBake}
-                className="text-xs px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50"
+                aria-label="bake"
+                title="Bake (applica il grade in una nuova versione)"
+                className="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50"
               >
-                {baking ? "…" : "Bake"}
+                <IconBake className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">{baking ? "…" : "Bake"}</span>
+                <span className="sm:hidden">{baking ? "…" : ""}</span>
               </button>
               <button
                 disabled={saving || !dirty}

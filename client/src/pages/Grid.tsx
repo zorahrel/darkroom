@@ -3,6 +3,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import { api, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
+import Accordion from "../components/Accordion";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid,
@@ -266,6 +267,14 @@ export default function GridPage({
     return n;
   }, [selected, jobStatusByPhoto]);
 
+  // Compact summary shown on the collapsed Filtri accordion, so the active
+  // filter/group/zoom stay visible without expanding the bar.
+  const activeFilter = FILTERS.find((f) => f.id === filter);
+  const activeFilterN = filterCounts[filter];
+  const groupLabel =
+    groupMode === "scene" ? "Scena" : groupMode === "day" ? "Giorno" : "Nessuno";
+  const activeRun = selectedRun != null ? runs.find((r) => r.id === selectedRun) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -373,6 +382,28 @@ export default function GridPage({
         </div>
       )}
 
+      <Accordion
+        storageKey="darkroom.grid.filters.open"
+        defaultOpen
+        title={<h2 className="text-sm font-semibold">Filtri</h2>}
+        summary={
+          <>
+            {activeFilter && (
+              <span className="shrink-0 text-neutral-500">
+                {activeFilter.label}
+                {activeFilterN != null && (
+                  <span className="text-neutral-400"> {activeFilterN}</span>
+                )}
+              </span>
+            )}
+            <span className="shrink-0 text-neutral-600">· {groupLabel}</span>
+            {activeRun && (
+              <span className="shrink-0 text-sky-300/80">· run {runLabel(activeRun)}</span>
+            )}
+            <span className="shrink-0 text-neutral-600">· {zoom}px</span>
+          </>
+        }
+      >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
         <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((f) => {
@@ -497,6 +528,7 @@ export default function GridPage({
           <span className="font-mono text-[10px] w-10 tabular-nums">{zoom}px</span>
         </div>
       </div>
+      </Accordion>
 
       {selectedRun != null ? (
         runData === null ? (

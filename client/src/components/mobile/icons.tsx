@@ -151,6 +151,14 @@ export const IconInfo = ({ className = "w-5 h-5" }: IconProps) => (
   </svg>
 );
 
+export const IconText = ({ className = "w-5 h-5" }: IconProps) => (
+  <svg {...svg(className)}>
+    <path d="M6 3h8l4 4v14H6z" />
+    <path d="M14 3v4h4" />
+    <path d="M9 12h6M9 16h4" />
+  </svg>
+);
+
 export const IconChevronUp = ({ className = "w-4 h-4" }: IconProps) => (
   <svg {...svg(className)}>
     <path d="M6 15l6-6 6 6" />
@@ -224,6 +232,18 @@ export const IconLayers = ({ className = "w-5 h-5" }: IconProps) => (
   <svg {...svg(className)}>
     <rect x="4" y="4" width="12" height="12" rx="1.5" />
     <path d="M8 20h10a2 2 0 0 0 2-2V8" />
+  </svg>
+);
+
+// Two columns of dots = drag handle for reordering pipeline steps.
+export const IconGrip = ({ className = "w-4 h-4" }: IconProps) => (
+  <svg {...svg(className)}>
+    <circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" />
   </svg>
 );
 

@@ -65,6 +65,8 @@ export type PromptConfig = {
   highlights: "preserve" | "warm-lift" | "cool-lift" | "muted" | "neutral";
   bloom: "off" | "subtle" | "glow" | "halation";
   dof: "preserve" | "shallow";
+  camera: "off" | "leica-m" | "fuji-x100" | "sony-a7-prime" | "hasselblad" | "ricoh-gr" | "contax-t2";
+  drama: "off" | "clean" | "bold";
   skin_tones: "preserve" | "airy-lift" | "desaturate" | "saturate" | "porcelain";
   atmosphere: "preserve" | "clean" | "enhance" | "dreamy";
   cleanup: "off" | "minor" | "aggressive" | "aggressive-keep";
@@ -560,6 +562,8 @@ export const DEFAULT_CONFIG: PromptConfig = {
   highlights: "warm-lift",
   bloom: "subtle",
   dof: "preserve",
+  camera: "off",
+  drama: "off",
   skin_tones: "airy-lift",
   atmosphere: "enhance",
   cleanup: "minor",
