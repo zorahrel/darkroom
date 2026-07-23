@@ -34,3 +34,6 @@ scripts/.verify_cache.json
 
 # OS
 .DS_Store
+
+# Local agent/session state (worktrees, memory, per-machine)
+.claude/
