@@ -44,6 +44,18 @@ bun run server        # or: bun run dev
 | `export_favorites` | Copy favorites into `final/`. |
 | `status` | Backend + ChatGPT browser health; `launch:true` starts Chrome. |
 
+### Storyboard
+
+| Tool | Description |
+|---|---|
+| `list_storyboard` | Panels in order (duration, scene label, cast) + characters + settings. |
+| `create_panels` | Beat sheet → one generated panel per beat, appended with its job queued. |
+| `set_sequence` | Re-order the board: the given ids become panels 0..N-1. |
+| `update_panel` | One panel's duration, scene label or pinned characters. |
+| `list_characters` | The cast, with their reference photos. |
+| `set_character` | Create/update a character; its reference rides along with every generation it appears in. |
+| `export_storyboard` | Write the `.storyboarder` file + `images/` for Storyboarder. |
+
 ## Quick check
 
 ```bash
@@ -54,4 +66,4 @@ printf '%s\n' \
   | bun run mcp/server.ts
 ```
 
-You should see the 10 tools listed in the response.
+You should see the 17 tools listed in the response.

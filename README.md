@@ -16,6 +16,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.
 - **Pipeline & run browser** — run the whole chain (regenerate favorites → color grade → promote → export) as one action, and filter the grid by generation batch ("run") from a dropdown.
 - **Export** — copy all favorites into a clean `final/` folder (graded full‑res JPGs when the grade is on).
+- **Storyboard** — turn a beat sheet into ordered panels (one generation each), give them durations, scene labels and a pinned cast whose reference images ride along with every generation, then export to [Storyboarder](https://github.com/wonderunit/storyboarder)'s native format for 3D blocking and print.
 
 ## Stack
 
@@ -67,6 +68,26 @@ Open the URL printed by `bun run dev` (default http://localhost:5173).
    - Tune the per‑photo prompt and **Save override** when the global look isn't enough. Each version records the exact prompt used.
 5. **Export favorites** — copies every favorite into `<root>/data/final/<photo_id>.png`.
 
+## Storyboard
+
+A storyboard is an ordinary project whose photos are panels: same versioning, same queue,
+plus an order, a duration and an optional cast. Open `/p/:pid/storyboard`.
+
+1. **Write the beats** — one shot per line. Each becomes a panel, appended in order, with its
+   generation already queued. Thumbnails fill in as the worker gets to them.
+2. **Cast** — create a character with a reference photo. That image is attached to every
+   generation the character appears in, which is what keeps the same face across panels.
+3. **Board** — drag to re‑order, set per‑panel duration and scene label; the running time is
+   shown on each panel. Existing gallery photos can be pulled in too.
+4. **Export** — writes `<root>/data/final/storyboard/<project>/<project>.storyboarder` plus an
+   `images/` folder, in [Storyboarder](https://github.com/wonderunit/storyboarder)'s native
+   format. Open it there for 3D shot blocking, hand‑drawn fixes and print/PDF — the half
+   Darkroom deliberately does not reimplement.
+
+Everything above is also drivable from Claude over MCP (`create_panels`, `set_sequence`,
+`set_character`, `export_storyboard`), which is the point: describe the story in chat, let the
+queue draw it.
+
 ## Backends
 
 | Backend | Cost | Setup |
@@ -94,7 +115,7 @@ Darkroom ships an MCP server that wraps the local API. Start the backend, then r
 }
 ```
 
-Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list_jobs`, `set_favorite`, `set_global_prompt`, `export_favorites`. See [`mcp/README.md`](mcp/README.md).
+Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list_jobs`, `set_favorite`, `set_global_prompt`, `export_favorites`, plus the storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_panel`, `list_characters`, `set_character`, `export_storyboard`). See [`mcp/README.md`](mcp/README.md).
 
 ## API
 
@@ -113,6 +134,12 @@ Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list
 | GET/PUT | `/api/settings/global-prompt` | Global prompt |
 | GET | `/api/jobs` | Queue snapshot |
 | POST | `/api/export-favorites` | Copy favorites into `final/` |
+| GET | `/api/storyboard` | Panels (in order) + cast + board settings |
+| POST | `/api/storyboard/panels` | `{beats: [{description, duration_ms?, scene_label?, character_ids?}]}` |
+| PUT | `/api/storyboard/sequence` | `{ids}` → panels 0..N‑1, in that order |
+| PATCH | `/api/storyboard/panels/:id` | Duration, scene label, pinned cast |
+| POST | `/api/storyboard/characters` | Create/update a character |
+| POST | `/api/storyboard/export` | Write the `.storyboarder` file + `images/` |
 
 ## Configuration
 
