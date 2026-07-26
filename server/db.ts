@@ -117,6 +117,31 @@ const SCHEMA_STATEMENTS = [
     source TEXT NOT NULL DEFAULT 'manual',
     created_at INTEGER NOT NULL
   )`,
+  // Quality control. `failure_modes` is the catalogue of ways a render can come
+  // out wrong; each one is either a cheap pixel measurement or a yes/no question
+  // for the local vision model, and can also contribute a clause to the prompt's
+  // "Do not" block. `version_checks` records what each check said about a render.
+  `CREATE TABLE IF NOT EXISTS failure_modes (
+    code TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('pixel','vlm')),
+    question TEXT,
+    negative_clause TEXT,
+    threshold REAL,
+    gate_enabled INTEGER NOT NULL DEFAULT 1,
+    builtin INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS version_checks (
+    version_id INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK (verdict IN ('hit','clear','unsure','error')),
+    detail TEXT,
+    checked_at INTEGER NOT NULL,
+    PRIMARY KEY (version_id, code),
+    FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_version_checks_code ON version_checks(code, verdict)`,
   // Storyboard characters: a named subject with a reference image, pinned on
   // panels so successive generations keep the same face/outfit. `reference_photo_id`
   // points at a photo of this same project (ON DELETE SET NULL: losing the

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { existsSync, statSync } from "node:fs";
 import { db, type PhotoRow } from "../db.ts";
 import { assemblePrompt, mergeConfig, type PromptConfig } from "../promptConfig.ts";
-import { effectiveConfig, getPhoto, withExtra } from "../photos.ts";
+import { effectiveConfig, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { enqueueJob } from "../jobs.ts";
 import {
   higgsfieldConfigured,
@@ -29,7 +29,7 @@ generationRoutes.post("/api/photos/:id/generate", async (c) => {
   } catch {}
 
   const cfg = withExtra(mergeConfig(effectiveConfig(photo), oneShot), photo);
-  const prompt = assemblePrompt(cfg);
+  const prompt = promptFor(cfg);
   const job = enqueueJob(id, prompt, JSON.stringify(cfg));
   return c.json({ job });
 });
@@ -95,7 +95,7 @@ generationRoutes.post("/api/photos/:id/generate-higgsfield", async (c) => {
 
   // Reuse the structured prompt so Higgsfield gets the same cinematic intent.
   const cfg = withExtra(mergeConfig(effectiveConfig(photo), body?.config ?? null), photo);
-  const prompt = assemblePrompt(cfg);
+  const prompt = promptFor(cfg);
   const providerParams = JSON.stringify({ model, params: body?.params ?? {} });
   // Remember this selection so the picker prefills it next time for this photo.
   db().run("UPDATE photos SET higgsfield_selection=?, updated_at=? WHERE id=?", [
@@ -161,7 +161,7 @@ generationRoutes.post("/api/generate-missing", (c) => {
   let count = 0;
   for (const p of photos) {
     const cfg = withExtra(effectiveConfig(p), p);
-    enqueueJob(p.id, assemblePrompt(cfg), JSON.stringify(cfg));
+    enqueueJob(p.id, promptFor(cfg), JSON.stringify(cfg));
     count++;
   }
   return c.json({ enqueued: count });

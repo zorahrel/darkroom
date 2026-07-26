@@ -24,7 +24,7 @@ import {
   parseConfig,
   type PromptConfig,
 } from "../promptConfig.ts";
-import { effectiveConfig, getPhoto } from "../photos.ts";
+import { effectiveConfig, getPhoto, promptFor } from "../photos.ts";
 
 /** Settings the whole set shares: prompt, default config, color grade, presets. */
 export const settingsRoutes = new Hono();
@@ -48,7 +48,7 @@ settingsRoutes.put("/api/settings/global-prompt", async (c) => {
 
 settingsRoutes.get("/api/settings/default-config", (c) => {
   const cfg = parseConfig(getDefaultConfig()) ?? DEFAULT_CONFIG;
-  return c.json({ config: cfg, prompt: assemblePrompt(cfg) });
+  return c.json({ config: cfg, prompt: promptFor(cfg) });
 });
 
 settingsRoutes.put("/api/settings/default-config", async (c) => {
@@ -56,7 +56,7 @@ settingsRoutes.put("/api/settings/default-config", async (c) => {
   if (!body || typeof body.config !== "object") return c.json({ error: "config missing" }, 400);
   const merged = mergeConfig(DEFAULT_CONFIG, body.config);
   setDefaultConfig(JSON.stringify(merged));
-  return c.json({ ok: true, config: merged, prompt: assemblePrompt(merged) });
+  return c.json({ ok: true, config: merged, prompt: promptFor(merged) });
 });
 
 settingsRoutes.put("/api/photos/:id/config", async (c) => {

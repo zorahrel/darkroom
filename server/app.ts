@@ -9,6 +9,7 @@ import { jobRoutes } from "./routes/jobs.ts";
 import { orphanRoutes } from "./routes/orphans.ts";
 import { pipelineRoutes } from "./routes/pipeline.ts";
 import { storyboardRoutes } from "./routes/storyboard.ts";
+import { verifyRoutes } from "./routes/verify.ts";
 import { studioRoutes } from "./routes/studio.ts";
 import { mediaRoutes } from "./routes/media.ts";
 
@@ -48,6 +49,7 @@ app.route("/", jobRoutes);
 app.route("/", orphanRoutes);
 app.route("/", pipelineRoutes);
 app.route("/api/storyboard", storyboardRoutes);
+app.route("/api/verify", verifyRoutes);
 app.route("/", studioRoutes);
 app.route("/", mediaRoutes);
 

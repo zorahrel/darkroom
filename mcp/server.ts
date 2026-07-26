@@ -258,6 +258,66 @@ const tools: Tool[] = [
     inputSchema: { type: "object", properties: {} },
     handler: () => call("POST", "/api/storyboard/export"),
   },
+  // ---- Quality control ----------------------------------------------------
+  // The gate reports; it never changes a favorite or deletes a render.
+  {
+    name: "check_photo",
+    description:
+      "Run the quality checks on every render of a photo (burnt highlights, crushed blacks, near-duplicates, plus vision questions like garbled signage or watermarks). Returns a report per render and which one the checks prefer.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        only: {
+          type: "array",
+          items: { type: "string" },
+          description: "Restrict to these failure-mode codes",
+        },
+      },
+      required: ["id"],
+    },
+    handler: (a) =>
+      call("POST", `/api/verify/photos/${encodeURIComponent(a.id)}`, {
+        only: a.only,
+      }),
+  },
+  {
+    name: "verification_summary",
+    description:
+      "Project-wide quality picture: how many renders were checked, what gets flagged and how often, and the hit rate over time (is the prompt tuning working?).",
+    inputSchema: { type: "object", properties: {} },
+    handler: () => call("GET", "/api/verify/summary"),
+  },
+  {
+    name: "list_failure_modes",
+    description:
+      "The catalogue of known failure modes: what each one checks, whether it gates, and the clause it adds to the prompt.",
+    inputSchema: { type: "object", properties: {} },
+    handler: () => call("GET", "/api/verify/modes"),
+  },
+  {
+    name: "add_failure_mode",
+    description:
+      "Turn a recurring complaint into a check: a yes/no question asked of every new render, plus an optional clause added to the prompt's 'Do not' block. Also used to edit or disable an existing one.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "lowercase_with_underscores" },
+        label: { type: "string" },
+        question: {
+          type: "string",
+          description: "Yes/no question about the image, e.g. 'Is the sky washed out? Answer yes or no.'",
+        },
+        negative_clause: {
+          type: "string",
+          description: "Clause added to the prompt, e.g. 'do not wash out the sky'",
+        },
+        gate_enabled: { type: "boolean", description: "Run it automatically (default true)" },
+      },
+      required: ["code"],
+    },
+    handler: (a) => call("POST", "/api/verify/modes", a),
+  },
   {
     name: "status",
     description:

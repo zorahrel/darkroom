@@ -3,11 +3,13 @@ import { db, getDefaultConfig, type PhotoRow, type VersionRow } from "./db.ts";
 import { finalDir } from "./project.ts";
 import {
   DEFAULT_CONFIG,
+  assemblePrompt,
   mergeConfig,
   parseConfig,
   parsePartialConfig,
   type PromptConfig,
 } from "./promptConfig.ts";
+import { negativeClauses } from "./verify.ts";
 
 /** Photo lookups and prompt-config resolution, shared by the route modules. */
 
@@ -47,4 +49,14 @@ export function withExtra(cfg: PromptConfig, photo: PhotoRow): PromptConfig {
   if (!extra) return cfg;
   const merged = [cfg.freeform?.trim(), extra].filter(Boolean).join(". ");
   return { ...cfg, freeform: merged };
+}
+
+/**
+ * The prompt actually sent for a config — the assembled blocks plus the
+ * clauses learned from the quality checks. Everything that generates OR
+ * displays a prompt goes through here, so what the user reads is exactly what
+ * the worker gets.
+ */
+export function promptFor(cfg: PromptConfig): string {
+  return assemblePrompt(cfg, negativeClauses());
 }

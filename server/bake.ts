@@ -22,6 +22,7 @@ import {
 import { runGradeSteps, deterministicSteps } from "./grade.ts";
 import { enqueueJob } from "./jobs.ts";
 import { wbGainFor } from "./sceneWb.ts";
+import { promptFor } from "./photos.ts";
 
 /** A generative pipeline step: full PromptConfig override + which worker runs it. */
 type AiStepParams = {
@@ -212,7 +213,7 @@ export async function bakePhoto(photoId: string): Promise<BakeResult> {
     const ap = (step.params ?? {}) as AiStepParams;
     const provider = ap.provider === "higgsfield" ? "higgsfield" : "chatgpt";
     const cfg = configForAiStep(photo, ap.config);
-    const prompt = assemblePrompt(cfg);
+    const prompt = promptFor(cfg);
     const providerParams =
       provider === "higgsfield" && ap.provider_params
         ? JSON.stringify(ap.provider_params)

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { db, effectiveGrade, getColorGrade, getDefaultConfig } from "../db.ts";
 import { finalDir } from "../project.ts";
 import { DEFAULT_CONFIG, assemblePrompt, parseConfig } from "../promptConfig.ts";
-import { effectiveConfig, ensureFinalDir, getPhoto, withExtra } from "../photos.ts";
+import { effectiveConfig, ensureFinalDir, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { gradeActive, runColorGrade, sceneMatchRequested } from "../gradeCache.ts";
 import { wbGainFor } from "../sceneWb.ts";
 import { enqueueJob } from "../jobs.ts";
@@ -71,7 +71,7 @@ pipelineRoutes.post("/api/pipeline/regenerate", (c) => {
     const photo = getPhoto(r.id);
     if (!photo) continue;
     const cfg = withExtra(effectiveConfig(photo), photo);
-    const prompt = assemblePrompt(cfg);
+    const prompt = promptFor(cfg);
     const job = enqueueJob(r.id, prompt, JSON.stringify(cfg));
     jobs.push(job.id);
   }
@@ -125,7 +125,7 @@ pipelineRoutes.get("/api/pipeline/status", (c) => {
   return c.json({
     generation: {
       config: cfg,
-      prompt: assemblePrompt(cfg),
+      prompt: promptFor(cfg),
       film_stock: cfg.film_stock,
       contrast: cfg.contrast,
       shadows: cfg.shadows,

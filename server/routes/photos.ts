@@ -10,7 +10,7 @@ import {
 } from "../db.ts";
 import { genDir } from "../project.ts";
 import { assemblePrompt } from "../promptConfig.ts";
-import { effectiveConfig, getPhoto, getVersionsFor, withExtra } from "../photos.ts";
+import { effectiveConfig, getPhoto, getVersionsFor, promptFor, withExtra } from "../photos.ts";
 
 /** Photos: the grid, one photo's detail, and its per-photo fields. */
 export const photoRoutes = new Hono();
@@ -119,7 +119,7 @@ photoRoutes.get("/api/photos/:id", (c) => {
   return c.json({
     photo,
     versions,
-    effective_prompt: assemblePrompt(withExtra(cfg, photo)),
+    effective_prompt: promptFor(withExtra(cfg, photo)),
     effective_config: cfg,
     has_override: photo.config_override !== null,
     legacy_prompt: effectivePrompt(photo),

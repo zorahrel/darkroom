@@ -460,8 +460,13 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
   };
 }
 
-/** Build the 3-block prompt from a config. */
-export function assemblePrompt(c: PromptConfig): string {
+/** Build the 3-block prompt from a config.
+ *
+ *  `learnedNegatives` are extra "Do not" clauses that don't come from the config
+ *  at all — they come from the quality checks (server/verify.ts): what the
+ *  gate keeps catching in the output becomes what the next render is told to
+ *  avoid. Passed in rather than imported, so this module stays pure. */
+export function assemblePrompt(c: PromptConfig, learnedNegatives: string[] = []): string {
   const changes: string[] = [];
   if (PRESET[c.preset]) changes.push(PRESET[c.preset]);
   if (FILM_STOCK[c.film_stock]) changes.push(FILM_STOCK[c.film_stock]);
@@ -493,9 +498,14 @@ export function assemblePrompt(c: PromptConfig): string {
   const preserveText = (c.preserve ?? DEFAULT_PRESERVE)
     .map((k) => PRESERVE_OPTIONS[k])
     .filter(Boolean);
-  const excludeText = (c.exclude ?? DEFAULT_EXCLUDE)
-    .map((k) => EXCLUDE_OPTIONS[k])
+  const excludeText: string[] = (c.exclude ?? DEFAULT_EXCLUDE)
+    .map((k) => EXCLUDE_OPTIONS[k] as string)
     .filter(Boolean);
+  // Learned clauses join the same block, deduped against what's already there.
+  for (const clause of learnedNegatives) {
+    const text = clause.trim();
+    if (text && !excludeText.includes(text)) excludeText.push(text);
+  }
 
   const parts: string[] = [
     "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden in the scene and commit to it — a bold tight detail, an unexpected angle, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Neutralize the white balance to a clean, cast-free, consistent color temperature across the set, but apply no stylistic color grade of your own — the final color look is added later. Finish it to a professional editorial standard — the way a master photographer shapes light and tone in post: precise exposure and tonal balance, deliberate dodge-and-burn, clean local corrections and crisp, controlled detail, restrained and believable, never over-processed. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent no new objects, people or signage. Output the edited image.",
