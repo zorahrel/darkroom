@@ -157,6 +157,107 @@ const tools: Tool[] = [
     inputSchema: { type: "object", properties: {} },
     handler: () => call("POST", "/api/export-favorites"),
   },
+  // ---- Storyboard ---------------------------------------------------------
+  // Enough to drive a board end-to-end from chat: describe the shots, keep the
+  // cast consistent, re-order, then hand the file to Storyboarder.
+  {
+    name: "list_storyboard",
+    description:
+      "The active project's storyboard: panels in order (with duration, scene label and pinned characters), the cast, and the board settings.",
+    inputSchema: { type: "object", properties: {} },
+    handler: () => call("GET", "/api/storyboard"),
+  },
+  {
+    name: "create_panels",
+    description:
+      "Turn a beat sheet into storyboard panels: one generated panel per beat, appended to the board with its generation already queued. Each beat: {description, duration_ms?, scene_label?, character_ids?}.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        beats: {
+          type: "array",
+          description: "Shots to draw, in order",
+          items: {
+            type: "object",
+            properties: {
+              description: { type: "string", description: "What happens in this shot" },
+              duration_ms: { type: "number", description: "Panel duration in ms (default 3000)" },
+              scene_label: { type: "string", description: 'e.g. "INT. BAR - NIGHT"' },
+              character_ids: {
+                type: "array",
+                items: { type: "string" },
+                description: "Characters in frame (see list_characters)",
+              },
+            },
+            required: ["description"],
+          },
+        },
+      },
+      required: ["beats"],
+    },
+    handler: (a) => call("POST", "/api/storyboard/panels", { beats: a.beats }),
+  },
+  {
+    name: "set_sequence",
+    description:
+      "Re-order the whole board: the given photo ids become panels 0..N-1, in that order. Pure DB write — never queues generation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ids: { type: "array", items: { type: "string" }, description: "Panel ids, in the wanted order" },
+      },
+      required: ["ids"],
+    },
+    handler: (a) => call("PUT", "/api/storyboard/sequence", { ids: a.ids }),
+  },
+  {
+    name: "update_panel",
+    description:
+      "Change one panel's duration, scene label, or pinned characters.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        duration_ms: { type: "number" },
+        scene_label: { type: ["string", "null"] },
+        character_ids: { type: "array", items: { type: "string" } },
+      },
+      required: ["id"],
+    },
+    handler: (a) => {
+      const { id, ...patch } = a;
+      return call("PATCH", `/api/storyboard/panels/${encodeURIComponent(id)}`, patch);
+    },
+  },
+  {
+    name: "list_characters",
+    description: "The storyboard's cast: id, name, description and reference photo.",
+    inputSchema: { type: "object", properties: {} },
+    handler: () => call("GET", "/api/storyboard/characters"),
+  },
+  {
+    name: "set_character",
+    description:
+      "Create or update a character. A reference_photo_id makes its look stick across panels: that image is attached to every generation the character appears in.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        id: { type: "string", description: "Defaults to a slug of the name" },
+        reference_photo_id: { type: ["string", "null"], description: "Photo id used as the visual reference" },
+        description: { type: ["string", "null"], description: 'e.g. "teen girl, red coat"' },
+      },
+      required: ["name"],
+    },
+    handler: (a) => call("POST", "/api/storyboard/characters", a),
+  },
+  {
+    name: "export_storyboard",
+    description:
+      "Write the board to Storyboarder's native format (.storyboarder + images/) under the project's final/ folder, ready to open in Storyboarder. Returns the file path.",
+    inputSchema: { type: "object", properties: {} },
+    handler: () => call("POST", "/api/storyboard/export"),
+  },
   {
     name: "status",
     description:
