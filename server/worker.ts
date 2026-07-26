@@ -64,6 +64,8 @@ export async function runWorker(input: {
   image: string;
   prompt: string;
   output: string;
+  /** Extra reference images attached to the same message (storyboard characters). */
+  refs?: string[];
 }): Promise<WorkerResult> {
   await acquireBrowserLock();
   try {
@@ -74,14 +76,17 @@ export async function runWorker(input: {
 }
 
 /** Text-to-image: no source photo. Reuses the same ChatGPT-web pipeline,
- *  skipping the upload step (driven by edit_batch.py --generate). */
+ *  skipping the source upload (driven by edit_batch.py --generate). Character
+ *  references, when given, are still attached — that is what keeps a face
+ *  consistent across generated storyboard panels. */
 export async function runWorkerGenerate(input: {
   prompt: string;
   output: string;
+  refs?: string[];
 }): Promise<WorkerResult> {
   await acquireBrowserLock();
   try {
-    return await runWorkerLocked({ prompt: input.prompt, output: input.output });
+    return await runWorkerLocked({ prompt: input.prompt, output: input.output, refs: input.refs });
   } finally {
     releaseBrowserLock();
   }
@@ -91,7 +96,9 @@ async function runWorkerLocked(input: {
   image?: string;
   prompt: string;
   output: string;
+  refs?: string[];
 }): Promise<WorkerResult> {
+  const refArgs = (input.refs ?? []).flatMap((ref) => ["--ref", ref]);
   const cmd = input.image
     ? [
         "python3",
@@ -101,6 +108,7 @@ async function runWorkerLocked(input: {
         input.image,
         "--output",
         input.output,
+        ...refArgs,
         "--prompt-stdin",
       ]
     : [
@@ -109,6 +117,7 @@ async function runWorkerLocked(input: {
         "--generate",
         "--output",
         input.output,
+        ...refArgs,
         "--prompt-stdin",
       ];
   const proc = spawn({

@@ -160,7 +160,18 @@ async def new_chat(cdp: CDP):
     raise RuntimeError("composer not found after navigate")
 
 
-async def upload_file(cdp: CDP, file_path: str):
+async def upload_file(cdp: CDP, file_path):
+    """Attach one or more files to the composer.
+
+    `file_path` may be a single path or a list. CDP's DOM.setFileInputFiles
+    takes an array, so several attachments cost one call — that is what lets a
+    storyboard panel carry its character reference images alongside the shot.
+    """
+    paths = [file_path] if isinstance(file_path, (str, Path)) else list(file_path)
+    paths = [str(p) for p in paths]
+    if not paths:
+        return
+
     has_input = await cdp.js("!!document.querySelector('input[type=file]')")
     if not has_input:
         await cdp.js("""
@@ -182,7 +193,7 @@ async def upload_file(cdp: CDP, file_path: str):
     node = await cdp.call("DOM.describeNode", {"objectId": obj_id})
     backend_node_id = node["node"]["backendNodeId"]
     await cdp.call("DOM.setFileInputFiles", {
-        "files": [file_path],
+        "files": paths,
         "backendNodeId": backend_node_id,
     })
 
@@ -206,11 +217,12 @@ async def snapshot_form_thumbs(cdp: CDP) -> list:
     """) or []
 
 
-async def wait_image_attached(cdp: CDP, baseline=None, timeout=60):
-    """Wait until a NEW composer thumbnail appears (not in baseline) AND no
-    upload spinner is active. Requiring a new thumb prevents accepting a stale
-    leftover and sending the prompt without an actual attachment (which makes
-    ChatGPT hallucinate a wholly new image instead of editing ours)."""
+async def wait_image_attached(cdp: CDP, baseline=None, timeout=60, expected=1):
+    """Wait until `expected` NEW composer thumbnails appear (not in baseline)
+    AND no upload spinner is active. Requiring a new thumb prevents accepting a
+    stale leftover and sending the prompt without an actual attachment (which
+    makes ChatGPT hallucinate a wholly new image instead of editing ours).
+    `expected` > 1 covers a panel uploaded together with its character refs."""
     baseline_json = json.dumps(list(baseline or []))
     expr = f"""
       (() => {{
@@ -224,7 +236,7 @@ async def wait_image_attached(cdp: CDP, baseline=None, timeout=60):
           return r.width > 20 && r.height > 20;
         }});
         const fresh = thumbs.filter(i => !baseline.has(i.getAttribute('src') || ''));
-        if (fresh.length === 0) return {{ok: false, reason: 'no-new-thumb', total: thumbs.length}};
+        if (fresh.length < {int(expected)}) return {{ok: false, reason: 'no-new-thumb', fresh: fresh.length, total: thumbs.length}};
         const spinning = Array.from(form.querySelectorAll('*')).some(el => {{
           const cl = (el.className && el.className.baseVal !== undefined) ? el.className.baseVal : (el.className || '');
           if (typeof cl !== 'string') return false;
@@ -511,8 +523,65 @@ async def main(limit: int, only, dry_run: bool):
         log_line("batch", f"done={done} fail={fail}")
 
 
-async def single_shot(image: Path, prompt: str, output: Path):
-    """One-shot: edit a single image with a custom prompt, save to output. Used by dashboard worker."""
+def prepare_uploads(paths, tag: str):
+    """Resize every path into UPLOADS, returning (resized_paths, cleanup_list).
+    A reference that fails to resize is skipped, never fatal: a panel generated
+    without its reference beats a job that dies in the queue."""
+    UPLOADS.mkdir(parents=True, exist_ok=True)
+    out, cleanup = [], []
+    stamp = int(time.time() * 1000)
+    for i, src in enumerate(paths):
+        src = Path(src)
+        if not src.exists():
+            log_line(tag, f"reference missing, skipped: {src}")
+            continue
+        dst = UPLOADS / f"{tag}_{stamp}_{i}_{src.stem}.jpeg"
+        try:
+            resize(src, dst)
+        except Exception as e:
+            log_line(tag, f"reference resize failed, skipped: {src} ({e})")
+            continue
+        out.append(str(dst))
+        cleanup.append(dst)
+    return out, cleanup
+
+
+def cleanup_uploads(paths):
+    for p in paths:
+        try:
+            Path(p).unlink()
+        except Exception:
+            pass
+
+
+async def attach_with_fallback(cdp: CDP, primary: list, refs: list, tag: str) -> list:
+    """Attach primary + reference images, degrading to primary-only when the
+    composer doesn't show every thumbnail in time. Returns the paths actually
+    attached ([] when nothing could be attached)."""
+    wanted = primary + refs
+    if not wanted:
+        return []
+    baseline = await snapshot_form_thumbs(cdp)
+    await upload_file(cdp, wanted)
+    if await wait_image_attached(cdp, baseline=baseline, timeout=25, expected=len(wanted)):
+        return wanted
+    if not refs:
+        return []
+    # References are a nice-to-have; the shot itself is not.
+    log_line(tag, f"{len(wanted)} attachments did not settle -- retrying without the {len(refs)} reference(s)")
+    await new_chat(cdp)
+    if not primary:
+        return []
+    baseline = await snapshot_form_thumbs(cdp)
+    await upload_file(cdp, primary)
+    if await wait_image_attached(cdp, baseline=baseline, timeout=25, expected=1):
+        return primary
+    return []
+
+
+async def single_shot(image: Path, prompt: str, output: Path, refs=None):
+    """One-shot: edit a single image with a custom prompt, save to output. Used by dashboard worker.
+    `refs` are extra reference images (storyboard characters) attached alongside."""
     if not image.exists():
         raise FileNotFoundError(f"input image not found: {image}")
 
@@ -522,6 +591,9 @@ async def single_shot(image: Path, prompt: str, output: Path):
     resized = UPLOADS / f"singleshot_{int(time.time() * 1000)}_{image.stem}.jpeg"
     resize(image, resized)
     log_line(image.name, f"single-shot resize -> {resized.stat().st_size // 1024}kb")
+    ref_paths, ref_cleanup = prepare_uploads(refs or [], "ref")
+    if ref_paths:
+        log_line(image.name, f"attaching {len(ref_paths)} reference image(s)")
 
     tab = await get_chatgpt_tab()
     async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
@@ -531,9 +603,7 @@ async def single_shot(image: Path, prompt: str, output: Path):
         await cdp.call("Runtime.enable")
 
         await new_chat(cdp)
-        form_baseline = await snapshot_form_thumbs(cdp)
-        await upload_file(cdp, str(resized))
-        attached = await wait_image_attached(cdp, baseline=form_baseline, timeout=25)
+        attached = await attach_with_fallback(cdp, [str(resized)], ref_paths, image.name)
         if not attached:
             raise RuntimeError("image not attached")
 
@@ -543,19 +613,19 @@ async def single_shot(image: Path, prompt: str, output: Path):
         src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
         await download_image(cdp, src_url, output)
 
-    try:
-        resized.unlink()
-    except Exception:
-        pass
+    cleanup_uploads([resized, *ref_cleanup])
 
     return output
 
 
-async def generate_only(prompt: str, output: Path):
+async def generate_only(prompt: str, output: Path, refs=None):
     """Text-to-image: send a prompt with NO source image, save the result.
 
-    Same pipeline as single_shot minus the upload/attach steps."""
+    Same pipeline as single_shot minus the source upload. `refs` (storyboard
+    character references) are still attached when given — that is what keeps a
+    character recognisable from one generated panel to the next."""
     output.parent.mkdir(parents=True, exist_ok=True)
+    ref_paths, ref_cleanup = prepare_uploads(refs or [], "ref")
 
     tab = await get_chatgpt_tab()
     async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
@@ -565,11 +635,19 @@ async def generate_only(prompt: str, output: Path):
         await cdp.call("Runtime.enable")
 
         await new_chat(cdp)
+        if ref_paths:
+            log_line("generate", f"attaching {len(ref_paths)} reference image(s)")
+            if not await attach_with_fallback(cdp, [], ref_paths, "generate"):
+                # No references attached: generate anyway, just without them
+                # (attach_with_fallback already reset the chat).
+                log_line("generate", "references did not attach -- generating without them")
         baseline = await snapshot_image_srcs(cdp)
         await send_prompt(cdp, prompt)
         gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
         src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
         await download_image(cdp, src_url, output)
+
+    cleanup_uploads(ref_cleanup)
 
     return output
 
@@ -590,6 +668,9 @@ if __name__ == "__main__":
                     help="Text-to-image: no input image. Reads prompt from stdin (or --prompt-stdin).")
     ap.add_argument("--image", help="Input image path (single-shot)")
     ap.add_argument("--output", help="Output PNG path (single-shot / generate)")
+    ap.add_argument("--ref", action="append", default=[],
+                    help="Extra reference image attached to the same message "
+                         "(repeatable; storyboard character references)")
     ap.add_argument("--prompt-stdin", action="store_true",
                     help="Read prompt from stdin instead of using the hardcoded default")
 
@@ -607,7 +688,7 @@ if __name__ == "__main__":
             sys.exit(2)
         t0 = time.time()
         try:
-            out = asyncio.run(generate_only(prompt, Path(args.output)))
+            out = asyncio.run(generate_only(prompt, Path(args.output), refs=args.ref))
             elapsed = round(time.time() - t0, 2)
             print(json.dumps({
                 "status": "ok",
@@ -635,7 +716,7 @@ if __name__ == "__main__":
             prompt = PROMPT
         t0 = time.time()
         try:
-            out = asyncio.run(single_shot(Path(args.image), prompt, Path(args.output)))
+            out = asyncio.run(single_shot(Path(args.image), prompt, Path(args.output), refs=args.ref))
             elapsed = round(time.time() - t0, 2)
             print(json.dumps({
                 "status": "ok",

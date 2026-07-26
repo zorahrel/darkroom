@@ -31,6 +31,9 @@ export async function runWorkerCodex(input: {
   image: string;
   prompt: string;
   output: string;
+  /** Accepted for interface parity with the CDP worker; the Codex backend
+   *  drives a single image per call, so extra references are ignored. */
+  refs?: string[];
 }): Promise<WorkerResult> {
   if (!existsSync(CODEX_BIN)) {
     return { status: "error", error: `codex binary not found at ${CODEX_BIN}` };

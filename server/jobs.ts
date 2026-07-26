@@ -35,6 +35,19 @@ export function enqueueJob(
     .get(id) as JobRow;
 }
 
+/** Reference images stored on a job, tolerating corrupt/legacy values. Files
+ *  that vanished are dropped here rather than failing the job downstream. */
+export function parseRefPaths(json: string | null): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p): p is string => typeof p === "string" && existsSync(p));
+  } catch {
+    return [];
+  }
+}
+
 export function listJobs(limit = 100): JobRow[] {
   // Dismissed (seen) failed/cancelled jobs stay in the DB as a log but drop out
   // of the panel so old failures don't pile up in front of the thumbnails.
@@ -370,12 +383,14 @@ async function processJob(job: JobRow) {
     setProgress(job.id, isGenerate ? "Genero…" : "Invio a ChatGPT…");
     // Generation has no source image — always via the ChatGPT-web pipeline
     // (skips upload). Editing honors the selected backend (cdp | codex).
+    const refs = parseRefPaths(job.ref_paths);
     const result = isGenerate
-      ? await runWorkerGenerate({ prompt: job.prompt, output: outputPath })
+      ? await runWorkerGenerate({ prompt: job.prompt, output: outputPath, refs })
       : await runActiveWorker({
           image: editInput,
           prompt: job.prompt,
           output: outputPath,
+          refs,
         });
 
     if (result.status !== "ok") {
