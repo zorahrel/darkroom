@@ -51,6 +51,7 @@ export type PromptConfig = {
   preset: "cinematic" | "editorial" | "documentary" | "fine-art";
   film_stock: "none" | "portra-400" | "portra-800" | "cinestill-800t" | "ektar-100" | "fuji-400h";
   white_balance: "preserve" | "neutral" | "warm" | "cool";
+  sky: "off" | "deep-blue";
   geometry: "off" | "straighten" | "correct";
   composition: "off" | "rebalance" | "recompose";
   aspect_ratio: "preserve" | "1:1" | "4:5" | "5:4" | "3:2" | "2:3" | "16:9" | "9:16";
@@ -65,7 +66,7 @@ export type PromptConfig = {
   highlights: "preserve" | "warm-lift" | "cool-lift" | "muted" | "neutral";
   bloom: "off" | "subtle" | "glow" | "halation";
   dof: "preserve" | "shallow";
-  camera: "off" | "leica-m" | "fuji-x100" | "sony-a7-prime" | "hasselblad" | "ricoh-gr" | "contax-t2";
+  camera: "off" | "adaptive" | "leica-m" | "fuji-x100" | "sony-a7-prime" | "hasselblad" | "ricoh-gr" | "contax-t2";
   drama: "off" | "clean" | "bold";
   skin_tones: "preserve" | "airy-lift" | "desaturate" | "saturate" | "porcelain";
   atmosphere: "preserve" | "clean" | "enhance" | "dreamy";
@@ -548,6 +549,7 @@ export const DEFAULT_CONFIG: PromptConfig = {
   preset: "cinematic",
   film_stock: "none",
   white_balance: "preserve",
+  sky: "off",
   geometry: "correct",
   composition: "rebalance",
   aspect_ratio: "preserve",

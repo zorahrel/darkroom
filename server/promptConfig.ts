@@ -5,7 +5,7 @@
 export const PRESET = {
   cinematic:
     "cinematic color grade, modern editorial cinema look, minimal premium editorial style, authentic mood",
-  editorial: "editorial magazine grade, refined and clean",
+  editorial: "refined, clean editorial style — polished but true to the scene",
   documentary: "documentary photojournalism, naturalistic",
   "fine-art": "fine-art print, museum-grade tonal range",
 } as const;
@@ -63,6 +63,16 @@ export const WHITE_BALANCE = {
   cool: "cool white balance",
 } as const;
 export type WhiteBalance = keyof typeof WHITE_BALANCE;
+
+// Sky treatment. Pushes a visible sky toward the deep, luminous blue the set
+// wants — bright yet richly saturated (never washed-out/milky), kept
+// photographically plausible. Only bites when there is actually sky in frame.
+export const SKY = {
+  off: "",
+  "deep-blue":
+    "if the sky is visible, brighten it strongly into a luminous, deep, clean blue — bright yet richly saturated, with smooth even gradation and no milky haze or blown-out whites; keep it photographically natural for the scene and invent nothing",
+} as const;
+export type Sky = keyof typeof SKY;
 
 export const GEOMETRY = {
   off: "",
@@ -154,6 +164,12 @@ export type Dof = keyof typeof DOF;
 // the local LUT, so the camera clause must not fight the grade.
 export const CAMERA = {
   off: "",
+  // Hands the lens choice to the model per-scene (resolves the fixed-focal-length
+  // vs free-recompose conflict): it picks the optic that fits the crop it made,
+  // and we keep only the "real fine lens" rendering bias — no pinned focal length,
+  // no vignette. This is the set default; the named bodies below stay for per-photo pinning.
+  adaptive:
+    "render it through top-tier cinema optics — you choose the glass that serves THIS scene: fast cinema primes with a Cooke or Zeiss Master-Prime character for streets and portraits, a longer prime to isolate a single subject, or medium-format clarity (Hasselblad-grade) for a still or fine detail; give it the expensive, filmic rendering of high-end glass — creamy dimensional micro-contrast, gentle highlight roll-off, smooth organic bokeh where the depth allows and a subtle three-dimensional pop — always a real lens capturing a real scene, never a fixed focal length forced onto the crop, never a flat digital, HDR or CGI look",
   "leica-m":
     "shot on a Leica M rangefinder with a 35mm Summilux: crisp micro-contrast, natural three-dimensional optical rendering, smooth organic bokeh and a subtle corner vignette",
   "fuji-x100":
@@ -233,7 +249,7 @@ export type Detail = keyof typeof DETAIL;
 // retained face exactly as shot. Exposed in the UI as the "Direzione AI" switch;
 // previously this lived hidden inside `freeform`.
 export const ART_DIRECTION =
-  "act as the art director of this frame and commit to the single strongest edit: turn it into an iconic, impactful editorial photograph; use your own judgment on what serves the image — decisively remove bystanders, tourists and background clutter that weaken it, keep and elevate only the subject and elements that carry its meaning and emotion, and reframe to the most powerful composition, cropping in tight or shifting the vantage point radically when it makes the image stronger; keep any retained face exactly as in the original";
+  "act as the art director of this frame and commit to the single strongest edit: turn it into an iconic, impactful editorial photograph, using your own judgment on what serves the image and what to leave out";
 
 // ---- Preserve & Exclude blocks (multi-select) -----------------------------
 
@@ -301,6 +317,8 @@ export type PromptConfig = {
   preset: Preset;
   film_stock: FilmStock;
   white_balance: WhiteBalance;
+  /** Sky treatment — push a visible sky toward a deep, luminous blue. */
+  sky: Sky;
   geometry: Geometry;
   composition: Composition;
   /** Target output framing (4:5, 16:9, …). Only bites when composition reframes. */
@@ -353,7 +371,8 @@ export type PromptConfig = {
 export const DEFAULT_CONFIG: PromptConfig = {
   preset: "editorial",       // refined clean editorial grade
   film_stock: "none",        // color is native — comes from the local LUT, not GPT
-  white_balance: "preserve", // keep native color/WB (LUT owns the grade)
+  white_balance: "neutral",  // GPT neutralizes WB for a cast-free, set-consistent base; the warm look is still added by the local LUT
+  sky: "off",                // opt-in; the set enables "deep-blue" via the DB default
   geometry: "correct",       // fix converging verticals + level: real lens correction
   composition: "recompose",  // bold recompose toward the iconic crop
   aspect_ratio: "4:5",       // editorial vertical framing
@@ -383,7 +402,8 @@ export const DEFAULT_CONFIG: PromptConfig = {
     "faces_exact",
     "signs_text",   // keep Japanese signage/writing/kanji — characterful, not clutter
     "nature_colors",
-    "color_balance",
+    // NB: "color_balance" intentionally dropped — it locked "original white balance
+    // and color cast", which fought white_balance:neutral. WB is now GPT's job.
     // NB: "lighting_direction" + "cast_shadows" intentionally dropped — they
     // leashed the model to "amplify existing light only", which flattened the
     // temples. The opener now lets it reinterpret the light (plausibly).
@@ -412,6 +432,7 @@ export function mergeConfig(base: PromptConfig, override: Partial<PromptConfig> 
     preset: override.preset ?? base.preset,
     film_stock: override.film_stock ?? base.film_stock,
     white_balance: override.white_balance ?? base.white_balance,
+    sky: override.sky ?? base.sky,
     geometry: override.geometry ?? base.geometry,
     composition: override.composition ?? base.composition,
     aspect_ratio: override.aspect_ratio ?? base.aspect_ratio,
@@ -445,6 +466,7 @@ export function assemblePrompt(c: PromptConfig): string {
   if (PRESET[c.preset]) changes.push(PRESET[c.preset]);
   if (FILM_STOCK[c.film_stock]) changes.push(FILM_STOCK[c.film_stock]);
   if (WHITE_BALANCE[c.white_balance]) changes.push(WHITE_BALANCE[c.white_balance]);
+  if (SKY[c.sky]) changes.push(SKY[c.sky]);
   if (TIME_OF_DAY[c.time_of_day]) changes.push(TIME_OF_DAY[c.time_of_day]);
   if (LIGHTING[c.lighting]) changes.push(LIGHTING[c.lighting]);
   if (PALETTE[c.palette]) changes.push(PALETTE[c.palette]);
@@ -476,7 +498,7 @@ export function assemblePrompt(c: PromptConfig): string {
     .filter(Boolean);
 
   const parts: string[] = [
-    "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden in the scene and commit to it — a bold tight detail, an unexpected angle, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Leave the colors and white balance untouched — the color grade is applied later. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent nothing. Output the edited image.",
+    "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden in the scene and commit to it — a bold tight detail, an unexpected angle, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Neutralize the white balance to a clean, cast-free, consistent color temperature across the set, but apply no stylistic color grade of your own — the final color look is added later. Finish it to a professional editorial standard — the way a master photographer shapes light and tone in post: precise exposure and tonal balance, deliberate dodge-and-burn, clean local corrections and crisp, controlled detail, restrained and believable, never over-processed. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent no new objects, people or signage. Output the edited image.",
     "",
     "Apply:",
     ...changes.map((c) => `- ${c}`),
