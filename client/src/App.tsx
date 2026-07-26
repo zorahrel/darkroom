@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import {
   api,
@@ -90,41 +90,57 @@ export default function App() {
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4">
-          <Link to="/" className="font-semibold tracking-tight">
-            Darkroom
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <NavLink to="/studio" current={location.pathname.startsWith("/studio")}>
-              Studio
-            </NavLink>
-            <NavLink
-              to={pid ? `/p/${pid}` : "/"}
-              current={
-                location.pathname.startsWith("/p/") &&
-                !location.pathname.includes("/orphans") &&
-                !location.pathname.includes("/storyboard")
-              }
-            >
-              Griglia
-            </NavLink>
-            <NavLink
-              to={pid ? `/p/${pid}/storyboard` : "/"}
-              current={location.pathname.includes("/storyboard")}
-            >
-              Storyboard
-            </NavLink>
-            {orphanCount > 0 && (
-              <NavLink
-                to={pid ? `/p/${pid}/orphans` : "/"}
-                current={location.pathname.includes("/orphans")}
-              >
-                Orphan{" "}
-                <span className="ml-1 text-amber-400">{orphanCount}</span>
-              </NavLink>
+          {/* Breadcrumb: the app, then which project you are in. Studio is not
+              a view of a project — it's the floor above — so it lives inside
+              the project menu instead of sitting next to Griglia/Storyboard. */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {/* A project named like the app would read "Darkroom / Darkroom":
+                in that case the project chip stands on its own. */}
+            {projects.find((p) => p.id === pid)?.name.trim().toLowerCase() !== "darkroom" && (
+              <>
+                <Link to="/studio" className="font-semibold tracking-tight shrink-0">
+                  Darkroom
+                </Link>
+                <span className="text-neutral-600 shrink-0">/</span>
+              </>
             )}
-          </nav>
-          {projects.length > 1 && (
-            <ProjectSwitcher projects={projects} />
+            <ProjectMenu
+              projects={projects}
+              activeId={pid}
+              standalone={
+                projects.find((p) => p.id === pid)?.name.trim().toLowerCase() === "darkroom"
+              }
+            />
+          </div>
+
+          {/* Views of the active project. */}
+          {pid && (
+            <nav className="flex items-center gap-0.5 text-sm rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
+              <ViewTab
+                to={`/p/${pid}`}
+                current={
+                  location.pathname.startsWith("/p/") &&
+                  !location.pathname.includes("/orphans") &&
+                  !location.pathname.includes("/storyboard")
+                }
+              >
+                Griglia
+              </ViewTab>
+              <ViewTab
+                to={`/p/${pid}/storyboard`}
+                current={location.pathname.includes("/storyboard")}
+              >
+                Storyboard
+              </ViewTab>
+              {orphanCount > 0 && (
+                <ViewTab
+                  to={`/p/${pid}/orphans`}
+                  current={location.pathname.includes("/orphans")}
+                >
+                  Orphan <span className="ml-1 text-amber-400">{orphanCount}</span>
+                </ViewTab>
+              )}
+            </nav>
           )}
           <div className="flex-1" />
           {health && !health.browser && (
@@ -206,28 +222,100 @@ export default function App() {
   );
 }
 
-function ProjectSwitcher({ projects }: { projects: StudioProject[] }) {
-  // The project lives in the URL (`/p/:pid`); switching is a normal SPA nav so
-  // Back/Forward move between projects. Empty (e.g. on /studio) shows the first.
+/**
+ * Which project you are in, and the way out of it. The project lives in the
+ * URL (`/p/:pid`), so switching is a normal SPA navigation and Back/Forward
+ * move between projects. Shown even with a single project: with no marker at
+ * all there is nothing on screen saying where you are.
+ */
+function ProjectMenu({
+  projects,
+  activeId,
+  standalone = false,
+}: {
+  projects: StudioProject[];
+  activeId: string;
+  /** True when the chip IS the breadcrumb (no wordmark before it). */
+  standalone?: boolean;
+}) {
   const navigate = useNavigate();
-  const active = currentProject() || projects[0]?.id || "";
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click / Escape — a menu that traps you is worse than none.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const active = projects.find((p) => p.id === activeId);
+  const label = active?.name ?? (activeId || "Tutti i progetti");
+
   return (
-    <select
-      value={active}
-      onChange={(e) => navigate(`/p/${e.target.value}`)}
-      title="Progetto attivo"
-      className="text-sm bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 max-w-[10rem]"
-    >
-      {projects.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
+    <div className="relative min-w-0" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Progetto attivo"
+        className={
+          "flex items-center gap-1 max-w-[12rem] px-2 py-1 rounded text-sm text-white hover:bg-neutral-900 transition-colors " +
+          (standalone ? "font-semibold tracking-tight" : "")
+        }
+      >
+        <span className="truncate">{label}</span>
+        <span className="text-neutral-500 text-xs">▾</span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 mt-1 z-40 min-w-[12rem] rounded-lg border border-neutral-700 bg-neutral-900 py-1 shadow-xl"
+        >
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                navigate(`/p/${encodeURIComponent(p.id)}`);
+              }}
+              className={
+                "w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 hover:bg-neutral-800 " +
+                (p.id === activeId ? "text-white" : "text-neutral-300")
+              }
+            >
+              <span className="w-3 text-emerald-400">{p.id === activeId ? "✓" : ""}</span>
+              <span className="truncate">{p.name}</span>
+            </button>
+          ))}
+          <div className="my-1 border-t border-neutral-800" />
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              navigate("/studio");
+            }}
+            className="w-full text-left px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+          >
+            <span className="pl-5">Tutti i progetti…</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
-function NavLink({
+/** One view of the active project, inside the segmented group. */
+function ViewTab({
   to,
   current,
   children,
@@ -239,11 +327,12 @@ function NavLink({
   return (
     <Link
       to={to}
+      aria-current={current ? "page" : undefined}
       className={
-        "px-3 py-1.5 rounded text-sm transition-colors " +
+        "px-3 py-1 rounded-md text-sm transition-colors " +
         (current
           ? "bg-neutral-800 text-white"
-          : "text-neutral-400 hover:bg-neutral-900 hover:text-white")
+          : "text-neutral-400 hover:text-white")
       }
     >
       {children}
