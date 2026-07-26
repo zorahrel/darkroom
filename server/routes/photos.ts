@@ -1,0 +1,218 @@
+import { Hono } from "hono";
+import { existsSync, unlinkSync } from "node:fs";
+import {
+  db,
+  effectivePrompt,
+  effectiveGrade,
+  getGlobalPrompt,
+  type PhotoRow,
+  type VersionRow,
+} from "../db.ts";
+import { genDir } from "../project.ts";
+import { assemblePrompt } from "../promptConfig.ts";
+import { effectiveConfig, getPhoto, getVersionsFor, withExtra } from "../photos.ts";
+
+/** Photos: the grid, one photo's detail, and its per-photo fields. */
+export const photoRoutes = new Hono();
+
+// ---- API: photos -----------------------------------------------------------
+
+photoRoutes.get("/api/photos", (c) => {
+  const filter = c.req.query("filter") ?? "all";
+  const where: string[] = [];
+  if (filter === "no_versions") {
+    where.push("(SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) = 0");
+  } else if (filter === "with_versions") {
+    where.push("(SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) > 0");
+  } else if (filter === "no_favorite") {
+    where.push("p.favorite_version_id IS NULL");
+  } else if (filter === "with_favorite") {
+    where.push("p.favorite_version_id IS NOT NULL");
+  } else if (filter === "in_queue") {
+    where.push(
+      "EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status IN ('pending','running'))",
+    );
+  } else if (filter === "failed") {
+    where.push(
+      "EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status = 'failed') AND NOT EXISTS (SELECT 1 FROM versions v WHERE v.photo_id = p.id)",
+    );
+  } else if (filter === "with_override") {
+    where.push("p.config_override IS NOT NULL");
+  }
+  const sql = `
+    SELECT
+      p.id,
+      p.original_ext,
+      p.favorite_version_id,
+      p.taken_at,
+      p.feedback,
+      (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) AS version_count,
+      (SELECT v.version_number FROM versions v
+         WHERE v.photo_id = p.id AND v.id = p.favorite_version_id) AS favorite_version_number,
+      (SELECT v.id FROM versions v
+         WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest_version_id,
+      (SELECT v.version_number FROM versions v
+         WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest_version_number
+    FROM photos p
+    ${where.length ? "WHERE " + where.join(" AND ") : ""}
+    ORDER BY (p.taken_at IS NULL) ASC, p.taken_at ASC, p.id ASC
+  `;
+  const rows = db()
+    .query<
+      {
+        id: string;
+        original_ext: string;
+        favorite_version_id: number | null;
+        taken_at: number | null;
+        feedback: string | null;
+        version_count: number;
+        favorite_version_number: number | null;
+        latest_version_id: number | null;
+        latest_version_number: number | null;
+      },
+      []
+    >(sql)
+    .all();
+  return c.json({ photos: rows });
+});
+
+// Per-filter counts for the grid filter bar (one pass, conditional aggregation).
+// Keys match the client Filter ids so the bar can index directly. MUST be
+// registered before "/api/photos/:id" or that route captures "counts" as :id.
+photoRoutes.get("/api/photos/counts", (c) => {
+  const hasVersions = "(SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id)";
+  const row = db()
+    .query<Record<string, number>, []>(
+      `SELECT
+         COUNT(*) AS "all",
+         SUM(CASE WHEN ${hasVersions} = 0 THEN 1 ELSE 0 END) AS no_versions,
+         SUM(CASE WHEN ${hasVersions} > 0 THEN 1 ELSE 0 END) AS with_versions,
+         SUM(CASE WHEN p.favorite_version_id IS NULL THEN 1 ELSE 0 END) AS no_favorite,
+         SUM(CASE WHEN p.favorite_version_id IS NOT NULL THEN 1 ELSE 0 END) AS with_favorite,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status IN ('pending','running')) THEN 1 ELSE 0 END) AS in_queue,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status = 'failed') AND ${hasVersions} = 0 THEN 1 ELSE 0 END) AS failed,
+         SUM(CASE WHEN p.config_override IS NOT NULL THEN 1 ELSE 0 END) AS with_override
+       FROM photos p`,
+    )
+    .get();
+  return c.json({ counts: row ?? {} });
+});
+
+// Every photo that carries a review note — for distilling the next run's
+// direction in one pass. Registered before "/api/photos/:id" so "feedback"
+// isn't captured as an :id.
+photoRoutes.get("/api/feedback", (c) => {
+  const rows = db()
+    .query<{ id: string; feedback: string; updated_at: number }, []>(
+      "SELECT id, feedback, updated_at FROM photos WHERE feedback IS NOT NULL AND TRIM(feedback) <> '' ORDER BY updated_at DESC",
+    )
+    .all();
+  return c.json({ feedback: rows, count: rows.length });
+});
+
+photoRoutes.get("/api/photos/:id", (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const versions = getVersionsFor(id);
+  const cfg = effectiveConfig(photo);
+  return c.json({
+    photo,
+    versions,
+    effective_prompt: assemblePrompt(withExtra(cfg, photo)),
+    effective_config: cfg,
+    has_override: photo.config_override !== null,
+    legacy_prompt: effectivePrompt(photo),
+    global_prompt: getGlobalPrompt(),
+    effective_grade: effectiveGrade(photo),
+    has_grade_override: photo.grade_override !== null,
+  });
+});
+
+photoRoutes.put("/api/photos/:id/favorite", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ version_id: number | null }>();
+  if (body.version_id !== null) {
+    const exists = db()
+      .query<{ id: number }, [number, string]>(
+        "SELECT id FROM versions WHERE id = ? AND photo_id = ?",
+      )
+      .get(body.version_id, id);
+    if (!exists) return c.json({ error: "version not found" }, 400);
+  }
+  db().run(
+    "UPDATE photos SET favorite_version_id = ?, updated_at = ? WHERE id = ?",
+    [body.version_id, Date.now(), id],
+  );
+  return c.json({ ok: true });
+});
+
+photoRoutes.put("/api/photos/:id/prompt", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ prompt: string | null }>();
+  db().run(
+    "UPDATE photos SET custom_prompt = ?, updated_at = ? WHERE id = ?",
+    [body.prompt, Date.now(), id],
+  );
+  return c.json({ ok: true });
+});
+
+photoRoutes.put("/api/photos/:id/extra", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ extra: string | null }>();
+  const value = (body.extra ?? "").trim() || null;
+  db().run(
+    "UPDATE photos SET extra_instructions = ?, updated_at = ? WHERE id = ?",
+    [value, Date.now(), id],
+  );
+  return c.json({ ok: true });
+});
+
+// Freeform per-photo review note jotted on the grid. Read in bulk (below) to
+// steer the next run; NOT injected into the prompt.
+photoRoutes.put("/api/photos/:id/feedback", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ feedback: string | null }>();
+  const value = (body.feedback ?? "").trim() || null;
+  db().run("UPDATE photos SET feedback = ?, updated_at = ? WHERE id = ?", [
+    value,
+    Date.now(),
+    id,
+  ]);
+  return c.json({ ok: true, feedback: value });
+});
+
+photoRoutes.delete("/api/photos/:id/versions/:vid", (c) => {
+  const id = c.req.param("id");
+  const vid = Number(c.req.param("vid"));
+  const v = db()
+    .query<VersionRow, [number, string]>(
+      "SELECT * FROM versions WHERE id = ? AND photo_id = ?",
+    )
+    .get(vid, id);
+  if (!v) return c.json({ error: "not found" }, 404);
+
+  // If this is the favorite, clear it first
+  db().run(
+    "UPDATE photos SET favorite_version_id = NULL WHERE id = ? AND favorite_version_id = ?",
+    [id, vid],
+  );
+  db().run("DELETE FROM versions WHERE id = ?", [vid]);
+
+  // Remove the file from disk (only inside generations/)
+  if (v.image_path.startsWith(genDir()) && existsSync(v.image_path)) {
+    try {
+      unlinkSync(v.image_path);
+    } catch {}
+  }
+
+  return c.json({ ok: true });
+});
