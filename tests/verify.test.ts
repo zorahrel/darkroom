@@ -383,3 +383,40 @@ describe("prompt integration", () => {
     expect(prompt).toContain("- do not paint the sky purple");
   });
 });
+
+describe("built-in wording is kept current", () => {
+  test("re-seeding refreshes questions and clauses but not user settings", () => {
+    seedFailureModes();
+    const original = getFailureMode("deformed_anatomy")!;
+    db().run(
+      "UPDATE failure_modes SET question = ?, negative_clause = ?, gate_enabled = 0, label = ? WHERE code = 'deformed_anatomy'",
+      ["stale question", "stale clause", "Etichetta mia"],
+    );
+
+    seedFailureModes();
+
+    const fresh = getFailureMode("deformed_anatomy")!;
+    // Wording is code: it comes back.
+    expect(fresh.question).toBe(original.question);
+    expect(fresh.negative_clause).toBe(original.negative_clause);
+    // Settings are the user's: they stay.
+    expect(fresh.gate_enabled).toBe(false);
+    expect(fresh.label).toBe("Etichetta mia");
+  });
+
+  test("a custom mode is never touched by seeding", () => {
+    upsertFailureMode({ code: "mine", question: "my question?", negative_clause: "my clause" });
+    seedFailureModes();
+    const mine = getFailureMode("mine")!;
+    expect(mine.question).toBe("my question?");
+    expect(mine.negative_clause).toBe("my clause");
+  });
+
+  test("every vision question tells the model how to answer when it does not apply", () => {
+    seedFailureModes();
+    for (const mode of listFailureModes().filter((m) => m.kind === "vlm" && m.builtin)) {
+      // Bare "is there X?" questions drift to yes on images where X is absent.
+      expect(mode.question!.toLowerCase()).toContain("answer no");
+    }
+  });
+});

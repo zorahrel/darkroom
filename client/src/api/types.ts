@@ -358,3 +358,66 @@ export type StoryboardExport = {
   boards: number;
   skipped: string[];
 };
+
+// ---- Quality control ------------------------------------------------------
+
+export type CheckKind = "pixel" | "vlm";
+export type Verdict = "hit" | "clear" | "unsure" | "error";
+
+/** One known way a render can come out wrong. */
+export type FailureMode = {
+  code: string;
+  label: string;
+  kind: CheckKind;
+  question: string | null;
+  negative_clause: string | null;
+  threshold: number | null;
+  gate_enabled: boolean;
+  builtin: boolean;
+  created_at: number;
+};
+
+export type CheckResult = {
+  code: string;
+  verdict: Verdict;
+  detail: string | null;
+};
+
+export type VersionReport = {
+  version_id: number;
+  photo_id: string;
+  version_number: number;
+  checks: CheckResult[];
+  hits: string[];
+  unsure: string[];
+  /** 0-10; 10 = nothing flagged. */
+  score: number;
+  checked_at: number;
+};
+
+export type FavoriteSuggestion = {
+  photo_id: string;
+  suggested_version_id: number | null;
+  suggested_version_number: number | null;
+  current_favorite_id: number | null;
+  differs: boolean;
+  reason: string;
+  scores: { version_id: number; version_number: number; score: number; hits: string[] }[];
+};
+
+export type VerificationSummary = {
+  checked_versions: number;
+  total_versions: number;
+  flagged_versions: number;
+  by_code: { code: string; label: string; hits: number; checked: number; rate: number }[];
+  trend: { from: number; to: number; versions: number; flagged: number; rate: number }[];
+};
+
+export type VerifyBatchStatus = {
+  running: boolean;
+  total: number;
+  done: number;
+  flagged: number;
+  failed: number;
+  current: string | null;
+};

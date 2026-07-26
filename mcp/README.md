@@ -56,6 +56,15 @@ bun run server        # or: bun run dev
 | `set_character` | Create/update a character; its reference rides along with every generation it appears in. |
 | `export_storyboard` | Write the `.storyboarder` file + `images/` for Storyboarder. |
 
+### Quality
+
+| Tool | Description |
+|---|---|
+| `check_photo` | Run the checks on every render of a photo; returns per-render reports and which one the checks prefer. |
+| `verification_summary` | What gets flagged project-wide, how often, and the trend over time. |
+| `list_failure_modes` | The catalogue: what each check looks for and the clause it adds to the prompt. |
+| `add_failure_mode` | Turn a recurring complaint into a yes/no check plus an optional prompt clause. |
+
 ## Quick check
 
 ```bash
@@ -66,4 +75,4 @@ printf '%s\n' \
   | bun run mcp/server.ts
 ```
 
-You should see the 17 tools listed in the response.
+You should see the 21 tools listed in the response.

@@ -119,7 +119,7 @@ const BUILTIN_MODES: Omit<FailureMode, "created_at" | "builtin">[] = [
     label: "Testo/insegne inventate",
     kind: "vlm",
     question:
-      "Is any text or signage in this image garbled, misspelled or made of nonsensical characters? Answer yes or no.",
+      "Look at any text or signage in this image. If there is no text at all, answer no. Otherwise answer yes only if the lettering is clearly garbled, malformed or made of nonsensical characters. Answer yes or no.",
     negative_clause: "do not alter, invent or garble any text, signage or writing",
     threshold: null,
     gate_enabled: true,
@@ -129,7 +129,7 @@ const BUILTIN_MODES: Omit<FailureMode, "created_at" | "builtin">[] = [
     label: "Look 3D/illustrazione",
     kind: "vlm",
     question:
-      "Does this look like a 3D render, a painting or an illustration rather than a real photograph? Answer yes or no.",
+      "Answer yes only if this image clearly looks like a 3D render, a painting or a digital illustration rather than a photograph taken with a camera. If it looks like a real photograph, answer no. Answer yes or no.",
     negative_clause: "do not produce a 3D render, illustration or CGI look — it must read as a real photograph",
     threshold: null,
     gate_enabled: false,
@@ -139,7 +139,7 @@ const BUILTIN_MODES: Omit<FailureMode, "created_at" | "builtin">[] = [
     label: "Anatomia deformata",
     kind: "vlm",
     question:
-      "Are there deformed or malformed faces, hands or limbs in this image? Answer yes or no.",
+      "Look at the people in this image. If there are no people, answer no. Otherwise answer yes only if a face, hand or limb is clearly deformed or malformed. Answer yes or no.",
     negative_clause: "do not deform faces, hands or limbs",
     threshold: null,
     gate_enabled: true,
@@ -149,7 +149,7 @@ const BUILTIN_MODES: Omit<FailureMode, "created_at" | "builtin">[] = [
     label: "Watermark o didascalie",
     kind: "vlm",
     question:
-      "Is there a watermark, logo, caption bar or overlaid text added on top of this image? Answer yes or no.",
+      "Ignore any text that belongs to the real scene, such as signs or shopfronts. Answer yes only if a watermark, logo or caption has been overlaid on top of the photo by software; otherwise answer no. Answer yes or no.",
     negative_clause: "do not add watermarks, logos, captions or any overlaid text",
     threshold: null,
     gate_enabled: true,
@@ -170,13 +170,24 @@ function rowToMode(r: Record<string, unknown>): FailureMode {
   };
 }
 
-/** Insert the built-ins once. Never overwrites: the user's edits (thresholds,
- *  gate on/off, reworded clauses) survive every restart. */
+/**
+ * Install the built-ins, and keep their wording current.
+ *
+ * The split matters: `question` and `negative_clause` are code — when a
+ * question turns out to produce false positives (an early one answered "yes"
+ * on photos with no people in them), the fix has to reach existing projects.
+ * Everything the user tunes — whether the mode gates, its threshold, its
+ * label — is left exactly as they set it.
+ */
 export function seedFailureModes(): void {
   const insert = db().prepare(
-    `INSERT OR IGNORE INTO failure_modes
+    `INSERT INTO failure_modes
        (code, label, kind, question, negative_clause, threshold, gate_enabled, builtin, created_at)
-     VALUES (?,?,?,?,?,?,?,1,?)`,
+     VALUES (?,?,?,?,?,?,?,1,?)
+     ON CONFLICT(code) DO UPDATE SET
+       question = excluded.question,
+       negative_clause = excluded.negative_clause
+     WHERE failure_modes.builtin = 1`,
   );
   const now = Date.now();
   for (const m of BUILTIN_MODES) {

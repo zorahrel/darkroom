@@ -151,6 +151,13 @@ export const IconInfo = ({ className = "w-5 h-5" }: IconProps) => (
   </svg>
 );
 
+export const IconShieldCheck = ({ className = "w-5 h-5" }: IconProps) => (
+  <svg {...svg(className)}>
+    <path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
+);
+
 export const IconText = ({ className = "w-5 h-5" }: IconProps) => (
   <svg {...svg(className)}>
     <path d="M6 3h8l4 4v14H6z" />

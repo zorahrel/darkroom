@@ -1,6 +1,11 @@
 import { jsonFetch } from "./http";
 import type {
   BakeResult,
+  FailureMode,
+  FavoriteSuggestion,
+  VerificationSummary,
+  VerifyBatchStatus,
+  VersionReport,
   Beat,
   Character,
   Panel,
@@ -260,6 +265,42 @@ export const api = {
     }),
   exportStoryboard: () =>
     jsonFetch<StoryboardExport>("/api/storyboard/export", { method: "POST" }),
+  // Quality control: the gate reports, the user decides.
+  failureModes: () => jsonFetch<{ modes: FailureMode[] }>("/api/verify/modes"),
+  setFailureMode: (input: Partial<FailureMode> & { code: string }) =>
+    jsonFetch<{ mode: FailureMode }>("/api/verify/modes", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  deleteFailureMode: (code: string) =>
+    jsonFetch<{ ok: true; modes: FailureMode[] }>(
+      `/api/verify/modes/${encodeURIComponent(code)}`,
+      { method: "DELETE" },
+    ),
+  versionReport: (versionId: number) =>
+    jsonFetch<{ report: VersionReport | null }>(`/api/verify/versions/${versionId}`),
+  checkVersion: (versionId: number, only?: string[]) =>
+    jsonFetch<{ report: VersionReport }>(`/api/verify/versions/${versionId}`, {
+      method: "POST",
+      body: JSON.stringify({ only }),
+    }),
+  photoReports: (photoId: string) =>
+    jsonFetch<{ reports: VersionReport[]; suggestion: FavoriteSuggestion }>(
+      `/api/verify/photos/${encodeURIComponent(photoId)}`,
+    ),
+  checkPhoto: (photoId: string) =>
+    jsonFetch<{ reports: VersionReport[]; suggestion: FavoriteSuggestion }>(
+      `/api/verify/photos/${encodeURIComponent(photoId)}`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+  verificationSummary: () =>
+    jsonFetch<{ summary: VerificationSummary }>("/api/verify/summary"),
+  verifyBatch: (limit = 100, recheck = false) =>
+    jsonFetch<{ started: number }>("/api/verify/batch", {
+      method: "POST",
+      body: JSON.stringify({ limit, recheck }),
+    }),
+  verifyBatchStatus: () => jsonFetch<VerifyBatchStatus>("/api/verify/batch"),
   importTemplate: (filename: string, text: string, save = false) =>
     jsonFetch<ImportTemplateResult>("/api/templates/import", {
       method: "POST",

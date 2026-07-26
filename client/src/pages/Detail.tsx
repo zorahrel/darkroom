@@ -412,6 +412,8 @@ export default function DetailPage() {
       <PhotoPipeline
         photoId={photo.id}
         versionNumber={v ? v.version_number : null}
+        versionId={v ? v.id : null}
+        favoriteVersionId={photo.favorite_version_id}
         effectiveConfig={effective_config}
         hasConfigOverride={has_override}
         prompt={effective_prompt}

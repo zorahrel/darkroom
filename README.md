@@ -16,6 +16,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.
 - **Pipeline & run browser** — run the whole chain (regenerate favorites → color grade → promote → export) as one action, and filter the grid by generation batch ("run") from a dropdown.
 - **Export** — copy all favorites into a clean `final/` folder (graded full‑res JPGs when the grade is on).
+- **Quality checks** — measure every render against a catalogue of known failure modes: free pixel checks (blown highlights, crushed blacks, near-duplicate re-renders) plus yes/no questions for a local vision model (garbled signage, deformed anatomy, watermarks). The gate flags and suggests a favourite; it never deletes or promotes on its own. What it keeps catching can be turned into a clause in the prompt's "Do not" block.
 - **Storyboard** — turn a beat sheet into ordered panels (one generation each), give them durations, scene labels and a pinned cast whose reference images ride along with every generation, then export to [Storyboarder](https://github.com/wonderunit/storyboarder)'s native format for 3D blocking and print.
 
 ## Stack
@@ -68,6 +69,28 @@ Open the URL printed by `bun run dev` (default http://localhost:5173).
    - Tune the per‑photo prompt and **Save override** when the global look isn't enough. Each version records the exact prompt used.
 5. **Export favorites** — copies every favorite into `<root>/data/final/<photo_id>.png`.
 
+## Quality checks
+
+Open a photo, then the **Qualità** panel in the pipeline dock (or drive it from
+Claude). Two kinds of check:
+
+- **pixel** — histogram and perceptual-hash measurements. Free, instant, need only
+  ffmpeg: blown highlights, crushed blacks, and re-renders that came out nearly
+  identical to a sibling.
+- **vision** — a yes/no question put to a local vision model (the
+  [Moondream](https://moondream.ai) CLI; set `MOONDREAM_BIN` if it is not on PATH)
+  for what needs semantics: garbled signage, deformed anatomy, watermarks.
+
+Two rules the gate sticks to: **it reports, it never deletes** — the favourite
+stays a human choice, suggested at most — and **an unsure answer counts as a
+pass**, because a model that hedges is not evidence of a defect.
+
+The catalogue also feeds generation: every failure mode can carry a negative
+clause that joins the prompt's "Do not" block, so what the checks keep catching
+becomes what the next render is told to avoid. Add your own with
+`POST /api/verify/modes` (or the `add_failure_mode` MCP tool) — a recurring
+complaint becomes a check and a prompt clause instead of a note nobody reads.
+
 ## Storyboard
 
 A storyboard is an ordinary project whose photos are panels: same versioning, same queue,
@@ -115,7 +138,7 @@ Darkroom ships an MCP server that wraps the local API. Start the backend, then r
 }
 ```
 
-Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list_jobs`, `set_favorite`, `set_global_prompt`, `export_favorites`, plus the storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_panel`, `list_characters`, `set_character`, `export_storyboard`). See [`mcp/README.md`](mcp/README.md).
+Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list_jobs`, `set_favorite`, `set_global_prompt`, `export_favorites`, plus the storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_panel`, `list_characters`, `set_character`, `export_storyboard`) and the quality set (`check_photo`, `verification_summary`, `list_failure_modes`, `add_failure_mode`). See [`mcp/README.md`](mcp/README.md).
 
 ## API
 
@@ -140,6 +163,10 @@ Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list
 | PATCH | `/api/storyboard/panels/:id` | Duration, scene label, pinned cast |
 | POST | `/api/storyboard/characters` | Create/update a character |
 | POST | `/api/storyboard/export` | Write the `.storyboarder` file + `images/` |
+| GET/POST | `/api/verify/modes` | The failure-mode catalogue |
+| POST | `/api/verify/photos/:id` | Check every render of a photo + favourite suggestion |
+| POST | `/api/verify/batch` | Background pass over unchecked renders |
+| GET | `/api/verify/summary` | What gets flagged, how often, and the trend |
 
 ## Configuration
 

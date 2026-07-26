@@ -42,6 +42,7 @@ guard that a schema change can't lose a row.
 | `server/app.ts` | Hono app: middleware + route mounting |
 | `server/index.ts` | Boot (port, job runner) |
 | `server/routes/*.ts` | The HTTP API, one module per area |
+| `server/verify.ts` | Quality checks: failure-mode catalogue, gate, suggestions |
 | `server/storyboard.ts` | Panels, cast, beat sheet → queued panels |
 | `server/storyboardExport.ts` | Export to Storyboarder's native format |
 | `server/jobs.ts` | Job queue + provider dispatch |

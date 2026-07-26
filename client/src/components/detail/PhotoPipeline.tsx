@@ -19,6 +19,7 @@ import {
   IconClose,
   IconDownload,
   IconInfo,
+  IconShieldCheck,
   IconLayers,
   IconRedo,
   IconReset,
@@ -34,10 +35,13 @@ import Spinner from "./Spinner";
 import { ExtraInstructionsCard } from "./ExtraInstructionsCard";
 import { FinalPromptView } from "./FinalPromptView";
 import { PhotoConfigCard } from "./PhotoConfigCard";
+import { QualityCheck } from "./QualityCheck";
 
 export function PhotoPipeline({
   photoId,
   versionNumber,
+  versionId,
+  favoriteVersionId,
   effectiveConfig,
   hasConfigOverride,
   prompt,
@@ -54,6 +58,9 @@ export function PhotoPipeline({
 }: {
   photoId: string;
   versionNumber: number | null;
+  /** Row id of the render on screen — the quality panel checks this one. */
+  versionId?: number | null;
+  favoriteVersionId?: number | null;
   effectiveConfig: PromptConfig;
   hasConfigOverride: boolean;
   prompt: string;
@@ -260,6 +267,23 @@ export function PhotoPipeline({
         icon: <IconText />,
         render: () => <FinalPromptView prompt={prompt} />,
       },
+      ...(versionId
+        ? [
+            {
+              id: "quality",
+              label: "Qualità",
+              icon: <IconShieldCheck />,
+              render: () => (
+                <QualityCheck
+                  photoId={photoId}
+                  versionId={versionId}
+                  currentFavoriteId={favoriteVersionId ?? null}
+                  onFavoriteChanged={onSaved}
+                />
+              ),
+            } satisfies ToolGroup,
+          ]
+        : []),
       ...(infoPanel
         ? [
             {
@@ -329,7 +353,7 @@ export function PhotoPipeline({
     });
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, lutGroups, photoId, versionNumber, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras, infoPanel]);
+  }, [draft, lutGroups, photoId, versionNumber, versionId, favoriteVersionId, effectiveConfig, hasConfigOverride, prompt, extraInitial, onSaved, mobileExtras, infoPanel]);
 
   const addableSteps: AddableStep[] = STEP_ORDER.filter((t) => t !== "ai").map((t) => ({
     type: t,
