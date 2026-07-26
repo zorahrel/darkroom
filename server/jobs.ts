@@ -20,12 +20,14 @@ export function enqueueJob(
   providerParams: string | null = null,
   mode: "edit" | "generate" = "edit",
   inputPath: string | null = null,
+  /** JSON array of extra reference images to attach (storyboard characters). */
+  refPaths: string | null = null,
 ): JobRow {
   const now = Date.now();
   const result = db().run(
-    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, now],
+    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, now],
   );
   const id = Number(result.lastInsertRowid);
   return db()

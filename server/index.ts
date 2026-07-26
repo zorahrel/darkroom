@@ -78,6 +78,7 @@ import {
   listImageModels as hfModels,
   getCost as hfCost,
 } from "./higgsfield.ts";
+import { storyboardRoutes } from "./routes/storyboard.ts";
 
 initSchema();
 
@@ -1053,6 +1054,12 @@ app.get("/api/runs/:id/photos", (c) => {
     .sort((a, b) => (a.taken_at ?? 0) - (b.taken_at ?? 0));
   return c.json({ photos });
 });
+
+// ---- API: storyboard -------------------------------------------------------
+// Panels, characters and export to Storyboarder's native format. Mounted as a
+// sub-app: it sits behind the same project middleware as everything else.
+
+app.route("/api/storyboard", storyboardRoutes);
 
 // ---- API: health -----------------------------------------------------------
 
