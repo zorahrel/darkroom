@@ -81,7 +81,9 @@ const SCHEMA_STATEMENTS = [
     UNIQUE(photo_id, version_number),
     FOREIGN KEY(photo_id) REFERENCES photos(id) ON DELETE CASCADE
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_versions_photo ON versions(photo_id)`,
+  // Carries `id` so the gallery's "latest version per photo" subqueries
+  // (`WHERE photo_id = ? ORDER BY id DESC LIMIT 1`) are covering.
+  `CREATE INDEX IF NOT EXISTS idx_versions_photo_id ON versions(photo_id, id DESC)`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -113,6 +115,17 @@ const SCHEMA_STATEMENTS = [
     name TEXT NOT NULL,
     grade TEXT NOT NULL,
     source TEXT NOT NULL DEFAULT 'manual',
+    created_at INTEGER NOT NULL
+  )`,
+  // Storyboard characters: a named subject with a reference image, pinned on
+  // panels so successive generations keep the same face/outfit. `reference_photo_id`
+  // points at a photo of this same project (ON DELETE SET NULL: losing the
+  // reference must not delete the character).
+  `CREATE TABLE IF NOT EXISTS characters (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    reference_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
+    description TEXT,
     created_at INTEGER NOT NULL
   )`,
 ];
@@ -219,6 +232,43 @@ export function initSchemaOn(d: Database): void {
     d.run("ALTER TABLE jobs ADD COLUMN input_path TEXT");
   }
 
+  // ---- Storyboard ---------------------------------------------------------
+  // A storyboard is an ordinary project whose photos are panels: same
+  // versioning, same job queue, plus an order and a duration. A photo gallery
+  // simply leaves these NULL and behaves exactly as before.
+  if (!hasColumn(d, "photos", "sequence_index")) {
+    d.run("ALTER TABLE photos ADD COLUMN sequence_index INTEGER");
+  }
+  // Panel duration in ms, mirroring Storyboarder's board.duration.
+  if (!hasColumn(d, "photos", "duration_ms")) {
+    d.run("ALTER TABLE photos ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 3000");
+  }
+  // Free-text scene/shot label ("INT. BAR - NIGHT"), exported as board.dialogue-less notes.
+  if (!hasColumn(d, "photos", "scene_label")) {
+    d.run("ALTER TABLE photos ADD COLUMN scene_label TEXT");
+  }
+  // JSON array of character ids pinned on this panel.
+  if (!hasColumn(d, "photos", "character_ids")) {
+    d.run("ALTER TABLE photos ADD COLUMN character_ids TEXT");
+  }
+  // JSON array of extra reference images attached to the generation request
+  // (character references). NULL = single-image request, the historical path.
+  if (!hasColumn(d, "jobs", "ref_paths")) {
+    d.run("ALTER TABLE jobs ADD COLUMN ref_paths TEXT");
+  }
+  // Only the rows of an actual storyboard land in this index.
+  d.run(
+    `CREATE INDEX IF NOT EXISTS idx_photos_sequence ON photos(sequence_index)
+       WHERE sequence_index IS NOT NULL`,
+  );
+
+  // ---- Index hygiene ------------------------------------------------------
+  // `idx_versions_photo_id` (see SCHEMA_STATEMENTS) makes the gallery's
+  // "latest version per photo" subqueries covering — measured on the real
+  // 190-photo / 1647-version DB: 2.48 → 0.48 ms per gallery query. The older
+  // photo_id-only index is a strict prefix of it, hence pure write overhead.
+  d.run("DROP INDEX IF EXISTS idx_versions_photo");
+
   const has = d
     .query("SELECT value FROM settings WHERE key = 'global_prompt'")
     .get();
@@ -252,8 +302,24 @@ export type PhotoRow = {
   feedback: string | null;
   kind: "original" | "generated";
   taken_at: number | null;
+  /** Storyboard: 0-based panel order. NULL = not part of a sequence (a plain photo). */
+  sequence_index: number | null;
+  /** Storyboard: panel duration in ms (Storyboarder's board.duration). */
+  duration_ms: number;
+  /** Storyboard: free-text scene/shot label. */
+  scene_label: string | null;
+  /** Storyboard: JSON array of pinned character ids. */
+  character_ids: string | null;
   created_at: number;
   updated_at: number;
+};
+
+export type CharacterRow = {
+  id: string;
+  name: string;
+  reference_photo_id: string | null;
+  description: string | null;
+  created_at: number;
 };
 
 export type VersionRow = {
@@ -279,6 +345,8 @@ export type JobRow = {
   provider_params: string | null;
   mode: "edit" | "generate";
   input_path: string | null;
+  /** JSON array of extra reference images attached to the request (characters). */
+  ref_paths: string | null;
   progress: string | null;
   seen: number;
   attempts: number;

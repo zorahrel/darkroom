@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { copyFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { initSchemaOn } from "../server/db.ts";
+import { TEST_ROOT } from "./setup.ts";
 
 /** Column names of a table, straight from SQLite. */
 function columns(d: Database, table: string): string[] {
@@ -157,6 +160,55 @@ describe("migrations on a legacy DB", () => {
     expect(row.started_at).toBeNull();
   });
 
+  test("adds the storyboard columns as opt-in, leaving plain photos untouched", () => {
+    const d = legacyDb();
+    d.run(
+      "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES (?,?,?,?,?)",
+      ["p1", "/raw/p1.jpg", "jpg", 1, 2],
+    );
+
+    initSchemaOn(d);
+
+    const row = d
+      .query<Record<string, unknown>, []>("SELECT * FROM photos WHERE id = 'p1'")
+      .get()!;
+    // A gallery photo is not a panel: no order, no label, no characters…
+    expect(row.sequence_index).toBeNull();
+    expect(row.scene_label).toBeNull();
+    expect(row.character_ids).toBeNull();
+    // …but it does carry the default panel duration, which costs nothing.
+    expect(row.duration_ms).toBe(3000);
+    expect(columns(d, "jobs")).toContain("ref_paths");
+    expect(tables(d)).toContain("characters");
+  });
+
+  test("keeps the gallery index and drops the one it supersedes", () => {
+    const d = new Database(":memory:");
+    // Pretend this DB was created before the covering index existed.
+    d.run(`CREATE TABLE versions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      photo_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      image_path TEXT NOT NULL,
+      prompt_used TEXT NOT NULL,
+      source TEXT NOT NULL CHECK (source IN ('imported','generated')),
+      created_at INTEGER NOT NULL,
+      UNIQUE(photo_id, version_number)
+    )`);
+    d.run("CREATE INDEX idx_versions_photo ON versions(photo_id)");
+
+    initSchemaOn(d);
+
+    const idx = d
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='versions'",
+      )
+      .all()
+      .map((r) => r.name);
+    expect(idx).toContain("idx_versions_photo_id");
+    expect(idx).not.toContain("idx_versions_photo");
+  });
+
   test("leaves finished jobs alone on boot", () => {
     const d = new Database(":memory:");
     initSchemaOn(d);
@@ -174,5 +226,50 @@ describe("migrations on a legacy DB", () => {
       .all()
       .map((r) => r.status);
     expect(statuses).toEqual(["done", "failed", "cancelled"]);
+  });
+});
+
+/**
+ * The real gallery, migrated on a copy. This is the guard that matters for the
+ * Japan project: whatever the migrations do, every row must survive. Skipped
+ * on machines (and CI) without a local photos.db.
+ */
+const REAL_DB = join(import.meta.dir, "..", "photos.db");
+
+describe.skipIf(!existsSync(REAL_DB))("real gallery DB", () => {
+  test("migrating a copy preserves every row", () => {
+    const copy = join(TEST_ROOT, "real-copy.db");
+    copyFileSync(REAL_DB, copy);
+    const d = new Database(copy);
+
+    const before = Object.fromEntries(
+      ["photos", "versions", "jobs", "orphans"].map((t) => [
+        t,
+        d.query<{ c: number }, []>(`SELECT COUNT(*) c FROM ${t}`).get()!.c,
+      ]),
+    );
+    const favoritesBefore = d
+      .query<{ c: number }, []>(
+        "SELECT COUNT(*) c FROM photos WHERE favorite_version_id IS NOT NULL",
+      )
+      .get()!.c;
+
+    initSchemaOn(d);
+
+    for (const [table, count] of Object.entries(before)) {
+      expect(d.query<{ c: number }, []>(`SELECT COUNT(*) c FROM ${table}`).get()!.c).toBe(count);
+    }
+    expect(
+      d
+        .query<{ c: number }, []>(
+          "SELECT COUNT(*) c FROM photos WHERE favorite_version_id IS NOT NULL",
+        )
+        .get()!.c,
+    ).toBe(favoritesBefore);
+    // The gallery stays a gallery: nothing became a storyboard panel.
+    expect(
+      d.query<{ c: number }, []>("SELECT COUNT(*) c FROM photos WHERE sequence_index IS NOT NULL").get()!.c,
+    ).toBe(0);
+    d.close();
   });
 });
