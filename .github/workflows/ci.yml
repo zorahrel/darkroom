@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  typecheck:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,4 +15,5 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      - run: bun test
       - run: bun run build:client

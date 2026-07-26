@@ -125,8 +125,10 @@ function hasColumn(d: Database, table: string, col: string): boolean {
 }
 
 /** Create tables + run idempotent migrations on a specific handle. Called once
- *  per project when its DB is first opened (see db()). */
-function initSchemaOn(d: Database): void {
+ *  per project when its DB is first opened (see db()). Exported so tests can
+ *  exercise the migration path on a throwaway handle (including a "legacy" DB
+ *  built with the v0 schema) without going through the per-project cache. */
+export function initSchemaOn(d: Database): void {
   for (const stmt of SCHEMA_STATEMENTS) {
     d.run(stmt);
   }

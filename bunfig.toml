@@ -1,0 +1,4 @@
+[test]
+# Every test file runs against a throwaway gallery root, so no test can ever
+# touch a real project's photos.db or the ~/Darkroom registry. See tests/setup.ts.
+preload = ["./tests/setup.ts"]
