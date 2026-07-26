@@ -13,6 +13,7 @@ import { api, lastProject } from "./api";
 const DetailPage = lazy(() => import("./pages/Detail"));
 const OrphansPage = lazy(() => import("./pages/Orphans"));
 const StudioPage = lazy(() => import("./pages/Studio"));
+const StoryboardPage = lazy(() => import("./pages/Storyboard"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-500 text-sm">Carico…</div>;
@@ -63,6 +64,14 @@ ReactDOM.createRoot(root).render(
             element={
               <Suspense fallback={<PageFallback />}>
                 <DetailPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/storyboard"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <StoryboardPage />
               </Suspense>
             }
           />

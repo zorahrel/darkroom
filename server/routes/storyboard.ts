@@ -14,6 +14,11 @@ import {
   type Beat,
 } from "../storyboard.ts";
 import { exportStoryboard } from "../storyboardExport.ts";
+import { getPhoto } from "../photos.ts";
+import { resolvePanelImage } from "../storyboard.ts";
+import { serveFile } from "../http.ts";
+import { thumbnailPath } from "../thumb.ts";
+import { parseWidth } from "../http.ts";
 
 /**
  * Storyboard API. Everything here is plain DB work — the one exception is
@@ -104,6 +109,21 @@ storyboardRoutes.delete("/characters/:id", (c) => {
   const ok = deleteCharacter(c.req.param("id"));
   if (!ok) return c.json({ error: "not found" }, 404);
   return c.json({ ok: true, characters: listCharacters(), panels: listPanels() });
+});
+
+// The image a panel currently shows — same resolution the export uses, so the
+// board on screen is what lands in the .storyboarder file.
+storyboardRoutes.get("/panels/:id/image", async (c) => {
+  const photo = getPhoto(c.req.param("id"));
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const path = resolvePanelImage(photo);
+  if (!path) return c.json({ error: "no image yet" }, 404);
+  try {
+    return serveFile(await thumbnailPath(path, parseWidth(c, 480)), "image/jpeg");
+  } catch {
+    // Thumbnailing needs an image tool; serving the full file always works.
+    return serveFile(path);
+  }
 });
 
 storyboardRoutes.post("/export", (c) => {

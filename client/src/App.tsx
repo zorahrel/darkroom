@@ -99,9 +99,19 @@ export default function App() {
             </NavLink>
             <NavLink
               to={pid ? `/p/${pid}` : "/"}
-              current={location.pathname.startsWith("/p/") && !location.pathname.includes("/orphans")}
+              current={
+                location.pathname.startsWith("/p/") &&
+                !location.pathname.includes("/orphans") &&
+                !location.pathname.includes("/storyboard")
+              }
             >
               Griglia
+            </NavLink>
+            <NavLink
+              to={pid ? `/p/${pid}/storyboard` : "/"}
+              current={location.pathname.includes("/storyboard")}
+            >
+              Storyboard
             </NavLink>
             {orphanCount > 0 && (
               <NavLink
