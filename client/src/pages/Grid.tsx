@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { api, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
@@ -98,6 +98,7 @@ export default function GridPage({
     return n >= 80 && n <= 400 ? n : 180;
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
+  const { pid } = useParams<{ pid: string }>();
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
 
   // Per-filter counts for the bar. Refetch when jobs move (in_queue/failed
@@ -561,9 +562,23 @@ export default function GridPage({
       ) : photos === null ? (
         <div className="py-20 text-center text-neutral-500">Carico…</div>
       ) : photos.length === 0 ? (
-        <div className="py-20 text-center text-neutral-500">
-          Nessuna foto con questo filtro.
-        </div>
+        // A project with nothing in it isn't a filter problem: point at the
+        // one thing that fixes it.
+        filter === "all" ? (
+          <div className="py-20 text-center space-y-3">
+            <div className="text-neutral-400">Questo progetto non ha ancora foto.</div>
+            <Link
+              to={pid ? `/p/${pid}/sources` : "/studio"}
+              className="inline-block text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 border border-emerald-700"
+            >
+              Aggiungi una cartella di foto
+            </Link>
+          </div>
+        ) : (
+          <div className="py-20 text-center text-neutral-500">
+            Nessuna foto con questo filtro.
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {displayGroups.map((g, i) => (

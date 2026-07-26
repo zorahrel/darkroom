@@ -39,6 +39,12 @@ export const GRADED_DIR = envPath("GALLERY_GRADED_DIR") ?? join(DATA_DIR, "grade
 
 export const DB_PATH = envPath("DARKROOM_DB") ?? join(ROOT, "photos.db");
 
+/** Where Darkroom puts projects it creates itself, one folder per project.
+ *  Deliberately not under ROOT: ROOT is one gallery's data (and on some setups
+ *  it IS a repo checkout), while this is the shelf every new project lands on. */
+export const PROJECTS_DIR =
+  envPath("DARKROOM_PROJECTS_DIR") ?? join(homedir(), "Darkroom", "projects");
+
 // --- Server ---------------------------------------------------------------
 export const PORT = Number(process.env.PORT ?? 3535);
 

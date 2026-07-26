@@ -69,6 +69,27 @@ Open the URL printed by `bun run dev` (default http://localhost:5173).
    - Tune the per‑photo prompt and **Save override** when the global look isn't enough. Each version records the exact prompt used.
 5. **Export favorites** — copies every favorite into `<root>/data/final/<photo_id>.png`.
 
+## Projects
+
+Darkroom runs several local projects side by side. A project is a folder with its
+own SQLite DB and data dirs; the Studio page is the list of them, and the header
+tells you which one you are in.
+
+- **New project** — a name is all you type. The id is derived from it and the
+  folder is created under `~/Darkroom/projects/<name>` (override with
+  `DARKROOM_PROJECTS_DIR`). "Bring your own folder" is one click away for an
+  existing directory.
+- **What it's for** — *photo* (a gallery to finish) or *storyboard* (panels in
+  sequence). It only decides which views the UI offers: generation, colour grade
+  and quality checks are the same pipeline for both, which is the point — a
+  storyboard is drawn by the same engine that edits photos.
+- **Photos** — point a project at a folder and choose per folder: **link** (index
+  the files where they are, nothing copied — the default) or **copy** (bring them
+  into the project, for a card or a downloads folder you'll empty). Add more
+  folders any time from *Foto del progetto*; "Rileggi" picks up files added since.
+- **Removing** — a project can be taken out of the list; its folder, database and
+  renders stay on disk. Darkroom never deletes your work.
+
 ## Quality checks
 
 Open a photo, then the **Qualità** panel in the pipeline dock (or drive it from
@@ -167,6 +188,10 @@ Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list
 | POST | `/api/verify/photos/:id` | Check every render of a photo + favourite suggestion |
 | POST | `/api/verify/batch` | Background pass over unchecked renders |
 | GET | `/api/verify/summary` | What gets flagged, how often, and the trend |
+| GET/POST | `/api/studio/projects` | List projects · create one from a name |
+| DELETE | `/api/studio/projects/:pid` | Forget a project (files stay) |
+| GET/POST | `/api/sources` | Photo folders of the active project (link/copy) |
+| POST | `/api/sources/rescan` | Re-read them for new files |
 
 ## Configuration
 

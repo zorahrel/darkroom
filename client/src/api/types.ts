@@ -166,18 +166,37 @@ export type Health = {
 };
 
 // ---- Studio (multi-project overview) --------------------------------------
+export type PhotoSource = {
+  path: string;
+  mode: "link" | "copy";
+  added_at: number;
+};
+
+export type ImportSummary = {
+  scanned: number;
+  added: number;
+  skipped: number;
+  copied: number;
+};
+
 export type ProjectStats = {
   favorites: number;
   photos: number;
   versions: number;
+  /** Photos that are storyboard panels — keeps the board reachable. */
+  panels: number;
   queue: Record<string, number>;
   last_version_at: number | null;
 };
+
+/** What a project is for: it decides which views the UI offers. */
+export type ProjectKind = "photo" | "storyboard";
 
 export type StudioProject = {
   id: string;
   name: string;
   root: string;
+  kind: ProjectKind;
   active: boolean;
   created_at: number;
   db_path: string;

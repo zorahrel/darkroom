@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   api,
   lastProject,
+  type ProjectKind,
   type StudioOverview,
   type StudioProject,
 } from "../api";
@@ -63,6 +64,10 @@ export default function StudioPage() {
             isActive={p.id === active || (!active && p === data.projects[0])}
             onOpen={() => open(p.id)}
             onToggleActive={() => toggleActive(p)}
+            onForget={async () => {
+              await api.studioRemoveProject(p.id);
+              refresh();
+            }}
           />
         ))}
       </div>
@@ -102,14 +107,17 @@ function ProjectCard({
   isActive,
   onOpen,
   onToggleActive,
+  onForget,
 }: {
   p: StudioProject;
   isActive: boolean;
   onOpen: () => void;
   onToggleActive: () => void;
+  onForget: () => void;
 }) {
   const s = p.stats;
   const q = s?.queue ?? {};
+  const [confirming, setConfirming] = useState(false);
   return (
     <div
       className={
@@ -121,6 +129,16 @@ function ProjectCard({
         <div className="min-w-0">
           <div className="font-medium truncate flex items-center gap-2">
             {p.name}
+            <span
+              className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400"
+              title={
+                p.kind === "storyboard"
+                  ? "Progetto storyboard: pannelli in sequenza"
+                  : "Progetto foto: galleria da rifinire"
+              }
+            >
+              {p.kind === "storyboard" ? "storyboard" : "foto"}
+            </span>
             {isActive && (
               <span className="text-[10px] uppercase tracking-wide text-emerald-400">
                 attivo
@@ -128,7 +146,7 @@ function ProjectCard({
             )}
           </div>
           <div className="text-xs text-neutral-500 truncate" title={p.root}>
-            {p.id} · {p.root}
+            {p.root}
           </div>
         </div>
         <div className="flex-1" />
@@ -144,6 +162,34 @@ function ProjectCard({
         >
           {p.active ? "in coda" : "in pausa"}
         </button>
+        {confirming ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setConfirming(false);
+                onForget();
+              }}
+              className="text-[10px] px-2 py-1 rounded border border-red-800 text-red-300 bg-red-950/30 whitespace-nowrap"
+              title="Toglie il progetto dall'elenco. Cartella, database e render restano dove sono."
+            >
+              togli dall'elenco
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="text-[10px] px-1.5 py-1 text-neutral-500 hover:text-neutral-300"
+            >
+              no
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            title="Togli dall'elenco (i file restano)"
+            className="text-[10px] px-1.5 py-1 text-neutral-600 hover:text-neutral-300"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {!p.root_exists && (
@@ -210,9 +256,12 @@ function Badge({ children, className }: { children: React.ReactNode; className: 
 
 function AddProject({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);
-  const [id, setId] = useState("");
   const [name, setName] = useState("");
+  const [kind, setKind] = useState<ProjectKind>("photo");
+  const [photos, setPhotos] = useState("");
+  const [mode, setMode] = useState<"link" | "copy">("link");
   const [root, setRoot] = useState("");
+  const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -220,10 +269,19 @@ function AddProject({ onAdded }: { onAdded: () => void }) {
     setBusy(true);
     setErr(null);
     try {
-      await api.studioAddProject({ id: id.trim(), name: name.trim() || undefined, root: root.trim() });
-      setId("");
+      const res = await api.studioAddProject({
+        name: name.trim(),
+        kind,
+        root: root.trim() || undefined,
+        photos: photos.trim() ? { path: photos.trim(), mode } : undefined,
+      });
+      if (res.summary && res.summary.added === 0 && res.summary.scanned === 0) {
+        setErr("Progetto creato, ma in quella cartella non ho trovato foto.");
+      }
       setName("");
+      setPhotos("");
       setRoot("");
+      setAdvanced(false);
       setOpen(false);
       onAdded();
     } catch (e) {
@@ -239,46 +297,98 @@ function AddProject({ onAdded }: { onAdded: () => void }) {
         onClick={() => setOpen(true)}
         className="text-sm px-3 py-1.5 rounded border border-neutral-700 text-neutral-300 hover:border-neutral-500 hover:text-white"
       >
-        + Aggiungi progetto
+        + Nuovo progetto
       </button>
     );
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3 max-w-lg">
+    <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-4 max-w-lg">
       <div className="text-sm font-medium">Nuovo progetto</div>
-      <Field label="id (slug: a-z 0-9 _ -)">
-        <input
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          placeholder="es. kyoto-2026"
-          className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm"
-        />
-      </Field>
-      <Field label="nome (opzionale)">
+
+      <Field label="Come si chiama">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="es. Kyoto 2026"
+          autoFocus
           className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm"
         />
       </Field>
-      <Field label="cartella progetto (path assoluto, deve esistere)">
-        <input
-          value={root}
-          onChange={(e) => setRoot(e.target.value)}
-          placeholder="/Users/.../Projects/kyoto"
-          className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm font-mono"
-        />
+
+      <Field label="Che cosa ci fai">
+        <div className="grid grid-cols-2 gap-2">
+          <KindOption
+            selected={kind === "photo"}
+            onClick={() => setKind("photo")}
+            title="Foto"
+            hint="Una galleria da rifinire: griglia, versioni, colore, export."
+          />
+          <KindOption
+            selected={kind === "storyboard"}
+            onClick={() => setKind("storyboard")}
+            title="Storyboard"
+            hint="Pannelli in sequenza da una scaletta, con durate e personaggi."
+          />
+        </div>
       </Field>
-      {err && <div className="text-xs text-red-300">{err}</div>}
+
+      {kind === "photo" && (
+        <Field label="Le foto (opzionale — puoi aggiungerle dopo)">
+          <input
+            value={photos}
+            onChange={(e) => setPhotos(e.target.value)}
+            placeholder="/Users/…/Foto/Kyoto"
+            className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm font-mono"
+          />
+          {photos.trim() && (
+            <div className="flex gap-2 pt-1.5">
+              <ModeOption
+                selected={mode === "link"}
+                onClick={() => setMode("link")}
+                title="Lasciale dov'è"
+                hint="Le indicizzo dove sono, non copio niente"
+              />
+              <ModeOption
+                selected={mode === "copy"}
+                onClick={() => setMode("copy")}
+                title="Copiale nel progetto"
+                hint="Utile se la cartella è temporanea"
+              />
+            </div>
+          )}
+        </Field>
+      )}
+
+      <div>
+        <button
+          onClick={() => setAdvanced((v) => !v)}
+          className="text-xs text-neutral-500 hover:text-neutral-300"
+        >
+          {advanced ? "▾" : "▸"} Dove salvare il progetto
+        </button>
+        {advanced && (
+          <div className="pt-2">
+            <Field label="Cartella del progetto (vuoto = la crea Darkroom)">
+              <input
+                value={root}
+                onChange={(e) => setRoot(e.target.value)}
+                placeholder="~/Darkroom/projects/<nome>"
+                className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm font-mono"
+              />
+            </Field>
+          </div>
+        )}
+      </div>
+
+      {err && <div className="text-xs text-amber-300">{err}</div>}
       <div className="flex items-center gap-2">
         <button
           onClick={submit}
-          disabled={busy || !id.trim() || !root.trim()}
+          disabled={busy || !name.trim()}
           className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 border border-emerald-700"
         >
-          {busy ? "Aggiungo…" : "Aggiungi"}
+          {busy ? "Creo…" : "Crea"}
         </button>
         <button
           onClick={() => setOpen(false)}
@@ -288,6 +398,58 @@ function AddProject({ onAdded }: { onAdded: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function KindOption({
+  selected,
+  onClick,
+  title,
+  hint,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "text-left p-2.5 rounded-lg border transition-colors " +
+        (selected
+          ? "border-emerald-600 bg-emerald-950/30"
+          : "border-neutral-800 hover:border-neutral-600")
+      }
+    >
+      <div className="text-sm">{title}</div>
+      <div className="text-xs text-neutral-500 mt-0.5">{hint}</div>
+    </button>
+  );
+}
+
+function ModeOption({
+  selected,
+  onClick,
+  title,
+  hint,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "flex-1 text-left px-2.5 py-1.5 rounded border text-xs transition-colors " +
+        (selected ? "border-sky-600 bg-sky-950/30" : "border-neutral-800 hover:border-neutral-600")
+      }
+    >
+      <div className="text-neutral-200">{title}</div>
+      <div className="text-neutral-500">{hint}</div>
+    </button>
   );
 }
 

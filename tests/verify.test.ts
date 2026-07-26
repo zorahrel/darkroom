@@ -420,3 +420,14 @@ describe("built-in wording is kept current", () => {
     }
   });
 });
+
+describe("browser launch", () => {
+  test("a macOS Chrome binary resolves to its bundle, anything else doesn't", async () => {
+    const { macAppBundle } = await import("../server/worker.ts");
+    if (process.platform !== "darwin") return;
+    expect(macAppBundle("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")).toBe(
+      "/Applications/Google Chrome.app",
+    );
+    expect(macAppBundle("/usr/bin/chromium")).toBeNull();
+  });
+});

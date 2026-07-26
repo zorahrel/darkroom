@@ -85,6 +85,7 @@ export default function App() {
     failed: 0,
   };
   const activeJobs = (summary.pending ?? 0) + (summary.running ?? 0);
+  const activeProject = projects.find((p) => p.id === pid);
 
   return (
     <div className="min-h-full flex flex-col">
@@ -113,7 +114,9 @@ export default function App() {
             />
           </div>
 
-          {/* Views of the active project. */}
+          {/* Views of the active project. Storyboard shows for a storyboard
+              project — or for any project that already has panels, because a
+              view is never hidden from data that exists. */}
           {pid && (
             <nav className="flex items-center gap-0.5 text-sm rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
               <ViewTab
@@ -126,12 +129,15 @@ export default function App() {
               >
                 Griglia
               </ViewTab>
-              <ViewTab
-                to={`/p/${pid}/storyboard`}
-                current={location.pathname.includes("/storyboard")}
-              >
-                Storyboard
-              </ViewTab>
+              {(activeProject?.kind === "storyboard" ||
+                (activeProject?.stats?.panels ?? 0) > 0) && (
+                <ViewTab
+                  to={`/p/${pid}/storyboard`}
+                  current={location.pathname.includes("/storyboard")}
+                >
+                  Storyboard
+                </ViewTab>
+              )}
               {orphanCount > 0 && (
                 <ViewTab
                   to={`/p/${pid}/orphans`}
@@ -298,6 +304,18 @@ function ProjectMenu({
             </button>
           ))}
           <div className="my-1 border-t border-neutral-800" />
+          {activeId && (
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                navigate(`/p/${encodeURIComponent(activeId)}/sources`);
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            >
+              <span className="pl-5">Foto del progetto…</span>
+            </button>
+          )}
           <button
             role="menuitem"
             onClick={() => {

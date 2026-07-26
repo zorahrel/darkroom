@@ -1,6 +1,9 @@
 import { jsonFetch } from "./http";
 import type {
   BakeResult,
+  ImportSummary,
+  PhotoSource,
+  ProjectKind,
   FailureMode,
   FavoriteSuggestion,
   VerificationSummary,
@@ -189,12 +192,24 @@ export const api = {
     jsonFetch<{ photos: RunPhoto[] }>(`/api/runs/${id}/photos`),
   // Studio: cross-project overview + registry management.
   studioProjects: () => jsonFetch<StudioOverview>("/api/studio/projects"),
-  studioAddProject: (input: { id: string; name?: string; root: string }) =>
-    jsonFetch<{ project: StudioProject }>("/api/studio/projects", {
+  // A name is enough; everything else is optional.
+  studioAddProject: (input: {
+    name: string;
+    kind?: ProjectKind;
+    root?: string;
+    photos?: { path: string; mode?: "link" | "copy" };
+  }) =>
+    jsonFetch<{ project: StudioProject; summary: ImportSummary | null }>("/api/studio/projects", {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  studioPatchProject: (pid: string, patch: { name?: string; active?: boolean }) =>
+  /** Forget a project: registry only — the folder and its work stay on disk. */
+  studioRemoveProject: (pid: string) =>
+    jsonFetch<{ ok: true; project: StudioProject }>(
+      `/api/studio/projects/${encodeURIComponent(pid)}`,
+      { method: "DELETE" },
+    ),
+  studioPatchProject: (pid: string, patch: { name?: string; active?: boolean; kind?: ProjectKind }) =>
     jsonFetch<{ project: StudioProject }>(
       `/api/studio/projects/${encodeURIComponent(pid)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
@@ -265,6 +280,22 @@ export const api = {
     }),
   exportStoryboard: () =>
     jsonFetch<StoryboardExport>("/api/storyboard/export", { method: "POST" }),
+  // Photo sources of the active project: folders linked in place, or copied.
+  sources: () => jsonFetch<{ sources: PhotoSource[] }>("/api/sources"),
+  addSource: (path: string, mode: "link" | "copy" = "link") =>
+    jsonFetch<{ source: PhotoSource; summary: ImportSummary; sources: PhotoSource[] }>(
+      "/api/sources",
+      { method: "POST", body: JSON.stringify({ path, mode }) },
+    ),
+  rescanSources: () =>
+    jsonFetch<{ summary: ImportSummary; sources: PhotoSource[] }>("/api/sources/rescan", {
+      method: "POST",
+    }),
+  removeSource: (path: string) =>
+    jsonFetch<{ ok: true; sources: PhotoSource[] }>("/api/sources", {
+      method: "DELETE",
+      body: JSON.stringify({ path }),
+    }),
   // Quality control: the gate reports, the user decides.
   failureModes: () => jsonFetch<{ modes: FailureMode[] }>("/api/verify/modes"),
   setFailureMode: (input: Partial<FailureMode> & { code: string }) =>

@@ -24,10 +24,15 @@ export const REGISTRY_PATH =
   (process.env.DARKROOM_REGISTRY && resolve(process.env.DARKROOM_REGISTRY.trim())) ||
   join(homedir(), "Darkroom", "projects.json");
 
+/** What a project is for. It decides which views the UI offers — the pipeline
+ *  (generation, grade, quality checks) is the same for both. */
+export type ProjectKind = "photo" | "storyboard";
+
 export type Project = {
   id: string;
   name: string;
   root: string;
+  kind: ProjectKind;
   active: boolean;
   created_at: number;
 };
@@ -53,9 +58,32 @@ function defaultProject(): Project {
     id: DEFAULT_PROJECT_ID,
     name: basename(cfg.ROOT) || DEFAULT_PROJECT_ID,
     root: cfg.ROOT,
+    kind: "photo",
     active: true,
     created_at: 0,
   };
+}
+
+/** A readable id derived from the name. The user never types this. */
+export function slugify(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+/** `base`, or `base-2`, `base-3`… — whatever is free in the registry. */
+function uniqueId(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${base}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  throw new Error(`troppi progetti chiamati "${base}"`);
 }
 
 function normalize(p: unknown): Project | null {
@@ -67,6 +95,8 @@ function normalize(p: unknown): Project | null {
     id: o.id,
     name: typeof o.name === "string" && o.name ? o.name : o.id,
     root: resolve(o.root),
+    // Projects written before this field existed are photo projects.
+    kind: o.kind === "storyboard" ? "storyboard" : "photo",
     active: o.active !== false,
     created_at: typeof o.created_at === "number" ? o.created_at : 0,
   };
@@ -110,17 +140,56 @@ export function getProject(id: string): Project | undefined {
   return p ? { ...p } : undefined;
 }
 
-export function addProject(input: { id: string; name?: string; root: string; active?: boolean }): Project {
-  const id = String(input.id || "").trim();
-  if (!SLUG.test(id)) throw new Error(`id progetto non valido: "${id}" (usa a-z 0-9 _ -)`);
+/**
+ * Create a project from a name.
+ *
+ * Everything else is optional: the id is a slug of the name (deduped), and with
+ * no `root` the project gets its own folder under `PROJECTS_DIR`, created here
+ * along with its data dirs. Passing `root` is the escape hatch for "I already
+ * have a folder" — that one has to exist.
+ */
+export function addProject(input: {
+  name: string;
+  id?: string;
+  root?: string;
+  kind?: ProjectKind;
+  active?: boolean;
+}): Project {
+  const name = String(input.name ?? "").trim();
+  if (!name) throw new Error("serve un nome per il progetto");
   const list = load();
-  if (list.some((p) => p.id === id)) throw new Error(`progetto già esistente: ${id}`);
-  const root = resolve(String(input.root || "").trim());
-  if (!root) throw new Error("root progetto mancante");
+  const taken = new Set(list.map((p) => p.id));
+
+  const requested = String(input.id ?? "").trim();
+  if (requested && !SLUG.test(requested)) {
+    throw new Error(`id progetto non valido: "${requested}" (usa a-z 0-9 _ -)`);
+  }
+  if (requested && taken.has(requested)) throw new Error(`progetto già esistente: ${requested}`);
+  const base = requested || slugify(name);
+  if (!base) throw new Error(`dal nome "${name}" non esce un id utilizzabile: scrivilo con delle lettere`);
+  const id = requested || uniqueId(base, taken);
+
+  const explicitRoot = String(input.root ?? "").trim();
+  const root = explicitRoot ? resolve(explicitRoot) : join(cfg.PROJECTS_DIR, id);
+  if (explicitRoot && !existsSync(root)) {
+    throw new Error(`cartella inesistente: ${root}`);
+  }
+  if (list.some((p) => p.root === root)) {
+    throw new Error(`quella cartella è già di un altro progetto: ${root}`);
+  }
+  if (!explicitRoot) {
+    // Ours to create: make the folder and the data layout in one go, so the
+    // project is usable the moment it appears in the list.
+    for (const dir of [root, join(root, "data"), join(root, "data", "RAW")]) {
+      mkdirSync(dir, { recursive: true });
+    }
+  }
+
   const project: Project = {
     id,
-    name: (input.name && input.name.trim()) || id,
+    name,
     root,
+    kind: input.kind === "storyboard" ? "storyboard" : "photo",
     active: input.active !== false,
     created_at: Date.now(),
   };
@@ -135,9 +204,25 @@ export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "c
   if (!p) return undefined;
   if (typeof patch.name === "string" && patch.name.trim()) p.name = patch.name.trim();
   if (typeof patch.root === "string" && patch.root.trim()) p.root = resolve(patch.root.trim());
+  if (patch.kind === "photo" || patch.kind === "storyboard") p.kind = patch.kind;
   if (typeof patch.active === "boolean") p.active = patch.active;
   persist();
   return { ...p };
+}
+
+/**
+ * Forget a project. Only the registry entry goes: the folder, the database and
+ * every render stay exactly where they are, so this is undoable by re-adding
+ * the same folder. Deleting a project's work is not something a dashboard
+ * button should be able to do.
+ */
+export function removeProject(id: string): Project | undefined {
+  const list = load();
+  const at = list.findIndex((p) => p.id === id);
+  if (at < 0) return undefined;
+  const [removed] = list.splice(at, 1);
+  persist();
+  return removed ? { ...removed } : undefined;
 }
 
 // ---- Active-project context (AsyncLocalStorage) ---------------------------

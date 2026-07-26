@@ -241,6 +241,14 @@ export async function restartChatgptBrowser(): Promise<{ ok: boolean; error?: st
   return launchChatgptBrowser();
 }
 
+/** `/Applications/X.app/Contents/MacOS/X` → `/Applications/X.app`, else null. */
+export function macAppBundle(binPath: string): string | null {
+  if (process.platform !== "darwin") return null;
+  const marker = ".app/Contents/MacOS/";
+  const at = binPath.indexOf(marker);
+  return at < 0 ? null : binPath.slice(0, at + ".app".length);
+}
+
 export async function launchChatgptBrowser(): Promise<{ ok: boolean; error?: string }> {
   if (await checkChatgptBrowserAlive()) return { ok: true };
   const chromeBin = resolveChromeBin();
@@ -252,18 +260,39 @@ export async function launchChatgptBrowser(): Promise<{ ok: boolean; error?: str
         : "No Chrome/Chromium found. Set CHROME_BIN to its path.",
     };
   }
-  spawn({
-    cmd: [
-      chromeBin,
-      `--user-data-dir=${CHROME_PROFILE}`,
-      `--remote-debugging-port=${CHATGPT_CDP_PORT}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      "https://chatgpt.com/",
-    ],
-    stdout: "ignore",
-    stderr: "ignore",
-  });
+  const args = [
+    `--user-data-dir=${CHROME_PROFILE}`,
+    `--remote-debugging-port=${CHATGPT_CDP_PORT}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "https://chatgpt.com/",
+  ];
+
+  // The browser must OUTLIVE this server. Launched as a plain child it dies
+  // with us — and since the server usually runs under a process manager, every
+  // restart silently took the logged-in ChatGPT window down with it, leaving
+  // the queue stuck behind an "offline" badge nobody asked for.
+  //
+  // `detached` puts it in its own process group, so a signal aimed at the
+  // server's group doesn't reach it. On macOS we go further and hand the launch
+  // to LaunchServices (`open -na <bundle>`), which reparents Chrome away from
+  // us entirely.
+  const bundle = macAppBundle(chromeBin);
+  if (bundle) {
+    spawn({
+      cmd: ["open", "-na", bundle, "--args", ...args],
+      stdout: "ignore",
+      stderr: "ignore",
+      detached: true,
+    });
+  } else {
+    spawn({
+      cmd: [chromeBin, ...args],
+      stdout: "ignore",
+      stderr: "ignore",
+      detached: true,
+    });
+  }
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 500));
     if (await checkChatgptBrowserAlive()) return { ok: true };
