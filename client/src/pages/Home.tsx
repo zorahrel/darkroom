@@ -56,76 +56,82 @@ export default function Home() {
     }, 500);
   }
 
-  if (!grade) return <div className="p-6 text-neutral-400">Carico…</div>;
-
-  const panel = (
-    <PipelineBar
-      grade={grade}
-      luts={luts}
-      patch={patch}
-      saving={saving}
-      gradedView={gradedView}
-      setGradedView={setGradedView}
-      onChanged={() => {
-        setBust(Date.now());
-        setReload((n) => n + 1);
-      }}
-    />
-  );
-
   // Grid (gallery) and pipeline are visible together: grid scrolls on the left,
   // the pipeline rail stays pinned on the right (desktop). On mobile the rail
   // becomes a bottom sheet behind a floating button — the grid keeps the width.
+  // The grid does NOT wait on `grade` — it has its own sane defaults (ungraded
+  // preview, bust=0) so it can mount and start fetching/painting photos while
+  // the color-grade settings are still loading, instead of the two calls being
+  // forced into a dependent, serial chain.
   return (
     <div className="lg:flex lg:items-start lg:gap-4">
       <div className="flex-1 min-w-0 pb-20 lg:pb-4">
-        <Library graded={gradedView && grade.enabled} bust={bust} reloadKey={reload} />
+        <Library graded={gradedView && (grade?.enabled ?? false)} bust={bust} reloadKey={reload} />
       </div>
 
+      {/* Reserves its column width immediately (not just once `grade` lands)
+          so the grid's flex width doesn't jump when the panel's content pops in. */}
       <aside className="hidden lg:flex flex-col w-[340px] shrink-0 sticky top-[68px] h-[calc(100vh-88px)] rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950">
-        {panel}
+        {grade && (
+          <PipelineBar
+            grade={grade}
+            luts={luts}
+            patch={patch}
+            saving={saving}
+            gradedView={gradedView}
+            setGradedView={setGradedView}
+            onChanged={() => {
+              setBust(Date.now());
+              setReload((n) => n + 1);
+            }}
+          />
+        )}
       </aside>
 
-      {/* Mobile: floating button opens the pipeline as a bottom sheet. */}
-      <button
-        onClick={() => setSheetOpen(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-100 text-neutral-900 shadow-lg font-medium text-sm"
-      >
-        <IconLayers /> Pipeline
-        <span
-          className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
-        />
-      </button>
-      {sheetOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 h-[86dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 overflow-hidden shadow-2xl">
-            <div className="flex items-center px-3 py-2 border-b border-neutral-800 shrink-0">
-              <span className="text-sm font-medium flex-1">Pipeline — default del set</span>
-              <button
-                onClick={() => setSheetOpen(false)}
-                className="p-1.5 rounded text-neutral-400 hover:text-white"
-                aria-label="chiudi"
-              >
-                <IconClose />
-              </button>
+      {grade && (
+        <>
+          {/* Mobile: floating button opens the pipeline as a bottom sheet. */}
+          <button
+            onClick={() => setSheetOpen(true)}
+            className="lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-100 text-neutral-900 shadow-lg font-medium text-sm"
+          >
+            <IconLayers /> Pipeline
+            <span
+              className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
+            />
+          </button>
+          {sheetOpen && (
+            <div className="lg:hidden fixed inset-0 z-50">
+              <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
+              <div className="absolute inset-x-0 bottom-0 h-[86dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 overflow-hidden shadow-2xl">
+                <div className="flex items-center px-3 py-2 border-b border-neutral-800 shrink-0">
+                  <span className="text-sm font-medium flex-1">Pipeline — default del set</span>
+                  <button
+                    onClick={() => setSheetOpen(false)}
+                    className="p-1.5 rounded text-neutral-400 hover:text-white"
+                    aria-label="chiudi"
+                  >
+                    <IconClose />
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <PipelineBar
+                    grade={grade}
+                    luts={luts}
+                    patch={patch}
+                    saving={saving}
+                    gradedView={gradedView}
+                    setGradedView={setGradedView}
+                    onChanged={() => {
+                      setBust(Date.now());
+                      setReload((n) => n + 1);
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="flex-1 min-h-0">
-              <PipelineBar
-                grade={grade}
-                luts={luts}
-                patch={patch}
-                saving={saving}
-                gradedView={gradedView}
-                setGradedView={setGradedView}
-                onChanged={() => {
-                  setBust(Date.now());
-                  setReload((n) => n + 1);
-                }}
-              />
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );

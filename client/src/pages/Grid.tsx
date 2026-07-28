@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { api, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
@@ -145,9 +145,17 @@ export default function GridPage({
     api.listPhotos(filter).then((r) => setPhotos(r.photos));
   }, [filter]);
 
-  // Refresh photos when jobs finish (so version_count badge updates)
+  // Refresh photos when jobs finish (so version_count badge updates). Skip the
+  // very first time jobs data arrives (null -> populated, right after mount) —
+  // that's not a completion, just the initial poll landing, and refetching then
+  // duplicates the mount effect above for no reason.
+  const prevJobsSummaryRef = useRef<{ done: number; failed: number } | null>(null);
   useEffect(() => {
     if (!jobs) return;
+    const prev = prevJobsSummaryRef.current;
+    const cur = { done: jobs.summary.done ?? 0, failed: jobs.summary.failed ?? 0 };
+    prevJobsSummaryRef.current = cur;
+    if (!prev || (prev.done === cur.done && prev.failed === cur.failed)) return;
     api.listPhotos(filter).then((r) => setPhotos(r.photos));
   }, [jobs?.summary?.done, jobs?.summary?.failed, filter]);
 
