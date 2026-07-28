@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   type ColorGrade,
   type GradeStep,
@@ -317,7 +317,7 @@ function StepBody({
 
   if (step.type === "white_balance") {
     return (
-      <div className="space-y-1.5 text-sm">
+      <div className="space-y-2.5 text-sm">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -334,7 +334,7 @@ function StepBody({
           />
           Scene-match (WB uniforme fra scatti gemelli)
         </label>
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-neutral-500 leading-snug">
           Scene-match, dove attivo, sostituisce l'AWB per-immagine con un gain
           condiviso dal gruppo.
         </p>
@@ -344,30 +344,28 @@ function StepBody({
 
   if (step.type === "levels") {
     return (
-      <div className="flex flex-wrap gap-4 text-sm">
-        <label className="flex flex-col gap-1">
-          <span className="text-neutral-400">nero (percentile) · {num(p.black, 0.4)}</span>
-          <input
-            type="range"
-            min={0}
-            max={5}
-            step={0.1}
-            value={num(p.black, 0.4)}
-            onChange={(e) => onParams({ black: Number(e.target.value) })}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-neutral-400">bianco (percentile) · {num(p.white, 99.6)}</span>
-          <input
-            type="range"
-            min={95}
-            max={100}
-            step={0.1}
-            value={num(p.white, 99.6)}
-            onChange={(e) => onParams({ white: Number(e.target.value) })}
-          />
-        </label>
-        <label className="flex items-start gap-2 basis-full">
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Nero (percentile)"
+          value={num(p.black, 0.4)}
+          onChange={(v) => onParams({ black: v })}
+          min={0}
+          max={5}
+          step={0.1}
+          format={(v) => v.toFixed(1)}
+          resetTo={0.4}
+        />
+        <SliderRow
+          label="Bianco (percentile)"
+          value={num(p.white, 99.6)}
+          onChange={(v) => onParams({ white: v })}
+          min={95}
+          max={100}
+          step={0.1}
+          format={(v) => v.toFixed(1)}
+          resetTo={99.6}
+        />
+        <label className="flex items-start gap-2">
           <input
             type="checkbox"
             className="mt-0.5"
@@ -376,7 +374,7 @@ function StepBody({
           />
           <span className="text-neutral-400">
             Proteggi le alte luci
-            <span className="block text-[11px] text-neutral-500">
+            <span className="block text-[11px] text-neutral-500 leading-snug">
               Comprime i toni chiari verso il bianco invece di bruciarli — utile
               su cieli e insegne molto luminose.
             </span>
@@ -388,7 +386,7 @@ function StepBody({
 
   if (step.type === "sakura") {
     return (
-      <p className="text-[11px] text-neutral-500">
+      <p className="text-[11px] text-neutral-500 leading-snug">
         Schiarisce e uniforma i sakura (nessun parametro).
       </p>
     );
@@ -396,30 +394,28 @@ function StepBody({
 
   if (step.type === "sky") {
     return (
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-400 flex items-center justify-between">
-          <span>Schiarisci i celesti (cielo)</span>
-          <span className="tabular-nums text-neutral-200">{num(p.amount, 40)}%</span>
-        </span>
-        <input
-          type="range"
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Schiarisci i celesti (cielo)"
+          value={num(p.amount, 40)}
+          onChange={(v) => onParams({ amount: v })}
           min={0}
           max={100}
-          value={num(p.amount, 40)}
-          onChange={(e) => onParams({ amount: Number(e.target.value) })}
+          format={(v) => `${v}%`}
+          resetTo={40}
         />
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-neutral-500 leading-snug">
           Maschera solo le tonalità ciano/blu chiare (cielo) e le schiarisce —
           non tocca insegne, vestiti o acqua molto saturi.
         </p>
-      </label>
+      </div>
     );
   }
 
   if (step.type === "lut") {
     const autoDose = bool(p.auto_dose);
     return (
-      <div className="space-y-3 text-sm">
+      <div className="space-y-2.5 text-sm">
         <label className="flex flex-col gap-1">
           <span className="text-neutral-400">LUT</span>
           <select
@@ -439,18 +435,15 @@ function StepBody({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-neutral-400">
-            Dose · <b className="text-neutral-200">{num(p.dose, 80)}%</b>
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={num(p.dose, 80)}
-            onChange={(e) => onParams({ dose: Number(e.target.value) })}
-          />
-        </label>
+        <SliderRow
+          label="Dose"
+          value={num(p.dose, 80)}
+          onChange={(v) => onParams({ dose: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={80}
+        />
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -460,18 +453,15 @@ function StepBody({
           Auto-dose sulle notturne/rosso-dominanti
         </label>
         {autoDose && (
-          <label className="flex flex-col gap-1">
-            <span className="text-neutral-400">
-              Dose notturne · <b className="text-neutral-200">{num(p.dose_night, 30)}%</b>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={num(p.dose_night, 30)}
-              onChange={(e) => onParams({ dose_night: Number(e.target.value) })}
-            />
-          </label>
+          <SliderRow
+            label="Dose notturne"
+            value={num(p.dose_night, 30)}
+            onChange={(v) => onParams({ dose_night: v })}
+            min={0}
+            max={100}
+            format={(v) => `${v}%`}
+            resetTo={30}
+          />
         )}
       </div>
     );
@@ -486,7 +476,7 @@ function StepBody({
     const resetBand = () =>
       onParams({ [`hue_${hslBand}`]: 0, [`sat_${hslBand}`]: 0, [`lum_${hslBand}`]: 0 });
     return (
-      <div className="space-y-3 text-sm">
+      <div className="space-y-2.5 text-sm">
         {/* All 8 bands as their own colour — the whole mixer is legible at a
             glance, and the target band (e.g. the celesti) is one tap away. */}
         <div className="grid grid-cols-8 gap-1">
@@ -536,7 +526,7 @@ function StepBody({
           <MixerSlider label="Saturazione" k={`sat_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="sat" />
           <MixerSlider label="Luminanza" k={`lum_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="lum" />
         </div>
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-neutral-500 leading-snug">
           Color mixer per banda (8 colori). Per abbassare i celesti: seleziona
           Acqua e Blu e riduci Saturazione/Luminanza.
         </p>
@@ -547,7 +537,7 @@ function StepBody({
   if (step.type === "curve") {
     const importedPoints = Array.isArray(p.points) ? (p.points as unknown[]) : null;
     return (
-      <div className="space-y-3 text-sm">
+      <div className="space-y-2.5 text-sm">
         {importedPoints && importedPoints.length >= 2 ? (
           <div className="flex items-center gap-2 rounded-lg border border-sky-900/60 bg-sky-950/20 px-3 py-2">
             <span className="text-sky-200 text-xs flex-1">
@@ -561,7 +551,7 @@ function StepBody({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+          <div className="grid grid-cols-1 gap-y-2.5">
             <ColorSlider label="Alte luci" k="highlights" p={p} onParams={onParams} />
             <ColorSlider label="Chiari" k="lights" p={p} onParams={onParams} />
             <ColorSlider label="Scuri" k="darks" p={p} onParams={onParams} />
@@ -585,7 +575,7 @@ function StepBody({
             </button>
           </div>
         )}
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-neutral-500 leading-snug">
           Curva parametrica sui quarti tonali. Un import Lightroom con curva a punti
           (composita o per-canale R/G/B) la applica esattamente.
         </p>
@@ -595,34 +585,26 @@ function StepBody({
 
   if (step.type === "split_tone") {
     return (
-      <div className="space-y-2 text-sm">
+      <div className="space-y-2.5 text-sm">
         <RegionTint label="Ombre" region="shadows" p={p} onParams={onParams} />
         <RegionTint label="Mezzitoni" region="midtones" p={p} onParams={onParams} />
         <RegionTint label="Alte luci" region="highlights" p={p} onParams={onParams} />
-        <label className="flex flex-col gap-1 pt-1">
-          <span className="text-neutral-400 flex items-center justify-between">
-            <span>Bilanciamento (ombre ↔ luci)</span>
-            <span className="tabular-nums text-neutral-200">{num(p.balance, 0)}</span>
-          </span>
-          <input
-            type="range"
-            min={-100}
-            max={100}
-            value={num(p.balance, 0)}
-            onChange={(e) => onParams({ balance: Number(e.target.value) })}
-            onDoubleClick={() => onParams({ balance: 0 })}
-          />
-        </label>
+        <SliderRow
+          label="Bilanciamento (ombre ↔ luci)"
+          value={num(p.balance, 0)}
+          onChange={(v) => onParams({ balance: v })}
+          resetTo={0}
+        />
       </div>
     );
   }
 
   if (step.type === "color") {
     return (
-      <div className="space-y-3 text-sm">
+      <div className="space-y-2.5 text-sm">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Toni</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+          <div className="grid grid-cols-1 gap-y-2.5">
             <ColorSlider label="Esposizione" k="exposure" p={p} onParams={onParams} />
             <ColorSlider label="Contrasto" k="contrast" p={p} onParams={onParams} />
             <ColorSlider label="Alte luci" k="highlights" p={p} onParams={onParams} />
@@ -634,7 +616,7 @@ function StepBody({
         </div>
         <div>
           <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Colore</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+          <div className="grid grid-cols-1 gap-y-2.5">
             <ColorSlider label="Temperatura (freddo ↔ caldo)" k="temp" p={p} onParams={onParams} />
             <ColorSlider label="Tinta (verde ↔ magenta)" k="tint" p={p} onParams={onParams} />
             <ColorSlider label="Saturazione" k="saturation" p={p} onParams={onParams} />
@@ -691,6 +673,63 @@ function AiStepEditor({
   );
 }
 
+// One compact, consistent slider row — label, live value, optional colour-tinted
+// track, optional double-click-to-reset. Every step (levels, sky, lut, hsl mixer,
+// curve, split-tone, color, local mask) renders its sliders through this so row
+// height, value formatting and the reset affordance never drift between steps.
+function SliderRow({
+  label,
+  value,
+  onChange,
+  min = -100,
+  max = 100,
+  step = 1,
+  format = (v: number) => (v > 0 ? `+${v}` : `${v}`),
+  track,
+  resetTo,
+  dense,
+}: {
+  label: ReactNode;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  format?: (v: number) => string;
+  track?: string;
+  resetTo?: number;
+  dense?: boolean;
+}) {
+  return (
+    <label className={dense ? "flex flex-col gap-0.5" : "flex flex-col gap-1"}>
+      <span
+        className={
+          dense
+            ? "text-[11px] text-neutral-500 flex items-center justify-between"
+            : "text-neutral-400 flex items-center justify-between"
+        }
+      >
+        <span>{label}</span>
+        <span className={dense ? "tabular-nums" : "tabular-nums text-neutral-200"}>
+          {format(value)}
+        </span>
+      </span>
+      <input
+        type="range"
+        className={track ? "dr-hue" : undefined}
+        style={track ? ({ "--dr-track": track } as CSSProperties) : undefined}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onDoubleClick={resetTo !== undefined ? () => onChange(resetTo) : undefined}
+        title={resetTo !== undefined ? "doppio click = reset" : undefined}
+      />
+    </label>
+  );
+}
+
 function ColorSlider({
   label,
   k,
@@ -702,23 +741,13 @@ function ColorSlider({
   p: Record<string, unknown>;
   onParams: (p: Record<string, unknown>) => void;
 }) {
-  const v = num(p[k], 0);
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-neutral-400 flex items-center justify-between">
-        <span>{label}</span>
-        <span className="tabular-nums text-neutral-200">{v > 0 ? `+${v}` : v}</span>
-      </span>
-      <input
-        type="range"
-        min={-100}
-        max={100}
-        value={v}
-        onChange={(e) => onParams({ [k]: Number(e.target.value) })}
-        onDoubleClick={() => onParams({ [k]: 0 })}
-        title="doppio click = 0"
-      />
-    </label>
+    <SliderRow
+      label={label}
+      value={num(p[k], 0)}
+      onChange={(v) => onParams({ [k]: v })}
+      resetTo={0}
+    />
   );
 }
 
@@ -750,7 +779,6 @@ function MixerSlider({
   hue: number;
   kind: "hue" | "sat" | "lum";
 }) {
-  const v = num(p[k], 0);
   const track =
     kind === "hue"
       ? `linear-gradient(90deg, hsl(${hue - 40} 65% 50%), hsl(${hue} 72% 52%), hsl(${hue + 40} 65% 50%))`
@@ -758,23 +786,13 @@ function MixerSlider({
         ? `linear-gradient(90deg, hsl(${hue} 4% 55%), hsl(${hue} 82% 50%))`
         : `linear-gradient(90deg, hsl(${hue} 45% 13%), hsl(${hue} 55% 52%), hsl(${hue} 38% 92%))`;
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-neutral-400 flex items-center justify-between">
-        <span>{label}</span>
-        <span className="tabular-nums text-neutral-200">{v > 0 ? `+${v}` : v}</span>
-      </span>
-      <input
-        type="range"
-        className="dr-hue"
-        style={{ "--dr-track": track } as CSSProperties}
-        min={-100}
-        max={100}
-        value={v}
-        onChange={(e) => onParams({ [k]: Number(e.target.value) })}
-        onDoubleClick={() => onParams({ [k]: 0 })}
-        title="doppio click = 0"
-      />
-    </label>
+    <SliderRow
+      label={label}
+      value={num(p[k], 0)}
+      onChange={(v) => onParams({ [k]: v })}
+      track={track}
+      resetTo={0}
+    />
   );
 }
 
@@ -802,32 +820,26 @@ function RegionTint({
         />
         <span className="text-neutral-300">{label}</span>
       </div>
-      <label className="flex flex-col gap-0.5">
-        <span className="text-[11px] text-neutral-500 flex items-center justify-between">
-          <span>Tonalità</span>
-          <span className="tabular-nums">{hue}°</span>
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={360}
-          value={hue}
-          onChange={(e) => onParams({ [`${region}_hue`]: Number(e.target.value) })}
-        />
-      </label>
-      <label className="flex flex-col gap-0.5">
-        <span className="text-[11px] text-neutral-500 flex items-center justify-between">
-          <span>Saturazione</span>
-          <span className="tabular-nums">{sat}</span>
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={sat}
-          onChange={(e) => onParams({ [`${region}_sat`]: Number(e.target.value) })}
-        />
-      </label>
+      <SliderRow
+        label="Tonalità"
+        value={hue}
+        onChange={(v) => onParams({ [`${region}_hue`]: v })}
+        min={0}
+        max={360}
+        format={(v) => `${v}°`}
+        resetTo={0}
+        dense
+      />
+      <SliderRow
+        label="Saturazione"
+        value={sat}
+        onChange={(v) => onParams({ [`${region}_sat`]: v })}
+        min={0}
+        max={100}
+        format={(v) => `${v}`}
+        resetTo={0}
+        dense
+      />
     </div>
   );
 }
@@ -919,7 +931,7 @@ function MaskControls({
             Inverti maschera
           </label>
         )}
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-neutral-500 leading-snug">
           Applica lo step solo dentro la regione (radiale) o su un lato del
           gradiente (lineare). Il resto dell'immagine resta invariato.
         </p>
@@ -949,21 +961,17 @@ function MaskSlider({
   def?: number;
   pct?: boolean;
 }) {
-  const v = num(p[k], def);
   return (
-    <label className="flex flex-col gap-0.5">
-      <span className="text-[11px] text-neutral-500 flex items-center justify-between">
-        <span>{label}</span>
-        <span className="tabular-nums">{pct ? `${Math.round(v * 100)}%` : Math.round(v)}</span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={v}
-        onChange={(e) => set({ [k]: Number(e.target.value) })}
-      />
-    </label>
+    <SliderRow
+      label={label}
+      value={num(p[k], def)}
+      onChange={(v) => set({ [k]: v })}
+      min={min}
+      max={max}
+      step={step}
+      format={(v) => (pct ? `${Math.round(v * 100)}%` : `${Math.round(v)}`)}
+      resetTo={def}
+      dense
+    />
   );
 }
