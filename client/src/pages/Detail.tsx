@@ -36,8 +36,6 @@ import {
   IconDownload,
   IconInfo,
   IconText,
-  IconReset,
-  IconBake,
 } from "../components/mobile/icons";
 import { useHistory } from "../lib/useHistory";
 import Spinner from "../components/detail/Spinner";
@@ -426,6 +424,7 @@ export default function DetailPage() {
         onExit={() => navigate(base || "/")}
         mobileExtras={versionsPanel}
         infoPanel={infoPanel}
+        openStepId={searchParams.get("step")}
         photoNav={{
           prev: siblings.prev ?? null,
           next: siblings.next ?? null,

@@ -13,7 +13,6 @@ import {
 } from "../../api";
 import { StepParams, groupLuts, isStepTouched, stepSummary } from "../StepEditor";
 import {
-  IconBake,
   IconBookmark,
   IconChevronLeft,
   IconClose,
@@ -22,7 +21,6 @@ import {
   IconShieldCheck,
   IconLayers,
   IconRedo,
-  IconReset,
   IconText,
   IconUndo,
   StepIcon,
@@ -55,6 +53,7 @@ export function PhotoPipeline({
   mobileExtras,
   infoPanel,
   photoNav,
+  openStepId,
 }: {
   photoId: string;
   versionNumber: number | null;
@@ -81,6 +80,8 @@ export function PhotoPipeline({
     onPrev: () => void;
     onNext: () => void;
   };
+  /** Deep-link (`?step=<id>`): expand and scroll to this step on mount. */
+  openStepId?: string | null;
 }) {
   // Stato del colore con undo/redo: `setDraft` registra la storia, i drag degli
   // slider collassano in un passo solo (coalescing nell'hook).
@@ -96,7 +97,10 @@ export function PhotoPipeline({
   const [saving, setSaving] = useState(false);
   const [compare, setCompare] = useState(false);
   const [baking, setBaking] = useState(false);
-  const [bakeMsg, setBakeMsg] = useState<string | null>(null);
+  const [savingGlobal, setSavingGlobal] = useState(false);
+  // Feedback for the two non-per-photo-save actions (bake, salva-come-globale) —
+  // shown in the master row, whichever fired last.
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
   const hasAiStep = draft.steps.some((s) => s.enabled && s.type === "ai");
   const effSig = JSON.stringify(effectiveGrade);
   // Re-sync (and clear history) when the upstream effective grade changes,
@@ -161,15 +165,37 @@ export function PhotoPipeline({
   }
   async function doBake() {
     setBaking(true);
-    setBakeMsg(hasAiStep ? "Bake in corso (step AI, può richiedere minuti)…" : "Bake…");
+    setActionMsg(hasAiStep ? "Bake in corso (step AI, può richiedere minuti)…" : "Bake…");
     try {
       const res = await api.bake(photoId);
-      setBakeMsg(res.ok ? "Bake completato ✓" : `Bake fallito: ${res.error ?? "?"}`);
+      setActionMsg(res.ok ? "Bake completato ✓" : `Bake fallito: ${res.error ?? "?"}`);
       if (res.ok) await onSaved();
     } catch (e) {
-      setBakeMsg(`Bake fallito: ${e instanceof Error ? e.message : String(e)}`);
+      setActionMsg(`Bake fallito: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBaking(false);
+    }
+  }
+  // Promuove il grade di QUESTA foto a default dell'intero set (sovrascrive
+  // settings.color_grade) — l'unico modo dal detail di toccare il globale,
+  // distinto dal "Salva" qui sotto che scrive solo l'override della foto.
+  async function doSaveGlobal() {
+    if (
+      !confirm(
+        "Salvare questo grade come default per TUTTO il set?\n\nSovrascrive il grade globale — ogni foto senza un override proprio lo erediterà.",
+      )
+    )
+      return;
+    setSavingGlobal(true);
+    setActionMsg("Salvo come default del set…");
+    try {
+      await api.setColorGrade(draft);
+      setActionMsg("Impostato come default del set ✓");
+      await onSaved();
+    } catch (e) {
+      setActionMsg(`Salvataggio globale fallito: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSavingGlobal(false);
     }
   }
   // Esporta l'immagine gradata full-res della versione corrente (download).
@@ -344,10 +370,29 @@ export function PhotoPipeline({
           >
             <IconDownload /> Scarica full-res
           </button>
-          <p className="text-[11px] text-neutral-500">
-            Per applicarlo in modo permanente su una nuova versione usa invece{" "}
-            <b className="text-neutral-300">Bake</b> (in alto).
-          </p>
+          <div className="pt-2 mt-2 border-t border-neutral-800 space-y-2">
+            <p className="text-sm text-neutral-400">
+              <b className="text-neutral-200">Bake</b>: crea una nuova versione con
+              questo grade già bruciato nei pixel (non più calcolato al volo).
+              Serve per congelare il risultato — es. prima di cambiare il grade
+              globale, o per costruirci sopra un altro step AI — non per il
+              lavoro quotidiano: fino a qui il grade si vede già live nell'anteprima
+              e nell'export.
+            </p>
+            <button
+              disabled={baking || dirty}
+              onClick={doBake}
+              title={dirty ? "Salva prima le modifiche per poter fare il bake" : undefined}
+              className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-violet-700 text-violet-200 hover:bg-violet-950/40 disabled:opacity-50"
+            >
+              {baking ? "Bake in corso…" : "Bake — nuova versione"}
+            </button>
+            {dirty && (
+              <p className="text-[11px] text-amber-400">
+                Ci sono modifiche non salvate: salva prima di fare il bake.
+              </p>
+            )}
+          </div>
         </div>
       ),
     });
@@ -406,6 +451,7 @@ export function PhotoPipeline({
   return (
       <EditorRail
           storageKey="darkroom.rail.detail"
+          openStepId={openStepId}
           preview={previewNode}
           onReorderStep={reorderStepAt}
           title={
@@ -469,22 +515,19 @@ export function PhotoPipeline({
                   onClick={doReset}
                   aria-label="reset override"
                   title="Reset override"
-                  className="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50"
+                  className="text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50 whitespace-nowrap"
                 >
-                  <IconReset className="w-4 h-4 sm:hidden" />
-                  <span className="hidden sm:inline">Reset</span>
+                  Reset
                 </button>
               )}
               <button
-                disabled={baking || dirty}
-                onClick={doBake}
-                aria-label="bake"
-                title="Bake (applica il grade in una nuova versione)"
-                className="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50"
+                disabled={savingGlobal}
+                onClick={doSaveGlobal}
+                aria-label="salva come grade globale"
+                title="Salva questo grade come default per tutto il set (sovrascrive il grade globale — le foto senza override lo erediteranno)"
+                className="text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50 whitespace-nowrap"
               >
-                <IconBake className="w-4 h-4 sm:hidden" />
-                <span className="hidden sm:inline">{baking ? "…" : "Bake"}</span>
-                <span className="sm:hidden">{baking ? "…" : ""}</span>
+                {savingGlobal ? "…" : "Globale"}
               </button>
               <button
                 disabled={saving || !dirty}
@@ -498,7 +541,7 @@ export function PhotoPipeline({
           master={{
             enabled: draft.enabled,
             onToggle: (val) => setDraft({ ...draft, enabled: val }),
-            info: bakeMsg ?? (hasGradeOverride ? "override locale" : "eredita il grade globale"),
+            info: actionMsg ?? (hasGradeOverride ? "override locale" : "eredita il grade globale"),
           }}
           addable={addableSteps}
           onAdd={(t) => addStep(t as GradeStepType)}

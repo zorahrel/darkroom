@@ -213,14 +213,6 @@ export const IconCompare = ({ className = "w-4 h-4" }: IconProps) => (
   </svg>
 );
 
-export const IconBake = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg {...svg(className)}>
-    <path d="M5 20h14" />
-    <path d="M7 20v-6a5 5 0 0 1 10 0v6" />
-    <path d="M12 4v3M9.5 5l.8 2M14.5 5l-.8 2" />
-  </svg>
-);
-
 export const IconRefresh = ({ className = "w-4 h-4" }: IconProps) => (
   <svg {...svg(className)}>
     <path d="M20 11a8 8 0 1 0-2.3 6" />

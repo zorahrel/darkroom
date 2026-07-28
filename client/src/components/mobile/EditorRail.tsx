@@ -5,6 +5,7 @@ import {
   IconClose,
   IconChevronUp,
   IconChevronDown,
+  IconChevronLeft,
   IconChevronRight,
   IconReset,
   IconTrash,
@@ -34,6 +35,7 @@ export default function EditorRail({
   onReorderStep,
   onClose,
   storageKey = "darkroom.rail",
+  openStepId,
 }: {
   title: string;
   leftAction?: ReactNode;
@@ -49,11 +51,14 @@ export default function EditorRail({
   // Distinct key per surface (Home vs Detail) so their rail-open / open-section
   // preferences don't collide in localStorage.
   storageKey?: string;
+  // Deep-link (`?step=<id>`): expand this step's section on mount and, on
+  // mobile, open the sheet for it — the rail alone hides behind a tap otherwise.
+  openStepId?: string | null;
 }) {
   const [railOpen, setRailOpen] = useState(
-    () => localStorage.getItem(`${storageKey}.open`) !== "0",
+    () => !!openStepId || localStorage.getItem(`${storageKey}.open`) !== "0",
   );
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(() => !!openStepId);
 
   function toggleRail(v: boolean) {
     setRailOpen(v);
@@ -85,6 +90,7 @@ export default function EditorRail({
       addable={addable}
       onAdd={onAdd}
       onReorderStep={onReorderStep}
+      openStepId={openStepId}
     />
   );
 
@@ -108,7 +114,10 @@ export default function EditorRail({
         </button>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      {/* Column on mobile (preview stacked over the docked sheet, so the sheet's
+          real height pushes the preview to shrink into what's left — no overlay,
+          no letterboxing above the live image); row on desktop (preview | rail). */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Main preview — always visible, updates live as you edit. */}
         <div className="relative flex-1 min-h-0 bg-black">{preview}</div>
 
@@ -118,27 +127,11 @@ export default function EditorRail({
             {pipeline}
           </aside>
         )}
-      </div>
 
-      {/* Mobile: a Pipeline button + a bottom sheet with the same list. */}
-      <button
-        onClick={() => setSheetOpen(true)}
-        className="lg:hidden flex items-center justify-center gap-2 py-2.5 border-t border-neutral-800 bg-neutral-950 text-sm text-neutral-200 shrink-0"
-      >
-        <IconLayers /> Pipeline
-        {master && (
-          <span
-            className={
-              "ml-1 w-1.5 h-1.5 rounded-full " +
-              (master.enabled ? "bg-emerald-400" : "bg-neutral-600")
-            }
-          />
-        )}
-      </button>
-      {sheetOpen && (
-        <div className="lg:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 shadow-2xl">
+        {/* Mobile bottom sheet, docked in normal flow (not a floating overlay)
+            so it actually claims its height from the preview above it. */}
+        {sheetOpen && (
+          <div className="lg:hidden shrink-0 max-h-[85dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 shadow-2xl">
             <div className="flex items-center px-3 py-2 border-b border-neutral-800 shrink-0">
               <span className="text-sm font-medium flex-1">Pipeline</span>
               <button
@@ -151,7 +144,25 @@ export default function EditorRail({
             </div>
             {pipeline}
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Mobile: reopen the sheet once it's closed. */}
+      {!sheetOpen && (
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="lg:hidden flex items-center justify-center gap-2 py-2.5 border-t border-neutral-800 bg-neutral-950 text-sm text-neutral-200 shrink-0"
+        >
+          <IconLayers /> Pipeline
+          {master && (
+            <span
+              className={
+                "ml-1 w-1.5 h-1.5 rounded-full " +
+                (master.enabled ? "bg-emerald-400" : "bg-neutral-600")
+              }
+            />
+          )}
+        </button>
       )}
     </div>
   );
@@ -167,21 +178,33 @@ export function PipelineList({
   addable,
   onAdd,
   onReorderStep,
+  openStepId,
 }: {
   groups: ToolGroup[];
   master?: MasterControls;
   addable?: AddableStep[];
   onAdd?: (type: string) => void;
   onReorderStep?: (from: number, to: number) => void;
+  openStepId?: string | null;
 }) {
   const [addOpen, setAddOpen] = useState(false);
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const onToggle = (id: string) =>
-    setOpen((cur) => {
-      const next = new Set(cur);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  // At most one section open at a time: opening a step is "focus mode" — the
+  // rest of the pipeline (master row, other steps, add-step) hides so the
+  // live preview isn't crowded by controls the user isn't touching. Toggling
+  // the open one back off returns to the full list.
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(openStepId ? [openStepId] : []),
+  );
+  const openId = open.size > 0 ? Array.from(open)[0] : null;
+  const onToggle = (id: string) => setOpen((cur) => (cur.has(id) ? new Set() : new Set([id])));
+
+  // Deep-link: scroll the requested section into view once its row exists.
+  useEffect(() => {
+    if (!openStepId) return;
+    document
+      .getElementById(`pipeline-step-${openStepId}`)
+      ?.scrollIntoView({ block: "center" });
+  }, [openStepId]);
 
   // Drag-to-reorder state, lifted here so any step section can be the drop
   // target while another is dragged. Indices are into the real steps[] array.
@@ -206,6 +229,27 @@ export function PipelineList({
       return changed ? next : cur;
     });
   }, [groups]);
+
+  const focused = openId ? groups.find((g) => g.id === openId) : undefined;
+  if (focused) {
+    // Focus mode: just the back row + this one section, expanded — no master
+    // row, no sibling steps, no add-step button.
+    return (
+      <div className="flex flex-col min-h-0 flex-1">
+        <button
+          onClick={() => onToggle(focused.id)}
+          className="flex items-center gap-1.5 px-2 py-2 border-b border-neutral-800 shrink-0 text-sm text-neutral-300 hover:text-white"
+        >
+          <IconChevronLeft className="w-4 h-4" />
+          Tutti gli step
+        </button>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <Section group={focused} open onToggle={() => onToggle(focused.id)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {master && (
@@ -254,7 +298,7 @@ export function PipelineList({
             <Section
               key={g.id}
               group={g}
-              open={open.has(g.id)}
+              open={false}
               onToggle={() => onToggle(g.id)}
               dnd={dnd}
             />
@@ -328,6 +372,7 @@ function Section({
   const dim = step && !step.enabled;
   return (
     <div
+      id={`pipeline-step-${group.id}`}
       className={"border-b border-neutral-800/70 relative " + (dnd?.dragging ? "opacity-40" : "")}
       onDragOver={
         dnd
