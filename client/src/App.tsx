@@ -148,65 +148,74 @@ export default function App() {
               )}
             </nav>
           )}
-          <div className="flex-1" />
-          {health && !health.browser && (
-            <button
-              disabled={launching}
-              onClick={async () => {
-                setLaunching(true);
-                try {
-                  const r = await fetch("/api/browser/launch", { method: "POST" });
-                  const j = await r.json();
-                  if (!j.ok) {
-                    alert(`Errore avvio: ${j.error ?? "?"}`);
-                  } else {
-                    // launch confirmed alive server-side — clear the badge now
-                    setHealth((h) => (h ? { ...h, browser: true } : h));
+          {/* Everything below breaks onto its own full-width row on mobile
+              (rather than interleaving with the breadcrumb/nav row above) so a
+              phone gets at most two header rows instead of three or four. */}
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:ml-auto">
+            {health && !health.browser && (
+              <button
+                disabled={launching}
+                onClick={async () => {
+                  setLaunching(true);
+                  try {
+                    const r = await fetch("/api/browser/launch", { method: "POST" });
+                    const j = await r.json();
+                    if (!j.ok) {
+                      alert(`Errore avvio: ${j.error ?? "?"}`);
+                    } else {
+                      // launch confirmed alive server-side — clear the badge now
+                      setHealth((h) => (h ? { ...h, browser: true } : h));
+                    }
+                  } catch (e) {
+                    alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
+                  } finally {
+                    setLaunching(false);
                   }
-                } catch (e) {
-                  alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
-                } finally {
-                  setLaunching(false);
-                }
-              }}
-              className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 disabled:opacity-60 disabled:cursor-wait text-red-200 border border-red-900 whitespace-nowrap"
-              title={health.hint ?? ""}
+                }}
+                className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 disabled:opacity-60 disabled:cursor-wait text-red-200 border border-red-900 whitespace-nowrap"
+                title={health.hint ?? ""}
+              >
+                {launching ? (
+                  <>⏳ <span className="hidden sm:inline">Avvio browser ChatGPT…</span><span className="sm:hidden">Avvio…</span></>
+                ) : (
+                  <>⚠ <span className="hidden sm:inline">Browser ChatGPT offline — click per avviare</span><span className="sm:hidden">Browser offline</span></>
+                )}
+              </button>
+            )}
+            {jobs?.runner?.paused && jobs.runner.paused_until && (
+              <span
+                className="text-xs px-2 py-1 rounded bg-amber-900/40 text-amber-200 border border-amber-900 whitespace-nowrap"
+                title={`Cap ChatGPT raggiunto. Auto-resume alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}
+              >
+                ⏸{" "}
+                <span className="hidden sm:inline">
+                  Coda in pausa fino alle{" "}
+                </span>
+                {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <button
+              onClick={() => setShowJobs((v) => !v)}
+              className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 whitespace-nowrap"
             >
-              {launching ? (
-                <>⏳ <span className="hidden sm:inline">Avvio browser ChatGPT…</span><span className="sm:hidden">Avvio…</span></>
-              ) : (
-                <>⚠ <span className="hidden sm:inline">Browser ChatGPT offline — click per avviare</span><span className="sm:hidden">Browser offline</span></>
-              )}
+              Jobs{" "}
+              <span className="ml-1 text-neutral-400">
+                {activeJobs > 0 ? `${activeJobs} attivi` : "idle"}
+              </span>
             </button>
-          )}
-          {jobs?.runner?.paused && jobs.runner.paused_until && (
-            <span
-              className="text-xs px-2 py-1 rounded bg-amber-900/40 text-amber-200 border border-amber-900"
-              title={`Cap ChatGPT raggiunto. Auto-resume alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}
+            <button
+              onClick={async () => {
+                const r = await api.exportFavorites();
+                alert(
+                  `Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`,
+                );
+              }}
+              className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 border border-emerald-700 whitespace-nowrap"
             >
-              ⏸ Coda in pausa fino alle {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          <button
-            onClick={() => setShowJobs((v) => !v)}
-            className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
-          >
-            Jobs{" "}
-            <span className="ml-1 text-neutral-400">
-              {activeJobs > 0 ? `${activeJobs} attivi` : "idle"}
-            </span>
-          </button>
-          <button
-            onClick={async () => {
-              const r = await api.exportFavorites();
-              alert(
-                `Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`,
-              );
-            }}
-            className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 border border-emerald-700"
-          >
-            Esporta favorite
-          </button>
+              <span className="hidden sm:inline">Esporta favorite</span>
+              <span className="sm:hidden">Esporta</span>
+            </button>
+          </div>
         </div>
       </header>
 
