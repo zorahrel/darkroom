@@ -23,6 +23,9 @@ export default defineConfig({
       "/gen": backend,
       "/orphan": backend,
       "/thumb": backend,
+      "/graded": backend,
+      "/orig": backend,
+      "/previews": backend,
     },
   },
   build: {
