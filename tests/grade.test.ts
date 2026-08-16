@@ -100,3 +100,39 @@ describe("normalizeGrade", () => {
     expect(lut.params.dose).toBe(80);
   });
 });
+
+describe("bloom e sakura: i parametri aggiunti restano retrocompatibili", () => {
+  test("i default dei nuovi parametri sono neutri", () => {
+    // knee 2 (comportamento storico) fa alonare solo le specularità: su una
+    // scena senza riflessi accecanti il bloom sparisce del tutto, ed era il caso
+    // dell'oro del castello. knee/gain e hue_shift/sat sono opt-in: assenti dal
+    // JSON, lo script usa i valori storici e le foto già gradate non cambiano.
+    const chain = defaultSteps();
+    const bloom = chain.find((s) => s.type === "bloom");
+    const sakura = chain.find((s) => s.type === "sakura");
+    // Nessuno dei due porta i nuovi parametri nella catena di default: il
+    // comportamento base è esattamente quello di prima.
+    expect(bloom?.params.knee).toBeUndefined();
+    expect(sakura?.params.hue_shift).toBeUndefined();
+  });
+
+  test("i parametri nuovi sopravvivono a sanitizeSteps", () => {
+    // Se il sanitizer li scartasse, il grade salvato tornerebbe silenziosamente
+    // al look sbagliato al primo riavvio del server.
+    const steps = sanitizeSteps([
+      { id: "sakura", type: "sakura", enabled: true, params: { sat: 85, hue_shift: 14 } },
+      {
+        id: "bloomfix",
+        type: "bloom",
+        enabled: true,
+        params: { amount: 50, threshold: 52, radius: 18, knee: 1, gain: 2.5 },
+      },
+    ]);
+    const sakura = steps.find((s) => s.type === "sakura");
+    const bloom = steps.find((s) => s.type === "bloom");
+    expect(sakura?.params.hue_shift).toBe(14);
+    expect(sakura?.params.sat).toBe(85);
+    expect(bloom?.params.knee).toBe(1);
+    expect(bloom?.params.gain).toBe(2.5);
+  });
+});

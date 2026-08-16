@@ -273,6 +273,7 @@ export type GradeStepType =
   | "levels"
   | "sakura"
   | "sky"
+  | "bloom"
   | "lut"
   | "hsl"
   | "curve"

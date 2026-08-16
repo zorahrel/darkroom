@@ -219,8 +219,12 @@ function summaryBody(s: GradeStep): string {
       return bool(p.scene_match) ? "scene-match" : bool(p.awb) ? "AWB" : "off";
     case "levels":
       return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}${bool(p.soft) ? " · alte luci protette" : ""}`;
-    case "sakura":
-      return num(p.sat, 0) ? `colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%` : "auto";
+    case "sakura": {
+      const bits: string[] = [];
+      if (num(p.hue_shift, 0)) bits.push(`${num(p.hue_shift, 0) > 0 ? "+" : ""}${num(p.hue_shift, 0)}°`);
+      if (num(p.sat, 0)) bits.push(`colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%`);
+      return bits.length ? bits.join(" · ") : "auto";
+    }
     case "sky": {
       const bits = [`+${num(p.amount, 40)}%`];
       if (num(p.desat, 0)) bits.push(`spento ${num(p.desat, 0)}%`);
@@ -392,6 +396,15 @@ function StepBody({
     return (
       <div className="space-y-2.5 text-sm">
         <SliderRow
+          label="Tinta dei sakura (viola → rosa)"
+          value={num(p.hue_shift, 0)}
+          onChange={(v) => onParams({ hue_shift: v })}
+          min={-20}
+          max={40}
+          format={(v) => `${v > 0 ? "+" : ""}${v}°`}
+          resetTo={0}
+        />
+        <SliderRow
           label="Colore dei sakura"
           value={num(p.sat, 0)}
           onChange={(v) => onParams({ sat: v })}
@@ -405,6 +418,67 @@ function StepBody({
           il grigio, e un bilanciamento freddo a valle lo spegne ancora: il
           cursore glielo rimette, solo dentro la banda del rosa — pelle, insegne
           rosse e tramonti restano dove sono.
+        </p>
+      </div>
+    );
+  }
+
+  if (step.type === "bloom") {
+    return (
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Intensità"
+          value={num(p.amount, 35)}
+          onChange={(v) => onParams({ amount: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={35}
+        />
+        <SliderRow
+          label="Soglia (da quanto in su alona)"
+          value={num(p.threshold, 68)}
+          onChange={(v) => onParams({ threshold: v })}
+          min={20}
+          max={95}
+          format={(v) => `${v}%`}
+          resetTo={68}
+        />
+        <SliderRow
+          label="Raggio"
+          value={num(p.radius, 14)}
+          onChange={(v) => onParams({ radius: v })}
+          min={2}
+          max={48}
+          format={(v) => `${v}px`}
+          resetTo={14}
+        />
+        <SliderRow
+          label="Estensione (1 = anche le mezze luci)"
+          value={num(p.knee, 2)}
+          onChange={(v) => onParams({ knee: v })}
+          min={1}
+          max={3}
+          step={0.1}
+          format={(v) => v.toFixed(1)}
+          resetTo={2}
+        />
+        <SliderRow
+          label="Concentrazione"
+          value={num(p.gain, 1)}
+          onChange={(v) => onParams({ gain: v })}
+          min={1}
+          max={5}
+          step={0.1}
+          format={(v) => `×${v.toFixed(1)}`}
+          resetTo={1}
+        />
+        <p className="text-[11px] text-neutral-500 leading-snug">
+          Alone morbido attorno alle luci esistenti. Con «Estensione» a 2 alonano
+          solo i riflessi accecanti: su una scena senza specchi di luce — l'oro
+          di un tetto, una lanterna diffusa — il bloom sparisce, e va portata
+          verso 1. «Concentrazione» compensa la sfocatura, che sparpaglia
+          l'alone finché non si vede più.
         </p>
       </div>
     );

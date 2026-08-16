@@ -67,7 +67,7 @@ def levels(a, black=0.4, white=99.6, soft=False):
     return np.clip(x * 255.0, 0, 255)
 
 
-def pink_lift(a, feather=0.0, amount=1.0, sat=0.0):
+def pink_lift(a, feather=0.0, amount=1.0, sat=0.0, hue_shift=0.0):
     """Lift + gently desaturate pink (sakura) hues. `feather` (0..1) softens the
     hard hue/sat mask: 0 = binary mask (legacy, exact back-compat); >0 blurs the
     membership weight so the lift/desat fades in instead of flipping per pixel —
@@ -102,6 +102,18 @@ def pink_lift(a, feather=0.0, amount=1.0, sat=0.0):
     lifted = lifted * 0.82 + vv * 0.18
     out = x + pw * (lifted - x)
 
+    # NB: `hue` è già l'array delle tinte calcolato sopra — il parametro si chiama
+    # hue_shift apposta, per non ombreggiarlo.
+    if hue_shift:
+        # I sakura di questo set escono a ~332° (magenta) invece che a ~350°
+        # (rosa): la banda li prende ma nessuno li riporta al loro colore, e la
+        # risaturazione qui sotto non fa che rendere il viola più viola. La
+        # rotazione agisce dentro la stessa maschera, quindi le insegne rosse e
+        # i tramonti non si muovono.
+        hsv_h, hsv_s, hsv_v = _rgb_to_hsv(np.clip(out * 255, 0, 255))
+        shifted = (hsv_h + float(hue_shift) * pw[..., 0]) % 360.0
+        out = np.clip(_hsv_to_rgb(shifted, hsv_s, hsv_v) / 255.0, 0.0, 1.0)
+
     if sat:
         # Saturazione attorno al grigio del pixel, non moltiplicativa sui canali:
         # così il rosa torna pieno senza spostare la tinta né bruciare i petali
@@ -112,7 +124,7 @@ def pink_lift(a, feather=0.0, amount=1.0, sat=0.0):
     return np.clip(out * 255, 0, 255)
 
 
-def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0):
+def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0, knee=2.0, gain=1.0):
     """Soft photographic glow: screen-blend a blurred copy of the highlights back
     over the image, so bright areas (windows, lanterns, sky, speculars) bleed a
     gentle halo — the "bloom" GPT used to bake in, done locally so it is uniform
@@ -125,8 +137,15 @@ def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0):
     thr = max(0.0, min(100.0, threshold)) / 100.0 * 255.0
     lum = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
     w = np.clip((lum - thr) / max(1.0, 255.0 - thr), 0.0, 1.0)
-    w = w * w  # ease-in so mid-highlights glow less than bright speculars
-    glow_src = np.clip(a * w[..., None], 0, 255).astype(np.uint8)
+    # Ease-in: `knee` 1 = lineare (anche le mezze luci alonano), 2 = il quadrato
+    # storico (solo le specularità). Al quadrato, su una scena senza specchi di
+    # luce quasi nessun pixel supera la soglia e il bloom sparisce: era il caso
+    # dell'oro del castello, dove il riflesso è ampio ma non accecante.
+    k = max(1.0, min(3.0, float(knee)))
+    w = w ** k
+    # La sfocatura sparpaglia l'energia su un'area grande: senza guadagno il velo
+    # arriva sotto la soglia di visibilità. `gain` la riconcentra prima del blur.
+    glow_src = np.clip(a * w[..., None] * max(1.0, float(gain)), 0, 255).astype(np.uint8)
     rad = max(1.0, float(radius) * a.shape[1] / 1200.0)
     blurred = np.asarray(
         Image.fromarray(glow_src).filter(ImageFilter.GaussianBlur(rad))
@@ -573,11 +592,14 @@ def run_step(a, step, wb_gain):
             float(p.get("feather", 0)),
             float(p.get("amount", 1.0)),
             float(p.get("sat", 0)),
+            float(p.get("hue_shift", 0)),
         )
     if t == "sky":
         return sky_lift(a, float(p.get("amount", 40)), float(p.get("desat", 0)), float(p.get("warm", 0)))
     if t == "bloom":
-        return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)), float(p.get("radius", 14)))
+        return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)),
+                          float(p.get("radius", 14)), float(p.get("knee", 2.0)),
+                          float(p.get("gain", 1.0)))
     if t == "lut":
         lut = p.get("lut", "") or ""
         dose = float(p.get("dose", 0))
