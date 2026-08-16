@@ -63,7 +63,7 @@ export default function CollageCard({
   }
 
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-md border border-fuchsia-800/70 bg-neutral-900">
+    <div className="group relative aspect-square overflow-hidden rounded-md border-2 border-fuchsia-500/80 bg-black">
       {/* Comporre un collage è un lavoro vero (secondi, non millisecondi): la
           cella dice cosa sta succedendo invece di restare un buco nero. Niente
           `loading="lazy"`: una slide che si compone solo quando la scrolli
@@ -73,8 +73,12 @@ export default function CollageCard({
           src={collageUrl(collage.id, { graded, bust })}
           alt={`collage ${collage.mode}`}
           onLoad={() => setLoaded(true)}
+          // `contain`, non `cover`: la slide è 4:5 e la cella è quadrata, quindi
+          // ritagliarla nasconderebbe un quinto della composizione — proprio la
+          // cosa che si sta cercando di giudicare. Meglio vederla intera con due
+          // bande scure ai lati che vederne un pezzo a schermo pieno.
           className={
-            "h-full w-full object-cover transition-opacity duration-200 " +
+            "h-full w-full object-contain transition-opacity duration-200 " +
             (loaded ? "opacity-100" : "opacity-0")
           }
         />
