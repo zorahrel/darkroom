@@ -3,7 +3,7 @@ import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { db, effectiveGrade, getColorGrade, getDefaultConfig } from "../db.ts";
 import { finalDir } from "../project.ts";
-import { DEFAULT_CONFIG, assemblePrompt, parseConfig } from "../promptConfig.ts";
+import { DEFAULT_CONFIG, parseConfig } from "../promptConfig.ts";
 import { effectiveConfig, ensureFinalDir, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { gradeActive, runColorGrade, sceneMatchRequested } from "../gradeCache.ts";
 import { wbGainFor } from "../sceneWb.ts";

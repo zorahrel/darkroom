@@ -595,25 +595,30 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
     if ref_paths:
         log_line(image.name, f"attaching {len(ref_paths)} reference image(s)")
 
-    tab = await get_chatgpt_tab()
-    async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
-        cdp = CDP(ws)
-        await cdp.call("Page.enable")
-        await cdp.call("DOM.enable")
-        await cdp.call("Runtime.enable")
+    # The resized copies MUST be removed on the failure paths too: a generation
+    # that times out (the common case when ChatGPT stalls on a photo) used to
+    # leave its upload behind, and a photo retried in a loop then leaked one
+    # copy per attempt.
+    try:
+        tab = await get_chatgpt_tab()
+        async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
+            cdp = CDP(ws)
+            await cdp.call("Page.enable")
+            await cdp.call("DOM.enable")
+            await cdp.call("Runtime.enable")
 
-        await new_chat(cdp)
-        attached = await attach_with_fallback(cdp, [str(resized)], ref_paths, image.name)
-        if not attached:
-            raise RuntimeError("image not attached")
+            await new_chat(cdp)
+            attached = await attach_with_fallback(cdp, [str(resized)], ref_paths, image.name)
+            if not attached:
+                raise RuntimeError("image not attached")
 
-        baseline = await snapshot_image_srcs(cdp)
-        await send_prompt(cdp, prompt)
-        gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
-        src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
-        await download_image(cdp, src_url, output)
-
-    cleanup_uploads([resized, *ref_cleanup])
+            baseline = await snapshot_image_srcs(cdp)
+            await send_prompt(cdp, prompt)
+            gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
+            src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
+            await download_image(cdp, src_url, output)
+    finally:
+        cleanup_uploads([resized, *ref_cleanup])
 
     return output
 
@@ -627,27 +632,29 @@ async def generate_only(prompt: str, output: Path, refs=None):
     output.parent.mkdir(parents=True, exist_ok=True)
     ref_paths, ref_cleanup = prepare_uploads(refs or [], "ref")
 
-    tab = await get_chatgpt_tab()
-    async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
-        cdp = CDP(ws)
-        await cdp.call("Page.enable")
-        await cdp.call("DOM.enable")
-        await cdp.call("Runtime.enable")
+    try:
+        tab = await get_chatgpt_tab()
+        async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
+            cdp = CDP(ws)
+            await cdp.call("Page.enable")
+            await cdp.call("DOM.enable")
+            await cdp.call("Runtime.enable")
 
-        await new_chat(cdp)
-        if ref_paths:
-            log_line("generate", f"attaching {len(ref_paths)} reference image(s)")
-            if not await attach_with_fallback(cdp, [], ref_paths, "generate"):
-                # No references attached: generate anyway, just without them
-                # (attach_with_fallback already reset the chat).
-                log_line("generate", "references did not attach -- generating without them")
-        baseline = await snapshot_image_srcs(cdp)
-        await send_prompt(cdp, prompt)
-        gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
-        src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
-        await download_image(cdp, src_url, output)
-
-    cleanup_uploads(ref_cleanup)
+            await new_chat(cdp)
+            if ref_paths:
+                log_line("generate", f"attaching {len(ref_paths)} reference image(s)")
+                if not await attach_with_fallback(cdp, [], ref_paths, "generate"):
+                    # No references attached: generate anyway, just without them
+                    # (attach_with_fallback already reset the chat).
+                    log_line("generate", "references did not attach -- generating without them")
+            baseline = await snapshot_image_srcs(cdp)
+            await send_prompt(cdp, prompt)
+            gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
+            src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
+            await download_image(cdp, src_url, output)
+    finally:
+        # Same as single_shot: references must not survive a failed generation.
+        cleanup_uploads(ref_cleanup)
 
     return output
 

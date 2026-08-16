@@ -1,53 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import {
-  api,
-  type PhotoDetail,
-  type PromptConfig,
-  type ColorGrade,
-  type GradeStepType,
-  type Lut,
-  type Job,
-  rawUrl,
-  gradedPreviewUrl,
-  gradedUrl,
-  STEP_LABELS,
-  STEP_ORDER,
-  newStep,
-} from "../api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import type { OutletCtx } from "../App";
+import { api, type PhotoDetail, type Lut, type Job, rawUrl } from "../api";
 import VersionCarousel from "../components/VersionCarousel";
-import { StepParams, stepSummary, groupLuts, isStepTouched } from "../components/StepEditor";
 import PromptEditor from "../components/PromptEditor";
-import PromptBuilder from "../components/PromptBuilder";
 import HiggsfieldButton from "../components/HiggsfieldButton";
 import PhotoJobsLog from "../components/PhotoJobsLog";
-import PresetsPanel from "../components/PresetsPanel";
-import { useDebouncedImage } from "../lib/useDebouncedImage";
-import EditorRail, { type ToolGroup, type AddableStep } from "../components/mobile/EditorRail";
-import {
-  StepIcon,
-  IconChevronLeft,
-  IconRefresh,
-  IconBookmark,
-  IconClose,
-  IconLayers,
-  IconUndo,
-  IconRedo,
-  IconDownload,
-  IconInfo,
-  IconText,
-} from "../components/mobile/icons";
-import { useHistory } from "../lib/useHistory";
-import Spinner from "../components/detail/Spinner";
+import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
-import { ExtraInstructionsCard } from "../components/detail/ExtraInstructionsCard";
-import { FinalPromptView } from "../components/detail/FinalPromptView";
 import { PhotoPipeline } from "../components/detail/PhotoPipeline";
-import { PhotoConfigCard } from "../components/detail/PhotoConfigCard";
 
+
+// Prev/next only ever needs the neighbours; a handful of entries covers the
+// back-and-forth without holding the whole library in memory.
+const CACHE_MAX = 12;
 
 export default function DetailPage() {
   const { pid, id } = useParams<{ pid: string; id: string }>();
+  const { jobs } = useOutletContext<OutletCtx>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const base = pid ? `/p/${pid}` : "";
@@ -68,11 +38,25 @@ export default function DetailPage() {
   // Warm cache of adjacent photos so prev/next switches instantly instead of
   // showing the previous photo while the fetch is in flight.
   const cacheRef = useRef<Map<string, PhotoDetail>>(new Map());
+  // Bounded: browsing the whole library with [ / ] would otherwise pin one full
+  // PhotoDetail (photo + every version + config) per visited photo for the life
+  // of the tab. Insertion order = eviction order, so re-setting a key refreshes
+  // its position too.
+  const cacheSet = useCallback((key: string, d: PhotoDetail) => {
+    const c = cacheRef.current;
+    c.delete(key);
+    c.set(key, d);
+    while (c.size > CACHE_MAX) {
+      const oldest = c.keys().next().value;
+      if (oldest === undefined) break;
+      c.delete(oldest);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!id) return;
     const d = await api.getPhoto(id);
-    cacheRef.current.set(id, d);
+    cacheSet(id, d);
     setData(d);
     const favIdx = d.photo.favorite_version_id
       ? d.versions.findIndex((v) => v.id === d.photo.favorite_version_id)
@@ -92,7 +76,7 @@ export default function DetailPage() {
       setCurrentVersion(lastIdx);
     }
     prevCountRef.current = d.versions.length;
-  }, [id]);
+  }, [id, cacheSet]);
 
   useEffect(() => {
     // Switch to the cached photo immediately (no stale-photo flash), then
@@ -104,45 +88,62 @@ export default function DetailPage() {
     refresh();
   }, [refresh]);
 
-  // Light polling: if there are running jobs for this photo, refresh
+  // Job status for this photo. The jobs payload is already polled once by the
+  // app shell — read it from the outlet instead of opening a second poller on
+  // the same endpoint.
+  //
+  // The refresh trigger must NOT depend on `data`: refresh() replaces `data`
+  // with a fresh object, so an effect that both depends on `data` and calls
+  // refresh() re-arms itself on its own result and hammers the API as fast as
+  // the network answers (measured: ~3.4 req/s on /api/jobs AND /api/photos/:id,
+  // instead of one every 2s). The last-consumed timestamp lives in a ref and
+  // only lets a *newly finished* job pull the photo again — once per finish,
+  // which also survives the fact that a completed job does not bump
+  // photos.updated_at.
+  const updatedAtRef = useRef(0);
   useEffect(() => {
-    if (!id) return;
-    let alive = true;
-    const tick = async () => {
-      try {
-        const jobs = await api.jobs();
-        const mine = jobs.items.filter((j) => j.photo_id === id);
-        // Prefer an active job; otherwise the most recently created one.
-        const active = mine.find(
-          (j) => j.status === "pending" || j.status === "running",
-        );
-        const newest = mine.reduce<Job | null>(
-          (acc, j) => (!acc || j.created_at > acc.created_at ? j : acc),
-          null,
-        );
-        if (alive) {
-          setLatestJob(active ?? newest);
-          setPausedUntil(jobs.runner?.paused ? jobs.runner.paused_until : null);
-        }
-        const stillWorking = !!active;
-        const hasFresh = mine.some(
-          (j) =>
-            j.status === "done" &&
-            j.finished_at &&
-            j.finished_at > (data?.photo.updated_at ?? 0),
-        );
-        if (stillWorking || hasFresh) {
-          if (alive) refresh();
-        }
-      } catch {}
-    };
-    tick();
-    const intv = setInterval(tick, 2000);
-    return () => {
-      alive = false;
-      clearInterval(intv);
-    };
-  }, [id, data, refresh]);
+    updatedAtRef.current = data?.photo.updated_at ?? 0;
+  }, [data]);
+  const consumedFinishRef = useRef(0);
+  useEffect(() => {
+    consumedFinishRef.current = 0;
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !jobs) return;
+    const mine = jobs.items.filter((j) => j.photo_id === id);
+    // Prefer an active job; otherwise the most recently created one.
+    const active = mine.find(
+      (j) => j.status === "pending" || j.status === "running",
+    );
+    const newest = mine.reduce<Job | null>(
+      (acc, j) => (!acc || j.created_at > acc.created_at ? j : acc),
+      null,
+    );
+    const shown = active ?? newest;
+    // Same job, same state → keep the object identity so the page doesn't
+    // re-render on every poll.
+    setLatestJob((prev) =>
+      prev?.id === shown?.id &&
+      prev?.status === shown?.status &&
+      prev?.progress === shown?.progress
+        ? prev
+        : shown,
+    );
+    setPausedUntil(jobs.runner?.paused ? jobs.runner.paused_until : null);
+
+    const lastFinish = mine.reduce(
+      (max, j) =>
+        j.status === "done" && j.finished_at && j.finished_at > max
+          ? j.finished_at
+          : max,
+      0,
+    );
+    if (lastFinish > updatedAtRef.current && lastFinish > consumedFinishRef.current) {
+      consumedFinishRef.current = lastFinish;
+      refresh();
+    }
+  }, [jobs, id, refresh]);
 
   // Build a sibling ID list once for prev/next navigation
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function DetailPage() {
       if (sid && !cacheRef.current.has(sid)) {
         api
           .getPhoto(sid)
-          .then((d) => cacheRef.current.set(sid, d))
+          .then((d) => cacheSet(sid, d))
           .catch(() => {});
       }
     }

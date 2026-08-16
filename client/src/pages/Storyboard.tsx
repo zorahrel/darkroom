@@ -25,12 +25,24 @@ export default function StoryboardPage() {
   // Bumped after a refresh so panel thumbnails re-fetch once a job lands.
   const [imageBust, setImageBust] = useState(() => Date.now());
 
+  // Signature of what the thumbnails actually render, so the cache-buster only
+  // moves when a panel row really changed. The board re-polls every 5s while
+  // panels are still generating; busting on every poll re-downloaded every
+  // thumbnail on the board, over and over, for the whole generation.
+  const imageSigRef = useRef("");
+
   const refresh = useCallback(async () => {
     const board = await api.storyboard();
     setPanels(board.panels);
     setCharacters(board.characters);
     setSettings(board.settings);
-    setImageBust(Date.now());
+    const sig = board.panels
+      .map((p) => `${p.id}:${p.updated_at}:${p.image_path ?? ""}`)
+      .join("|");
+    if (sig !== imageSigRef.current) {
+      imageSigRef.current = sig;
+      setImageBust(Date.now());
+    }
   }, []);
 
   useEffect(() => {

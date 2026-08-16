@@ -5,11 +5,9 @@ import {
   effectivePrompt,
   effectiveGrade,
   getGlobalPrompt,
-  type PhotoRow,
   type VersionRow,
 } from "../db.ts";
 import { genDir } from "../project.ts";
-import { assemblePrompt } from "../promptConfig.ts";
 import { effectiveConfig, getPhoto, getVersionsFor, promptFor, withExtra } from "../photos.ts";
 
 /** Photos: the grid, one photo's detail, and its per-photo fields. */

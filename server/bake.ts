@@ -13,7 +13,6 @@ import {
 import { genDir } from "./project.ts";
 import {
   DEFAULT_CONFIG,
-  assemblePrompt,
   mergeConfig,
   parseConfig,
   parsePartialConfig,

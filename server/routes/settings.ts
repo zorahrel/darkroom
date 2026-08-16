@@ -19,7 +19,6 @@ import { LUT_DIR } from "../config.ts";
 import { importTemplate } from "../templates.ts";
 import {
   DEFAULT_CONFIG,
-  assemblePrompt,
   mergeConfig,
   parseConfig,
   type PromptConfig,

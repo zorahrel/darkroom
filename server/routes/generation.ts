@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { existsSync, statSync } from "node:fs";
 import { db, type PhotoRow } from "../db.ts";
-import { assemblePrompt, mergeConfig, type PromptConfig } from "../promptConfig.ts";
+import { mergeConfig, type PromptConfig } from "../promptConfig.ts";
 import { effectiveConfig, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { enqueueJob } from "../jobs.ts";
 import {

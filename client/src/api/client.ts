@@ -25,7 +25,6 @@ import type {
   JobsPayload,
   Lut,
   Orphan,
-  Photo,
   PhotoDetail,
   PhotoListItem,
   PipelineStatus,
