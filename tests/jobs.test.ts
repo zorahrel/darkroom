@@ -81,3 +81,35 @@ describe("listJobs: un errore superato non è più un errore", () => {
     expect(listJobs(100)).toHaveLength(0);
   });
 });
+
+describe("strategia anti-saturazione di ChatGPT", () => {
+  test("la pausa fra job è configurabile e ha un default sensato", async () => {
+    // Il valore non si legge da un test (è un modulo già caricato), ma il
+    // contratto sì: deve esistere una pausa, e deve essere sovrascrivibile
+    // quando l'account è già stato spremuto.
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    expect(src).toContain("JOB_GAP_MS");
+    expect(src).toContain("process.env.JOB_GAP_MS");
+    // Il jitter è ciò che evita il ritmo perfettamente regolare.
+    expect(src).toContain("JOB_GAP_JITTER_MS");
+    expect(src).toMatch(/Math\.random\(\)\s*\*\s*JOB_GAP_JITTER_MS/);
+  });
+
+  test("il watchdog fa ripartire il ciclo solo se ci sono job in attesa", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    // Riavviare un ciclo sano è peggio del problema: la guardia sul pending
+    // impedisce di rilanciarlo quando la coda è semplicemente vuota.
+    expect(src).toMatch(/const pending = pickNextPending\(\);\s*\n\s*if \(!pending\) return;/);
+    expect(src).toContain("loopBeatMs");
+  });
+
+  test("l'allegato viene ritentato prima di dichiarare fallito il job", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // "image not attached" era il 62% dei fallimenti e non è un rifiuto di
+    // ChatGPT: è la miniatura lenta. Deve esserci un retry con chat nuova.
+    expect(py).toContain("async def attach_with_retries");
+    expect(py).toContain("attach_with_retries(cdp, [str(resized)], ref_paths, image.name)");
+    // E la pausa fra i tentativi deve crescere, non essere fissa.
+    expect(py).toContain("wait_s = 5 * i");
+  });
+});

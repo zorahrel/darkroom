@@ -129,11 +129,22 @@ export function cancelPending(jobId: number): boolean {
 
 let runnerStarted = false;
 let runnerStopping = false;
+// Battito del ciclo: serve a distinguere "la coda è ferma perché è vuota" da
+// "il ciclo è morto e nessuno se ne accorge". È già successo: 22 job pending,
+// zero in esecuzione, e il server apparentemente vivo. Il watchdog qui sotto lo
+// rileva e lo fa ripartire invece di aspettare che qualcuno guardi.
+let loopBeatMs = Date.now();
 
 // Rate-limit handling: after N consecutive "no image" timeouts (silent ChatGPT
 // image-gen cap) we pause the queue and auto-resume after a cooldown.
 const RATE_LIMIT_THRESHOLD = 3;
 const RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
+// Pausa fra due generazioni riuscite. Una generazione ne impiega ~160s, quindi
+// 20-35s di respiro allungano un batch da 40 foto di ~15 minuti: poco, rispetto
+// ai 30 minuti di cooldown che costa UN cap raggiunto. Regolabile via env per
+// alzarla quando l'account è già stato spremuto nella stessa giornata.
+const JOB_GAP_MS = Number(process.env.JOB_GAP_MS ?? 20000);
+const JOB_GAP_JITTER_MS = Number(process.env.JOB_GAP_JITTER_MS ?? 15000);
 let consecutiveTimeouts = 0;
 let pausedUntilMs = 0;
 // Guard against an unrecoverable browser: after too many restarts in a row
@@ -252,6 +263,24 @@ export function startRunner() {
   });
   // Re-run retention hourly while the server is alive.
   setInterval(() => forEachProject(cleanupJobs), 60 * 60 * 1000).unref?.();
+
+  // Watchdog: se il ciclo non batte da 20 minuti mentre ci sono job in attesa,
+  // è morto (eccezione non gestita, worker appeso). Un batch da un'ora ne perde
+  // 20 al massimo invece di fermarsi del tutto finché qualcuno non se ne accorge.
+  // 20 min > del job più lungo osservato (~9 min di timeout + retry), quindi non
+  // scatta su un lavoro semplicemente lento.
+  setInterval(() => {
+    if (runnerStopping) return;
+    const stale = Date.now() - loopBeatMs;
+    if (stale < 20 * 60 * 1000) return;
+    const pending = pickNextPending();
+    if (!pending) return;
+    console.warn(
+      `[jobs] il ciclo non risponde da ${Math.round(stale / 60000)} min con job in coda — riavvio`,
+    );
+    loopBeatMs = Date.now();
+    void loop();
+  }, 60 * 1000).unref?.();
   // Defer the processing loop to the next macrotask so it can never run during
   // module top-level evaluation — otherwise a reclaimed job picked up on boot
   // would start a worker before the HTTP server binds, and a wedged worker
@@ -265,7 +294,8 @@ export function stopRunner() {
 
 async function loop() {
   while (!runnerStopping) {
-    const now = Date.now();
+    loopBeatMs = Date.now();
+    const now = loopBeatMs;
     if (now < pausedUntilMs) {
       await sleep(5000);
       continue;
@@ -277,6 +307,16 @@ async function loop() {
     }
     // Process the job in ITS project's context so db()/genDir() resolve there.
     await withProject(next.pid, () => processJob(next.job));
+
+    // Respiro fra un job e l'altro. Non è cortesia: una raffica di generazioni
+    // back-to-back sullo stesso account è ciò che fa scattare il cap silenzioso
+    // di ChatGPT — quello che non dà un errore, restituisce "waiting" e basta,
+    // e ci costa 9 minuti di timeout per capirlo. Il jitter evita di ripresentarsi
+    // sempre con lo stesso ritmo, che è il modo più semplice per farsi
+    // riconoscere come automazione.
+    if (!runnerStopping && Date.now() >= pausedUntilMs) {
+      await sleep(JOB_GAP_MS + Math.floor(Math.random() * JOB_GAP_JITTER_MS));
+    }
   }
 }
 

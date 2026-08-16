@@ -579,6 +579,33 @@ async def attach_with_fallback(cdp: CDP, primary: list, refs: list, tag: str) ->
     return []
 
 
+async def attach_with_retries(cdp: CDP, primary: list, refs: list, tag: str,
+                              attempts: int = 3) -> list:
+    """Come attach_with_fallback, ma riprova con una chat nuova prima di darsi
+    per vinto.
+
+    "image not attached" era il 62% dei fallimenti di questo set, e non è un
+    rifiuto di ChatGPT: è la miniatura che non compare entro 25 secondi perché
+    la pagina è lenta o la sessione è appesantita. Un job che muore qui brucia
+    comunque il tempo dell'upload e viene contato come errore, quindi ritentare
+    subito costa meno che rimetterlo in coda dopo. Ogni tentativo riparte da una
+    chat pulita, che è ciò che di solito sblocca il composer."""
+    for i in range(1, attempts + 1):
+        got = await attach_with_fallback(cdp, primary, refs, tag)
+        if got:
+            if i > 1:
+                log_line(tag, f"allegato al tentativo {i}/{attempts}")
+            return got
+        if i < attempts:
+            # Pausa crescente: se la pagina è sotto pressione, insistere subito
+            # la peggiora.
+            wait_s = 5 * i
+            log_line(tag, f"allegato fallito ({i}/{attempts}), riprovo fra {wait_s}s con chat nuova")
+            await asyncio.sleep(wait_s)
+            await new_chat(cdp)
+    return []
+
+
 async def single_shot(image: Path, prompt: str, output: Path, refs=None):
     """One-shot: edit a single image with a custom prompt, save to output. Used by dashboard worker.
     `refs` are extra reference images (storyboard characters) attached alongside."""
@@ -608,7 +635,7 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             await cdp.call("Runtime.enable")
 
             await new_chat(cdp)
-            attached = await attach_with_fallback(cdp, [str(resized)], ref_paths, image.name)
+            attached = await attach_with_retries(cdp, [str(resized)], ref_paths, image.name)
             if not attached:
                 raise RuntimeError("image not attached")
 
