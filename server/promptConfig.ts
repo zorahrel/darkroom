@@ -78,6 +78,12 @@ export const SKY = {
   off: "",
   "deep-blue":
     "if the sky is visible, brighten it strongly into a luminous, deep, clean blue — bright yet richly saturated, with smooth even gradation and no milky haze or blown-out whites; keep it photographically natural for the scene and invent nothing",
+  // "deep + saturated" spinge il modello verso un cielo cupo, che su una
+  // giornata limpida legge come un temporale in arrivo. Questa variante chiede
+  // l'opposto — chiaro e arioso — dando un riferimento verificabile (più chiaro
+  // dell'edificio, non più scuro) invece dell'ennesimo aggettivo.
+  "bright-airy":
+    "if the sky is visible, keep it light, clean and airy: a pale, luminous blue that reads like open daylight, never dark, heavy, navy or stormy. The sky must stay clearly BRIGHTER than the buildings and subjects below it, with smooth gradation, no milky haze and no blown-out white patches. Do not deepen or over-saturate it",
 } as const;
 export type Sky = keyof typeof SKY;
 
@@ -95,6 +101,15 @@ export const COMPOSITION = {
     "subtly improve composition for balance: gentle crop and leveling toward rule-of-thirds and a balanced frame, without inventing or adding new content",
   recompose:
     "recompose the frame more freely for stronger balance and a cleaner layout; reframing may extend or alter the edges",
+  // Grandangolo ravvicinato: il soggetto grande e vicino, lo spazio dietro che
+  // si apre. È il taglio che fa "posare" un'auto o un monumento invece di
+  // fotografarli e basta. Si nomina la prospettiva (le linee che convergono),
+  // perché senza il modello si limita ad allargare il campo.
+  "wide-hero":
+    "reframe it as a wide-angle hero shot, around 24mm: get low and close to the subject so it fills the foreground and reads big and imposing, while the background opens up wide behind it with converging perspective lines that lead into the scene. Keep the wide-angle geometry honest — no fisheye bulge, no stretched or deformed subject at the edges",
+  // Teleobiettivo: il contrario, comprime e isola.
+  "tele-isolate":
+    "reframe it as a compressed telephoto shot, around 85-135mm: move back and tighten onto the subject so the background flattens and stacks behind it, isolating the subject cleanly from a busy scene",
 } as const;
 export type Composition = keyof typeof COMPOSITION;
 
@@ -168,6 +183,17 @@ export type Bloom = keyof typeof BLOOM;
 export const DOF = {
   preserve: "preserve original depth of field",
   shallow: "emphasize subject with shallow depth-of-field falloff",
+  // "Sfocato" è un aggettivo; un diaframma è un numero e una conseguenza
+  // fisica. Nominare f/1.4 e il piano di messa a fuoco dà al modello un
+  // riferimento verificabile, e la clausola sui bordi evita il ritaglio
+  // finto-bokeh che si vede quando lo sfocato viene applicato come maschera.
+  "wide-open":
+    "shoot it wide open, around f/1.4: the subject snaps into focus and everything in front of and behind it falls away into smooth, creamy, optically correct bokeh with round out-of-focus highlights. The blur must grow gradually with distance the way a real fast lens behaves — never a flat cut-out mask around the subject, never a uniformly blurred background, and the subject's own edges (fur, hair, whiskers, chrome) stay crisp",
+  // Il contrario: si tiene tutto a fuoco ma il soggetto emerge lo stesso,
+  // per luce e posizione. Serve alle scene urbane dove sfocare butta via metà
+  // dell'informazione (insegne, folla, architettura).
+  "deep-focus":
+    "keep the whole frame in sharp focus, front to back, and separate the subject with light and placement instead of blur",
 } as const;
 export type Dof = keyof typeof DOF;
 

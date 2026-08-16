@@ -194,6 +194,21 @@ const VISUAL_GROUPS: VisualGroup[] = [
     ],
   },
   {
+    key: "sky",
+    icon: Sunrise,
+    label: "Cielo",
+    base: "off",
+    options: [
+      { value: "off", label: "Off", hint: "Non tocca il cielo" },
+      { value: "deep-blue", label: "Blu profondo", hint: "Cielo saturo e intenso" },
+      {
+        value: "bright-airy",
+        label: "Chiaro e arioso",
+        hint: "Cielo pallido e luminoso, mai cupo: più chiaro degli edifici",
+      },
+    ],
+  },
+  {
     key: "bloom",
     icon: Sparkles,
     label: "Bloom",
@@ -224,6 +239,16 @@ const VISUAL_GROUPS: VisualGroup[] = [
     options: [
       { value: "preserve", label: "Mantieni DoF", hint: "Lascia la profondità di campo" },
       { value: "shallow", label: "Shallow bokeh", hint: "Stacca il soggetto con bokeh" },
+      {
+        value: "wide-open",
+        label: "f/1.4",
+        hint: "Diaframma aperto vero: sfocato che cresce con la distanza, bordi del soggetto netti",
+      },
+      {
+        value: "deep-focus",
+        label: "Tutto a fuoco",
+        hint: "Nessuno sfocato: il soggetto emerge per luce e posizione",
+      },
     ],
   },
   {
@@ -297,6 +322,8 @@ const TEXT_GROUPS: TextGroup[] = [
       { value: "off", label: "Off" },
       { value: "rebalance", label: "Ribilancia (crop sicuro)" },
       { value: "recompose", label: "Ricomponi (può alterare bordi)" },
+      { value: "wide-hero", label: "Grandangolo eroico (24mm)" },
+      { value: "tele-isolate", label: "Tele che isola (85-135mm)" },
     ],
   },
   {

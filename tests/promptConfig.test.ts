@@ -192,3 +192,44 @@ describe("clausole aggiunte per il set Giappone", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, food: "off" })).not.toContain("appetizing");
   });
 });
+
+describe("ottica e cielo: opzioni che nominano il risultato", () => {
+  test("f/1.4 chiede uno sfocato ottico, non una maschera attorno al soggetto", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, dof: "wide-open" });
+    expect(p).toContain("f/1.4");
+    // È la differenza fra un vero diaframma e il finto-bokeh a ritaglio.
+    expect(p).toContain("never a flat cut-out mask");
+    expect(p).toContain("grow gradually with distance");
+  });
+
+  test("grandangolo eroico chiede la prospettiva, non solo più campo", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
+    expect(p).toContain("24mm");
+    expect(p).toContain("converging perspective lines");
+    // Un grandangolo che deforma il soggetto è il modo tipico di sbagliarlo.
+    expect(p).toContain("no fisheye bulge");
+  });
+
+  test("tele isola comprimendo lo sfondo", () => {
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "tele-isolate" })).toContain(
+      "85-135mm",
+    );
+  });
+
+  test("cielo chiaro dà un riferimento verificabile, non un aggettivo", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "bright-airy" });
+    // "più chiaro degli edifici" si può guardare; "arioso" no.
+    expect(p).toContain("BRIGHTER than the buildings");
+    expect(p).toContain("never dark, heavy, navy or stormy");
+  });
+
+  test("le opzioni storiche restano quelle di prima", () => {
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, dof: "preserve" })).toContain(
+      "preserve original depth of field",
+    );
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
+      "recompose the frame more freely",
+    );
+  });
+});

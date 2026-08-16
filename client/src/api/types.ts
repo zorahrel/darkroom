@@ -55,9 +55,9 @@ export type PromptConfig = {
   preset: "cinematic" | "editorial" | "documentary" | "fine-art";
   film_stock: "none" | "portra-400" | "portra-800" | "cinestill-800t" | "ektar-100" | "fuji-400h";
   white_balance: "preserve" | "neutral" | "neutral-strict" | "warm" | "cool";
-  sky: "off" | "deep-blue";
+  sky: "off" | "deep-blue" | "bright-airy";
   geometry: "off" | "straighten" | "correct";
-  composition: "off" | "rebalance" | "recompose";
+  composition: "off" | "rebalance" | "recompose" | "wide-hero" | "tele-isolate";
   aspect_ratio: "preserve" | "1:1" | "4:5" | "5:4" | "3:2" | "2:3" | "16:9" | "9:16";
   harmony: "off" | "subtle" | "strong";
   food: "off" | "enhance" | "strict";
@@ -69,7 +69,7 @@ export type PromptConfig = {
   shadows: "natural" | "lifted" | "crushed";
   highlights: "preserve" | "warm-lift" | "cool-lift" | "muted" | "neutral";
   bloom: "off" | "subtle" | "glow" | "halation";
-  dof: "preserve" | "shallow";
+  dof: "preserve" | "shallow" | "wide-open" | "deep-focus";
   camera: "off" | "adaptive" | "leica-m" | "fuji-x100" | "sony-a7-prime" | "hasselblad" | "ricoh-gr" | "contax-t2";
   drama: "off" | "clean" | "bold";
   skin_tones: "preserve" | "airy-lift" | "desaturate" | "saturate" | "porcelain";
