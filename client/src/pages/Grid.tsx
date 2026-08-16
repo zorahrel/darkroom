@@ -25,7 +25,9 @@ type Filter =
   | "with_favorite"
   | "in_queue"
   | "failed"
-  | "with_override";
+  | "with_override"
+  | "unassigned"
+  | "assigned";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
@@ -41,6 +43,9 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   { id: "in_queue", label: "In coda", icon: Clock3, accent: "amber" },
   { id: "failed", label: "Falliti", icon: AlertTriangle, accent: "red" },
   { id: "with_override", label: "Con override", icon: SlidersHorizontal },
+  // Curatela: quel che non è ancora in un post è il lavoro che resta.
+  { id: "unassigned", label: "Non assegnate", icon: Layers },
+  { id: "assigned", label: "Nei post", icon: Layers, accent: "star" },
 ];
 
 function runLabel(r: Run): string {

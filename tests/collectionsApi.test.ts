@@ -146,3 +146,20 @@ describe("collections API", () => {
     expect(json.photos["uno"]).toEqual(["a"]);
   });
 });
+
+describe("filtro non assegnate", () => {
+  test("il filtro separa le foto già in un post da quelle da curare", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
+
+    const un = await (await grid.request("/api/photos?filter=unassigned")).json();
+    const asg = await (await grid.request("/api/photos?filter=assigned")).json();
+    expect(un.photos.map((p: any) => p.id).sort()).toEqual(["c", "d"]);
+    expect(asg.photos.map((p: any) => p.id).sort()).toEqual(["a", "b"]);
+
+    const { counts } = await (await grid.request("/api/photos/counts")).json();
+    expect(counts.unassigned).toBe(2);
+    expect(counts.assigned).toBe(2);
+  });
+});

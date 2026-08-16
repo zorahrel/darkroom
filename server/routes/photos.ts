@@ -36,6 +36,11 @@ photoRoutes.get("/api/photos", (c) => {
     );
   } else if (filter === "with_override") {
     where.push("p.config_override IS NOT NULL");
+  } else if (filter === "unassigned") {
+    // Not in any post yet: the working queue while you're still curating.
+    where.push("NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)");
+  } else if (filter === "assigned") {
+    where.push("EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)");
   }
   const sql = `
     SELECT
@@ -89,7 +94,9 @@ photoRoutes.get("/api/photos/counts", (c) => {
          SUM(CASE WHEN p.favorite_version_id IS NOT NULL THEN 1 ELSE 0 END) AS with_favorite,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status IN ('pending','running')) THEN 1 ELSE 0 END) AS in_queue,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status = 'failed') AND ${hasVersions} = 0 THEN 1 ELSE 0 END) AS failed,
-         SUM(CASE WHEN p.config_override IS NOT NULL THEN 1 ELSE 0 END) AS with_override
+         SUM(CASE WHEN p.config_override IS NOT NULL THEN 1 ELSE 0 END) AS with_override,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS assigned,
+         SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS unassigned
        FROM photos p`,
     )
     .get();
