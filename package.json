@@ -28,7 +28,8 @@
     "build:client": "vite build --config client/vite.config.ts",
     "mcp": "bun run mcp/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "jobs:watch": "bun run scripts/watch-jobs.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",

@@ -62,6 +62,14 @@ bun run client
 
 Open the URL printed by `bun run dev` (default http://localhost:5173).
 
+```bash
+bun run jobs:watch            # follow the queue until it drains, one line per job
+bun run jobs:watch --once     # just print the current state and exit
+```
+
+`jobs:watch` exits non-zero if any job failed, so it chains: queue a batch, wait
+for it, and only run the next step if everything landed.
+
 ## Workflow
 
 1. **Pick a backend.** Default is ChatGPT web. On first use, click the “Browser offline” banner (or `POST /api/browser/launch`) — a dedicated Chrome opens; log in to chatgpt.com once.
