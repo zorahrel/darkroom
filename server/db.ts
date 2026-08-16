@@ -153,6 +153,23 @@ const SCHEMA_STATEMENTS = [
     description TEXT,
     created_at INTEGER NOT NULL
   )`,
+  // Collections: the publishing unit. A gallery of 200 travel photos becomes a
+  // handful of posts/carousels, each an ordered subset. A photo belongs to at
+  // most one collection (`photo_id` is the PK of the membership table) —
+  // publishing the same shot twice is a mistake, not a feature.
+  `CREATE TABLE IF NOT EXISTS collections (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    caption TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS collection_photos (
+    photo_id TEXT PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_collection_photos ON collection_photos(collection_id, position)`,
 ];
 
 function hasColumn(d: Database, table: string, col: string): boolean {
@@ -344,6 +361,15 @@ export type CharacterRow = {
   name: string;
   reference_photo_id: string | null;
   description: string | null;
+  created_at: number;
+};
+
+/** A post/carousel: an ordered subset of the gallery, ready to publish. */
+export type CollectionRow = {
+  id: string;
+  title: string;
+  caption: string | null;
+  position: number;
   created_at: number;
 };
 

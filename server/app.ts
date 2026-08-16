@@ -12,6 +12,7 @@ import { storyboardRoutes } from "./routes/storyboard.ts";
 import { verifyRoutes } from "./routes/verify.ts";
 import { studioRoutes } from "./routes/studio.ts";
 import { mediaRoutes } from "./routes/media.ts";
+import { collectionRoutes } from "./routes/collections.ts";
 
 /**
  * The Darkroom HTTP app: middleware + every route module, with no side effects
@@ -50,6 +51,7 @@ app.route("/", orphanRoutes);
 app.route("/", pipelineRoutes);
 app.route("/api/storyboard", storyboardRoutes);
 app.route("/api/verify", verifyRoutes);
+app.route("/", collectionRoutes);
 app.route("/", studioRoutes);
 app.route("/", mediaRoutes);
 

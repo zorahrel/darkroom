@@ -440,3 +440,19 @@ export type VerifyBatchStatus = {
   failed: number;
   current: string | null;
 };
+
+/** A post/carousel: an ordered subset of the gallery, ready to publish. */
+export type Collection = {
+  id: string;
+  title: string;
+  caption: string | null;
+  position: number;
+  created_at: number;
+  photo_count: number;
+};
+
+/** Every collection plus its member photo ids, in order, keyed by collection id. */
+export type CollectionsPayload = {
+  collections: Collection[];
+  photos: Record<string, string[]>;
+};

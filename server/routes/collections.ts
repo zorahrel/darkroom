@@ -1,0 +1,174 @@
+import { Hono } from "hono";
+import { db, type CollectionRow } from "../db.ts";
+
+/**
+ * Collections — the publishing unit. A gallery is what you shot; a collection
+ * is what goes out as one post/carousel. Membership is exclusive (a photo sits
+ * in at most one collection) and ordered, so the API is deliberately small:
+ * list, create/rename, set the members of one collection, move photos between
+ * collections, delete.
+ */
+export const collectionRoutes = new Hono();
+
+type CollectionWithCount = CollectionRow & { photo_count: number };
+
+function listCollections(): CollectionWithCount[] {
+  return db()
+    .query<CollectionWithCount, []>(
+      `SELECT c.*,
+              (SELECT COUNT(*) FROM collection_photos cp WHERE cp.collection_id = c.id) AS photo_count
+         FROM collections c
+        ORDER BY c.position ASC, c.created_at ASC`,
+    )
+    .all();
+}
+
+/** Every collection with its photo ids in order — one payload the grid can group by. */
+collectionRoutes.get("/api/collections", (c) => {
+  const collections = listCollections();
+  const members = db()
+    .query<{ collection_id: string; photo_id: string }, []>(
+      `SELECT collection_id, photo_id FROM collection_photos ORDER BY collection_id, position ASC`,
+    )
+    .all();
+  const photosByCollection: Record<string, string[]> = {};
+  for (const m of members) {
+    (photosByCollection[m.collection_id] ??= []).push(m.photo_id);
+  }
+  return c.json({ collections, photos: photosByCollection });
+});
+
+collectionRoutes.post("/api/collections", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    id?: string;
+    title?: string;
+    caption?: string;
+    photo_ids?: string[];
+  };
+  const title = body.title?.trim();
+  if (!title) return c.json({ error: "title required" }, 400);
+  // A caller-supplied id keeps seeds/imports idempotent; otherwise slugify the
+  // title and disambiguate, so ids stay readable in URLs and exports.
+  const base =
+    body.id?.trim() ||
+    title
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") ||
+    "post";
+  let id = base;
+  for (let n = 2; db().query("SELECT 1 FROM collections WHERE id = ?").get(id); n++) {
+    id = `${base}-${n}`;
+  }
+  const maxPos =
+    (db().query<{ m: number | null }, []>("SELECT MAX(position) AS m FROM collections").get()?.m ?? -1) + 1;
+  db().run(
+    "INSERT INTO collections (id, title, caption, position, created_at) VALUES (?, ?, ?, ?, ?)",
+    [id, title, body.caption?.trim() || null, maxPos, Date.now()],
+  );
+  if (body.photo_ids?.length) setMembers(id, body.photo_ids);
+  return c.json({ ok: true, id });
+});
+
+collectionRoutes.patch("/api/collections/:id", async (c) => {
+  const id = c.req.param("id");
+  const row = db().query<CollectionRow, [string]>("SELECT * FROM collections WHERE id = ?").get(id);
+  if (!row) return c.json({ error: "not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as {
+    title?: string;
+    caption?: string | null;
+    position?: number;
+  };
+  if (body.title !== undefined) {
+    const t = body.title.trim();
+    if (!t) return c.json({ error: "title cannot be empty" }, 400);
+    db().run("UPDATE collections SET title = ? WHERE id = ?", [t, id]);
+  }
+  if (body.caption !== undefined) {
+    db().run("UPDATE collections SET caption = ? WHERE id = ?", [body.caption?.trim() || null, id]);
+  }
+  if (body.position !== undefined) {
+    db().run("UPDATE collections SET position = ? WHERE id = ?", [body.position, id]);
+  }
+  return c.json({ ok: true });
+});
+
+collectionRoutes.delete("/api/collections/:id", (c) => {
+  // Membership rows go with it (ON DELETE CASCADE): the photos themselves are
+  // untouched and simply return to "Non assegnate".
+  db().run("DELETE FROM collections WHERE id = ?", [c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+/** Replace a collection's members, in the given order. */
+function setMembers(collectionId: string, photoIds: string[]): void {
+  const d = db();
+  const tx = d.transaction((ids: string[]) => {
+    d.run("DELETE FROM collection_photos WHERE collection_id = ?", [collectionId]);
+    const ins = d.prepare(
+      "INSERT INTO collection_photos (photo_id, collection_id, position) VALUES (?, ?, ?)",
+    );
+    ids.forEach((pid, i) => {
+      // Exclusive membership: adding a photo here removes it from wherever it was.
+      d.run("DELETE FROM collection_photos WHERE photo_id = ?", [pid]);
+      ins.run(pid, collectionId, i);
+    });
+  });
+  tx(photoIds);
+}
+
+collectionRoutes.put("/api/collections/:id/photos", async (c) => {
+  const id = c.req.param("id");
+  if (!db().query("SELECT 1 FROM collections WHERE id = ?").get(id)) {
+    return c.json({ error: "not found" }, 404);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { photo_ids?: string[] };
+  if (!Array.isArray(body.photo_ids)) return c.json({ error: "photo_ids required" }, 400);
+  setMembers(id, body.photo_ids);
+  return c.json({ ok: true, count: body.photo_ids.length });
+});
+
+/**
+ * Move photos into a collection (append at the end), or out of every
+ * collection when `collection_id` is null. This is what the grid's bulk
+ * "assegna a" uses, so it must not disturb the collection's existing order.
+ */
+collectionRoutes.post("/api/collections/assign", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    photo_ids?: string[];
+    collection_id?: string | null;
+  };
+  const ids = body.photo_ids ?? [];
+  if (!ids.length) return c.json({ error: "photo_ids required" }, 400);
+  const target = body.collection_id ?? null;
+  const d = db();
+  if (target === null) {
+    const tx = d.transaction((xs: string[]) => {
+      for (const pid of xs) d.run("DELETE FROM collection_photos WHERE photo_id = ?", [pid]);
+    });
+    tx(ids);
+    return c.json({ ok: true, moved: ids.length, collection_id: null });
+  }
+  if (!d.query("SELECT 1 FROM collections WHERE id = ?").get(target)) {
+    return c.json({ error: "collection not found" }, 404);
+  }
+  let pos =
+    (d
+      .query<{ m: number | null }, [string]>(
+        "SELECT MAX(position) AS m FROM collection_photos WHERE collection_id = ?",
+      )
+      .get(target)?.m ?? -1) + 1;
+  const tx = d.transaction((xs: string[]) => {
+    for (const pid of xs) {
+      d.run("DELETE FROM collection_photos WHERE photo_id = ?", [pid]);
+      d.run(
+        "INSERT INTO collection_photos (photo_id, collection_id, position) VALUES (?, ?, ?)",
+        [pid, target, pos++],
+      );
+    }
+  });
+  tx(ids);
+  return c.json({ ok: true, moved: ids.length, collection_id: target });
+});

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
-import { api, type PhotoListItem, type Run } from "../api";
+import { api, type Collection, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
 import Accordion from "../components/Accordion";
@@ -14,6 +14,7 @@ import {
   Clock3,
   AlertTriangle,
   SlidersHorizontal,
+  Layers,
 } from "lucide-react";
 
 type Filter =
@@ -29,6 +30,8 @@ type Filter =
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
 type Accent = "amber" | "red" | "star";
+
+type GroupMode = "scene" | "day" | "post" | "none";
 const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
   { id: "all", label: "Tutte", icon: LayoutGrid },
   { id: "with_versions", label: "Con versioni", icon: Images },
@@ -78,11 +81,16 @@ export default function GridPage({
     const f = searchParams.get("filter");
     return FILTERS.some((x) => x.id === f) ? (f as Filter) : "all";
   });
-  const [groupMode, setGroupMode] = useState<"scene" | "day" | "none">(() => {
+  const [groupMode, setGroupMode] = useState<GroupMode>(() => {
     const g =
       searchParams.get("group") ?? localStorage.getItem("darkroom.grid.group");
-    return g === "day" || g === "none" || g === "scene" ? g : "scene";
+    return g === "day" || g === "none" || g === "scene" || g === "post" ? g : "scene";
   });
+  // Collections = posts/caroselli. Loaded once and refreshed after every edit,
+  // so the "Post" grouping and the bulk assign bar always agree.
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionPhotos, setCollectionPhotos] = useState<Record<string, string[]>>({});
+  const [collectionsBusy, setCollectionsBusy] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -166,6 +174,21 @@ export default function GridPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
 
+  // Collections + their members. Refetched whenever the photo list reloads, so
+  // a photo generated/deleted elsewhere can't leave a stale post membership.
+  const refreshCollections = useCallback(async () => {
+    try {
+      const r = await api.collections();
+      setCollections(r.collections);
+      setCollectionPhotos(r.photos);
+    } catch {
+      /* collections are additive: a failure must not blank the grid */
+    }
+  }, []);
+  useEffect(() => {
+    refreshCollections();
+  }, [refreshCollections, reloadKey]);
+
   // List of generation runs (batches). Refreshes when the pipeline runs.
   useEffect(() => {
     api.runs().then((r) => setRuns(r.runs)).catch(() => {});
@@ -248,12 +271,46 @@ export default function GridPage({
     return groups;
   }, [allPhotos]);
 
+  // Grouping by collection (post/carosello). Order inside a post is the
+  // curated one (collection_photos.position), not the shot time — a carousel
+  // has a first slide. Everything unassigned lands in a trailing bucket, which
+  // is the working queue while you're still splitting the trip into posts.
+  const postGroups = useMemo(() => {
+    const byId = new Map(allPhotos.map((p) => [p.id, p]));
+    const assigned = new Set<string>();
+    const groups: { label: string; photos: PhotoListItem[]; collectionId?: string }[] = [];
+    for (const col of collections) {
+      const ids = collectionPhotos[col.id] ?? [];
+      const photos: PhotoListItem[] = [];
+      for (const id of ids) {
+        const p = byId.get(id);
+        // Absent = filtered out by the current filter, not missing: skip it
+        // here, but still mark it assigned so it can't reappear as "unassigned".
+        assigned.add(id);
+        if (p) photos.push(p);
+      }
+      // A post whose photos are all filtered out is noise in this view.
+      if (photos.length === 0) continue;
+      groups.push({
+        label: `${col.title} · ${photos.length}${photos.length !== ids.length ? `/${ids.length}` : ""} foto`,
+        photos,
+        collectionId: col.id,
+      });
+    }
+    const rest = allPhotos.filter((p) => !assigned.has(p.id));
+    if (rest.length) groups.push({ label: `Non assegnate · ${rest.length} foto`, photos: rest });
+    return groups;
+  }, [allPhotos, collections, collectionPhotos]);
+
   // Final groups rendered, driven by the selected grouping mode.
-  const displayGroups = useMemo(() => {
+  const displayGroups = useMemo<
+    { label: string; photos: PhotoListItem[]; collectionId?: string }[]
+  >(() => {
     if (groupMode === "none") return [{ label: "", photos: allPhotos }];
     if (groupMode === "day") return dayGroups;
+    if (groupMode === "post") return postGroups;
     return sceneGroups;
-  }, [groupMode, allPhotos, dayGroups, sceneGroups]);
+  }, [groupMode, allPhotos, dayGroups, sceneGroups, postGroups]);
 
   const toggleSelect = (id: string) =>
     setSelected((prev) => {
@@ -281,7 +338,13 @@ export default function GridPage({
   const activeFilter = FILTERS.find((f) => f.id === filter);
   const activeFilterN = filterCounts[filter];
   const groupLabel =
-    groupMode === "scene" ? "Scena" : groupMode === "day" ? "Giorno" : "Nessuno";
+    groupMode === "scene"
+      ? "Scena"
+      : groupMode === "day"
+        ? "Giorno"
+        : groupMode === "post"
+          ? "Post"
+          : "Nessuno";
   const activeRun = selectedRun != null ? runs.find((r) => r.id === selectedRun) : null;
 
   return (
@@ -363,6 +426,44 @@ export default function GridPage({
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
+          {/* Assegnare a un post è l'azione di curatela, non di generazione:
+              sta accanto alle altre bulk perché la selezione è la stessa. */}
+          <select
+            disabled={collectionsBusy || selectedCount === 0}
+            value=""
+            onChange={async (e) => {
+              const v = e.target.value;
+              if (!v) return;
+              e.target.value = "";
+              const ids = [...selected];
+              setCollectionsBusy(true);
+              try {
+                if (v === "__new__") {
+                  const title = prompt(`Titolo del nuovo post (${ids.length} foto)`);
+                  if (!title?.trim()) return;
+                  await api.createCollection({ title: title.trim(), photo_ids: ids });
+                } else {
+                  await api.assignToCollection(ids, v === "__none__" ? null : v);
+                }
+                await refreshCollections();
+                setSelected(new Set());
+                setGroupMode("post");
+                localStorage.setItem("darkroom.grid.group", "post");
+              } finally {
+                setCollectionsBusy(false);
+              }
+            }}
+            className="text-xs px-2 py-1.5 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <option value="">{collectionsBusy ? "Assegno…" : "Assegna a post…"}</option>
+            <option value="__new__">＋ Nuovo post…</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title} ({c.photo_count})
+              </option>
+            ))}
+            <option value="__none__">— Togli dal post</option>
+          </select>
           <button
             disabled={bulkBusy || selectedHasActiveJob === 0}
             onClick={async () => {
@@ -474,6 +575,7 @@ export default function GridPage({
           {([
             { id: "scene", label: "Scena" },
             { id: "day", label: "Giorno" },
+            { id: "post", label: "Post" },
             { id: "none", label: "Nessuno" },
           ] as const).map((g) => (
             <button
@@ -610,8 +712,37 @@ export default function GridPage({
                     }}
                     className="text-[10px] px-2 py-0.5 rounded border border-neutral-700 hover:bg-neutral-800"
                   >
-                    {g.photos.every((p) => selected.has(p.id)) ? "−" : "+"} scena
+                    {g.photos.every((p) => selected.has(p.id)) ? "−" : "+"}{" "}
+                    {groupMode === "post" ? "post" : "scena"}
                   </button>
+                )}
+                {/* Un post si gestisce da dove lo vedi: rinomina e cancella
+                    stanno sull'intestazione del gruppo, non in una pagina a parte. */}
+                {g.collectionId && (
+                  <span className="flex items-center gap-1">
+                    <button
+                      onClick={async () => {
+                        const cur = collections.find((c) => c.id === g.collectionId);
+                        const title = prompt("Titolo del post", cur?.title ?? "");
+                        if (!title?.trim() || title.trim() === cur?.title) return;
+                        await api.updateCollection(g.collectionId!, { title: title.trim() });
+                        await refreshCollections();
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600"
+                    >
+                      rinomina
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Sciogliere il post "${g.label}"? Le foto restano, tornano fra le non assegnate.`)) return;
+                        await api.deleteCollection(g.collectionId!);
+                        await refreshCollections();
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-red-300 hover:border-red-800"
+                    >
+                      sciogli
+                    </button>
+                  </span>
                 )}
               </header>
               )}

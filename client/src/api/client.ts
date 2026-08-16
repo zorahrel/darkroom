@@ -11,6 +11,8 @@ import type {
   VersionReport,
   Beat,
   Character,
+  Collection,
+  CollectionsPayload,
   Panel,
   StoryboardExport,
   StoryboardPayload,
@@ -331,6 +333,44 @@ export const api = {
       body: JSON.stringify({ limit, recheck }),
     }),
   verifyBatchStatus: () => jsonFetch<VerifyBatchStatus>("/api/verify/batch"),
+  // Collections (posts/caroselli): the publishing grouping over the gallery.
+  collections: () => jsonFetch<CollectionsPayload>("/api/collections"),
+  createCollection: (input: {
+    id?: string;
+    title: string;
+    caption?: string;
+    photo_ids?: string[];
+  }) =>
+    jsonFetch<{ ok: true; id: string }>("/api/collections", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateCollection: (
+    id: string,
+    patch: Partial<Pick<Collection, "title" | "caption" | "position">>,
+  ) =>
+    jsonFetch<{ ok: true }>(`/api/collections/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deleteCollection: (id: string) =>
+    jsonFetch<{ ok: true }>(`/api/collections/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+  setCollectionPhotos: (id: string, photoIds: string[]) =>
+    jsonFetch<{ ok: true; count: number }>(
+      `/api/collections/${encodeURIComponent(id)}/photos`,
+      { method: "PUT", body: JSON.stringify({ photo_ids: photoIds }) },
+    ),
+  /** Append photos to a collection, or pull them out of every one (null). */
+  assignToCollection: (photoIds: string[], collectionId: string | null) =>
+    jsonFetch<{ ok: true; moved: number; collection_id: string | null }>(
+      "/api/collections/assign",
+      {
+        method: "POST",
+        body: JSON.stringify({ photo_ids: photoIds, collection_id: collectionId }),
+      },
+    ),
   importTemplate: (filename: string, text: string, save = false) =>
     jsonFetch<ImportTemplateResult>("/api/templates/import", {
       method: "POST",
