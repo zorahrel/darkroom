@@ -200,6 +200,29 @@ collectionRoutes.post("/api/collections/assign", async (c) => {
 // ---- Collage: una slide del carosello fatta di più foto --------------------
 
 /**
+ * Rende il JPG del collage in background, gradato e no.
+ *
+ * Comporre costa secondi (decodifica + grade di ogni sorgente), quindi farlo
+ * alla prima richiesta del browser significa una cella vuota per tutto quel
+ * tempo. Farlo qui, appena il collage cambia, sposta l'attesa dove nessuno la
+ * guarda. Gli errori si ingoiano: è una cache, non un risultato — se fallisce,
+ * la rotta immagine ci riproverà e riporterà l'errore vero.
+ */
+function warmCollage(id: string): void {
+  queueMicrotask(() => {
+    const row = getCollage(id);
+    if (!row) return;
+    for (const graded of [true, false]) {
+      try {
+        collageFile(row, { graded });
+      } catch {
+        /* la rotta immagine riproverà e mostrerà l'errore vero */
+      }
+    }
+  });
+}
+
+/**
  * Crea un collage con le foto date. Le foto devono già stare nel post: un
  * collage raggruppa quel che hai scelto, non lo aggiunge di straforo. Non le
  * toglie da `collection_photos` — così scioglierlo le rimette in fila dov'erano
@@ -272,6 +295,9 @@ collectionRoutes.post("/api/collections/:id/collages", async (c) => {
     );
   });
   tx();
+  // Compone subito, senza far aspettare la risposta: quando la griglia si
+  // ridisegna il JPG è già su disco e la slide appare piena invece che vuota.
+  warmCollage(id);
   return c.json({ ok: true, id });
 });
 
@@ -315,6 +341,7 @@ collectionRoutes.patch("/api/collages/:id", async (c) => {
     });
     tx(body.photo_ids);
   }
+  warmCollage(id);
   return c.json({ ok: true });
 });
 

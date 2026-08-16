@@ -66,7 +66,12 @@ export default function Home() {
   return (
     <div className="lg:flex lg:items-start lg:gap-4">
       <div className="flex-1 min-w-0 pb-20 lg:pb-4">
-        <Library graded={gradedView && (grade?.enabled ?? false)} bust={bust} reloadKey={reload} />
+        <Library
+          graded={gradedView && (grade?.enabled ?? false)}
+          gradeReady={grade !== null}
+          bust={bust}
+          reloadKey={reload}
+        />
       </div>
 
       {/* Reserves its column width immediately (not just once `grade` lands)

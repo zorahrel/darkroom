@@ -93,10 +93,13 @@ function formatSceneLabel(photos: PhotoListItem[]): string {
 
 export default function GridPage({
   graded = false,
+  gradeReady = false,
   bust = 0,
   reloadKey = 0,
 }: {
   graded?: boolean;
+  /** Il grade è stato caricato: prima di allora `graded` è solo il default. */
+  gradeReady?: boolean;
   bust?: number;
   reloadKey?: number;
 } = {}) {
@@ -968,6 +971,7 @@ export default function GridPage({
                         collage={slide.collage}
                         slot={slot}
                         graded={graded}
+                        gradeReady={gradeReady}
                         onChanged={refreshCollections}
                       />
                     );

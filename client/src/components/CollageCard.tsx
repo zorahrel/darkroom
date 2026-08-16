@@ -24,11 +24,16 @@ export default function CollageCard({
   collage,
   slot,
   graded,
+  gradeReady = true,
   onChanged,
 }: {
   collage: Collage;
   slot: number;
   graded: boolean;
+  /** Finché il grade non è noto, `graded` vale il suo default: chiedere subito
+   *  l'immagine significherebbe comporla due volte (una sbagliata, una giusta),
+   *  e comporre un collage costa secondi, non millisecondi. */
+  gradeReady?: boolean;
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -36,6 +41,7 @@ export default function CollageCard({
   // Il file è cache su chiave dei parametri: cambiando composizione il nome
   // cambia da solo, ma il browser ha già in cache l'URL — questo lo bussa.
   const [bust, setBust] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   const n = collage.photo_ids.length;
   const current = MODES.find((m) => m.id === collage.mode);
@@ -44,6 +50,7 @@ export default function CollageCard({
     setBusy(true);
     try {
       await api.updateCollage(collage.id, p);
+      setLoaded(false);
       setBust(Date.now());
       onChanged();
     } catch (e) {
@@ -57,12 +64,27 @@ export default function CollageCard({
 
   return (
     <div className="group relative aspect-square overflow-hidden rounded-md border border-fuchsia-800/70 bg-neutral-900">
-      <img
-        src={collageUrl(collage.id, { graded, bust })}
-        alt={`collage ${collage.mode}`}
-        loading="lazy"
-        className="h-full w-full object-cover"
-      />
+      {/* Comporre un collage è un lavoro vero (secondi, non millisecondi): la
+          cella dice cosa sta succedendo invece di restare un buco nero. Niente
+          `loading="lazy"`: una slide che si compone solo quando la scrolli
+          sotto gli occhi arriva sempre in ritardo. */}
+      {gradeReady && (
+        <img
+          src={collageUrl(collage.id, { graded, bust })}
+          alt={`collage ${collage.mode}`}
+          onLoad={() => setLoaded(true)}
+          className={
+            "h-full w-full object-cover transition-opacity duration-200 " +
+            (loaded ? "opacity-100" : "opacity-0")
+          }
+        />
+      )}
+      {!loaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[10px] text-neutral-500">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-fuchsia-700 border-t-transparent" />
+          compongo…
+        </div>
+      )}
 
       <span className="pointer-events-none absolute left-1 top-1 z-20 rounded bg-fuchsia-600/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
         {current?.label ?? collage.mode} · {n}
