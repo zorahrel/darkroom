@@ -99,7 +99,7 @@ const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   white_balance: { awb: true, scene_match: false },
   levels: { black: 0.4, white: 99.6 },
   sakura: {},
-  sky: { amount: 40 },
+  sky: { amount: 40, desat: 0, warm: 0 },
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
   hsl: { ...HSL_ZERO },
   curve: { shadows: 0, darks: 0, lights: 0, highlights: 0 },

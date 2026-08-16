@@ -1,5 +1,7 @@
 import { Hono } from "hono";
-import { db, type CollectionRow } from "../db.ts";
+import { db, type CollageMode, type CollectionRow } from "../db.ts";
+import { COLLAGE_MODES, collageFile, getCollage, modeCapacity } from "../collage.ts";
+import { serveFile } from "../http.ts";
 
 /**
  * Collections — the publishing unit. A gallery is what you shot; a collection
@@ -23,7 +25,8 @@ function listCollections(): CollectionWithCount[] {
     .all();
 }
 
-/** Every collection with its photo ids in order — one payload the grid can group by. */
+/** Every collection with its photo ids in order, plus its collages — one
+ *  payload the grid can group by. */
 collectionRoutes.get("/api/collections", (c) => {
   const collections = listCollections();
   const members = db()
@@ -35,7 +38,28 @@ collectionRoutes.get("/api/collections", (c) => {
   for (const m of members) {
     (photosByCollection[m.collection_id] ??= []).push(m.photo_id);
   }
-  return c.json({ collections, photos: photosByCollection });
+  const collageRows = db()
+    .query<
+      {
+        id: string;
+        collection_id: string;
+        mode: CollageMode;
+        layout: string;
+        position: number;
+        created_at: number;
+      },
+      []
+    >("SELECT * FROM collages ORDER BY collection_id, position ASC")
+    .all();
+  const collageMembers = db()
+    .query<{ collage_id: string; photo_id: string }, []>(
+      "SELECT collage_id, photo_id FROM collage_photos ORDER BY collage_id, position ASC",
+    )
+    .all();
+  const idsByCollage: Record<string, string[]> = {};
+  for (const m of collageMembers) (idsByCollage[m.collage_id] ??= []).push(m.photo_id);
+  const collages = collageRows.map((r) => ({ ...r, photo_ids: idsByCollage[r.id] ?? [] }));
+  return c.json({ collections, photos: photosByCollection, collages });
 });
 
 collectionRoutes.post("/api/collections", async (c) => {
@@ -171,4 +195,145 @@ collectionRoutes.post("/api/collections/assign", async (c) => {
   });
   tx(ids);
   return c.json({ ok: true, moved: ids.length, collection_id: target });
+});
+
+// ---- Collage: una slide del carosello fatta di più foto --------------------
+
+/**
+ * Crea un collage con le foto date. Le foto devono già stare nel post: un
+ * collage raggruppa quel che hai scelto, non lo aggiunge di straforo. Non le
+ * toglie da `collection_photos` — così scioglierlo le rimette in fila dov'erano
+ * senza dover ricordare niente.
+ */
+collectionRoutes.post("/api/collections/:id/collages", async (c) => {
+  const collectionId = c.req.param("id");
+  if (!db().query("SELECT 1 FROM collections WHERE id = ?").get(collectionId)) {
+    return c.json({ error: "not found" }, 404);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    photo_ids?: string[];
+    mode?: CollageMode;
+    layout?: string;
+  };
+  const ids = body.photo_ids ?? [];
+  if (ids.length < 2) return c.json({ error: "servono almeno 2 foto" }, 400);
+
+  const inPost = new Set(
+    db()
+      .query<{ photo_id: string }, [string]>(
+        "SELECT photo_id FROM collection_photos WHERE collection_id = ?",
+      )
+      .all(collectionId)
+      .map((r) => r.photo_id),
+  );
+  const outside = ids.filter((x) => !inPost.has(x));
+  if (outside.length) {
+    return c.json({ error: `foto non in questo post: ${outside.join(", ")}` }, 400);
+  }
+  // Una foto in due collage renderebbe ambiguo l'ordine delle slide.
+  const taken = db()
+    .query<{ photo_id: string }, []>("SELECT photo_id FROM collage_photos")
+    .all()
+    .map((r) => r.photo_id);
+  const dup = ids.filter((x) => taken.includes(x));
+  if (dup.length) return c.json({ error: `già in un collage: ${dup.join(", ")}` }, 400);
+
+  const mode = (body.mode ?? "hero") as CollageMode;
+  if (!COLLAGE_MODES.includes(mode)) return c.json({ error: "composizione non valida" }, 400);
+  const layout = (body.layout ?? "2x2").trim().toLowerCase();
+  if (!/^[1-6]x[1-6]$/.test(layout)) return c.json({ error: "layout non valido" }, 400);
+  const cap = modeCapacity(mode, layout);
+  if (ids.length > cap) {
+    return c.json({ error: `«${mode}» tiene ${cap} foto, qui ce ne sono ${ids.length}` }, 400);
+  }
+
+  const id = `cg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  // La slide prende il posto della PRIMA foto che assorbe: il collage resta
+  // dov'era il gruppo, invece di saltare in fondo al carosello.
+  const first =
+    db()
+      .query<{ position: number }, [string, string]>(
+        "SELECT position FROM collection_photos WHERE collection_id = ? AND photo_id = ?",
+      )
+      .get(collectionId, ids[0]!)?.position ?? 0;
+
+  const d = db();
+  const tx = d.transaction(() => {
+    d.run(
+      "INSERT INTO collages (id, collection_id, mode, layout, position, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, collectionId, mode, layout, first, Date.now()],
+    );
+    ids.forEach((pid, i) =>
+      d.run("INSERT INTO collage_photos (photo_id, collage_id, position) VALUES (?, ?, ?)", [
+        pid,
+        id,
+        i,
+      ]),
+    );
+  });
+  tx();
+  return c.json({ ok: true, id });
+});
+
+collectionRoutes.patch("/api/collages/:id", async (c) => {
+  const id = c.req.param("id");
+  const row = getCollage(id);
+  if (!row) return c.json({ error: "not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as {
+    mode?: CollageMode;
+    layout?: string;
+    photo_ids?: string[];
+  };
+  const n = body.photo_ids?.length ?? row.photo_ids.length;
+  const nextLayout = (body.layout ?? row.layout).trim().toLowerCase();
+  if (!/^[1-6]x[1-6]$/.test(nextLayout)) return c.json({ error: "layout non valido" }, 400);
+  const nextMode = (body.mode ?? row.mode) as CollageMode;
+  if (!COLLAGE_MODES.includes(nextMode)) return c.json({ error: "composizione non valida" }, 400);
+  // La capienza si controlla sulla combinazione FINALE: cambiare modo e numero
+  // di foto insieme non deve poter far sparire uno scatto.
+  const cap = modeCapacity(nextMode, nextLayout);
+  if (n > cap) {
+    return c.json({ error: `«${nextMode}» tiene ${cap} foto, qui ce ne sono ${n}` }, 400);
+  }
+  if (body.mode !== undefined) {
+    db().run("UPDATE collages SET mode = ? WHERE id = ?", [nextMode, id]);
+  }
+  if (body.layout !== undefined) {
+    db().run("UPDATE collages SET layout = ? WHERE id = ?", [nextLayout, id]);
+  }
+  if (body.photo_ids) {
+    const d = db();
+    const tx = d.transaction((xs: string[]) => {
+      d.run("DELETE FROM collage_photos WHERE collage_id = ?", [id]);
+      xs.forEach((pid, i) =>
+        d.run("INSERT INTO collage_photos (photo_id, collage_id, position) VALUES (?, ?, ?)", [
+          pid,
+          id,
+          i,
+        ]),
+      );
+    });
+    tx(body.photo_ids);
+  }
+  return c.json({ ok: true });
+});
+
+/** Scioglie il collage: le foto tornano slide singole, esattamente dov'erano. */
+collectionRoutes.delete("/api/collages/:id", (c) => {
+  db().run("DELETE FROM collages WHERE id = ?", [c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+/** Il JPG composto. `graded=0` per vederlo senza color grade. */
+collectionRoutes.get("/api/collages/:id/image", (c) => {
+  const row = getCollage(c.req.param("id"));
+  if (!row) return new Response("not found", { status: 404 });
+  const graded = c.req.query("graded") !== "0";
+  const size = c.req.query("size") ?? "1080x1350";
+  if (!/^\d{2,4}x\d{2,4}$/.test(size)) return new Response("bad size", { status: 400 });
+  try {
+    return serveFile(collageFile(row, { graded, size }), "image/jpeg");
+  } catch (err) {
+    return new Response(String(err), { status: 500 });
+  }
 });

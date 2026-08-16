@@ -122,12 +122,23 @@ def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0):
     return np.clip(out, 0, 255)
 
 
-def sky_lift(a, amount=40.0):
-    """Lighten light-blue/cyan sky tones. amount 0-100 -> 0..~35% lift toward
-    white inside the masked hue. Masks cyan/blue hue (~180-250°) with moderate
-    saturation/value so it targets skies, not deep-navy shadow or saturated
-    blue signage/clothing (those sit outside the s/v band below)."""
+def sky_lift(a, amount=40.0, desat=0.0, warm=0.0):
+    """Work the sky band without touching the rest of the frame.
+
+    `amount` 0-100 lifts the masked hue toward white (0..~35%). `desat` 0-100
+    pulls the same pixels toward their own luma, which is how you kill a
+    "postcard cyan" sky without draining the greens and the blue signage: the
+    per-hue Color Mixer can't do it cleanly because a real sky sits around
+    215-220°, right in the trough between the aqua and blue bands. `warm` 0-100
+    nudges the residual cast off cyan toward a neutral grey-blue.
+
+    All three share one mask (hue ~180-250°, moderate saturation/value), so a
+    deep-navy shadow or a saturated blue jacket stays out of it. The blend is
+    weighted by how central the pixel is in the band, so there is no visible
+    edge where the mask stops."""
     amt = max(0.0, min(100.0, amount)) / 100.0
+    ds = max(0.0, min(100.0, desat)) / 100.0
+    wm = max(0.0, min(100.0, warm)) / 100.0
     x = a / 255.0; out = x.copy()
     r, g, b = x[..., 0], x[..., 1], x[..., 2]
     mx = np.maximum.reduce([r, g, b]); mn = np.minimum.reduce([r, g, b])
@@ -142,6 +153,23 @@ def sky_lift(a, amount=40.0):
     lift = 0.35 * amt
     for c in range(3):
         out[..., c] = np.where(sky, np.clip(x[..., c] + lift * (1 - x[..., c]), 0, 1), x[..., c])
+
+    if ds > 0 or wm > 0:
+        # Feather: 1 al centro della banda (215°, il cielo vero), 0 ai bordi, così
+        # il verde a 180° e il blu insegna a 250° non vengono trascinati dentro.
+        w = np.clip(1.0 - np.abs(hue - 215.0) / 35.0, 0.0, 1.0)
+        w = w * w * (3.0 - 2.0 * w)
+        w = np.where(sky, w, 0.0)[..., None]
+        if ds > 0:
+            luma = (out * LUMA).sum(-1, keepdims=True)
+            out = out * (1 - w * ds) + luma * (w * ds)
+        if wm > 0:
+            # Solo il residuo di ciano: alza R, abbassa B della stessa quantità,
+            # così la luminanza non si sposta e il cielo diventa grigio-azzurro.
+            k = 0.06 * wm * w
+            out[..., 0] = out[..., 0] + k[..., 0]
+            out[..., 2] = out[..., 2] - k[..., 0]
+        out = np.clip(out, 0.0, 1.0)
     return np.clip(out * 255, 0, 255)
 
 
@@ -528,7 +556,7 @@ def run_step(a, step, wb_gain):
     if t == "sakura":
         return pink_lift(a, float(p.get("feather", 0)), float(p.get("amount", 1.0)))
     if t == "sky":
-        return sky_lift(a, float(p.get("amount", 40)))
+        return sky_lift(a, float(p.get("amount", 40)), float(p.get("desat", 0)), float(p.get("warm", 0)))
     if t == "bloom":
         return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)), float(p.get("radius", 14)))
     if t == "lut":

@@ -239,3 +239,106 @@ describe("ordine del carosello", () => {
     expect(db().query("SELECT COUNT(*) AS n FROM collection_photos").get()).toEqual({ n: 4 });
   });
 });
+
+describe("collage", () => {
+  async function post(ids: string[]) {
+    return call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ids });
+  }
+
+  test("unire due foto crea una slide sola, e le foto restano nel post", async () => {
+    await post(["a", "b", "c", "d"]);
+    const made = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["b", "c"],
+      mode: "split",
+    });
+    expect(made.status).toBe(200);
+
+    const { json } = await call("GET", "/api/collections");
+    // Il collage NON consuma le foto: restano membri del post, così scioglierlo
+    // le rimette in fila senza doversi ricordare dov'erano.
+    expect(json.photos["uno"]).toEqual(["a", "b", "c", "d"]);
+    expect(json.collages).toHaveLength(1);
+    expect(json.collages[0].photo_ids).toEqual(["b", "c"]);
+    // Prende il posto della sua prima foto, non va in fondo.
+    expect(json.collages[0].position).toBe(1);
+  });
+
+  test("una composizione che non tiene tutte le foto è rifiutata", async () => {
+    await post(["a", "b", "c", "d"]);
+    // «split» sta a due: con quattro perderebbe due scatti in silenzio.
+    const r = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "b", "c", "d"],
+      mode: "split",
+    });
+    expect(r.status).toBe(400);
+    expect(r.json.error).toContain("tiene 2 foto");
+
+    // E nemmeno in PATCH, dove il controllo va fatto sulla combinazione finale.
+    await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "b", "c", "d"],
+      mode: "hero",
+    });
+    const id = (await call("GET", "/api/collections")).json.collages[0].id;
+    expect((await call("PATCH", `/api/collages/${id}`, { mode: "split" })).status).toBe(400);
+    expect((await call("PATCH", `/api/collages/${id}`, { mode: "grid", layout: "1x2" })).status).toBe(400);
+    // Una combinazione capiente passa.
+    expect((await call("PATCH", `/api/collages/${id}`, { mode: "grid", layout: "2x2" })).status).toBe(200);
+  });
+
+  test("una composizione inventata è rifiutata", async () => {
+    await post(["a", "b"]);
+    const r = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "b"],
+      mode: "fancy",
+    });
+    expect(r.status).toBe(400);
+  });
+
+  test("foto fuori dal post, o già in un collage, non si uniscono", async () => {
+    await post(["a", "b"]);
+    const fuori = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "c"],
+      mode: "split",
+    });
+    expect(fuori.status).toBe(400);
+    expect(fuori.json.error).toContain("non in questo post");
+
+    await call("POST", "/api/collections/uno/collages", { photo_ids: ["a", "b"], mode: "split" });
+    const again = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "b"],
+      mode: "split",
+    });
+    expect(again.status).toBe(400);
+    expect(again.json.error).toContain("già in un collage");
+  });
+
+  test("una foto sola non è un collage", async () => {
+    await post(["a", "b"]);
+    const r = await call("POST", "/api/collections/uno/collages", { photo_ids: ["a"] });
+    expect(r.status).toBe(400);
+  });
+
+  test("sciogliere il collage lascia il post intatto", async () => {
+    await post(["a", "b", "c"]);
+    const made = await call("POST", "/api/collections/uno/collages", {
+      photo_ids: ["a", "b"],
+      mode: "split",
+    });
+    await call("DELETE", `/api/collages/${made.json.id}`);
+
+    const { json } = await call("GET", "/api/collections");
+    expect(json.collages).toHaveLength(0);
+    expect(json.photos["uno"]).toEqual(["a", "b", "c"]);
+    expect(db().query("SELECT COUNT(*) AS n FROM collage_photos").get()).toEqual({ n: 0 });
+  });
+
+  test("sciogliere il post porta via anche i suoi collage", async () => {
+    await post(["a", "b"]);
+    await call("POST", "/api/collections/uno/collages", { photo_ids: ["a", "b"], mode: "split" });
+    await call("DELETE", "/api/collections/uno");
+
+    expect(db().query("SELECT COUNT(*) AS n FROM collages").get()).toEqual({ n: 0 });
+    expect(db().query("SELECT COUNT(*) AS n FROM collage_photos").get()).toEqual({ n: 0 });
+    expect(db().query("SELECT COUNT(*) AS n FROM photos").get()).toEqual({ n: 4 });
+  });
+});

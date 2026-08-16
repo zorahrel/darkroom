@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
-import { api, type Collection, type PhotoListItem, type Run } from "../api";
+import { api, type Collage, type Collection, type PhotoListItem, type Run } from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
+import CollageCard from "../components/CollageCard";
 import Accordion from "../components/Accordion";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -38,6 +39,20 @@ type Filter =
 type Accent = "amber" | "red" | "star" | "rose";
 
 type GroupMode = "scene" | "day" | "post" | "none";
+
+/** Una slide del carosello: una foto singola, oppure un collage che ne tiene più d'una. */
+type Slide =
+  | { kind: "photo"; photo: PhotoListItem }
+  | { kind: "collage"; collage: Collage };
+
+/** Un blocco della griglia. `slides` c'è solo per i post: altrove non esiste
+ *  un ordine di pubblicazione, solo l'ora di scatto. */
+type GridGroup = {
+  label: string;
+  photos: PhotoListItem[];
+  collectionId?: string;
+  slides?: Slide[];
+};
 const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
   { id: "all", label: "Tutte", icon: LayoutGrid },
   // La curatela viene prima di tutto il resto: è quel che si fa scorrendo.
@@ -102,6 +117,7 @@ export default function GridPage({
   // so the "Post" grouping and the bulk assign bar always agree.
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionPhotos, setCollectionPhotos] = useState<Record<string, string[]>>({});
+  const [collages, setCollages] = useState<Collage[]>([]);
   const [collectionsBusy, setCollectionsBusy] = useState(false);
   // Riordino dentro un post: l'ordine È il carosello, quindi si sistema
   // trascinando le foto, non da un file. HTML5 drag nativo: nessuna dipendenza,
@@ -198,6 +214,7 @@ export default function GridPage({
       const r = await api.collections();
       setCollections(r.collections);
       setCollectionPhotos(r.photos);
+      setCollages(r.collages ?? []);
     } catch {
       /* collections are additive: a failure must not blank the grid */
     }
@@ -292,10 +309,42 @@ export default function GridPage({
   // curated one (collection_photos.position), not the shot time — a carousel
   // has a first slide. Everything unassigned lands in a trailing bucket, which
   // is the working queue while you're still splitting the trip into posts.
+  /**
+   * Le SLIDE di un post: una foto singola vale una slide, un collage ne vale
+   * una sola pur assorbendone diverse. L'ordine è quello di
+   * `collection_photos`; il collage prende il posto della sua prima foto e le
+   * altre spariscono dalla fila (sono dentro di lui), così quel che vedi nella
+   * griglia è esattamente il carosello che pubblichi.
+   */
+  const slidesFor = useCallback(
+    (collectionId: string, byId: Map<string, PhotoListItem>) => {
+      const ids = collectionPhotos[collectionId] ?? [];
+      const mine = collages.filter((c) => c.collection_id === collectionId);
+      const owner = new Map<string, Collage>();
+      for (const cg of mine) for (const pid of cg.photo_ids) owner.set(pid, cg);
+      const seen = new Set<string>();
+      const out: ({ kind: "photo"; photo: PhotoListItem } | { kind: "collage"; collage: Collage })[] =
+        [];
+      for (const id of ids) {
+        const cg = owner.get(id);
+        if (cg) {
+          if (seen.has(cg.id)) continue; // già emesso alla sua prima foto
+          seen.add(cg.id);
+          out.push({ kind: "collage", collage: cg });
+          continue;
+        }
+        const p = byId.get(id);
+        if (p) out.push({ kind: "photo", photo: p });
+      }
+      return out;
+    },
+    [collectionPhotos, collages],
+  );
+
   const postGroups = useMemo(() => {
     const byId = new Map(allPhotos.map((p) => [p.id, p]));
     const assigned = new Set<string>();
-    const groups: { label: string; photos: PhotoListItem[]; collectionId?: string }[] = [];
+    const groups: GridGroup[] = [];
     for (const col of collections) {
       const ids = collectionPhotos[col.id] ?? [];
       const photos: PhotoListItem[] = [];
@@ -308,21 +357,27 @@ export default function GridPage({
       }
       // A post whose photos are all filtered out is noise in this view.
       if (photos.length === 0) continue;
+      const slides = slidesFor(col.id, byId);
+      const nCollages = slides.filter((x) => x.kind === "collage").length;
       groups.push({
-        label: `${col.title} · ${photos.length}${photos.length !== ids.length ? `/${ids.length}` : ""} foto`,
+        // Il conteggio che conta è quello delle SLIDE (il carosello ha un
+        // limite di 20), con le foto fra parentesi quando un collage ne
+        // assorbe più d'una.
+        label:
+          `${col.title} · ${slides.length} slide` +
+          (nCollages ? ` (${photos.length} foto, ${nCollages} collage)` : ""),
         photos,
         collectionId: col.id,
+        slides,
       });
     }
     const rest = allPhotos.filter((p) => !assigned.has(p.id));
     if (rest.length) groups.push({ label: `Non assegnate · ${rest.length} foto`, photos: rest });
     return groups;
-  }, [allPhotos, collections, collectionPhotos]);
+  }, [allPhotos, collections, collectionPhotos, slidesFor]);
 
   // Final groups rendered, driven by the selected grouping mode.
-  const displayGroups = useMemo<
-    { label: string; photos: PhotoListItem[]; collectionId?: string }[]
-  >(() => {
+  const displayGroups = useMemo<GridGroup[]>(() => {
     if (groupMode === "none") return [{ label: "", photos: allPhotos }];
     if (groupMode === "day") return dayGroups;
     if (groupMode === "post") return postGroups;
@@ -426,6 +481,25 @@ export default function GridPage({
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const selectedCount = selected.size;
 
+  /**
+   * Il post in cui stanno TUTTE le foto selezionate, se ce n'è uno solo e
+   * nessuna è già dentro un collage. È la condizione perché "unisci in collage"
+   * abbia senso: null = il bottone non compare, invece di comparire e fallire.
+   */
+  const selectedCollectionId = useMemo(() => {
+    if (selected.size < 2) return null;
+    const inCollage = new Set(collages.flatMap((c) => c.photo_ids));
+    let found: string | null = null;
+    for (const id of selected) {
+      if (inCollage.has(id)) return null;
+      const owner = Object.entries(collectionPhotos).find(([, ids]) => ids.includes(id));
+      if (!owner) return null;
+      if (found && found !== owner[0]) return null;
+      found = owner[0];
+    }
+    return found;
+  }, [selected, collectionPhotos, collages]);
+
   const selectedHasActiveJob = useMemo(() => {
     let n = 0;
     for (const id of selected) {
@@ -528,6 +602,34 @@ export default function GridPage({
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
+          {/* Unire in collage è un gesto di curatela quanto assegnare, ma vale
+              solo dentro UN post: foto di post diversi non fanno una slide. */}
+          {selectedCollectionId && selectedCount >= 2 && selectedCount <= 9 && (
+            <button
+              disabled={collectionsBusy}
+              onClick={async () => {
+                const ids = [...selected];
+                // Default sensato: due foto stanno bene divise a metà, di più
+                // vogliono una gerarchia. Si cambia con un click sulla slide.
+                const mode = ids.length === 2 ? "split" : ids.length <= 5 ? "hero" : "grid";
+                const layout = ids.length <= 6 ? "3x2" : "3x3";
+                setCollectionsBusy(true);
+                try {
+                  await api.createCollage(selectedCollectionId, { photo_ids: ids, mode, layout });
+                  await refreshCollections();
+                  setSelected(new Set());
+                  setSelectMode(false);
+                } catch (e) {
+                  alert(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setCollectionsBusy(false);
+                }
+              }}
+              className="text-xs px-3 py-1.5 rounded bg-fuchsia-700 hover:bg-fuchsia-600 border border-fuchsia-600 text-white disabled:opacity-40"
+            >
+              ▣ Unisci in collage ({selectedCount})
+            </button>
+          )}
           {/* Assegnare è IL gesto della curatela, quindi è un bottone per post,
               non una tendina da aprire: con pochi post il click è uno solo. La
               tendina resta accanto per crearne uno nuovo o per toglierle. */}
@@ -857,7 +959,20 @@ export default function GridPage({
                 className="grid gap-2"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))` }}
               >
-                {g.photos.map((p, slot) => {
+                {(g.slides ?? g.photos.map((photo) => ({ kind: "photo" as const, photo }))).map(
+                  (slide, slot) => {
+                  if (slide.kind === "collage") {
+                    return (
+                      <CollageCard
+                        key={slide.collage.id}
+                        collage={slide.collage}
+                        slot={slot}
+                        graded={graded}
+                        onChanged={refreshCollections}
+                      />
+                    );
+                  }
+                  const p = slide.photo;
                   // Dentro un post ogni foto è una slide numerata e trascinabile;
                   // fuori (scena/giorno/non assegnate) l'ordine è dato dall'ora
                   // di scatto e non c'è niente da riordinare.
@@ -915,7 +1030,8 @@ export default function GridPage({
                       )}
                     </div>
                   );
-                })}
+                },
+                )}
               </div>
             </section>
           ))}

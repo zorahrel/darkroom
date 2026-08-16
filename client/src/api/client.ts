@@ -11,6 +11,7 @@ import type {
   VersionReport,
   Beat,
   Character,
+  Collage,
   Collection,
   CollectionsPayload,
   Panel,
@@ -377,6 +378,25 @@ export const api = {
         body: JSON.stringify({ photo_ids: photoIds, collection_id: collectionId }),
       },
     ),
+  // Collage: raggruppa più foto di un post in una sola slide.
+  createCollage: (
+    collectionId: string,
+    input: { photo_ids: string[]; mode?: Collage["mode"]; layout?: string },
+  ) =>
+    jsonFetch<{ ok: true; id: string }>(
+      `/api/collections/${encodeURIComponent(collectionId)}/collages`,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  updateCollage: (
+    id: string,
+    patch: Partial<Pick<Collage, "mode" | "layout" | "photo_ids">>,
+  ) =>
+    jsonFetch<{ ok: true }>(`/api/collages/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deleteCollage: (id: string) =>
+    jsonFetch<{ ok: true }>(`/api/collages/${encodeURIComponent(id)}`, { method: "DELETE" }),
   importTemplate: (filename: string, text: string, save = false) =>
     jsonFetch<ImportTemplateResult>("/api/templates/import", {
       method: "POST",

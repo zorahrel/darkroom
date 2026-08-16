@@ -71,3 +71,13 @@ export function panelImageUrl(photoId: string, w = 480, bust?: number): string {
   if (bust !== undefined) p.set("b", String(bust));
   return pq(`/api/storyboard/panels/${encodeURIComponent(photoId)}/image?${p.toString()}`);
 }
+
+/** JPG composto di un collage (slide del carosello). */
+export function collageUrl(id: string, opts: { graded?: boolean; size?: string; bust?: number } = {}): string {
+  const q = new URLSearchParams();
+  if (opts.graded === false) q.set("graded", "0");
+  if (opts.size) q.set("size", opts.size);
+  if (opts.bust) q.set("t", String(opts.bust));
+  const qs = q.toString();
+  return pq(`/api/collages/${encodeURIComponent(id)}/image${qs ? `?${qs}` : ""}`);
+}

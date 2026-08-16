@@ -221,8 +221,12 @@ function summaryBody(s: GradeStep): string {
       return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}${bool(p.soft) ? " · alte luci protette" : ""}`;
     case "sakura":
       return "auto";
-    case "sky":
-      return `+${num(p.amount, 40)}%`;
+    case "sky": {
+      const bits = [`+${num(p.amount, 40)}%`];
+      if (num(p.desat, 0)) bits.push(`spento ${num(p.desat, 0)}%`);
+      if (num(p.warm, 0)) bits.push(`-ciano ${num(p.warm, 0)}%`);
+      return bits.join(" · ");
+    }
     case "lut": {
       const name =
         String(p.lut ?? "")
@@ -404,9 +408,30 @@ function StepBody({
           format={(v) => `${v}%`}
           resetTo={40}
         />
+        <SliderRow
+          label="Spegni il celeste (satura meno)"
+          value={num(p.desat, 0)}
+          onChange={(v) => onParams({ desat: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={0}
+        />
+        <SliderRow
+          label="Togli il ciano (verso grigio-azzurro)"
+          value={num(p.warm, 0)}
+          onChange={(v) => onParams({ warm: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={0}
+        />
         <p className="text-[11px] text-neutral-500 leading-snug">
           Maschera solo le tonalità ciano/blu chiare (cielo) e le schiarisce —
-          non tocca insegne, vestiti o acqua molto saturi.
+          non tocca insegne, vestiti o acqua molto saturi. «Spegni il celeste»
+          toglie il cielo da cartolina lasciando intatti verdi e insegne blu:
+          il Color Mixer non ci arriva pulito perché il cielo vero cade a ~215°,
+          nella valle fra le bande aqua e blu.
         </p>
       </div>
     );

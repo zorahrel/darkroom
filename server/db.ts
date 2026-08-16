@@ -170,6 +170,28 @@ const SCHEMA_STATEMENTS = [
     position INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_collection_photos ON collection_photos(collection_id, position)`,
+  // Collage: una slide del carosello fatta di più foto. Le foto che lo
+  // compongono restano membri normali del post (stessa `collection_photos`) —
+  // il collage non le consuma, le raggruppa: scioglierlo le rimette in fila
+  // esattamente dov'erano. `position` è la posizione della SLIDE nel post, sulla
+  // stessa scala delle foto singole. `mode` è la composizione (hero, mosaic,
+  // grid, stack, split): tutte a pieno formato, senza cornici né fondo a vista.
+  // `layout` serve solo a 'grid'.
+  `CREATE TABLE IF NOT EXISTS collages (
+    id TEXT PRIMARY KEY,
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL DEFAULT 'hero',
+    layout TEXT NOT NULL DEFAULT '2x2',
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS collage_photos (
+    photo_id TEXT PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+    collage_id TEXT NOT NULL REFERENCES collages(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_collage_photos ON collage_photos(collage_id, position)`,
+  `CREATE INDEX IF NOT EXISTS idx_collages_collection ON collages(collection_id, position)`,
 ];
 
 function hasColumn(d: Database, table: string, col: string): boolean {
@@ -371,6 +393,18 @@ export type CharacterRow = {
   name: string;
   reference_photo_id: string | null;
   description: string | null;
+  created_at: number;
+};
+
+/** Una slide del carosello composta da più foto. */
+export type CollageMode = "hero" | "mosaic" | "grid" | "stack" | "split";
+
+export type CollageRow = {
+  id: string;
+  collection_id: string;
+  mode: CollageMode;
+  layout: string;
+  position: number;
   created_at: number;
 };
 

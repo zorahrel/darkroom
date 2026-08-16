@@ -453,8 +453,23 @@ export type Collection = {
   photo_count: number;
 };
 
+/** Una slide del carosello composta da più foto (collage). */
+/** Composizioni: tutte a pieno formato, senza cornici né fondo a vista. */
+export type CollageMode = "hero" | "mosaic" | "grid" | "stack" | "split";
+
+export type Collage = {
+  id: string;
+  collection_id: string;
+  mode: CollageMode;
+  layout: string;
+  position: number;
+  created_at: number;
+  photo_ids: string[];
+};
+
 /** Every collection plus its member photo ids, in order, keyed by collection id. */
 export type CollectionsPayload = {
   collections: Collection[];
   photos: Record<string, string[]>;
+  collages: Collage[];
 };
