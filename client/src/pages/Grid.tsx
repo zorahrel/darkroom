@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   SlidersHorizontal,
   Layers,
+  Heart,
+  HeartOff,
 } from "lucide-react";
 
 type Filter =
@@ -27,15 +29,20 @@ type Filter =
   | "failed"
   | "with_override"
   | "unassigned"
-  | "assigned";
+  | "assigned"
+  | "picked"
+  | "not_picked";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
-type Accent = "amber" | "red" | "star";
+type Accent = "amber" | "red" | "star" | "rose";
 
 type GroupMode = "scene" | "day" | "post" | "none";
 const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
   { id: "all", label: "Tutte", icon: LayoutGrid },
+  // La curatela viene prima di tutto il resto: è quel che si fa scorrendo.
+  { id: "picked", label: "Mi piace", icon: Heart, accent: "rose" },
+  { id: "not_picked", label: "Da guardare", icon: HeartOff },
   { id: "with_versions", label: "Con versioni", icon: Images },
   { id: "no_versions", label: "Senza versioni", icon: ImageOff },
   { id: "with_favorite", label: "Con preferita", icon: Star, accent: "star" },
@@ -350,6 +357,33 @@ export default function GridPage({
     [selected, refreshCollections, filter],
   );
 
+  /**
+   * Un "mi piace" aggiorna il contatore della barra e lo stato locale della
+   * foto, senza rifare la lista: chi sta scorrendo 190 foto non deve vedere la
+   * griglia saltare a ogni click. Sotto il filtro "Mi piace"/"Da guardare" la
+   * foto che non appartiene più al filtro esce, altrimenti resta dov'è.
+   */
+  const handlePicked = useCallback(
+    (id: string, isPicked: boolean) => {
+      setFilterCounts((c) => ({
+        ...c,
+        picked: (c.picked ?? 0) + (isPicked ? 1 : -1),
+        not_picked: (c.not_picked ?? 0) + (isPicked ? -1 : 1),
+      }));
+      setPhotos((ps) => {
+        if (!ps) return ps;
+        if (
+          (filter === "picked" && !isPicked) ||
+          (filter === "not_picked" && isPicked)
+        ) {
+          return ps.filter((p) => p.id !== id);
+        }
+        return ps.map((p) => (p.id === id ? { ...p, picked: isPicked ? 1 : 0 } : p));
+      });
+    },
+    [filter],
+  );
+
   const toggleSelect = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -564,16 +598,20 @@ export default function GridPage({
               cls =
                 f.accent === "red"
                   ? "bg-red-600/90 border-red-500 text-white"
-                  : f.accent === "amber" || f.accent === "star"
-                    ? "bg-amber-500/90 border-amber-400 text-black"
-                    : "bg-neutral-700 border-neutral-500 text-white";
+                  : f.accent === "rose"
+                    ? "bg-rose-500/90 border-rose-400 text-white"
+                    : f.accent === "amber" || f.accent === "star"
+                      ? "bg-amber-500/90 border-amber-400 text-black"
+                      : "bg-neutral-700 border-neutral-500 text-white";
             } else if (empty) {
               cls = "bg-transparent border-neutral-900 text-neutral-600 opacity-50";
             } else if (hot) {
               cls =
                 f.accent === "red"
                   ? "bg-red-950/40 border-red-800 text-red-200 hover:border-red-600"
-                  : "bg-amber-950/30 border-amber-800/70 text-amber-200 hover:border-amber-600";
+                  : f.accent === "rose"
+                    ? "bg-rose-950/40 border-rose-800/70 text-rose-200 hover:border-rose-600"
+                    : "bg-amber-950/30 border-amber-800/70 text-amber-200 hover:border-amber-600";
             } else {
               cls =
                 "bg-transparent border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600";
@@ -795,6 +833,7 @@ export default function GridPage({
                     bust={bust}
                     onToggleSelect={() => toggleSelect(p.id)}
                     onFavoriteChange={() => api.listPhotos(filter).then((r) => setPhotos(r.photos))}
+                    onPickedChange={handlePicked}
                   />
                 ))}
               </div>

@@ -9,6 +9,7 @@ export default function PhotoCard({
   photo,
   jobStatus,
   onFavoriteChange,
+  onPickedChange,
   selectMode = false,
   selected = false,
   onToggleSelect,
@@ -19,6 +20,7 @@ export default function PhotoCard({
   photo: PhotoListItem;
   jobStatus?: JobStatus;
   onFavoriteChange?: () => void;
+  onPickedChange?: (id: string, picked: boolean) => void;
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
@@ -28,6 +30,12 @@ export default function PhotoCard({
 }) {
   const [isFavorite, setIsFavorite] = useState(photo.favorite_version_id !== null);
   const [busy, setBusy] = useState(false);
+  // "Mi piace": la scelta che si prende scorrendo la griglia. Ottimistica —
+  // scegliere 190 foto è un gesto ripetuto, non deve aspettare la rete.
+  const [picked, setPicked] = useState(photo.picked === 1);
+  useEffect(() => {
+    setPicked(photo.picked === 1);
+  }, [photo.picked]);
 
   // One thumb size for every zoom level (no srcset complexity). The grid tile
   // maxes at 400px (zoom slider), so 1000px stays crisp even at max zoom on
@@ -125,6 +133,19 @@ export default function PhotoCard({
       onFavoriteChange?.();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function togglePicked(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !picked;
+    setPicked(next);
+    try {
+      await api.setPicked(photo.id, next);
+      onPickedChange?.(photo.id, next);
+    } catch {
+      setPicked(!next); // la rete ha detto no: torna com'era
     }
   }
 
@@ -256,6 +277,23 @@ export default function PhotoCard({
           )}
         </div>
       )}
+
+      {/* In alto a sinistra: "mi piace". È l'azione più frequente della
+          griglia (si scorre e si sceglie), quindi ha il posto migliore e non
+          richiede né selezione né menu. Distinta dalla stella, che riguarda
+          quale RENDER di questa foto è quello buono. */}
+      <button
+        onClick={togglePicked}
+        aria-label={picked ? "Non mi piace più" : "Mi piace"}
+        aria-pressed={picked}
+        className={`absolute top-1 left-1 z-30 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${
+          picked
+            ? "bg-rose-500/85 text-white shadow backdrop-blur-sm"
+            : "bg-black/40 text-neutral-300 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-rose-300"
+        }`}
+      >
+        {picked ? "♥" : "♡"}
+      </button>
 
       {/* Top-right: favorite toggle */}
       {(hasEdit || isFavorite) && (

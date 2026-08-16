@@ -163,3 +163,61 @@ describe("filtro non assegnate", () => {
     expect(counts.assigned).toBe(2);
   });
 });
+
+describe("mi piace", () => {
+  test("un click marca la foto, un altro la smarca, e i filtri seguono", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    const put = (id: string, picked: boolean) =>
+      grid.request(`/api/photos/${id}/picked`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ picked }),
+      });
+
+    expect((await (await put("a", true)).json()).picked).toBe(true);
+    await put("b", true);
+
+    const liked = await (await grid.request("/api/photos?filter=picked")).json();
+    expect(liked.photos.map((p: any) => p.id).sort()).toEqual(["a", "b"]);
+    // Il campo viaggia nella lista: la griglia disegna il cuore senza un giro extra.
+    expect(liked.photos.every((p: any) => p.picked === 1)).toBe(true);
+
+    const todo = await (await grid.request("/api/photos?filter=not_picked")).json();
+    expect(todo.photos.map((p: any) => p.id).sort()).toEqual(["c", "d"]);
+
+    await put("a", false);
+    const after = await (await grid.request("/api/photos?filter=picked")).json();
+    expect(after.photos.map((p: any) => p.id)).toEqual(["b"]);
+
+    const { counts } = await (await grid.request("/api/photos/counts")).json();
+    expect(counts.picked).toBe(1);
+    expect(counts.not_picked).toBe(3);
+  });
+
+  test("il mi piace è indipendente dal post e dalla versione preferita", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    await grid.request("/api/photos/a/picked", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ picked: true }),
+    });
+    // Assegnare a un post non tocca il mi piace, e viceversa.
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a"] });
+    const row: any = db().query("SELECT picked, favorite_version_id FROM photos WHERE id = 'a'").get();
+    expect(row.picked).toBe(1);
+    expect(row.favorite_version_id).toBeNull();
+  });
+
+  test("mi piace su una foto inesistente è 404", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    const res = await grid.request("/api/photos/fantasma/picked", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ picked: true }),
+    });
+    expect(res.status).toBe(404);
+  });
+});

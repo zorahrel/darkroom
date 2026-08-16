@@ -304,6 +304,14 @@ export function initSchemaOn(d: Database): void {
        WHERE sequence_index IS NOT NULL`,
   );
 
+  // "Mi piace": la scelta umana su UNA foto, presa scorrendo la griglia. È
+  // deliberatamente separata da favorite_version_id (quale render di quella
+  // foto è il buono) e dai post: prima si dice cosa vale, poi si raggruppa.
+  if (!hasColumn(d, "photos", "picked")) {
+    d.run("ALTER TABLE photos ADD COLUMN picked INTEGER NOT NULL DEFAULT 0");
+  }
+  d.run("CREATE INDEX IF NOT EXISTS idx_photos_picked ON photos(picked) WHERE picked = 1");
+
   // ---- Index hygiene ------------------------------------------------------
   // `idx_versions_photo_id` (see SCHEMA_STATEMENTS) makes the gallery's
   // "latest version per photo" subqueries covering — measured on the real
@@ -342,6 +350,8 @@ export type PhotoRow = {
   extra_instructions: string | null;
   grade_override: string | null;
   feedback: string | null;
+  /** "Mi piace": 1 = la tengo. Indipendente dal post e dalla versione preferita. */
+  picked: number;
   kind: "original" | "generated";
   taken_at: number | null;
   /** Storyboard: 0-based panel order. NULL = not part of a sequence (a plain photo). */

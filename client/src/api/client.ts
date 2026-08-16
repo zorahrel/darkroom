@@ -333,6 +333,12 @@ export const api = {
       body: JSON.stringify({ limit, recheck }),
     }),
   verifyBatchStatus: () => jsonFetch<VerifyBatchStatus>("/api/verify/batch"),
+  /** "Mi piace" su una foto: un click nella griglia. */
+  setPicked: (id: string, picked: boolean) =>
+    jsonFetch<{ ok: true; picked: boolean }>(
+      `/api/photos/${encodeURIComponent(id)}/picked`,
+      { method: "PUT", body: JSON.stringify({ picked }) },
+    ),
   // Collections (posts/caroselli): the publishing grouping over the gallery.
   collections: () => jsonFetch<CollectionsPayload>("/api/collections"),
   createCollection: (input: {

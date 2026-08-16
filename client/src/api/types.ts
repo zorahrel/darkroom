@@ -10,6 +10,8 @@ export type PhotoListItem = {
   version_count: number;
   taken_at: number | null;
   feedback: string | null;
+  /** "Mi piace": 1 = la tengo. Scelta umana sulla foto, non sul render. */
+  picked: number;
 };
 
 export type Version = {

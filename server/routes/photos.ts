@@ -36,6 +36,10 @@ photoRoutes.get("/api/photos", (c) => {
     );
   } else if (filter === "with_override") {
     where.push("p.config_override IS NOT NULL");
+  } else if (filter === "picked") {
+    where.push("p.picked = 1");
+  } else if (filter === "not_picked") {
+    where.push("p.picked = 0");
   } else if (filter === "unassigned") {
     // Not in any post yet: the working queue while you're still curating.
     where.push("NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)");
@@ -49,6 +53,7 @@ photoRoutes.get("/api/photos", (c) => {
       p.favorite_version_id,
       p.taken_at,
       p.feedback,
+      p.picked,
       (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) AS version_count,
       (SELECT v.version_number FROM versions v
          WHERE v.photo_id = p.id AND v.id = p.favorite_version_id) AS favorite_version_number,
@@ -68,6 +73,7 @@ photoRoutes.get("/api/photos", (c) => {
         favorite_version_id: number | null;
         taken_at: number | null;
         feedback: string | null;
+        picked: number;
         version_count: number;
         favorite_version_number: number | null;
         latest_version_id: number | null;
@@ -96,7 +102,9 @@ photoRoutes.get("/api/photos/counts", (c) => {
          SUM(CASE WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.photo_id = p.id AND j.status = 'failed') AND ${hasVersions} = 0 THEN 1 ELSE 0 END) AS failed,
          SUM(CASE WHEN p.config_override IS NOT NULL THEN 1 ELSE 0 END) AS with_override,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS assigned,
-         SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS unassigned
+         SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS unassigned,
+         SUM(CASE WHEN p.picked = 1 THEN 1 ELSE 0 END) AS picked,
+         SUM(CASE WHEN p.picked = 0 THEN 1 ELSE 0 END) AS not_picked
        FROM photos p`,
     )
     .get();
@@ -193,6 +201,22 @@ photoRoutes.put("/api/photos/:id/feedback", async (c) => {
     id,
   ]);
   return c.json({ ok: true, feedback: value });
+});
+
+/** "Mi piace" su una foto: un click nella griglia, niente altro. */
+photoRoutes.put("/api/photos/:id/picked", async (c) => {
+  const id = c.req.param("id");
+  if (!getPhoto(id)) return c.json({ error: "not found" }, 404);
+  const body = await c.req
+    .json<{ picked?: boolean }>()
+    .catch(() => ({}) as { picked?: boolean });
+  const picked = body.picked ? 1 : 0;
+  db().run("UPDATE photos SET picked = ?, updated_at = ? WHERE id = ?", [
+    picked,
+    Date.now(),
+    id,
+  ]);
+  return c.json({ ok: true, picked: picked === 1 });
 });
 
 photoRoutes.delete("/api/photos/:id/versions/:vid", (c) => {
