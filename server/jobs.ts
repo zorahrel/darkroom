@@ -51,10 +51,26 @@ export function parseRefPaths(json: string | null): string[] {
 export function listJobs(limit = 100): JobRow[] {
   // Dismissed (seen) failed/cancelled jobs stay in the DB as a log but drop out
   // of the panel so old failures don't pile up in front of the thumbnails.
+  //
+  // Un fallimento SUPERATO non è più un fallimento: se per quella foto esiste
+  // un job più recente andato a buon fine (o ancora in corso), il vecchio
+  // errore non deve tornare in lista. Senza questa clausola bastava il LIMIT a
+  // mentire — i failed sono ordinati prima dei done, quindi la riga rossa
+  // entrava nella finestra e il successo che la smentiva restava fuori: la
+  // griglia marcava come "fallita" una foto in realtà rigenerata bene.
   return db()
     .query<JobRow, [number]>(
-      `SELECT * FROM jobs
+      `SELECT * FROM jobs j
        WHERE NOT (seen = 1 AND status IN ('failed','cancelled'))
+         AND NOT (
+           j.status IN ('failed','cancelled')
+           AND EXISTS (
+             SELECT 1 FROM jobs k
+              WHERE k.photo_id = j.photo_id
+                AND k.id > j.id
+                AND k.status IN ('done','running','pending')
+           )
+         )
        ORDER BY
          CASE status WHEN 'running' THEN 0 WHEN 'pending' THEN 1
                      WHEN 'failed' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
