@@ -221,3 +221,21 @@ describe("mi piace", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("ordine del carosello", () => {
+  test("riordinare non perde né duplica foto, e la prima resta la prima", async () => {
+    await call("POST", "/api/collections", {
+      id: "uno",
+      title: "Uno",
+      photo_ids: ["a", "b", "c", "d"],
+    });
+    // Sposta 'c' in testa: è il gesto del drag & drop sulla copertina.
+    await call("PUT", "/api/collections/uno/photos", { photo_ids: ["c", "a", "b", "d"] });
+
+    const { json } = await call("GET", "/api/collections");
+    expect(json.photos["uno"]).toEqual(["c", "a", "b", "d"]);
+    expect(json.collections[0].photo_count).toBe(4);
+    // Nessuna riga orfana: il PUT sostituisce, non accumula.
+    expect(db().query("SELECT COUNT(*) AS n FROM collection_photos").get()).toEqual({ n: 4 });
+  });
+});

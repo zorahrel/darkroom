@@ -103,6 +103,11 @@ export default function GridPage({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionPhotos, setCollectionPhotos] = useState<Record<string, string[]>>({});
   const [collectionsBusy, setCollectionsBusy] = useState(false);
+  // Riordino dentro un post: l'ordine È il carosello, quindi si sistema
+  // trascinando le foto, non da un file. HTML5 drag nativo: nessuna dipendenza,
+  // e la griglia resta una griglia.
+  const [dragging, setDragging] = useState<{ collectionId: string; photoId: string } | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -382,6 +387,31 @@ export default function GridPage({
       });
     },
     [filter],
+  );
+
+  /**
+   * Sposta `photoId` prima di `beforeId` dentro lo stesso post e persiste il
+   * nuovo ordine. Si riordina solo dentro un post: trascinare tra post diversi
+   * sarebbe un'assegnazione travestita, e per quella ci sono i bottoni.
+   */
+  const reorderWithin = useCallback(
+    async (collectionId: string, photoId: string, beforeId: string) => {
+      if (photoId === beforeId) return;
+      const ids = collectionPhotos[collectionId];
+      if (!ids) return;
+      const next = ids.filter((x) => x !== photoId);
+      const at = next.indexOf(beforeId);
+      if (at < 0) return;
+      next.splice(at, 0, photoId);
+      // Ottimistico: il trascinamento deve sembrare istantaneo.
+      setCollectionPhotos((m) => ({ ...m, [collectionId]: next }));
+      try {
+        await api.setCollectionPhotos(collectionId, next);
+      } catch {
+        await refreshCollections(); // il server ha rifiutato: riallinea
+      }
+    },
+    [collectionPhotos, refreshCollections],
   );
 
   const toggleSelect = (id: string) =>
@@ -791,6 +821,11 @@ export default function GridPage({
                 {/* Un post si gestisce da dove lo vedi: rinomina e cancella
                     stanno sull'intestazione del gruppo, non in una pagina a parte. */}
                 {g.collectionId && (
+                  <span className="text-[10px] text-neutral-600">
+                    trascina per riordinare · la 1 è la copertina
+                  </span>
+                )}
+                {g.collectionId && (
                   <span className="flex items-center gap-1">
                     <button
                       onClick={async () => {
@@ -822,20 +857,65 @@ export default function GridPage({
                 className="grid gap-2"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))` }}
               >
-                {g.photos.map((p) => (
-                  <PhotoCard
-                    key={p.id}
-                    photo={p}
-                    jobStatus={jobStatusByPhoto.get(p.id)}
-                    selectMode={selectMode}
-                    selected={selected.has(p.id)}
-                    graded={graded}
-                    bust={bust}
-                    onToggleSelect={() => toggleSelect(p.id)}
-                    onFavoriteChange={() => api.listPhotos(filter).then((r) => setPhotos(r.photos))}
-                    onPickedChange={handlePicked}
-                  />
-                ))}
+                {g.photos.map((p, slot) => {
+                  // Dentro un post ogni foto è una slide numerata e trascinabile;
+                  // fuori (scena/giorno/non assegnate) l'ordine è dato dall'ora
+                  // di scatto e non c'è niente da riordinare.
+                  const inPost = !!g.collectionId && !selectMode;
+                  return (
+                    <div
+                      key={p.id}
+                      draggable={inPost}
+                      onDragStart={() =>
+                        g.collectionId &&
+                        setDragging({ collectionId: g.collectionId, photoId: p.id })
+                      }
+                      onDragEnd={() => {
+                        setDragging(null);
+                        setDragOver(null);
+                      }}
+                      onDragOver={(e) => {
+                        if (!dragging || dragging.collectionId !== g.collectionId) return;
+                        e.preventDefault();
+                        setDragOver(p.id);
+                      }}
+                      onDrop={(e) => {
+                        if (!dragging || dragging.collectionId !== g.collectionId) return;
+                        e.preventDefault();
+                        reorderWithin(g.collectionId!, dragging.photoId, p.id);
+                        setDragging(null);
+                        setDragOver(null);
+                      }}
+                      className={
+                        "relative " +
+                        (inPost ? "cursor-grab active:cursor-grabbing " : "") +
+                        (dragOver === p.id && dragging?.photoId !== p.id
+                          ? "ring-2 ring-sky-400 rounded-md"
+                          : "") +
+                        (dragging?.photoId === p.id ? " opacity-40" : "")
+                      }
+                    >
+                      <PhotoCard
+                        photo={p}
+                        jobStatus={jobStatusByPhoto.get(p.id)}
+                        selectMode={selectMode}
+                        selected={selected.has(p.id)}
+                        graded={graded}
+                        bust={bust}
+                        onToggleSelect={() => toggleSelect(p.id)}
+                        onFavoriteChange={() =>
+                          api.listPhotos(filter).then((r) => setPhotos(r.photos))
+                        }
+                        onPickedChange={handlePicked}
+                      />
+                      {g.collectionId && (
+                        <span className="pointer-events-none absolute bottom-1 left-1 z-20 min-w-[1.25rem] px-1 rounded bg-black/70 text-center text-[10px] font-semibold tabular-nums text-white">
+                          {slot + 1}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ))}
