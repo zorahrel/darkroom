@@ -54,13 +54,13 @@ export type ExcludeKey =
 export type PromptConfig = {
   preset: "cinematic" | "editorial" | "documentary" | "fine-art";
   film_stock: "none" | "portra-400" | "portra-800" | "cinestill-800t" | "ektar-100" | "fuji-400h";
-  white_balance: "preserve" | "neutral" | "warm" | "cool";
+  white_balance: "preserve" | "neutral" | "neutral-strict" | "warm" | "cool";
   sky: "off" | "deep-blue";
   geometry: "off" | "straighten" | "correct";
   composition: "off" | "rebalance" | "recompose";
   aspect_ratio: "preserve" | "1:1" | "4:5" | "5:4" | "3:2" | "2:3" | "16:9" | "9:16";
   harmony: "off" | "subtle" | "strong";
-  food: "off" | "enhance";
+  food: "off" | "enhance" | "strict";
   time_of_day: "preserve" | "golden" | "blue" | "overcast" | "noon" | "tungsten";
   lighting: "preserve" | "dramatic-romantic" | "soft-directional" | "hard-directional" | "flat-even";
   palette: "preserve" | "warm-earth" | "teal-orange" | "desaturated" | "high-saturation";

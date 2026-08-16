@@ -59,6 +59,13 @@ export const WHITE_BALANCE = {
   preserve: "",
   neutral:
     "neutral, accurate white balance; remove any color cast; keep a consistent color temperature across the whole set",
+  // Gli interni giapponesi sono quasi tutti tungsteno su legno: chiedere
+  // genericamente "neutral" non basta, il modello lascia l'ambra perché la
+  // legge come atmosfera invece che come dominante. Qui si nomina il caso
+  // (legno, lampade calde, banconi) e si dà un riferimento verificabile —
+  // il bianco deve uscire bianco — senza chiedere una foto fredda.
+  "neutral-strict":
+    "remove the warm cast completely: neutral, accurate white balance as if shot on a color-checked camera. Indoor tungsten and warm LED lighting must NOT leave an amber or yellow cast on wood, walls, counters, tables, food or skin. Anything white or grey in the scene (paper, plates, walls, signage) must render truly white or neutral grey, not cream or yellow. Keep the light sources themselves warm and the mood intact — neutralize the cast, not the lamps",
   warm: "warm white balance",
   cool: "cool white balance",
 } as const;
@@ -118,6 +125,12 @@ export const FOOD = {
   off: "",
   enhance:
     "if the image contains food or drinks, make them look fresh, appetizing and nicely plated — without changing the dish, the ingredients, the portions, or adding anything",
+  // Il cibo è il soggetto che il modello sbaglia più spesso: carne che vira sul
+  // grigio o sul verde, uova che sembrano marce, brodi che sembrano avanzi.
+  // Qui si nomina cosa deve andare storto, perché "rendilo appetitoso" è un
+  // aggettivo e un aggettivo non si può verificare.
+  strict:
+    "if the image contains food or drinks, it must look freshly served and appetizing: raw fish and meat keep their true fresh color (bright, clean red or pink — never grey, brown, dull or iridescent), egg yolks stay bright and intact (never grey, green-rimmed or rotten-looking), broths and sauces stay clean and glossy (never murky, split or scummy), and greens stay crisp. Do NOT change the dish, the ingredients, the portions, the plating or the number of pieces, and do not make it look already eaten, picked at or leftover",
 } as const;
 export type Food = keyof typeof FOOD;
 

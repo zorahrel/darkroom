@@ -910,10 +910,25 @@ export default function GridPage({
       ) : (
         <div className="space-y-4">
           {displayGroups.map((g, i) => (
+            // Scorrendo 85 foto il titolo del gruppo è l'unico punto di
+            // riferimento: deve leggersi senza cercarlo, non essere una riga
+            // grigia come tutto il resto. Un post ha anche una barra di colore,
+            // così si vede dove finisce uno e comincia l'altro.
             <section key={i} className="space-y-2">
               {g.label && (
-              <header className="flex items-center gap-2 text-xs text-neutral-400 sticky top-[57px] bg-neutral-950/90 backdrop-blur py-1 z-10">
-                <span className="text-neutral-300 font-medium">{g.label}</span>
+              <header className="flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[57px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b border-neutral-800/80">
+                {g.collectionId && (
+                  <span className="h-6 w-1 shrink-0 rounded-full bg-amber-400/80" />
+                )}
+                <span
+                  className={
+                    g.collectionId
+                      ? "text-white font-semibold text-lg tracking-tight"
+                      : "text-neutral-200 font-semibold text-base"
+                  }
+                >
+                  {g.label}
+                </span>
                 {selectMode && (
                   <button
                     onClick={() => {

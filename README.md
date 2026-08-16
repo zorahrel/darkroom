@@ -10,7 +10,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Batch editing** — queue every photo with one click; the worker runs them one at a time in the background.
 - **Generate from scratch** — text‑to‑image with no source photo; results land in the gallery like any other item.
 - **Versioning** — every render is a numbered version with the exact prompt + settings used; pick a favorite per photo.
-- **Visual prompt builder** — compose looks from labeled controls (film stock, time of day, bloom, skin tones…) with on‑disk previews.
+- **Visual prompt builder** — compose looks from labeled controls (film stock, time of day, bloom, skin tones…) with on‑disk previews. Options name the failure they prevent rather than an adjective: *neutral-strict* white balance says wood and whites must not stay amber under tungsten, *strict* food says raw fish must not go grey and yolks must not look rotten.
 - **Pluggable backends** — ChatGPT web (default, free), Codex CLI, or Higgsfield (optional, paid).
 - **MCP server** — list galleries, enqueue edits/generations, check jobs, set favorites, export — all from Claude.
 - **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop + a sky step that can drain postcard-cyan skies without touching greens or blue signage), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.

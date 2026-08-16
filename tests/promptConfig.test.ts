@@ -165,3 +165,30 @@ describe("parseConfig", () => {
     expect(p.preset).toBeUndefined();
   });
 });
+
+describe("clausole aggiunte per il set Giappone", () => {
+  test("neutral-strict nomina l'ambra degli interni, non solo 'neutro'", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, white_balance: "neutral-strict" });
+    // Un aggettivo ("neutro") non è verificabile; un riferimento sì.
+    expect(p).toContain("must render truly white or neutral grey");
+    expect(p).toContain("wood");
+    // Neutralizza la dominante senza spegnere le lampade: è la differenza fra
+    // una foto corretta e una foto fredda.
+    expect(p).toContain("Keep the light sources themselves warm");
+  });
+
+  test("food strict elenca i modi in cui il cibo esce male", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, food: "strict" });
+    expect(p).toContain("never grey, brown, dull or iridescent");
+    expect(p).toContain("egg yolks");
+    // E non deve autorizzare a cambiare il piatto per farlo sembrare migliore.
+    expect(p).toContain("Do NOT change the dish");
+  });
+
+  test("le opzioni storiche non cambiano", () => {
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, white_balance: "neutral" })).toContain(
+      "neutral, accurate white balance",
+    );
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, food: "off" })).not.toContain("appetizing");
+  });
+});

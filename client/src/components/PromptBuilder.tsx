@@ -86,6 +86,11 @@ const VISUAL_GROUPS: VisualGroup[] = [
     options: [
       { value: "preserve", label: "Mantieni", hint: "Lascia il bilanciamento originale" },
       { value: "neutral", label: "Neutro", hint: "Bianco accurato, rimuove dominanti" },
+      {
+        value: "neutral-strict",
+        label: "Neutro forte",
+        hint: "Toglie l'ambra degli interni: legno e banconi non restano gialli",
+      },
       { value: "warm", label: "Caldo", hint: "Sposta verso il caldo" },
       { value: "cool", label: "Freddo", hint: "Sposta verso il freddo" },
     ],
@@ -255,6 +260,11 @@ const VISUAL_GROUPS: VisualGroup[] = [
     options: [
       { value: "off", label: "Off", hint: "Nessun ritocco cibo" },
       { value: "enhance", label: "Migliora", hint: "Rende cibo/bevande appetitosi senza alterarli" },
+      {
+        value: "strict",
+        label: "Fresco",
+        hint: "Nomina cosa non deve andare storto: carne grigia, uovo marcio, brodo torbido",
+      },
     ],
   },
 ];
