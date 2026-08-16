@@ -317,6 +317,39 @@ export default function GridPage({
     return sceneGroups;
   }, [groupMode, allPhotos, dayGroups, sceneGroups, postGroups]);
 
+  /**
+   * Sposta la selezione in un post (o la libera con null, o ne crea uno nuovo
+   * con "__new__"). Dopo l'assegnazione la selezione si svuota: il gesto è
+   * finito, e chi sta lavorando col filtro "Non assegnate" vede la coda
+   * accorciarsi da sola invece di dover deselezionare a mano.
+   */
+  const assignSelection = useCallback(
+    async (target: string | null) => {
+      const ids = [...selected];
+      if (!ids.length) return;
+      setCollectionsBusy(true);
+      try {
+        if (target === "__new__") {
+          const title = prompt(`Titolo del nuovo post (${ids.length} foto)`);
+          if (!title?.trim()) return;
+          await api.createCollection({ title: title.trim(), photo_ids: ids });
+        } else {
+          await api.assignToCollection(ids, target);
+        }
+        await refreshCollections();
+        setSelected(new Set());
+        // La griglia filtrata su "non assegnate" deve perdere le foto appena
+        // assegnate, altrimenti restano lì e sembra che il click non abbia fatto nulla.
+        const r = await api.listPhotos(filter);
+        setPhotos(r.photos);
+        api.photoCounts().then((x) => setFilterCounts(x.counts)).catch(() => {});
+      } finally {
+        setCollectionsBusy(false);
+      }
+    },
+    [selected, refreshCollections, filter],
+  );
+
   const toggleSelect = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -431,32 +464,28 @@ export default function GridPage({
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
-          {/* Assegnare a un post è l'azione di curatela, non di generazione:
-              sta accanto alle altre bulk perché la selezione è la stessa. */}
+          {/* Assegnare è IL gesto della curatela, quindi è un bottone per post,
+              non una tendina da aprire: con pochi post il click è uno solo. La
+              tendina resta accanto per crearne uno nuovo o per toglierle. */}
+          {collections.map((col) => (
+            <button
+              key={col.id}
+              disabled={collectionsBusy || selectedCount === 0}
+              onClick={() => assignSelection(col.id)}
+              className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              → {col.title}{" "}
+              <span className="text-neutral-500 tabular-nums">{col.photo_count}</span>
+            </button>
+          ))}
           <select
             disabled={collectionsBusy || selectedCount === 0}
             value=""
-            onChange={async (e) => {
+            onChange={(e) => {
               const v = e.target.value;
               if (!v) return;
               e.target.value = "";
-              const ids = [...selected];
-              setCollectionsBusy(true);
-              try {
-                if (v === "__new__") {
-                  const title = prompt(`Titolo del nuovo post (${ids.length} foto)`);
-                  if (!title?.trim()) return;
-                  await api.createCollection({ title: title.trim(), photo_ids: ids });
-                } else {
-                  await api.assignToCollection(ids, v === "__none__" ? null : v);
-                }
-                await refreshCollections();
-                setSelected(new Set());
-                setGroupMode("post");
-                localStorage.setItem("darkroom.grid.group", "post");
-              } finally {
-                setCollectionsBusy(false);
-              }
+              assignSelection(v === "__none__" ? null : v);
             }}
             className="text-xs px-2 py-1.5 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
