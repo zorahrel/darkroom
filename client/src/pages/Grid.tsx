@@ -38,6 +38,15 @@ type Filter =
 // favorites amber-star). Others use the neutral active style.
 type Accent = "amber" | "red" | "star" | "rose";
 
+/**
+ * Collage: unire più foto in una sola slide. Spento di default — vale la pena
+ * solo quando le foto sono lo stesso soggetto ripetuto (quattro vicoli uguali,
+ * un Buddha da tre angoli), e mescolare soggetti diversi peggiora il post
+ * invece di accorciarlo. Il codice e le API restano: si riaccende da qui.
+ * I collage già creati continuano a mostrarsi comunque.
+ */
+const COLLAGE_ENABLED = localStorage.getItem("darkroom.collage") === "1";
+
 type GroupMode = "scene" | "day" | "post" | "none";
 
 /** Una slide del carosello: una foto singola, oppure un collage che ne tiene più d'una. */
@@ -605,9 +614,11 @@ export default function GridPage({
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
-          {/* Unire in collage è un gesto di curatela quanto assegnare, ma vale
-              solo dentro UN post: foto di post diversi non fanno una slide. */}
-          {selectedCollectionId && selectedCount >= 2 && selectedCount <= 9 && (
+          {/* Unire in collage vale solo dentro UN post: foto di post diversi non
+              fanno una slide. Il bottone è dietro il flag perché nella pratica
+              serve di rado — una slide composta regge solo quando le foto sono
+              lo STESSO soggetto ripetuto, e capita meno di quanto sembri. */}
+          {COLLAGE_ENABLED && selectedCollectionId && selectedCount >= 2 && selectedCount <= 9 && (
             <button
               disabled={collectionsBusy}
               onClick={async () => {
