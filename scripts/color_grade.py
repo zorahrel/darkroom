@@ -67,12 +67,18 @@ def levels(a, black=0.4, white=99.6, soft=False):
     return np.clip(x * 255.0, 0, 255)
 
 
-def pink_lift(a, feather=0.0, amount=1.0):
+def pink_lift(a, feather=0.0, amount=1.0, sat=0.0):
     """Lift + gently desaturate pink (sakura) hues. `feather` (0..1) softens the
     hard hue/sat mask: 0 = binary mask (legacy, exact back-compat); >0 blurs the
     membership weight so the lift/desat fades in instead of flipping per pixel —
     kills the "macchie" (blotchy patches) on out-of-focus pink blossom bokeh
-    where pixels dither in/out of the band. `amount` 0..1 scales the effect."""
+    where pixels dither in/out of the band. `amount` 0..1 scales the effect.
+
+    `sat` -100..100 rimette (o toglie) colore al rosa DOPO lo schiarimento.
+    Serve perché questo passo di suo tira il rosa verso il grigio (0.82/0.18) e
+    un bilanciamento freddo a valle lo spegne ancora: senza, i sakura si
+    perdono. Agisce solo dentro la stessa maschera, quindi non tocca pelle,
+    insegne rosse o tramonti fuori banda."""
     x = a / 255.0
     r, g, b = x[..., 0], x[..., 1], x[..., 2]
     mx = np.maximum.reduce([r, g, b]); mn = np.minimum.reduce([r, g, b])
@@ -95,6 +101,14 @@ def pink_lift(a, feather=0.0, amount=1.0):
     vv = lifted.max(-1, keepdims=True)
     lifted = lifted * 0.82 + vv * 0.18
     out = x + pw * (lifted - x)
+
+    if sat:
+        # Saturazione attorno al grigio del pixel, non moltiplicativa sui canali:
+        # così il rosa torna pieno senza spostare la tinta né bruciare i petali
+        # già chiari. Il tetto a 1 evita di piantare i più saturi contro il gamut.
+        k = float(sat) / 100.0
+        luma = (out * LUMA).sum(-1, keepdims=True)
+        out = np.clip(luma + (out - luma) * (1.0 + k * pw), 0.0, 1.0)
     return np.clip(out * 255, 0, 255)
 
 
@@ -554,7 +568,12 @@ def run_step(a, step, wb_gain):
     if t == "levels":
         return levels(a, float(p.get("black", 0.4)), float(p.get("white", 99.6)), bool(p.get("soft", False)))
     if t == "sakura":
-        return pink_lift(a, float(p.get("feather", 0)), float(p.get("amount", 1.0)))
+        return pink_lift(
+            a,
+            float(p.get("feather", 0)),
+            float(p.get("amount", 1.0)),
+            float(p.get("sat", 0)),
+        )
     if t == "sky":
         return sky_lift(a, float(p.get("amount", 40)), float(p.get("desat", 0)), float(p.get("warm", 0)))
     if t == "bloom":

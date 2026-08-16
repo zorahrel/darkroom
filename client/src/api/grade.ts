@@ -98,7 +98,7 @@ const HSL_ZERO: Record<string, number> = Object.fromEntries(
 const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   white_balance: { awb: true, scene_match: false },
   levels: { black: 0.4, white: 99.6 },
-  sakura: {},
+  sakura: { sat: 0 },
   sky: { amount: 40, desat: 0, warm: 0 },
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
   hsl: { ...HSL_ZERO },

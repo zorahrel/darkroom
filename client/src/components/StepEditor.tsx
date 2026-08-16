@@ -220,7 +220,7 @@ function summaryBody(s: GradeStep): string {
     case "levels":
       return `nero ${num(p.black, 0.4)} · bianco ${num(p.white, 99.6)}${bool(p.soft) ? " · alte luci protette" : ""}`;
     case "sakura":
-      return "auto";
+      return num(p.sat, 0) ? `colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%` : "auto";
     case "sky": {
       const bits = [`+${num(p.amount, 40)}%`];
       if (num(p.desat, 0)) bits.push(`spento ${num(p.desat, 0)}%`);
@@ -390,9 +390,23 @@ function StepBody({
 
   if (step.type === "sakura") {
     return (
-      <p className="text-[11px] text-neutral-500 leading-snug">
-        Schiarisce e uniforma i sakura (nessun parametro).
-      </p>
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Colore dei sakura"
+          value={num(p.sat, 0)}
+          onChange={(v) => onParams({ sat: v })}
+          min={-50}
+          max={100}
+          format={(v) => `${v > 0 ? "+" : ""}${v}%`}
+          resetTo={0}
+        />
+        <p className="text-[11px] text-neutral-500 leading-snug">
+          Schiarisce e uniforma i sakura. Questo passo di suo tira il rosa verso
+          il grigio, e un bilanciamento freddo a valle lo spegne ancora: il
+          cursore glielo rimette, solo dentro la banda del rosa — pelle, insegne
+          rosse e tramonti restano dove sono.
+        </p>
+      </div>
     );
   }
 
