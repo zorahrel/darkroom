@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, currentProject, type PhotoListItem } from "../api";
 import { thumbRawUrl, thumbGenUrl, gradedUrl } from "../api";
 
 type JobStatus = "pending" | "running" | "failed";
+
+/** Sotto questa larghezza la cella non ha spazio per badge multipli: si tiene
+ *  solo l'essenziale (cuore e stella) e il resto sparisce. Meglio niente che
+ *  tre etichette sovrapposte illeggibili. */
+const COMPACT_PX = 150;
 
 export default function PhotoCard({
   photo,
@@ -33,6 +38,18 @@ export default function PhotoCard({
   // "Mi piace": la scelta che si prende scorrendo la griglia. Ottimistica —
   // scegliere 190 foto è un gesto ripetuto, non deve aspettare la rete.
   const [picked, setPicked] = useState(photo.picked === 1);
+  // Larghezza reale della cella: i badge si mostrano solo se ci stanno.
+  const cardRef = useRef<HTMLAnchorElement | null>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => {
+      if (e) setCompact(e.contentRect.width < COMPACT_PX);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     setPicked(photo.picked === 1);
   }, [photo.picked]);
@@ -161,6 +178,7 @@ export default function PhotoCard({
 
   return (
     <Link
+      ref={cardRef}
       to={`/p/${currentProject()}/photo/${encodeURIComponent(photo.id)}`}
       onClick={(e) => {
         if (selectMode) {
@@ -214,7 +232,7 @@ export default function PhotoCard({
           Higgsfield), non dalla versione web. La web è una bozza — 1 MP, neri
           schiacciati — e senza un segno visibile non si sa quali foto sono già
           state portate a master. */}
-      {photo.shown_provider === "higgsfield" && (
+      {photo.shown_provider === "higgsfield" && !compact && (
         <span className="pointer-events-none absolute bottom-1 left-1 z-20 rounded bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-950">
           PRO
         </span>
@@ -224,7 +242,15 @@ export default function PhotoCard({
           cuore, e i due si sovrapponevano — si intravedeva il badge da sotto il
           bottone, senza capire cosa fosse. In selezione scala per non finire
           sotto la spunta. */}
-      <div className={`absolute bottom-1 ${selectMode ? "right-9" : "right-1"} flex items-center gap-1 pointer-events-none`}>
+      <div
+        className={
+          "absolute bottom-1 flex items-center gap-1 pointer-events-none " +
+          (selectMode ? "right-9 " : "right-1 ") +
+          // Su una cella piccola sparisce: il numero di versioni è un dettaglio
+          // di servizio, non vale il posto che ruberebbe alla foto.
+          (compact ? "hidden" : "")
+        }
+      >
         <span
           className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
             photo.version_count === 0
@@ -340,7 +366,7 @@ export default function PhotoCard({
           e.preventDefault();
           e.stopPropagation();
         }}
-        className={`absolute inset-x-0 bottom-0 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${
+        className={`absolute inset-x-0 bottom-0 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${compact ? "hidden " : ""}${
           fbFocused
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"

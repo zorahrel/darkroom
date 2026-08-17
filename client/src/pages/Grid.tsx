@@ -70,6 +70,23 @@ type GridGroup = {
   collectionId?: string;
   slides?: Slide[];
 };
+/**
+ * I filtri raggruppati per DOMANDA, non messi in fila.
+ *
+ * Tredici pulsanti affiancati non entrano in una barra e obbligano a scorrere
+ * lateralmente per trovarne uno. Qui restano fuori solo i tre che si usano di
+ * continuo (tutte, mi piace, da guardare); gli altri stanno in tre menu che
+ * rispondono ognuno a una domanda diversa: dove sta questa foto? a che punto è
+ * la lavorazione? cosa devo ancora sistemare?
+ */
+const FILTER_GROUPS: { label: string; ids: Filter[] }[] = [
+  { label: "Nei post", ids: ["assigned", "unassigned"] },
+  { label: "Stato", ids: ["recent", "with_versions", "no_versions", "in_queue"] },
+  { label: "Da fare", ids: ["no_favorite", "with_favorite", "failed", "with_override"] },
+];
+/** Sempre visibili: sono le tre viste con cui si lavora davvero. */
+const PRIMARY_FILTERS: Filter[] = ["all", "picked", "not_picked"];
+
 const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
   { id: "all", label: "Tutte", icon: LayoutGrid },
   // La curatela viene prima di tutto il resto: è quel che si fa scorrendo.
@@ -154,6 +171,8 @@ export default function GridPage({
   const [dragOver, setDragOver] = useState<string | null>(null);
   // Post evidenziato quando ci si trascina sopra l'intestazione.
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+  /** Quale menu di filtri è aperto (uno per volta). */
+  const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   // Menu contestuale: le stesse azioni dei bottoni, ma raggiungibili con il
   // tasto destro — che è dove le cerca chiunque abbia mai usato un gestore di
   // foto, e che finora non faceva nulla.
@@ -781,9 +800,9 @@ export default function GridPage({
           sotto l'header dell'app; le intestazioni dei post scendono di
           conseguenza (vedi `top-[110px]` più sotto). */}
       <div className="sticky top-[57px] z-20 -mx-1 bg-neutral-950/95 px-1 py-2 backdrop-blur">
-      <div className="flex flex-nowrap items-center gap-x-3 gap-y-2 overflow-x-auto text-xs">
+      <div className="flex flex-nowrap items-center gap-1.5 text-xs">
         <div className="flex flex-nowrap items-center gap-1">
-          {FILTERS.map((f) => {
+          {FILTERS.filter((f) => PRIMARY_FILTERS.includes(f.id)).map((f) => {
             const Icon = f.icon;
             const n = filterCounts[f.id];
             const known = n !== undefined;
@@ -791,7 +810,7 @@ export default function GridPage({
             const isActive = filter === f.id;
             const hot = !!f.accent && !!n && n > 0; // colored emphasis when non-empty
             const base =
-              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors ";
+              "inline-flex items-center gap-1 px-2 py-1.5 rounded border transition-colors ";
             let cls: string;
             if (isActive) {
               cls =
@@ -820,11 +839,14 @@ export default function GridPage({
                 key={f.id}
                 onClick={() => setFilter(f.id)}
                 disabled={empty && !isActive}
-                title={known ? `${n} foto` : undefined}
+                title={`${f.label}${known ? ` — ${n} foto` : ""}`}
                 className={base + cls + (empty && !isActive ? " cursor-not-allowed" : "")}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                <span>{f.label}</span>
+                {/* Su una barra stretta resta la sola icona: il conteggio e il
+                    tooltip bastano a riconoscere il filtro, e l'alternativa era
+                    lo scroll orizzontale. */}
+                <span className="hidden xl:inline">{f.label}</span>
                 {known && (
                   <span
                     className={
@@ -841,32 +863,117 @@ export default function GridPage({
             );
           })}
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">Gruppo</span>
-          {([
-            { id: "scene", label: "Scena" },
-            { id: "day", label: "Giorno" },
-            { id: "post", label: "Post" },
-            { id: "none", label: "Nessuno" },
-          ] as const).map((g) => (
-            <button
-              key={g.id}
-              onClick={() => {
-                setGroupMode(g.id);
-                localStorage.setItem("darkroom.grid.group", g.id);
-              }}
-              className={
-                "px-3 py-1.5 rounded border transition-colors " +
-                (groupMode === g.id
-                  ? "bg-neutral-800 border-neutral-600 text-white"
-                  : "bg-transparent border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600")
-              }
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        {runs.length > 0 && (
+
+        {/* Gli altri filtri, in tre menu per famiglia. Un menu che porta il
+            conteggio del filtro attivo dice già tutto senza doverlo aprire. */}
+        {FILTER_GROUPS.map((grp) => {
+          const active = grp.ids.includes(filter);
+          const cur = FILTERS.find((f) => f.id === filter);
+          return (
+            <div key={grp.label} className="relative">
+              <button
+                onClick={() => setOpenFilterMenu(openFilterMenu === grp.label ? null : grp.label)}
+                className={
+                  "inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1.5 transition-colors " +
+                  (active
+                    ? "border-neutral-500 bg-neutral-700 text-white"
+                    : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white")
+                }
+              >
+                {active && cur ? cur.label : grp.label}
+                <span className="text-neutral-500">▾</span>
+              </button>
+              {openFilterMenu === grp.label && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenFilterMenu(null)} />
+                  <div className="absolute left-0 z-50 mt-1 min-w-[13rem] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-900 py-1 shadow-2xl">
+                    {grp.ids.map((id) => {
+                      const f = FILTERS.find((x) => x.id === id);
+                      if (!f) return null;
+                      const n = filterCounts[id];
+                      const Icon = f.icon;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            setFilter(id);
+                            setOpenFilterMenu(null);
+                          }}
+                          disabled={n === 0 && filter !== id}
+                          className={
+                            "flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors " +
+                            (filter === id
+                              ? "bg-neutral-800 text-white"
+                              : n === 0
+                                ? "cursor-not-allowed text-neutral-600"
+                                : "text-neutral-200 hover:bg-neutral-800")
+                          }
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                          <span className="flex-1">{f.label}</span>
+                          <span className="tabular-nums text-neutral-500">{n ?? ""}</span>
+                        </button>
+                      );
+                    })}
+                    {/* Le run vivono qui, sotto "Lavorazione": è la stessa
+                        domanda (a che punto è la generazione?) e non serve
+                        tenerle sempre in barra. */}
+                    {grp.label === "Stato" && runs.length > 0 && (
+                      <>
+                        <div className="my-1 border-t border-neutral-800" />
+                        <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+                          Generazioni
+                        </div>
+                        {runs.slice(0, 8).map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => {
+                              setSelectedRun(selectedRun === r.id ? null : r.id);
+                              setOpenFilterMenu(null);
+                            }}
+                            className={
+                              "block w-full px-3 py-1.5 text-left transition-colors " +
+                              (selectedRun === r.id
+                                ? "bg-sky-900/50 text-sky-200"
+                                : "text-neutral-300 hover:bg-neutral-800")
+                            }
+                          >
+                            {runLabel(r)}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Raggruppamento: un select nativo invece di quattro bottoni. Sono
+            300px risparmiati, ed è una scelta fra alternative esclusive —
+            esattamente ciò per cui un menu a tendina esiste. */}
+        <label className="flex shrink-0 items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
+          <span className="text-[10px] uppercase tracking-wider text-neutral-500">Gruppo</span>
+          <select
+            value={groupMode}
+            onChange={(e) => {
+              const v = e.target.value as GroupMode;
+              setGroupMode(v);
+              localStorage.setItem("darkroom.grid.group", v);
+            }}
+            className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-200"
+          >
+            <option value="post">Post</option>
+            <option value="scene">Scena</option>
+            <option value="day">Giorno</option>
+            <option value="none">Nessuno</option>
+          </select>
+        </label>
+        {/* Il selettore di run è un attrezzo di diagnosi, non di curatela: sta
+            in barra solo quando è già in uso, altrimenti ruba 220px a chi sta
+            semplicemente guardando le foto. */}
+        {runs.length > 0 && selectedRun != null && (
           <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
             <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">
               Run
@@ -892,7 +999,7 @@ export default function GridPage({
             </select>
           </div>
         )}
-        <div className="flex items-center gap-2 text-neutral-400 ml-auto rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
+        <div className="ml-auto flex shrink-0 items-center gap-2 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1 text-neutral-400">
           <span className="text-[10px] uppercase tracking-wider">Zoom</span>
           <input
             type="range"
@@ -905,7 +1012,7 @@ export default function GridPage({
               setZoom(v);
               localStorage.setItem("darkroom.grid.zoom", String(v));
             }}
-            className="w-32 accent-neutral-400"
+            className="w-24 accent-neutral-400"
           />
           <span className="font-mono text-[10px] w-10 tabular-nums">{zoom}px</span>
         </div>
@@ -1186,7 +1293,29 @@ export default function GridPage({
                           ma è un gesto di precisione per dire "questa apre il
                           carosello" — e il riferimento colore non ha nemmeno un
                           gesto, vive solo nell'ordine invisibile del DB. */}
-                      {g.collectionId && !selectMode && (
+                      {/* Sotto una certa dimensione i due comandi non ci stanno
+                          senza coprire la foto: si collassano in un bottone
+                          solo che apre lo stesso menu del tasto destro. */}
+                      {g.collectionId && !selectMode && zoom < 150 && (
+                        <button
+                          title="Azioni su questa foto"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const r = (e.target as HTMLElement).getBoundingClientRect();
+                            setMenu({
+                              x: r.left,
+                              y: r.bottom + 4,
+                              photoId: p.id,
+                              collectionId: g.collectionId ?? null,
+                            });
+                          }}
+                          className="absolute left-1 top-9 z-20 rounded bg-black/75 px-1.5 py-0.5 text-[11px] leading-none text-white opacity-0 transition-opacity hover:bg-neutral-700 group-hover/tile:opacity-100"
+                        >
+                          ⋯
+                        </button>
+                      )}
+                      {g.collectionId && !selectMode && zoom >= 150 && (
                         // In alto a sinistra, SOTTO il cuore: in basso passa la
                         // nota (che occupa tutta la larghezza della card) e a
                         // destra c'è la stella della versione preferita. Questi
@@ -1238,8 +1367,11 @@ export default function GridPage({
                       {refByCollection[g.collectionId ?? ""] === p.id && (
                         // Sotto il numero di slide, non in alto a destra: lì
                         // vive la stella della versione preferita.
-                        <span className="pointer-events-none absolute bottom-1 left-8 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                          colore del post
+                        <span
+                          title="Questa foto detta il colore del post"
+                          className="pointer-events-none absolute bottom-1 left-8 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                        >
+                          {zoom < 150 ? "◉" : "colore del post"}
                         </span>
                       )}
                     </div>
