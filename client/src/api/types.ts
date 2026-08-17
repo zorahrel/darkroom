@@ -12,6 +12,8 @@ export type PhotoListItem = {
   feedback: string | null;
   /** "Mi piace": 1 = la tengo. Scelta umana sulla foto, non sul render. */
   picked: number;
+  /** Provider del render mostrato: 'higgsfield' = master, altro = bozza web. */
+  shown_provider: string | null;
 };
 
 export type Version = {

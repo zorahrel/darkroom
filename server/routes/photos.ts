@@ -69,7 +69,16 @@ photoRoutes.get("/api/photos", (c) => {
       (SELECT v.id FROM versions v
          WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest_version_id,
       (SELECT v.version_number FROM versions v
-         WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest_version_number
+         WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1) AS latest_version_number,
+      -- Provider del render che si sta guardando. La versione web di ChatGPT è
+      -- una bozza: serve a decidere l'inquadratura e il colore, ma esce a 1 MP
+      -- e schiaccia i neri. Quella "pro" (GPT Image 2 via Higgsfield) è il
+      -- master. In griglia devono distinguersi a colpo d'occhio, altrimenti non
+      -- si sa cosa è già stato rifinito e cosa no.
+      (SELECT v.provider FROM versions v
+         WHERE v.photo_id = p.id
+         ORDER BY (v.id = p.favorite_version_id) DESC, v.id DESC
+         LIMIT 1) AS shown_provider
     FROM photos p
     ${where.length ? "WHERE " + where.join(" AND ") : ""}
     ORDER BY (p.taken_at IS NULL) ASC, p.taken_at ASC, p.id ASC
@@ -87,6 +96,7 @@ photoRoutes.get("/api/photos", (c) => {
         favorite_version_number: number | null;
         latest_version_id: number | null;
         latest_version_number: number | null;
+        shown_provider: string | null;
       },
       []
     >(sql)

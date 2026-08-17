@@ -210,6 +210,16 @@ export default function PhotoCard({
         <div className="absolute inset-0 bg-black/40 pointer-events-none" />
       )}
 
+      {/* Badge PRO: questo render viene dal modello a pagamento (GPT Image 2 via
+          Higgsfield), non dalla versione web. La web è una bozza — 1 MP, neri
+          schiacciati — e senza un segno visibile non si sa quali foto sono già
+          state portate a master. */}
+      {photo.shown_provider === "higgsfield" && (
+        <span className="pointer-events-none absolute bottom-1 left-1 z-20 rounded bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-950">
+          PRO
+        </span>
+      )}
+
       {/* Contatore versioni. Sta in BASSO a destra: in alto a sinistra c'è il
           cuore, e i due si sovrapponevano — si intravedeva il badge da sotto il
           bottone, senza capire cosa fosse. In selezione scala per non finire

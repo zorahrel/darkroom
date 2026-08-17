@@ -12,7 +12,6 @@ import {
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
 import CollageCard from "../components/CollageCard";
-import Accordion from "../components/Accordion";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid,
@@ -595,8 +594,6 @@ export default function GridPage({
 
   // Compact summary shown on the collapsed Filtri accordion, so the active
   // filter/group/zoom stay visible without expanding the bar.
-  const activeFilter = FILTERS.find((f) => f.id === filter);
-  const activeFilterN = filterCounts[filter];
   const groupLabel =
     groupMode === "scene"
       ? "Scena"
@@ -778,30 +775,14 @@ export default function GridPage({
         </div>
       )}
 
-      <Accordion
-        storageKey="darkroom.grid.filters.open"
-        defaultOpen
-        title={<h2 className="text-sm font-semibold">Filtri</h2>}
-        summary={
-          <>
-            {activeFilter && (
-              <span className="shrink-0 text-neutral-500">
-                {activeFilter.label}
-                {activeFilterN != null && (
-                  <span className="text-neutral-400"> {activeFilterN}</span>
-                )}
-              </span>
-            )}
-            <span className="shrink-0 text-neutral-600">· {groupLabel}</span>
-            {activeRun && (
-              <span className="shrink-0 text-sky-300/80">· run {runLabel(activeRun)}</span>
-            )}
-            <span className="shrink-0 text-neutral-600">· {zoom}px</span>
-          </>
-        }
-      >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
-        <div className="flex flex-wrap items-center gap-1">
+      {/* La barra dei filtri segue lo scorrimento invece di stare in cima alla
+          pagina: con 63 foto si finisce sempre a metà griglia, e per cambiare
+          zoom o filtro bisognava risalire ogni volta. `top-[57px]` la mette
+          sotto l'header dell'app; le intestazioni dei post scendono di
+          conseguenza (vedi `top-[110px]` più sotto). */}
+      <div className="sticky top-[57px] z-20 -mx-1 bg-neutral-950/95 px-1 py-2 backdrop-blur">
+      <div className="flex flex-nowrap items-center gap-x-3 gap-y-2 overflow-x-auto text-xs">
+        <div className="flex flex-nowrap items-center gap-1">
           {FILTERS.map((f) => {
             const Icon = f.icon;
             const n = filterCounts[f.id];
@@ -929,7 +910,7 @@ export default function GridPage({
           <span className="font-mono text-[10px] w-10 tabular-nums">{zoom}px</span>
         </div>
       </div>
-      </Accordion>
+      </div>
 
       {selectedRun != null ? (
         runData === null ? (
@@ -1009,7 +990,7 @@ export default function GridPage({
                   setDragOverGroup(null);
                 }}
                 className={
-                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[57px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
+                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[110px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
                   (dragOverGroup === g.collectionId
                     ? "border-sky-400 bg-sky-950/40"
                     : "border-neutral-800/80")
