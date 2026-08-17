@@ -440,16 +440,28 @@ def split_tone(a, p):
     return np.clip(x, 0.0, 255.0)
 
 
-def scene_is_warm_dark(a):
-    """Classify the scene to decide the LUT dose. A warm summer LUT washes the
-    blue sky into muddy teal on dark/night scenes, and pushes already
-    red-dominant scenes fully to orange. Here we recognize those cases (low luma
-    = night/dusk, or a dominant red channel) to apply a reduced dose and keep the
-    blue sky / a natural rendition. a: float32 0-255."""
+def night_weight(a):
+    """Quanto una scena è "notturna/calda", da 0 (pieno giorno) a 1 (notte).
+
+    Serve a dosare la LUT: una LUT estiva calda su una scena notturna impasta
+    il cielo in un verdastro e spinge all'arancione ciò che è già rosso.
+
+    Prima era una soglia netta (luma < 65 → dose ridotta di colpo), e questo
+    produceva un salto visibile: due render della STESSA foto, uno a luma 68 e
+    uno a 61, ricevevano il 70% e il 14% di LUT — uno caldo e dorato, l'altro
+    spento. Non è un difetto teorico: è successo con i render "pro", più scuri
+    di quelli web, che sembravano aver perso il look del set.
+
+    Con una rampa il passaggio è continuo e due foto simili restano simili.
+    a: float32 0-255."""
     luma = (a * LUMA).sum(-1).mean()
     r, g, b = a[..., 0].mean(), a[..., 1].mean(), a[..., 2].mean()
     r_frac = r / (r + g + b + 1e-6)
-    return bool(luma < 65.0 or r_frac > 0.44)
+    # Rampa sulla luminanza: 85 = giorno pieno, 45 = notte piena.
+    w_luma = (85.0 - luma) / 40.0
+    # Rampa sul rosso dominante: 0.40 = neutro, 0.48 = fortemente rosso.
+    w_red = (r_frac - 0.40) / 0.08
+    return float(np.clip(max(w_luma, w_red), 0.0, 1.0))
 
 
 _LUT_CACHE = {}  # (path, mtime, size) -> ImageFilter.Color3DLUT
@@ -603,8 +615,11 @@ def run_step(a, step, wb_gain):
     if t == "lut":
         lut = p.get("lut", "") or ""
         dose = float(p.get("dose", 0))
-        if p.get("auto_dose") and p.get("dose_night") is not None and scene_is_warm_dark(a):
-            dose = float(p.get("dose_night"))
+        if p.get("auto_dose") and p.get("dose_night") is not None:
+            # Interpolazione fra dose piena e dose notturna, non un aut-aut:
+            # una scena a metà strada riceve una dose a metà strada.
+            w = night_weight(a)
+            dose = dose * (1.0 - w) + float(p.get("dose_night")) * w
         d = max(0.0, min(100.0, dose)) / 100.0
         if lut and d > 0 and os.path.isfile(lut):
             la = apply_lut(a, lut)

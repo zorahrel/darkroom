@@ -196,3 +196,19 @@ describe("armonizzazione per post", () => {
     expect(out[0]!.params.temp).toBe(-18);
   });
 });
+
+describe("dose LUT graduale, non a scalino", () => {
+  test("night_weight è una rampa continua, non un booleano", async () => {
+    const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
+    // La soglia netta faceva sì che due render della stessa foto — uno a luma
+    // 68, uno a 61 — ricevessero 70% e 14% di LUT: uno dorato, l'altro spento.
+    expect(py).toContain("def night_weight");
+    expect(py).not.toContain("def scene_is_warm_dark");
+    expect(py).toContain("np.clip(max(w_luma, w_red), 0.0, 1.0)");
+  });
+
+  test("la dose si interpola fra piena e notturna", async () => {
+    const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
+    expect(py).toContain('dose = dose * (1.0 - w) + float(p.get("dose_night")) * w');
+  });
+});

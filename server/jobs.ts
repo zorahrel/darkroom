@@ -419,11 +419,17 @@ async function processJob(job: JobRow) {
         fail(job.id, `output missing or too small: ${outputPath}`);
         return;
       }
+      // Il numero si RICALCOLA qui, non si riusa quello scelto prima della
+      // generazione: fra i due momenti passano minuti, e se nel frattempo è
+      // arrivata un'altra versione della stessa foto l'insert va in conflitto
+      // sulla UNIQUE. Il job falliva DOPO aver già speso i crediti e scritto il
+      // file, quindi il lavoro c'era ma risultava fallito.
+      const finalNumber = nextVersionNumber(photo.id);
       const ins = db().run(
         `INSERT INTO versions
           (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
          VALUES (?, ?, ?, ?, ?, 'higgsfield', ?, ?, 'generated', ?)`,
-        [photo.id, versionNumber, outputPath, job.prompt, job.config, job.provider_params, hfResult.credits, Date.now()],
+        [photo.id, finalNumber, outputPath, job.prompt, job.config, job.provider_params, hfResult.credits, Date.now()],
       );
       db().run(
         "UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?",
@@ -587,11 +593,14 @@ async function processJob(job: JobRow) {
     consecutiveBrowserRestarts = 0;
     consecutiveSkips = 0;
 
+    // Come sul ramo Higgsfield: il numero si ricalcola al momento dell'insert,
+    // perché fra la scelta e la fine della generazione passano minuti.
+    const finalNumber = nextVersionNumber(photo.id);
     const versionInsert = db().run(
       `INSERT INTO versions
         (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at)
        VALUES (?, ?, ?, ?, ?, 'chatgpt', 'generated', ?)`,
-      [photo.id, versionNumber, outputPath, job.prompt, job.config, Date.now()],
+      [photo.id, finalNumber, outputPath, job.prompt, job.config, Date.now()],
     );
     const versionId = Number(versionInsert.lastInsertRowid);
 
