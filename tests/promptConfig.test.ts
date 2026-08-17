@@ -267,7 +267,11 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).toContain("fully visible and unobstructed");
     // era anche tagliata in basso e fuori centro per caso
     expect(p).toContain("never amputated by the bottom or side edge");
-    expect(p).toContain("either centred or on a thirds line");
+    // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
+    // ritaglio piatto, che e' proprio lo snapshot vietato dal prompt base.
+    expect(p).toContain("not a rectangle cut out of a snapshot");
+    expect(p).toContain("Never a flat, dead-centre crop");
+    expect(p).not.toContain("either centred or on a thirds line");
   });
 
   test("il cielo diurno chiede una superficie sola, senza chiazze", () => {

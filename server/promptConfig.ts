@@ -123,8 +123,12 @@ export const COMPOSITION = {
   // reframe davvero libero, ma il modello lo leggeva come licenza di RIEMPIRE
   // il bordo nuovo: su IMG_2906 e' comparso un tetto in primo piano che non
   // esiste. Estendere significa continuare la scena, non aggiungerci roba.
+  // Attenzione al rimedio opposto: chiedere il soggetto "intero e centrato"
+  // ha prodotto un ritaglio piatto, cioe' esattamente lo snapshot che il
+  // prompt base vieta. Le due cose vanno tenute insieme: inquadratura DECISA,
+  // ma il soggetto non amputato dal bordo.
   recompose:
-    "recompose the frame more freely for stronger balance and a cleaner layout; reframing may extend or alter the edges. Where the frame is extended, continue ONLY what is already there — more sky, more ground, more of the same wall or foliage; never introduce a new object, structure, roof, railing, branch or silhouette, and above all never place anything new in the foreground between the camera and the subject. The subject must stay fully visible and unobstructed. Frame it deliberately: the main subject sits whole inside the frame with breathing room on every side, its base and top clearly INSIDE the picture and never amputated by the bottom or side edge, and it is placed with intent — either centred or on a thirds line — never drifting off-centre by accident or jammed against an edge",
+    "recompose the frame more freely for stronger balance and a cleaner layout; reframing may extend or alter the edges. Where the frame is extended, continue ONLY what is already there — more sky, more ground, more of the same wall or foliage; never introduce a new object, structure, roof, railing, branch or silhouette, and above all never place anything new in the foreground between the camera and the subject. This must be a photograph someone composed, not a rectangle cut out of a snapshot: choose a decisive point of view — get lower or higher, work the diagonal, let the subject loom or sit off to one side against open space — and build depth with a real foreground, middle ground and background. Use the whole frame deliberately: the subject placed with intent, generous negative space where it earns tension, leading lines that carry the eye. Never a flat, dead-centre crop with the subject simply parked in the middle. Even so, the subject stays whole and unobstructed: its base and top clearly INSIDE the picture, never amputated by the bottom or side edge",
   // Grandangolo ravvicinato: il soggetto grande e vicino, lo spazio dietro che
   // si apre. È il taglio che fa "posare" un'auto o un monumento invece di
   // fotografarli e basta. Si nomina la prospettiva (le linee che convergono),
