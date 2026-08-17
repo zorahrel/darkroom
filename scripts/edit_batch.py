@@ -423,6 +423,34 @@ async def snapshot_image_srcs(cdp: CDP) -> set:
     return set(srcs or [])
 
 
+def looks_like_same_scene(a_path, b_path, threshold=0.25) -> float:
+    """Quanto il render assomiglia STRUTTURALMENTE alla foto di partenza.
+
+    Un edit, per quanto aggressivo, conserva la disposizione delle masse chiare
+    e scure: la correlazione fra le due miniature 16x16 resta alta. Un'immagine
+    di un'ALTRA foto no — ed è quello che succede quando il worker scarica la
+    figura già presente in pagina invece della propria (job durati 10 secondi
+    invece di due minuti). Nel set ne sono passati 15 su 62 senza che nulla
+    segnalasse niente: il piatto di cibo era diventato una strada di notte.
+
+    Ritorna la correlazione (-1..1). Sotto `threshold` è quasi certamente
+    un'immagine sbagliata. numpy/Pillow ci sono già per il resize."""
+    try:
+        import numpy as np
+        from PIL import Image, ImageOps
+
+        def sig(path):
+            im = ImageOps.exif_transpose(Image.open(path)).convert("L").resize((16, 16))
+            a = np.asarray(im, np.float32)
+            return (a - a.mean()) / (a.std() + 1e-6)
+
+        return float((sig(a_path) * sig(b_path)).mean())
+    except Exception:
+        # In caso di dubbio si lascia passare: un controllo che rompe le
+        # generazioni buone è peggio del problema che risolve.
+        return 1.0
+
+
 async def download_image(cdp: CDP, src_url: str, dst: Path):
     b64 = await cdp.js(f"""
       (async () => {{
@@ -644,6 +672,17 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
             src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
             await download_image(cdp, src_url, output)
+
+            # Verifica che quel che si è scaricato sia DAVVERO questa foto.
+            # Il baseline esclude le immagini già viste, ma non copre il caso in
+            # cui la pagina ne mostri una nuova appartenente a un altro job.
+            corr = looks_like_same_scene(str(image), str(output))
+            if corr < float(os.environ.get("SCENE_MIN_CORR", "0.25")):
+                output.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"downloaded image does not match the source photo "
+                    f"(correlation {corr:.2f}) — likely another job's render"
+                )
     finally:
         cleanup_uploads([resized, *ref_cleanup])
 

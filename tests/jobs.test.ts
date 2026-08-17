@@ -125,3 +125,26 @@ describe("cap esplicito di ChatGPT", () => {
     expect(src).toContain("Math.max(pausedUntilMs, until)");
   });
 });
+
+describe("il render scaricato deve essere di QUESTA foto", () => {
+  test("il worker confronta l'immagine scaricata con l'originale", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Nel set sono passati 116 render appartenenti ad altri job: un piatto di
+    // sushi era diventato una strada di notte, e niente lo segnalava. Il
+    // baseline esclude le immagini già viste, ma non una NUOVA immagine
+    // generata per un altro lavoro.
+    expect(py).toContain("def looks_like_same_scene");
+    expect(py).toContain("does not match the source photo");
+    // Il file sbagliato va cancellato, non lasciato lì a fingersi valido.
+    expect(py).toContain("output.unlink(missing_ok=True)");
+    // Soglia regolabile: su un set molto ricomposto potrebbe servire più bassa.
+    expect(py).toContain("SCENE_MIN_CORR");
+  });
+
+  test("in caso di errore nel confronto la generazione passa", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Un controllo che boccia i render buoni perché numpy non c'è sarebbe
+    // peggio del problema: il fallback restituisce 1.0 (= identiche).
+    expect(py).toMatch(/except Exception:\s*\n\s*#[^\n]*\n\s*#[^\n]*\n\s*return 1\.0/);
+  });
+});
