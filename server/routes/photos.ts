@@ -40,6 +40,11 @@ photoRoutes.get("/api/photos", (c) => {
     where.push("p.picked = 1");
   } else if (filter === "not_picked") {
     where.push("p.picked = 0");
+  } else if (filter === "pro") {
+    // Render dal modello a pagamento: è il master, distinto dalla bozza web.
+    where.push(`EXISTS (
+      SELECT 1 FROM versions v WHERE v.photo_id = p.id AND v.provider = 'higgsfield'
+    )`);
   } else if (filter === "recent") {
     // Le foto rigenerate di recente: dopo una tornata di modifiche al prompt o
     // al grade, è l'unico gruppo che vale la pena riguardare. 24 ore, non 12:
@@ -129,6 +134,8 @@ photoRoutes.get("/api/photos/counts", (c) => {
          SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id) THEN 1 ELSE 0 END) AS unassigned,
          SUM(CASE WHEN p.picked = 1 THEN 1 ELSE 0 END) AS picked,
          SUM(CASE WHEN p.picked = 0 THEN 1 ELSE 0 END) AS not_picked,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM versions v
+               WHERE v.photo_id = p.id AND v.provider = 'higgsfield') THEN 1 ELSE 0 END) AS pro,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM versions v WHERE v.photo_id = p.id
                AND v.created_at > (strftime('%s','now') - 24*3600) * 1000) THEN 1 ELSE 0 END) AS recent
        FROM photos p`,

@@ -438,3 +438,52 @@ describe("la copertina è una scelta, non una posizione", () => {
     expect(json.photos["uno"][0]).toBe("c");
   });
 });
+
+describe("filtro pro", () => {
+  test("separa le foto che hanno un master pro dalle sole bozze web", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    const now = Date.now();
+    // 'a' ha un render dal modello a pagamento, 'b' solo dalla versione web.
+    db().run(
+      `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
+       VALUES ('a', 1, '/x/a.png', 'p', 'generated', 'higgsfield', ?)`,
+      [now],
+    );
+    db().run(
+      `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
+       VALUES ('b', 1, '/x/b.png', 'p', 'generated', 'chatgpt', ?)`,
+      [now],
+    );
+    const { photos } = await (await grid.request("/api/photos?filter=pro")).json();
+    expect(photos.map((p: any) => p.id)).toEqual(["a"]);
+
+    const { counts } = await (await grid.request("/api/photos/counts")).json();
+    expect(counts.pro).toBe(1);
+  });
+
+  test("shown_provider riflette il render mostrato, non uno qualsiasi", async () => {
+    const { photoRoutes } = await import("../server/routes/photos.ts");
+    const grid = new Hono().route("/", photoRoutes);
+    const now = Date.now();
+    // Una foto può AVERE un master pro ma mostrare ancora la bozza web,
+    // se la preferita è quella: il badge segue ciò che si vede.
+    db().run(
+      `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
+       VALUES ('c', 1, '/x/c1.png', 'p', 'generated', 'chatgpt', ?)`,
+      [now],
+    );
+    const vid = Number(
+      db().query<{ id: number }, []>("SELECT last_insert_rowid() AS id").get()!.id,
+    );
+    db().run(
+      `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
+       VALUES ('c', 2, '/x/c2.png', 'p', 'generated', 'higgsfield', ?)`,
+      [now + 1],
+    );
+    db().run("UPDATE photos SET favorite_version_id = ? WHERE id = 'c'", [vid]);
+    const { photos } = await (await grid.request("/api/photos")).json();
+    const c = photos.find((p: any) => p.id === "c");
+    expect(c.shown_provider).toBe("chatgpt");
+  });
+});

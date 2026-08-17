@@ -232,10 +232,15 @@ export default function PhotoCard({
           Higgsfield), non dalla versione web. La web è una bozza — 1 MP, neri
           schiacciati — e senza un segno visibile non si sa quali foto sono già
           state portate a master. */}
-      {photo.shown_provider === "higgsfield" && !compact && (
-        <span className="pointer-events-none absolute bottom-1 left-1 z-20 rounded bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-950">
-          PRO
-        </span>
+      {/* Render dal modello pro: un punto verde accanto alla stella, non una
+          etichetta. Serve a distinguere master e bozza con la coda dell'occhio
+          mentre si scorre — e a differenza di una scritta resta leggibile
+          anche sulla cella più piccola, dove tutto il resto sparisce. */}
+      {photo.shown_provider === "higgsfield" && (
+        <span
+          title="Render dal modello pro (GPT Image 2)"
+          className="pointer-events-none absolute right-1 top-9 z-20 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-black/50"
+        />
       )}
 
       {/* Contatore versioni. Sta in BASSO a destra: in alto a sinistra c'è il
@@ -248,17 +253,17 @@ export default function PhotoCard({
           (selectMode ? "right-9 " : "right-1 ") +
           // Su una cella piccola sparisce: il numero di versioni è un dettaglio
           // di servizio, non vale il posto che ruberebbe alla foto.
-          (compact ? "hidden" : "")
+          ""
         }
       >
         <span
-          className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+          className={`font-mono rounded ${compact ? "px-1 text-[9px]" : "px-1.5 py-0.5 text-[10px]"} ${
             photo.version_count === 0
               ? "bg-red-900/70 text-red-100"
               : "bg-black/60 text-neutral-200"
           }`}
         >
-          {photo.version_count}v
+          {photo.version_count}{compact ? "" : "v"}
         </span>
       </div>
 
@@ -366,7 +371,11 @@ export default function PhotoCard({
           e.preventDefault();
           e.stopPropagation();
         }}
-        className={`absolute inset-x-0 bottom-0 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${compact ? "hidden " : ""}${
+        // bottom-7, non bottom-0: sotto passa la striscia con il numero della
+        // slide, il badge del colore e il contatore versioni. Una nota che
+        // arriva fino al bordo li copre, e quelli sono i due dati che si
+        // leggono mentre si scorre.
+        className={`absolute inset-x-0 bottom-7 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${compact ? "hidden " : ""}${
           fbFocused
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"

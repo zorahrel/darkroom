@@ -25,6 +25,7 @@ import {
   Layers,
   Heart,
   HeartOff,
+  Sparkles,
 } from "lucide-react";
 
 type Filter =
@@ -40,11 +41,12 @@ type Filter =
   | "assigned"
   | "picked"
   | "not_picked"
-  | "recent";
+  | "recent"
+  | "pro";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
-type Accent = "amber" | "red" | "star" | "rose";
+type Accent = "amber" | "red" | "star" | "rose" | "emerald";
 
 /**
  * Collage: unire più foto in una sola slide. Spento di default — vale la pena
@@ -81,7 +83,7 @@ type GridGroup = {
  */
 const FILTER_GROUPS: { label: string; ids: Filter[] }[] = [
   { label: "Nei post", ids: ["assigned", "unassigned"] },
-  { label: "Stato", ids: ["recent", "with_versions", "no_versions", "in_queue"] },
+  { label: "Stato", ids: ["pro", "recent", "with_versions", "no_versions", "in_queue"] },
   { label: "Da fare", ids: ["no_favorite", "with_favorite", "failed", "with_override"] },
 ];
 /** Sempre visibili: sono le tre viste con cui si lavora davvero. */
@@ -93,6 +95,7 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   { id: "picked", label: "Mi piace", icon: Heart, accent: "rose" },
   { id: "not_picked", label: "Da guardare", icon: HeartOff },
   { id: "recent", label: "Rigenerate ora", icon: Clock3, accent: "amber" },
+  { id: "pro", label: "Ha un master pro", icon: Sparkles, accent: "emerald" },
   { id: "with_versions", label: "Con versioni", icon: Images },
   { id: "no_versions", label: "Senza versioni", icon: ImageOff },
   { id: "with_favorite", label: "Con preferita", icon: Star, accent: "star" },
@@ -173,6 +176,17 @@ export default function GridPage({
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
   /** Quale menu di filtri è aperto (uno per volta). */
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
+  // Altezza reale della barra: le intestazioni dei post ci si agganciano sotto,
+  // e un valore fisso sbaglierebbe appena compare la riga di selezione.
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [barH, setBarH] = useState(105);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => e && setBarH(Math.round(e.contentRect.height) + 16));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Menu contestuale: le stesse azioni dei bottoni, ma raggiungibili con il
   // tasto destro — che è dove le cerca chiunque abbia mai usato un gestore di
   // foto, e che finora non faceva nulla.
@@ -625,12 +639,18 @@ export default function GridPage({
 
   return (
     <div className="space-y-4">
+      {/* Tutto ciò che comanda la vista sta in UNA barra appiccicata
+          all'header: prima c'erano una riga di riepilogo, una di azioni e una
+          di filtri, tre fasce che si mangiavano il primo schermo di foto e
+          scorrevano via. Il riepilogo è diventato una riga sola qui dentro. */}
+      <div
+        ref={barRef}
+        className="sticky top-[57px] z-20 -mx-4 border-b border-neutral-800 bg-neutral-950/95 px-4 pb-2 pt-2 backdrop-blur"
+      >
       <div className="flex flex-wrap items-center gap-3">
-        <div className="text-sm text-neutral-400">
-          <span className="text-white font-medium">{counts.total}</span> foto ·{" "}
-          <span className="text-white">{counts.withVersions}</span> con almeno
-          1 versione · <span className="text-amber-400">{counts.withFavorite}</span>{" "}
-          con preferita
+        <div className="text-xs text-neutral-500">
+          <span className="font-medium text-neutral-300">{counts.total}</span> foto ·{" "}
+          <span className="text-amber-400">{counts.withFavorite}</span> con preferita
         </div>
         <div className="flex-1" />
         {counts.missing > 0 && (
@@ -794,13 +814,7 @@ export default function GridPage({
         </div>
       )}
 
-      {/* La barra dei filtri segue lo scorrimento invece di stare in cima alla
-          pagina: con 63 foto si finisce sempre a metà griglia, e per cambiare
-          zoom o filtro bisognava risalire ogni volta. `top-[57px]` la mette
-          sotto l'header dell'app; le intestazioni dei post scendono di
-          conseguenza (vedi `top-[110px]` più sotto). */}
-      <div className="sticky top-[57px] z-20 -mx-1 bg-neutral-950/95 px-1 py-2 backdrop-blur">
-      <div className="flex flex-nowrap items-center gap-1.5 text-xs">
+      <div className="mt-2 flex flex-nowrap items-center gap-1.5 text-xs">
         <div className="flex flex-nowrap items-center gap-1">
           {FILTERS.filter((f) => PRIMARY_FILTERS.includes(f.id)).map((f) => {
             const Icon = f.icon;
@@ -816,7 +830,9 @@ export default function GridPage({
               cls =
                 f.accent === "red"
                   ? "bg-red-600/90 border-red-500 text-white"
-                  : f.accent === "rose"
+                  : f.accent === "emerald"
+                    ? "bg-emerald-500/90 border-emerald-400 text-emerald-950"
+                    : f.accent === "rose"
                     ? "bg-rose-500/90 border-rose-400 text-white"
                     : f.accent === "amber" || f.accent === "star"
                       ? "bg-amber-500/90 border-amber-400 text-black"
@@ -1077,7 +1093,10 @@ export default function GridPage({
             <section key={i} className="space-y-2">
               {g.label && (
               <header
-                // L'intestazione è una zona di rilascio: trascinarci sopra una
+                // top-[104px]: subito sotto la barra unificata (header 57 +
+                // barra ~47). Un valore fisso è fragile ma l'alternativa —
+                // misurare a runtime — introdurrebbe un salto a ogni render.
+                // L'intestazione è anche una zona di rilascio: trascinarci sopra una
                 // foto la sposta in fondo a quel post. Serve per spostare in un
                 // post che in quel momento è scrollato fuori vista, o vuoto.
                 onDragOver={(e) => {
@@ -1096,8 +1115,9 @@ export default function GridPage({
                   setDragOver(null);
                   setDragOverGroup(null);
                 }}
+                style={{ top: barH + 57 }}
                 className={
-                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[110px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
+                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
                   (dragOverGroup === g.collectionId
                     ? "border-sky-400 bg-sky-950/40"
                     : "border-neutral-800/80")
@@ -1283,8 +1303,11 @@ export default function GridPage({
                         }
                         onPickedChange={handlePicked}
                       />
+      {/* Il numero della slide non sparisce MAI: a zoom basso si guarda la
+          griglia proprio per controllare l'ordine di pubblicazione, ed è
+          l'unica informazione che conta davvero. */}
                       {g.collectionId && (
-                        <span className="pointer-events-none absolute bottom-1 left-1 z-20 min-w-[1.25rem] px-1 rounded bg-black/70 text-center text-[10px] font-semibold tabular-nums text-white">
+                        <span className="pointer-events-none absolute bottom-1 left-1 z-30 min-w-[1.25rem] rounded bg-black/80 px-1 text-center text-[10px] font-semibold tabular-nums text-white">
                           {slot + 1}
                         </span>
                       )}
@@ -1369,7 +1392,7 @@ export default function GridPage({
                         // vive la stella della versione preferita.
                         <span
                           title="Questa foto detta il colore del post"
-                          className="pointer-events-none absolute bottom-1 left-8 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                          className="pointer-events-none absolute bottom-1 left-8 z-30 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white"
                         >
                           {zoom < 150 ? "◉" : "colore del post"}
                         </span>
