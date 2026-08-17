@@ -264,7 +264,7 @@ describe("cieli e ottiche scelte per la scena", () => {
     // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
     expect(p).toContain("continue ONLY what is already there");
     expect(p).toContain("never place anything new in the foreground");
-    expect(p).toContain("fully visible and unobstructed");
+    expect(p).toContain("the subject stays whole and unobstructed");
     // era anche tagliata in basso e fuori centro per caso
     expect(p).toContain("never amputated by the bottom or side edge");
     // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
