@@ -242,6 +242,13 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).toContain("FEW faint stars only");
     expect(p).toContain("never a milky way");
     expect(p).toContain("dramatic gradient");
+    // Le nuvole erano cadute nello stesso divieto delle stelle finte, e il
+    // cielo restava vuoto: di notte sono l'unica atmosfera disponibile, ma
+    // solo quelle già presenti, illuminate da sotto dalla città.
+    expect(p).toContain("lit from below by the city glow");
+    expect(p).toContain("invented where the sky was clear");
+    // il vecchio divieto assoluto non deve tornare
+    expect(p).not.toContain("never invented constellations or clouds");
   });
 
   test("il cielo diurno chiede una superficie sola, senza chiazze", () => {

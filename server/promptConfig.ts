@@ -93,8 +93,12 @@ export const SKY = {
   // due cose opposte: chiederne POCHE (un cielo urbano ne mostra una manciata,
   // non una via lattea) e impedire al modello di riempire il vuoto con un
   // firmamento inventato, che è quello che fa quando gli si dice solo "notte".
+  // Le nuvole erano vietate insieme alle stelle inventate, ma sono cose
+  // diverse: un firmamento finto è una bugia, le nuvole di notte ci sono già e
+  // sono l'unica fonte di atmosfera in un cielo urbano — illuminate da sotto
+  // dal riverbero della città. Vietarle lasciava un cielo vuoto e piatto.
   "deep-night":
-    "if the night sky is visible it must read as one deep, rich blue-black surface with a dramatic gradient — darkest at the top, warming slightly toward the horizon where the city light spills up — smooth and continuous, with no patches, no banding and no halo around buildings. Keep a FEW faint stars only, sparse and small, the handful you would actually see from a lit city; never a dense starfield, never a milky way, never invented constellations or clouds. The sky stays clearly darker than every lit surface in the frame",
+    "if the night sky is visible it must read as one deep, rich blue-black surface with a dramatic gradient — darkest at the top, warming slightly toward the horizon where the city light spills up — smooth and continuous, with no patches, no banding and no halo around buildings. If clouds are present in the scene, use them for atmosphere: soft drifting masses lit from below by the city glow, warm on their undersides and darker against the sky, giving the frame depth — real weather, never painted, illustrated or invented where the sky was clear. Keep a FEW faint stars only, sparse and small, the handful you would actually see from a lit city; never a dense starfield, never a milky way, never invented constellations. The sky stays clearly darker than every lit surface in the frame",
   "bright-airy":
     "if the sky is visible, keep it light, clean and airy: a pale, luminous blue that reads like open daylight, never dark, heavy, navy or stormy. The sky must stay clearly BRIGHTER than the buildings and subjects below it, with smooth gradation, no milky haze and no blown-out white patches. Do not deepen or over-saturate it",
 } as const;
