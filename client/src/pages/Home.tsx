@@ -29,13 +29,7 @@ export default function Home() {
   const [sheetOpen, setSheetOpen] = useState(false);
   // La pipeline è uno strumento di regolazione: mentre si scelgono le foto
   // occupa 340px di griglia per niente. Richiudibile, e la scelta resta.
-  const [railOpen, setRailOpen] = useState(
-    () => localStorage.getItem("darkroom.rail") !== "0",
-  );
-  useEffect(() => {
-    localStorage.setItem("darkroom.rail", railOpen ? "1" : "0");
-  }, [railOpen]);
-  const { wide, setWide } = useOutletContext<OutletCtx>();
+  const { railOpen, setRailOpen } = useOutletContext<OutletCtx>();
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -77,23 +71,9 @@ export default function Home() {
   return (
     <div className="lg:flex lg:items-start lg:gap-4">
       <div className="flex-1 min-w-0 pb-20 lg:pb-4">
-        {/* Due interruttori di layout, sopra la griglia: la pipeline si chiude
-            quando si sta scegliendo invece che regolando, e la larghezza piena
-            toglie le bande vuote su un monitor largo. */}
-        <div className="mb-2 hidden items-center justify-end gap-2 lg:flex">
-          <button
-            onClick={() => setWide(!wide)}
-            className="rounded border border-neutral-800 px-2.5 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white"
-          >
-            {wide ? "↤ Larghezza normale" : "↔ Tutta la larghezza"}
-          </button>
-          <button
-            onClick={() => setRailOpen(!railOpen)}
-            className="rounded border border-neutral-800 px-2.5 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white"
-          >
-            {railOpen ? "Nascondi pipeline →" : "← Mostra pipeline"}
-          </button>
-        </div>
+        {/* Gli interruttori di layout sono passati nell'header dell'app: sono
+            preferenze sulla finestra, non comandi della griglia, e occupavano
+            una fascia intera sopra le foto. */}
         <Library
           graded={gradedView && (grade?.enabled ?? false)}
           gradeReady={grade !== null}

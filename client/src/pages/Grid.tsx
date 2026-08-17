@@ -645,49 +645,8 @@ export default function GridPage({
           scorrevano via. Il riepilogo è diventato una riga sola qui dentro. */}
       <div
         ref={barRef}
-        className="sticky top-[57px] z-20 -mx-4 border-b border-neutral-800 bg-neutral-950/95 px-4 pb-2 pt-2 backdrop-blur"
+        className="sticky top-[57px] z-20 -mx-4 border-b border-neutral-800 bg-neutral-950/95 px-4 py-1.5 backdrop-blur"
       >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="text-xs text-neutral-500">
-          <span className="font-medium text-neutral-300">{counts.total}</span> foto ·{" "}
-          <span className="text-amber-400">{counts.withFavorite}</span> con preferita
-        </div>
-        <div className="flex-1" />
-        {counts.missing > 0 && (
-          <button
-            disabled={activeJobs > 0}
-            onClick={async () => {
-              if (!confirm(`Enqueue ${counts.missing} job?`)) return;
-              const r = await api.generateMissing();
-              alert(`Enqueued ${r.enqueued} job. Apri il pannello Jobs per seguire.`);
-            }}
-            title={activeJobs > 0 ? `${activeJobs} job già in coda — attendi che finisca o usa il pannello Jobs` : ""}
-            className="text-sm px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 border border-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {activeJobs > 0
-              ? `Coda attiva (${activeJobs})`
-              : `Genera mancanti (${counts.missing})`}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            setSelectMode((m) => {
-              const next = !m;
-              if (!next) setSelected(new Set());
-              return next;
-            });
-          }}
-          className={
-            "text-sm px-3 py-1.5 rounded border " +
-            (selectMode
-              ? "bg-blue-700 hover:bg-blue-600 border-blue-600 text-white"
-              : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700")
-          }
-        >
-          {selectMode ? `Esci selezione` : "Selezione"}
-        </button>
-      </div>
-
       {selectMode && (
         <div className="flex flex-wrap items-center gap-2 rounded-md bg-blue-950/40 border border-blue-900 px-3 py-2 text-sm">
           <span className="text-blue-200 font-medium">{selectedCount}</span>
@@ -814,7 +773,7 @@ export default function GridPage({
         </div>
       )}
 
-      <div className="mt-2 flex flex-nowrap items-center gap-1.5 text-xs">
+      <div className="flex flex-nowrap items-center gap-1.5 text-xs">
         <div className="flex flex-nowrap items-center gap-1">
           {FILTERS.filter((f) => PRIMARY_FILTERS.includes(f.id)).map((f) => {
             const Icon = f.icon;
@@ -969,8 +928,10 @@ export default function GridPage({
         {/* Raggruppamento: un select nativo invece di quattro bottoni. Sono
             300px risparmiati, ed è una scelta fra alternative esclusive —
             esattamente ciò per cui un menu a tendina esiste. */}
-        <label className="flex shrink-0 items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500">Gruppo</span>
+        {/* Senza etichetta: le voci ("Post", "Scena") dicono già che si tratta
+            di raggruppamento, e la parola costava 50px su una barra che deve
+            entrare intera. */}
+        <label className="flex shrink-0 items-center rounded-lg border border-neutral-800/70 bg-neutral-900/40" title="Come raggruppare le foto">
           <select
             value={groupMode}
             onChange={(e) => {
@@ -978,7 +939,7 @@ export default function GridPage({
               setGroupMode(v);
               localStorage.setItem("darkroom.grid.group", v);
             }}
-            className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-200"
+            className="rounded border-0 bg-transparent px-1.5 py-1 text-xs text-neutral-300"
           >
             <option value="post">Post</option>
             <option value="scene">Scena</option>
@@ -1015,22 +976,84 @@ export default function GridPage({
             </select>
           </div>
         )}
-        <div className="ml-auto flex shrink-0 items-center gap-2 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1 text-neutral-400">
-          <span className="text-[10px] uppercase tracking-wider">Zoom</span>
-          <input
-            type="range"
-            min={100}
-            max={400}
-            step={10}
-            value={zoom}
-            onChange={(e) => {
-              const v = Number(e.target.value);
+        {/* Azioni e conteggio in coda alla stessa riga: erano una fascia a
+            parte sopra i filtri, e su una griglia di foto ogni fascia in più è
+            una fila di foto in meno sul primo schermo. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <span
+            title={`${counts.total} foto, ${counts.withFavorite} con una versione preferita`}
+            className="hidden text-[11px] text-neutral-500 2xl:inline"
+          >
+            {counts.total}/<span className="text-amber-400">{counts.withFavorite}</span>
+          </span>
+          {counts.missing > 0 && (
+            <button
+              disabled={activeJobs > 0}
+              onClick={async () => {
+                if (!confirm(`Enqueue ${counts.missing} job?`)) return;
+                const r = await api.generateMissing();
+                alert(`Enqueued ${r.enqueued} job. Apri il pannello Jobs per seguire.`);
+              }}
+              title={
+                activeJobs > 0
+                  ? `${activeJobs} job già in coda`
+                  : `Genera le ${counts.missing} foto senza versioni`
+              }
+              className="shrink-0 rounded border border-blue-700 bg-blue-700 px-2 py-1.5 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {activeJobs > 0 ? `Coda ${activeJobs}` : `Genera ${counts.missing}`}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setSelectMode((m) => {
+                const next = !m;
+                if (!next) setSelected(new Set());
+                return next;
+              });
+            }}
+            className={
+              "shrink-0 rounded border px-2 py-1.5 " +
+              (selectMode
+                ? "border-blue-600 bg-blue-700 text-white hover:bg-blue-600"
+                : "border-neutral-700 bg-neutral-800 hover:bg-neutral-700")
+            }
+          >
+            {selectMode ? "Esci" : "Selezione"}
+          </button>
+        </div>
+
+        {/* Zoom a passi invece che a cursore: un range da 100 a 400 occupa
+            140px per una scelta che nella pratica è fra quattro dimensioni.
+            Due bottoni ne prendono 50 e si usano senza mirare. */}
+        <div className="flex shrink-0 items-center rounded-lg border border-neutral-800/70 bg-neutral-900/40">
+          <button
+            onClick={() => {
+              const v = Math.max(100, zoom - 40);
               setZoom(v);
               localStorage.setItem("darkroom.grid.zoom", String(v));
             }}
-            className="w-24 accent-neutral-400"
-          />
-          <span className="font-mono text-[10px] w-10 tabular-nums">{zoom}px</span>
+            disabled={zoom <= 100}
+            title="Foto più piccole"
+            className="px-2 py-1.5 text-neutral-400 hover:text-white disabled:opacity-30"
+          >
+            −
+          </button>
+          <span className="w-9 text-center font-mono text-[10px] tabular-nums text-neutral-500">
+            {zoom}
+          </span>
+          <button
+            onClick={() => {
+              const v = Math.min(400, zoom + 40);
+              setZoom(v);
+              localStorage.setItem("darkroom.grid.zoom", String(v));
+            }}
+            disabled={zoom >= 400}
+            title="Foto più grandi"
+            className="px-2 py-1.5 text-neutral-400 hover:text-white disabled:opacity-30"
+          >
+            +
+          </button>
         </div>
       </div>
       </div>

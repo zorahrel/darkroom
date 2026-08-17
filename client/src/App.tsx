@@ -15,6 +15,9 @@ export type OutletCtx = {
   /** Larghezza piena: la griglia usa tutto il monitor invece di 1280px. */
   wide: boolean;
   setWide: (v: boolean) => void;
+  /** Colonna della pipeline aperta. Vive qui perché il comando sta nell'header. */
+  railOpen: boolean;
+  setRailOpen: (v: boolean) => void;
 };
 import JobsPanel from "./components/JobsPanel";
 
@@ -31,6 +34,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("darkroom.wide", wide ? "1" : "0");
   }, [wide]);
+  const [railOpen, setRailOpen] = useState(
+    () => localStorage.getItem("darkroom.rail") !== "0",
+  );
+  useEffect(() => {
+    localStorage.setItem("darkroom.rail", railOpen ? "1" : "0");
+  }, [railOpen]);
   const [launching, setLaunching] = useState(false);
   const [projects, setProjects] = useState<StudioProject[]>([]);
   const navigate = useNavigate();
@@ -213,6 +222,31 @@ export default function App() {
                 {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
+            {/* Layout della finestra: due interruttori compatti nell'header,
+                perché è lì che vive tutto ciò che riguarda la finestra e non il
+                contenuto. Prima occupavano una fascia sopra la griglia. */}
+            <div className="hidden items-center gap-1 rounded-lg border border-neutral-800 p-0.5 lg:flex">
+              <button
+                onClick={() => setWide(!wide)}
+                title={wide ? "Torna alla larghezza normale" : "Usa tutta la larghezza dello schermo"}
+                className={
+                  "rounded px-2 py-1 text-xs transition-colors " +
+                  (wide ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white")
+                }
+              >
+                ↔
+              </button>
+              <button
+                onClick={() => setRailOpen(!railOpen)}
+                title={railOpen ? "Nascondi la pipeline" : "Mostra la pipeline"}
+                className={
+                  "rounded px-2 py-1 text-xs transition-colors " +
+                  (railOpen ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white")
+                }
+              >
+                ⌸
+              </button>
+            </div>
             <button
               onClick={() => setShowJobs((v) => !v)}
               className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 whitespace-nowrap"
@@ -246,7 +280,7 @@ export default function App() {
           "flex-1 w-full mx-auto px-4 py-4 " + (wide ? "max-w-none" : "max-w-7xl")
         }
       >
-        <Outlet context={{ jobs, activeJobs, wide, setWide }} />
+        <Outlet context={{ jobs, activeJobs, wide, setWide, railOpen, setRailOpen }} />
       </main>
 
       {showJobs && jobs && (
