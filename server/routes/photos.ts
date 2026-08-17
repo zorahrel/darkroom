@@ -75,10 +75,15 @@ photoRoutes.get("/api/photos", (c) => {
       -- e schiaccia i neri. Quella "pro" (GPT Image 2 via Higgsfield) è il
       -- master. In griglia devono distinguersi a colpo d'occhio, altrimenti non
       -- si sa cosa è già stato rifinito e cosa no.
-      (SELECT v.provider FROM versions v
-         WHERE v.photo_id = p.id
-         ORDER BY (v.id = p.favorite_version_id) DESC, v.id DESC
-         LIMIT 1) AS shown_provider
+      -- COALESCE invece di ORDER BY sulla preferita: dentro una sottoquery
+      -- correlata SQLite non risolve la colonna esterna nella clausola ORDER BY,
+      -- e l'intera lista falliva con 500. Qui si chiede prima il provider della
+      -- preferita, poi quello dell'ultima.
+      COALESCE(
+        (SELECT v.provider FROM versions v WHERE v.id = p.favorite_version_id),
+        (SELECT v.provider FROM versions v
+           WHERE v.photo_id = p.id ORDER BY v.id DESC LIMIT 1)
+      ) AS shown_provider
     FROM photos p
     ${where.length ? "WHERE " + where.join(" AND ") : ""}
     ORDER BY (p.taken_at IS NULL) ASC, p.taken_at ASC, p.id ASC
