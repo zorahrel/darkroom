@@ -239,16 +239,17 @@ describe("cieli e ottiche scelte per la scena", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-night" });
     // Dicendo solo "notte" il modello riempie il vuoto con una via lattea:
     // il numero va nominato, e va nominato anche cosa NON fare.
-    expect(p).toContain("FEW faint stars only");
+    expect(p).toContain("Stars must be clearly VISIBLE yet sparse");
     expect(p).toContain("never a milky way");
     expect(p).toContain("dramatic gradient");
     // Le nuvole erano cadute nello stesso divieto delle stelle finte, e il
     // cielo restava vuoto: di notte sono l'unica atmosfera disponibile, ma
     // solo quelle già presenti, illuminate da sotto dalla città.
     expect(p).toContain("lit from below by the city glow");
-    expect(p).toContain("invented where the sky was clear");
-    // il vecchio divieto assoluto non deve tornare
-    expect(p).not.toContain("never invented constellations or clouds");
+    // il divieto "solo se c'erano gia'" lasciava vuoti i cieli sereni, che
+    // sono quelli che hanno piu' bisogno di atmosfera: le nuvole si aggiungono.
+    expect(p).toContain("Add them even if the original sky was clear");
+    expect(p).not.toContain("invented where the sky was clear");
   });
 
   test("il cielo diurno chiede una superficie sola, senza chiazze", () => {
