@@ -252,6 +252,9 @@ describe("cieli e ottiche scelte per la scena", () => {
     // il notturno usciva come un unico bagno ambra: il caldo deve stare dove
     // arrivano le lampade, il resto resta freddo. E' il contrasto a fare la notte.
     expect(p).toContain("must NOT drown in one amber or yellow bath");
+    // il giallo restava sul SOGGETTO illuminato anche quando la media del
+    // frame era fredda: la pietra sotto i fari non deve tingersi d'ambra.
+    expect(p).toContain("The lit subject itself must NOT turn amber or golden");
     expect(p).not.toContain("invented where the sky was clear");
   });
 
@@ -262,6 +265,9 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).toContain("continue ONLY what is already there");
     expect(p).toContain("never place anything new in the foreground");
     expect(p).toContain("fully visible and unobstructed");
+    // era anche tagliata in basso e fuori centro per caso
+    expect(p).toContain("never amputated by the bottom or side edge");
+    expect(p).toContain("either centred or on a thirds line");
   });
 
   test("il cielo diurno chiede una superficie sola, senza chiazze", () => {
