@@ -32,7 +32,8 @@ type Filter =
   | "unassigned"
   | "assigned"
   | "picked"
-  | "not_picked";
+  | "not_picked"
+  | "recent";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
@@ -67,6 +68,7 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   // La curatela viene prima di tutto il resto: è quel che si fa scorrendo.
   { id: "picked", label: "Mi piace", icon: Heart, accent: "rose" },
   { id: "not_picked", label: "Da guardare", icon: HeartOff },
+  { id: "recent", label: "Rigenerate ora", icon: Clock3, accent: "amber" },
   { id: "with_versions", label: "Con versioni", icon: Images },
   { id: "no_versions", label: "Senza versioni", icon: ImageOff },
   { id: "with_favorite", label: "Con preferita", icon: Star, accent: "star" },
