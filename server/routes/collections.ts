@@ -142,6 +142,17 @@ collectionRoutes.delete("/api/collections/:id", (c) => {
 /** Replace a collection's members, in the given order. */
 function setMembers(collectionId: string, photoIds: string[]): void {
   const d = db();
+  // Se il post ha una copertina scelta a mano e resta fra i membri, torna in
+  // testa: chi riscrive l'ordine (un riordino cronologico, un import) non deve
+  // poter cancellare quella decisione di sfuggita.
+  const cover = d
+    .query<{ cover: string | null }, [string]>(
+      "SELECT cover_photo_id AS cover FROM collections WHERE id = ?",
+    )
+    .get(collectionId)?.cover;
+  if (cover && photoIds.includes(cover)) {
+    photoIds = [cover, ...photoIds.filter((x) => x !== cover)];
+  }
   const tx = d.transaction((ids: string[]) => {
     d.run("DELETE FROM collection_photos WHERE collection_id = ?", [collectionId]);
     const ins = d.prepare(
@@ -192,6 +203,10 @@ collectionRoutes.post("/api/collections/:id/cover", async (c) => {
     next.forEach((x, i) =>
       d.run("UPDATE collection_photos SET position = ? WHERE photo_id = ?", [i, x]),
     );
+    // La copertina si registra anche come campo suo: la posizione 0 è comoda da
+    // leggere ma fragile — un riordino cronologico la sovrascrive e la scelta
+    // umana sparisce senza lasciare traccia. È già successo.
+    d.run("UPDATE collections SET cover_photo_id = ? WHERE id = ?", [pid, collectionId]);
   });
   tx();
   return c.json({ ok: true, cover: pid });

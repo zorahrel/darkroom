@@ -337,6 +337,13 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "collections", "reference_photo_id")) {
     d.run("ALTER TABLE collections ADD COLUMN reference_photo_id TEXT");
   }
+  // La copertina è una SCELTA UMANA, e come tale non può vivere nella posizione
+  // 0 di una lista che viene riordinata: un riordino cronologico la cancella
+  // senza dire niente. Qui è un campo suo, che sopravvive a qualsiasi
+  // riorganizzazione del post.
+  if (!hasColumn(d, "collections", "cover_photo_id")) {
+    d.run("ALTER TABLE collections ADD COLUMN cover_photo_id TEXT");
+  }
   if (!hasColumn(d, "photos", "picked")) {
     d.run("ALTER TABLE photos ADD COLUMN picked INTEGER NOT NULL DEFAULT 0");
   }
@@ -424,6 +431,8 @@ export type CollectionRow = {
   position: number;
   /** Foto di riferimento cromatico: allegata a ogni generazione del post. */
   reference_photo_id: string | null;
+  /** Copertina scelta a mano: sopravvive ai riordini della lista. */
+  cover_photo_id: string | null;
   created_at: number;
 };
 

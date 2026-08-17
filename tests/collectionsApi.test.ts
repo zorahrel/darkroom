@@ -402,3 +402,39 @@ describe("copertina con un click", () => {
     expect(json.photos["uno"]).toEqual(["a", "b", "c"]);
   });
 });
+
+describe("la copertina è una scelta, non una posizione", () => {
+  test("sopravvive a un riordino completo del post", async () => {
+    await call("POST", "/api/collections", {
+      id: "uno", title: "Uno", photo_ids: ["a", "b", "c", "d"],
+    });
+    await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
+
+    // Un riordino cronologico riscrive TUTTE le posizioni. Prima questo
+    // cancellava silenziosamente la copertina scelta a mano — è successo per
+    // davvero, e le scelte dell'utente sono andate perse.
+    await call("PUT", "/api/collections/uno/photos", { photo_ids: ["a", "b", "c", "d"] });
+
+    const { json } = await call("GET", "/api/collections");
+    expect(json.photos["uno"][0]).toBe("c");
+    expect(json.collections[0].cover_photo_id).toBe("c");
+  });
+
+  test("se la copertina esce dal post, l'ordine dato viene rispettato", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
+    await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
+    // 'c' non è più fra i membri: non ha senso forzarla in testa.
+    await call("PUT", "/api/collections/uno/photos", { photo_ids: ["b", "a"] });
+    const { json } = await call("GET", "/api/collections");
+    expect(json.photos["uno"]).toEqual(["b", "a"]);
+  });
+
+  test("cambiare copertina aggiorna sia l'ordine sia il campo", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
+    await call("POST", "/api/collections/uno/cover", { photo_id: "b" });
+    await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
+    const { json } = await call("GET", "/api/collections");
+    expect(json.collections[0].cover_photo_id).toBe("c");
+    expect(json.photos["uno"][0]).toBe("c");
+  });
+});
