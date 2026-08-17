@@ -290,7 +290,7 @@ export default function PhotoCard({
         onClick={togglePicked}
         aria-label={picked ? "Non mi piace più" : "Mi piace"}
         aria-pressed={picked}
-        className={`absolute top-1 left-1 z-30 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${
+        className={`absolute top-1 left-1 z-20 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${
           picked
             ? "bg-rose-500/85 text-white shadow backdrop-blur-sm"
             : "bg-black/40 text-neutral-300 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-rose-300"
@@ -299,7 +299,12 @@ export default function PhotoCard({
         {picked ? "♥" : "♡"}
       </button>
 
-      {/* Top-right: favorite toggle */}
+      {/* Top-right: favorite toggle.
+          NB sugli z-index di questa card: restano tutti sotto z-30, che è il
+          livello dell'header sticky dell'app. A parità di z-index vince chi
+          viene dopo nel DOM — e la griglia viene dopo l'header — quindi un
+          controllo a z-30 qui dentro scavalcava la barra in alto mentre si
+          scorreva. */}
       {(hasEdit || isFavorite) && (
         <button
           onClick={toggleFavorite}
