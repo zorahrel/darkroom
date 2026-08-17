@@ -9,7 +9,13 @@ import {
   type StudioProject,
 } from "./api";
 
-export type OutletCtx = { jobs: JobsPayload | null; activeJobs: number };
+export type OutletCtx = {
+  jobs: JobsPayload | null;
+  activeJobs: number;
+  /** Larghezza piena: la griglia usa tutto il monitor invece di 1280px. */
+  wide: boolean;
+  setWide: (v: boolean) => void;
+};
 import JobsPanel from "./components/JobsPanel";
 
 export default function App() {
@@ -17,6 +23,14 @@ export default function App() {
   const [jobs, setJobs] = useState<JobsPayload | null>(null);
   const [orphanCount, setOrphanCount] = useState<number>(0);
   const [showJobs, setShowJobs] = useState(false);
+  // Preferenza di layout: sopravvive al reload, perché è una scelta sulla
+  // propria scrivania, non uno stato della sessione.
+  const [wide, setWide] = useState(
+    () => localStorage.getItem("darkroom.wide") === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem("darkroom.wide", wide ? "1" : "0");
+  }, [wide]);
   const [launching, setLaunching] = useState(false);
   const [projects, setProjects] = useState<StudioProject[]>([]);
   const navigate = useNavigate();
@@ -90,7 +104,12 @@ export default function App() {
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4">
+        <div
+          className={
+            "mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 " +
+            (wide ? "max-w-none" : "max-w-7xl")
+          }
+        >
           {/* Breadcrumb: the app, then which project you are in. Studio is not
               a view of a project — it's the floor above — so it lives inside
               the project menu instead of sitting next to Griglia/Storyboard. */}
@@ -219,8 +238,15 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">
-        <Outlet context={{ jobs, activeJobs }} />
+      {/* `max-w-7xl` incolonna tutto a 1280px: giusto per una pagina di testo,
+          sbagliato per una griglia di foto su un monitor largo, dove restano
+          due bande vuote ai lati. Il limite diventa opzionale. */}
+      <main
+        className={
+          "flex-1 w-full mx-auto px-4 py-4 " + (wide ? "max-w-none" : "max-w-7xl")
+        }
+      >
+        <Outlet context={{ jobs, activeJobs, wide, setWide }} />
       </main>
 
       {showJobs && jobs && (

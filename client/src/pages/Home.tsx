@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import type { OutletCtx } from "../App";
 import { api, type ColorGrade, type Lut } from "../api";
 import PipelineBar from "./Color";
 import Library from "./Grid";
@@ -25,6 +27,15 @@ export default function Home() {
   const [gradedView, setGradedView] = useState(true);
   const [reload, setReload] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // La pipeline è uno strumento di regolazione: mentre si scelgono le foto
+  // occupa 340px di griglia per niente. Richiudibile, e la scelta resta.
+  const [railOpen, setRailOpen] = useState(
+    () => localStorage.getItem("darkroom.rail") !== "0",
+  );
+  useEffect(() => {
+    localStorage.setItem("darkroom.rail", railOpen ? "1" : "0");
+  }, [railOpen]);
+  const { wide, setWide } = useOutletContext<OutletCtx>();
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,6 +77,23 @@ export default function Home() {
   return (
     <div className="lg:flex lg:items-start lg:gap-4">
       <div className="flex-1 min-w-0 pb-20 lg:pb-4">
+        {/* Due interruttori di layout, sopra la griglia: la pipeline si chiude
+            quando si sta scegliendo invece che regolando, e la larghezza piena
+            toglie le bande vuote su un monitor largo. */}
+        <div className="mb-2 hidden items-center justify-end gap-2 lg:flex">
+          <button
+            onClick={() => setWide(!wide)}
+            className="rounded border border-neutral-800 px-2.5 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white"
+          >
+            {wide ? "↤ Larghezza normale" : "↔ Tutta la larghezza"}
+          </button>
+          <button
+            onClick={() => setRailOpen(!railOpen)}
+            className="rounded border border-neutral-800 px-2.5 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white"
+          >
+            {railOpen ? "Nascondi pipeline →" : "← Mostra pipeline"}
+          </button>
+        </div>
         <Library
           graded={gradedView && (grade?.enabled ?? false)}
           gradeReady={grade !== null}
@@ -76,7 +104,12 @@ export default function Home() {
 
       {/* Reserves its column width immediately (not just once `grade` lands)
           so the grid's flex width doesn't jump when the panel's content pops in. */}
-      <aside className="hidden lg:flex flex-col w-[340px] shrink-0 sticky top-[68px] h-[calc(100vh-88px)] rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950">
+      <aside
+        className={
+          "hidden flex-col shrink-0 sticky top-[68px] h-[calc(100vh-88px)] rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950 " +
+          (railOpen ? "lg:flex w-[340px]" : "w-0 border-0")
+        }
+      >
         {grade && (
           <PipelineBar
             grade={grade}
@@ -92,6 +125,20 @@ export default function Home() {
           />
         )}
       </aside>
+
+      {/* Desktop, pipeline chiusa: un bottone flottante per riaprirla senza
+          dover risalire in cima alla pagina. */}
+      {grade && !railOpen && (
+        <button
+          onClick={() => setRailOpen(true)}
+          className="hidden lg:flex fixed bottom-4 right-4 z-40 items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-900 shadow-lg"
+        >
+          <IconLayers /> Pipeline
+          <span
+            className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
+          />
+        </button>
+      )}
 
       {grade && (
         <>
