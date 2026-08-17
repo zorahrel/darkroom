@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
-import { api, type Collage, type Collection, type PhotoListItem, type Run } from "../api";
+import {
+  api,
+  currentProject,
+  rawUrl,
+  type Collage,
+  type Collection,
+  type PhotoListItem,
+  type Run,
+} from "../api";
 import type { OutletCtx } from "../App";
 import PhotoCard from "../components/PhotoCard";
 import CollageCard from "../components/CollageCard";
@@ -1101,10 +1109,18 @@ export default function GridPage({
                     <div
                       key={p.id}
                       draggable={inPost}
-                      onDragStart={() =>
-                        g.collectionId &&
-                        setDragging({ collectionId: g.collectionId, photoId: p.id })
-                      }
+                      onDragStart={(e) => {
+                        if (!g.collectionId) return;
+                        setDragging({ collectionId: g.collectionId, photoId: p.id });
+                        // Anteprima: la miniatura della foto, non il rettangolo
+                        // dell'intera cella coi suoi controlli — così mentre
+                        // trascini vedi COSA stai spostando.
+                        const img = e.currentTarget.querySelector("img");
+                        if (img instanceof HTMLImageElement && img.complete) {
+                          e.dataTransfer.setDragImage(img, img.width / 2, img.height / 2);
+                        }
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
                       onDragEnd={() => {
                         setDragging(null);
                         setDragOver(null);
@@ -1147,12 +1163,25 @@ export default function GridPage({
                         // mouse.
                         "relative group/tile " +
                         (inPost ? "cursor-grab active:cursor-grabbing " : "") +
-                        (dragOver === p.id && dragging?.photoId !== p.id
-                          ? "ring-2 ring-sky-400 rounded-md"
-                          : "") +
-                        (dragging?.photoId === p.id ? " opacity-40" : "")
+                        // La foto trascinata sbiadisce: si vede che è "in mano"
+                        // e non più al suo posto.
+                        (dragging?.photoId === p.id ? " opacity-30" : "")
                       }
                     >
+                      {/* Barra di inserimento: dice DOVE finirà la foto, non
+                          solo su quale cella sei sopra. Un anello attorno alla
+                          cella è ambiguo — prima o dopo? — mentre una barra sul
+                          bordo sinistro indica il punto esatto. */}
+                      {dragOver === p.id && dragging && dragging.photoId !== p.id && (
+                        <span className="pointer-events-none absolute -left-1 top-0 z-30 h-full w-1.5 rounded-full bg-sky-400 shadow-[0_0_10px] shadow-sky-400/70" />
+                      )}
+                      {/* Da un altro post: si evidenzia anche la cella, perché
+                          l'azione non è "riordina" ma "sposta qui dentro". */}
+                      {dragOver === p.id &&
+                        dragging &&
+                        dragging.collectionId !== g.collectionId && (
+                          <span className="pointer-events-none absolute inset-0 z-20 rounded-md bg-sky-400/15 ring-2 ring-sky-400" />
+                        )}
                       <PhotoCard
                         photo={p}
                         jobStatus={jobStatusByPhoto.get(p.id)}
@@ -1316,9 +1345,43 @@ export default function GridPage({
             >
               ＋ Nuovo post…
             </MenuItem>
+            <div className="my-1 border-t border-neutral-800" />
+            <MenuItem
+              onClick={() => {
+                void navigator.clipboard.writeText(menu.photoId);
+                setMenu(null);
+              }}
+            >
+              ⧉ Copia ID <span className="text-neutral-500">{menu.photoId.slice(0, 14)}</span>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                // URL assoluto: serve a incollarlo altrove, e un percorso
+                // relativo fuori da qui non significherebbe niente.
+                const url = `${window.location.origin}/p/${currentProject()}/photo/${encodeURIComponent(menu.photoId)}`;
+                void navigator.clipboard.writeText(url);
+                setMenu(null);
+              }}
+            >
+              🔗 Copia link alla foto
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                // L'immagine servita, non il file su disco: è quella che si
+                // vede, con il grade applicato.
+                void navigator.clipboard.writeText(
+                  `${window.location.origin}${rawUrl(menu.photoId)}`,
+                );
+                setMenu(null);
+              }}
+            >
+              🖼 Copia URL dell'originale
+            </MenuItem>
             {menu.collectionId && (
-              <MenuItem
-                danger
+              <>
+                <div className="my-1 border-t border-neutral-800" />
+                <MenuItem
+                  danger
                 onClick={async () => {
                   await api.assignToCollection([menu.photoId], null);
                   await refreshCollections();
@@ -1327,8 +1390,9 @@ export default function GridPage({
                   setMenu(null);
                 }}
               >
-                — Togli dal post
-              </MenuItem>
+                  — Togli dal post
+                </MenuItem>
+              </>
             )}
           </div>
         </>
