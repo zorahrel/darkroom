@@ -104,6 +104,7 @@ collectionRoutes.patch("/api/collections/:id", async (c) => {
     title?: string;
     caption?: string | null;
     position?: number;
+    reference_photo_id?: string | null;
   };
   if (body.title !== undefined) {
     const t = body.title.trim();
@@ -115,6 +116,18 @@ collectionRoutes.patch("/api/collections/:id", async (c) => {
   }
   if (body.position !== undefined) {
     db().run("UPDATE collections SET position = ? WHERE id = ?", [body.position, id]);
+  }
+  if (body.reference_photo_id !== undefined) {
+    const ref = body.reference_photo_id;
+    if (ref) {
+      // Il riferimento deve stare NEL post: una foto di un altro gruppo
+      // porterebbe dentro il colore sbagliato senza che si veda perché.
+      const inPost = db()
+        .query("SELECT 1 FROM collection_photos WHERE collection_id = ? AND photo_id = ?")
+        .get(id, ref);
+      if (!inPost) return c.json({ error: "la foto di riferimento non è in questo post" }, 400);
+    }
+    db().run("UPDATE collections SET reference_photo_id = ? WHERE id = ?", [ref, id]);
   }
   return c.json({ ok: true });
 });

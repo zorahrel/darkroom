@@ -342,3 +342,37 @@ describe("collage", () => {
     expect(db().query("SELECT COUNT(*) AS n FROM photos").get()).toEqual({ n: 4 });
   });
 });
+
+describe("riferimento cromatico del post", () => {
+  test("si imposta e viene restituito", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
+    const r = await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
+    expect(r.status).toBe(200);
+    const { json } = await call("GET", "/api/collections");
+    expect(json.collections[0].reference_photo_id).toBe("a");
+  });
+
+  test("una foto fuori dal post non può essere il riferimento", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
+    // 'c' esiste ma sta altrove: userebbe il colore di un'altra scena senza
+    // che si capisca da dove arriva.
+    const r = await call("PATCH", "/api/collections/uno", { reference_photo_id: "c" });
+    expect(r.status).toBe(400);
+  });
+
+  test("si può togliere il riferimento", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a"] });
+    await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
+    await call("PATCH", "/api/collections/uno", { reference_photo_id: null });
+    const { json } = await call("GET", "/api/collections");
+    expect(json.collections[0].reference_photo_id).toBeNull();
+  });
+
+  test("colorReferenceFor non restituisce la foto a sé stessa", async () => {
+    const { colorReferenceFor } = await import("../server/colorReference.ts");
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
+    await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
+    // La reference stessa non deve allegarsi a sé: inseguirebbe la propria coda.
+    expect(colorReferenceFor("a")).toBeNull();
+  });
+});

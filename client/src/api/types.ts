@@ -451,6 +451,8 @@ export type Collection = {
   title: string;
   caption: string | null;
   position: number;
+  /** Foto che detta il colore del post: allegata a ogni sua rigenerazione. */
+  reference_photo_id: string | null;
   created_at: number;
   photo_count: number;
 };

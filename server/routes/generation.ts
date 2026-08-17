@@ -4,6 +4,7 @@ import { db, type PhotoRow } from "../db.ts";
 import { mergeConfig, type PromptConfig } from "../promptConfig.ts";
 import { effectiveConfig, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { enqueueJob } from "../jobs.ts";
+import { COLOR_REFERENCE_CLAUSE, colorReferenceFor } from "../colorReference.ts";
 import {
   higgsfieldConfigured,
   balance as hfBalance,
@@ -29,8 +30,15 @@ generationRoutes.post("/api/photos/:id/generate", async (c) => {
   } catch {}
 
   const cfg = withExtra(mergeConfig(effectiveConfig(photo), oneShot), photo);
-  const prompt = promptFor(cfg);
-  const job = enqueueJob(id, prompt, JSON.stringify(cfg));
+  // Se il post ha una foto di riferimento, la si allega e si chiede di
+  // accordarsi a quella: il colore coerente nasce col render, invece di essere
+  // corretto dopo con un filtro.
+  const ref = colorReferenceFor(id);
+  const prompt = ref ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
+  const job = enqueueJob(
+    id, prompt, JSON.stringify(cfg), "chatgpt", null, "edit", null,
+    ref ? JSON.stringify([ref]) : null,
+  );
   return c.json({ job });
 });
 
@@ -161,7 +169,12 @@ generationRoutes.post("/api/generate-missing", (c) => {
   let count = 0;
   for (const p of photos) {
     const cfg = withExtra(effectiveConfig(p), p);
-    enqueueJob(p.id, promptFor(cfg), JSON.stringify(cfg));
+    const refPath = colorReferenceFor(p.id);
+    const text = refPath ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
+    enqueueJob(
+      p.id, text, JSON.stringify(cfg), "chatgpt", null, "edit", null,
+      refPath ? JSON.stringify([refPath]) : null,
+    );
     count++;
   }
   return c.json({ enqueued: count });

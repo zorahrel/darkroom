@@ -354,7 +354,7 @@ export const api = {
     }),
   updateCollection: (
     id: string,
-    patch: Partial<Pick<Collection, "title" | "caption" | "position">>,
+    patch: Partial<Pick<Collection, "title" | "caption" | "position" | "reference_photo_id">>,
   ) =>
     jsonFetch<{ ok: true }>(`/api/collections/${encodeURIComponent(id)}`, {
       method: "PATCH",

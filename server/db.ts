@@ -164,6 +164,11 @@ const SCHEMA_STATEMENTS = [
     position INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   )`,
+  // `reference_photo_id`: la foto che detta il colore del post. Viene allegata
+  // a OGNI generazione del gruppo come seconda immagine, così il modello vede
+  // il bersaglio invece di doverlo indovinare. È la differenza fra armonizzare
+  // (correggere dopo, con un filtro sopra) e generare già coerente.
+  `CREATE INDEX IF NOT EXISTS idx_collections_position ON collections(position)`,
   `CREATE TABLE IF NOT EXISTS collection_photos (
     photo_id TEXT PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
     collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -329,6 +334,9 @@ export function initSchemaOn(d: Database): void {
   // "Mi piace": la scelta umana su UNA foto, presa scorrendo la griglia. È
   // deliberatamente separata da favorite_version_id (quale render di quella
   // foto è il buono) e dai post: prima si dice cosa vale, poi si raggruppa.
+  if (!hasColumn(d, "collections", "reference_photo_id")) {
+    d.run("ALTER TABLE collections ADD COLUMN reference_photo_id TEXT");
+  }
   if (!hasColumn(d, "photos", "picked")) {
     d.run("ALTER TABLE photos ADD COLUMN picked INTEGER NOT NULL DEFAULT 0");
   }
@@ -414,6 +422,8 @@ export type CollectionRow = {
   title: string;
   caption: string | null;
   position: number;
+  /** Foto di riferimento cromatico: allegata a ogni generazione del post. */
+  reference_photo_id: string | null;
   created_at: number;
 };
 
