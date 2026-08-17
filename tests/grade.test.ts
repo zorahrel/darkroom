@@ -136,3 +136,22 @@ describe("bloom e sakura: i parametri aggiunti restano retrocompatibili", () => 
     expect(bloom?.params.gain).toBe(2.5);
   });
 });
+
+describe("bloom: uno solo, non due", () => {
+  test("la catena di default non porta un passo bloom", () => {
+    // Il prompt AI chiede già "soft cinematic bloom and gentle glow around
+    // existing bright light sources": aggiungerne un secondo in locale li somma.
+    // Misurato su 5 foto: bianchi bruciati dal 3,9% al 6,7%, e l'oro dei templi
+    // che diventava una macchia bianca.
+    expect(defaultSteps().some((s) => s.type === "bloom")).toBe(false);
+  });
+
+  test("il passo bloom resta disponibile per chi lo vuole a mano", () => {
+    // Toglierlo dal default non significa cancellarlo: su un set senza AI
+    // (solo grade locale) serve, e sanitizeSteps deve continuare ad accettarlo.
+    const kept = sanitizeSteps([
+      { id: "b", type: "bloom", enabled: true, params: { amount: 30 } },
+    ]);
+    expect(kept.some((s) => s.type === "bloom")).toBe(true);
+  });
+});

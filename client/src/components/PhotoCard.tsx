@@ -168,7 +168,11 @@ export default function PhotoCard({
           onToggleSelect?.();
         }
       }}
-      className={`group relative block aspect-square overflow-hidden rounded-md bg-neutral-900 border ${selected ? "border-blue-500" : "border-neutral-800"} hover:border-neutral-600 transition-colors ${ringClass}`}
+      // 4:5, non quadrata. Le versioni generate escono verticali (il prompt
+      // chiede un crop 4:5), quindi una cella quadrata con object-cover ne
+      // tagliava via un quinto: si giudicava una foto senza vederne il bordo,
+      // ed e' proprio il bordo che il reframe dell'AI cambia.
+      className={`group relative block aspect-[4/5] overflow-hidden rounded-md bg-neutral-900 border ${selected ? "border-blue-500" : "border-neutral-800"} hover:border-neutral-600 transition-colors ${ringClass}`}
     >
       {/* Base layer: best preview (favorite/latest or RAW) */}
       <img
@@ -176,7 +180,7 @@ export default function PhotoCard({
         alt={photo.id}
         loading="lazy"
         decoding="async"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-contain"
       />
       {/* Hover layer: RAW (only if we have an edit to compare against) */}
       {hasEdit && (
@@ -185,7 +189,7 @@ export default function PhotoCard({
           alt={`${photo.id} (originale)`}
           loading="lazy"
           decoding="async"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
+          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ${
             fbFocused ? "opacity-0" : "opacity-0 group-hover:opacity-100"
           }`}
         />
