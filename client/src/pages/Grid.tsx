@@ -1101,8 +1101,8 @@ export default function GridPage({
                           <button
                             title={
                               refByCollection[g.collectionId] === p.id
-                                ? "È il riferimento colore di questo post"
-                                : "Usa il colore di questa foto come riferimento del post"
+                                ? "Questa foto detta il colore del post: viene allegata a ogni rigenerazione del gruppo, così le altre nascono con la sua stessa luce. Click per toglierla."
+                                : "Fai dettare il colore a questa foto: verrà allegata a ogni rigenerazione del post, e le altre foto verranno rifatte accordandosi alla sua luce"
                             }
                             onClick={async (e) => {
                               e.preventDefault();
@@ -1120,7 +1120,9 @@ export default function GridPage({
                                 : "bg-black/75 text-white hover:bg-sky-500")
                             }
                           >
-                            ◉ colore
+                            {refByCollection[g.collectionId] === p.id
+                              ? "◉ detta il colore"
+                              : "◉ usa come colore"}
                           </button>
                         </div>
                       )}
@@ -1128,7 +1130,7 @@ export default function GridPage({
                         // Sotto il numero di slide, non in alto a destra: lì
                         // vive la stella della versione preferita.
                         <span className="pointer-events-none absolute bottom-1 left-8 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                          riferimento
+                          colore del post
                         </span>
                       )}
                     </div>

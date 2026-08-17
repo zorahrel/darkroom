@@ -210,8 +210,11 @@ export default function PhotoCard({
         <div className="absolute inset-0 bg-black/40 pointer-events-none" />
       )}
 
-      {/* Top-left version badge */}
-      <div className={`absolute top-1 ${selectMode ? "left-9" : "left-1"} flex items-center gap-1 pointer-events-none`}>
+      {/* Contatore versioni. Sta in BASSO a destra: in alto a sinistra c'è il
+          cuore, e i due si sovrapponevano — si intravedeva il badge da sotto il
+          bottone, senza capire cosa fosse. In selezione scala per non finire
+          sotto la spunta. */}
+      <div className={`absolute bottom-1 ${selectMode ? "right-9" : "right-1"} flex items-center gap-1 pointer-events-none`}>
         <span
           className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
             photo.version_count === 0
