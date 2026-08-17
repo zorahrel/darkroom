@@ -82,6 +82,19 @@ export const SKY = {
   // giornata limpida legge come un temporale in arrivo. Questa variante chiede
   // l'opposto — chiaro e arioso — dando un riferimento verificabile (più chiaro
   // dell'edificio, non più scuro) invece dell'ennesimo aggettivo.
+  // Il cielo è la superficie più grande e più liscia di una foto: qualsiasi
+  // irregolarità dell'edit AI si vede lì per prima. Su questo set usciva a
+  // chiazze — zone più sature accanto a zone slavate — e cambiava tono da una
+  // foto all'altra dello stesso pomeriggio. Qui si chiede una cosa sola e
+  // verificabile: UNA superficie continua, e sempre lo stesso azzurro.
+  "even-blue":
+    "if the sky is visible it must read as ONE single continuous surface: a uniform, even blue that changes only in a smooth gradient from horizon to zenith, with no patches, no blotches, no banding, no areas that are noticeably more saturated or more washed-out than their neighbours, and no halo around buildings, trees or roof lines. Keep it a natural mid-blue of a clear day — neither a dark navy nor a pale washed grey — and keep faint clouds soft and believable if they are already there. Never invent clouds, gradients or colour shifts that were not in the scene",
+  // Cielo notturno di riferimento per tutto il set. Nominare le stelle serve a
+  // due cose opposte: chiederne POCHE (un cielo urbano ne mostra una manciata,
+  // non una via lattea) e impedire al modello di riempire il vuoto con un
+  // firmamento inventato, che è quello che fa quando gli si dice solo "notte".
+  "deep-night":
+    "if the night sky is visible it must read as one deep, rich blue-black surface with a dramatic gradient — darkest at the top, warming slightly toward the horizon where the city light spills up — smooth and continuous, with no patches, no banding and no halo around buildings. Keep a FEW faint stars only, sparse and small, the handful you would actually see from a lit city; never a dense starfield, never a milky way, never invented constellations or clouds. The sky stays clearly darker than every lit surface in the frame",
   "bright-airy":
     "if the sky is visible, keep it light, clean and airy: a pale, luminous blue that reads like open daylight, never dark, heavy, navy or stormy. The sky must stay clearly BRIGHTER than the buildings and subjects below it, with smooth gradation, no milky haze and no blown-out white patches. Do not deepen or over-saturate it",
 } as const;
@@ -107,6 +120,16 @@ export const COMPOSITION = {
   // perché senza il modello si limita ad allargare il campo.
   "wide-hero":
     "reframe it as a wide-angle hero shot, around 24mm: get low and close to the subject so it fills the foreground and reads big and imposing, while the background opens up wide behind it with converging perspective lines that lead into the scene. Keep the wide-angle geometry honest — no fisheye bulge, no stretched or deformed subject at the edges",
+  // Il grandangolo su un OGGETTO (un'auto, una moto) è un'altra cosa dal
+  // grandangolo su un luogo: qui si scende all'altezza del parafango e si
+  // lascia che la prospettiva allunghi il muso. È l'inquadratura da rivista di
+  // automobili, e "wide-hero" generico non ci arriva.
+  "hero-object":
+    "reframe it as a low, close wide-angle hero shot of the object itself, around 20-24mm from just above ground level: get right up to it so the near corner fills the foreground and the body stretches away in dramatic perspective, low horizon, the object clearly the largest thing in the frame. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and keep its proportions honest even while the perspective exaggerates depth",
+  // Corridoi, filari, sentieri: la prospettiva converge in fondo e crea un
+  // tunnel. Chiedere "grandangolo" e basta non produce il punto di fuga.
+  "tunnel":
+    "stand in the middle of the path and shoot straight down it, so the lines on both sides converge to a single vanishing point deep in the frame and the scene reads as a tunnel drawing the eye in. Keep the frame symmetrical and the verticals dead straight",
   // Teleobiettivo: il contrario, comprime e isola.
   "tele-isolate":
     "reframe it as a compressed telephoto shot, around 85-135mm: move back and tighten onto the subject so the background flattens and stacks behind it, isolating the subject cleanly from a busy scene",

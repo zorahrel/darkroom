@@ -57,9 +57,9 @@ export type PromptConfig = {
   preset: "cinematic" | "editorial" | "documentary" | "fine-art";
   film_stock: "none" | "portra-400" | "portra-800" | "cinestill-800t" | "ektar-100" | "fuji-400h";
   white_balance: "preserve" | "neutral" | "neutral-strict" | "warm" | "cool";
-  sky: "off" | "deep-blue" | "bright-airy";
+  sky: "off" | "deep-blue" | "bright-airy" | "even-blue" | "deep-night";
   geometry: "off" | "straighten" | "correct";
-  composition: "off" | "rebalance" | "recompose" | "wide-hero" | "tele-isolate";
+  composition: "off" | "rebalance" | "recompose" | "wide-hero" | "hero-object" | "tunnel" | "tele-isolate";
   aspect_ratio: "preserve" | "1:1" | "4:5" | "5:4" | "3:2" | "2:3" | "16:9" | "9:16";
   harmony: "off" | "subtle" | "strong";
   food: "off" | "enhance" | "strict";

@@ -202,6 +202,16 @@ const VISUAL_GROUPS: VisualGroup[] = [
       { value: "off", label: "Off", hint: "Non tocca il cielo" },
       { value: "deep-blue", label: "Blu profondo", hint: "Cielo saturo e intenso" },
       {
+        value: "deep-night",
+        label: "Notte profonda",
+        hint: "Blu-nero drammatico con poche stelle: per le scene notturne",
+      },
+      {
+        value: "even-blue",
+        label: "Uniforme",
+        hint: "Una superficie sola, senza chiazze né aloni: è il difetto tipico dell'edit AI sul cielo",
+      },
+      {
         value: "bright-airy",
         label: "Chiaro e arioso",
         hint: "Cielo pallido e luminoso, mai cupo: più chiaro degli edifici",
@@ -323,6 +333,8 @@ const TEXT_GROUPS: TextGroup[] = [
       { value: "rebalance", label: "Ribilancia (crop sicuro)" },
       { value: "recompose", label: "Ricomponi (può alterare bordi)" },
       { value: "wide-hero", label: "Grandangolo eroico (24mm)" },
+      { value: "hero-object", label: "Oggetto eroico (auto, moto)" },
+      { value: "tunnel", label: "Tunnel prospettico (sentieri)" },
       { value: "tele-isolate", label: "Tele che isola (85-135mm)" },
     ],
   },

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { existsSync, statSync } from "node:fs";
 import { db, type PhotoRow } from "../db.ts";
 import { mergeConfig, type PromptConfig } from "../promptConfig.ts";
-import { effectiveConfig, getPhoto, promptFor, withExtra } from "../photos.ts";
+import { effectiveConfig, getPhoto, promptFor, withExtra, withSkyForTime } from "../photos.ts";
 import { enqueueJob } from "../jobs.ts";
 import { COLOR_REFERENCE_CLAUSE, colorReferenceFor } from "../colorReference.ts";
 import {
@@ -29,7 +29,10 @@ generationRoutes.post("/api/photos/:id/generate", async (c) => {
     if (body && typeof body === "object" && body.config) oneShot = body.config;
   } catch {}
 
-  const cfg = withExtra(mergeConfig(effectiveConfig(photo), oneShot), photo);
+  const cfg = withSkyForTime(
+    withExtra(mergeConfig(effectiveConfig(photo), oneShot), photo),
+    photo,
+  );
   // Se il post ha una foto di riferimento, la si allega e si chiede di
   // accordarsi a quella: il colore coerente nasce col render, invece di essere
   // corretto dopo con un filtro.
@@ -102,8 +105,14 @@ generationRoutes.post("/api/photos/:id/generate-higgsfield", async (c) => {
   if (!model) return c.json({ error: "model required" }, 400);
 
   // Reuse the structured prompt so Higgsfield gets the same cinematic intent.
-  const cfg = withExtra(mergeConfig(effectiveConfig(photo), body?.config ?? null), photo);
-  const prompt = promptFor(cfg);
+  const cfg = withSkyForTime(
+    withExtra(mergeConfig(effectiveConfig(photo), body?.config ?? null), photo),
+    photo,
+  );
+  // Anche Higgsfield allega il riferimento cromatico del post: è lo stesso
+  // set, e il colore deve nascere coerente da qualunque motore passi.
+  const ref = colorReferenceFor(id);
+  const prompt = ref ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
   const providerParams = JSON.stringify({ model, params: body?.params ?? {} });
   // Remember this selection so the picker prefills it next time for this photo.
   db().run("UPDATE photos SET higgsfield_selection=?, updated_at=? WHERE id=?", [
@@ -111,7 +120,10 @@ generationRoutes.post("/api/photos/:id/generate-higgsfield", async (c) => {
     Date.now(),
     id,
   ]);
-  const job = enqueueJob(id, prompt, JSON.stringify(cfg), "higgsfield", providerParams);
+  const job = enqueueJob(
+    id, prompt, JSON.stringify(cfg), "higgsfield", providerParams, "edit", null,
+    ref ? JSON.stringify([ref]) : null,
+  );
   return c.json({ job });
 });
 

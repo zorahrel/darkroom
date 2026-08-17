@@ -233,3 +233,74 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
     );
   });
 });
+
+describe("cieli e ottiche scelte per la scena", () => {
+  test("il cielo notturno chiede POCHE stelle, non un firmamento", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-night" });
+    // Dicendo solo "notte" il modello riempie il vuoto con una via lattea:
+    // il numero va nominato, e va nominato anche cosa NON fare.
+    expect(p).toContain("FEW faint stars only");
+    expect(p).toContain("never a milky way");
+    expect(p).toContain("dramatic gradient");
+  });
+
+  test("il cielo diurno chiede una superficie sola, senza chiazze", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "even-blue" });
+    // È il difetto misurato sul set: zone più sature accanto a zone slavate.
+    expect(p).toContain("ONE single continuous surface");
+    expect(p).toContain("no patches");
+    expect(p).toContain("no halo around buildings");
+  });
+
+  test("l'oggetto eroico non è il grandangolo generico", () => {
+    const obj = assemblePrompt({ ...DEFAULT_CONFIG, composition: "hero-object" });
+    const wide = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
+    expect(obj).toContain("just above ground level");
+    expect(obj).toContain("no melted panels or warped wheels");
+    expect(obj).not.toBe(wide);
+  });
+
+  test("il tunnel chiede il punto di fuga, non solo un campo largo", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "tunnel" });
+    expect(p).toContain("single vanishing point");
+    expect(p).toContain("verticals dead straight");
+  });
+
+  test("le opzioni preesistenti non cambiano", () => {
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
+    expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
+      "recompose the frame more freely",
+    );
+  });
+});
+
+describe("il cielo segue l'ora dello scatto", () => {
+  test("una foto serale prende il cielo notturno, una diurna quello uniforme", async () => {
+    const { withSkyForTime } = await import("../server/photos.ts");
+    const base = { ...DEFAULT_CONFIG };
+    const at = (h: number) => new Date(2026, 2, 13, h, 0).getTime();
+    const photo = (h: number) =>
+      ({ taken_at: at(h), config_override: null }) as never;
+
+    expect(withSkyForTime(base, photo(20)).sky).toBe("deep-night");
+    expect(withSkyForTime(base, photo(3)).sky).toBe("deep-night");
+    expect(withSkyForTime(base, photo(11)).sky).toBe("even-blue");
+  });
+
+  test("una scelta esplicita per-foto vince sull'orario", async () => {
+    const { withSkyForTime } = await import("../server/photos.ts");
+    // Chi ha scelto il cielo a mano sa cosa sta facendo: l'automatismo non
+    // deve sovrascriverlo.
+    const photo = {
+      taken_at: new Date(2026, 2, 13, 20, 0).getTime(),
+      config_override: '{"sky":"deep-blue"}',
+    } as never;
+    expect(withSkyForTime({ ...DEFAULT_CONFIG, sky: "deep-blue" }, photo).sky).toBe("deep-blue");
+  });
+
+  test("senza data si assume giorno invece di indovinare", async () => {
+    const { withSkyForTime } = await import("../server/photos.ts");
+    const photo = { taken_at: null, config_override: null } as never;
+    expect(withSkyForTime({ ...DEFAULT_CONFIG }, photo).sky).toBe("even-blue");
+  });
+});
