@@ -225,6 +225,8 @@ function summaryBody(s: GradeStep): string {
       if (num(p.sat, 0)) bits.push(`colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%`);
       return bits.length ? bits.join(" · ") : "auto";
     }
+    case "match":
+      return "per post";
     case "sky": {
       const bits = [`+${num(p.amount, 40)}%`];
       if (num(p.desat, 0)) bits.push(`spento ${num(p.desat, 0)}%`);
@@ -420,6 +422,20 @@ function StepBody({
           rosse e tramonti restano dove sono.
         </p>
       </div>
+    );
+  }
+
+  if (step.type === "match") {
+    return (
+      <p className="text-[11px] text-neutral-500 leading-snug">
+        Allinea ogni foto al resto del suo <strong className="text-neutral-300">post</strong>:
+        bilanciamento, esposizione e saturazione vengono avvicinati alla mediana
+        del gruppo. Serve perché ogni render AI è indipendente, e due scatti
+        dello stesso pomeriggio tornano con luci diverse — nel carosello si vede
+        come uno scatto di luminosità mentre scorri. Non ha parametri: li calcola
+        il server misurando l'intero post. Le foto fuori da un post non vengono
+        toccate.
+      </p>
     );
   }
 

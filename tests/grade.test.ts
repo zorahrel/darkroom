@@ -155,3 +155,44 @@ describe("bloom: uno solo, non due", () => {
     expect(kept.some((s) => s.type === "bloom")).toBe(true);
   });
 });
+
+describe("armonizzazione per post", () => {
+  test("il passo match riceve i parametri del gruppo, non quelli salvati", async () => {
+    const { resolveStepsForScript } = await import("../server/grade.ts");
+    const steps = [
+      { id: "m", type: "match" as const, enabled: true, params: {} },
+    ];
+    const match = { a_shift: 2.5, b_shift: -3.1, a_scale: 1.05, b_scale: 0.95 };
+    const out = resolveStepsForScript(steps, match);
+    expect(out).toHaveLength(1);
+    // Solo crominanza: la luminanza della scena non entra nella correzione.
+    expect(out[0]!.params.a_shift).toBe(2.5);
+    expect(out[0]!.params.b_scale).toBe(0.95);
+    expect(out[0]!.params).not.toHaveProperty("exposure");
+  });
+
+  test("senza gruppo il passo sparisce invece di applicarsi a vuoto", async () => {
+    const { resolveStepsForScript } = await import("../server/grade.ts");
+    // Foto non assegnata a un post, o post con una foto sola: non c'è nulla con
+    // cui armonizzare, e un passo senza parametri applicherebbe l'identità
+    // (innocua ma inutile) o peggio dei default sbagliati.
+    const out = resolveStepsForScript(
+      [{ id: "m", type: "match" as const, enabled: true, params: {} }],
+      null,
+    );
+    expect(out).toHaveLength(0);
+  });
+
+  test("gli altri passi non sono toccati dalla risoluzione del match", async () => {
+    const { resolveStepsForScript } = await import("../server/grade.ts");
+    const out = resolveStepsForScript(
+      [
+        { id: "c", type: "color" as const, enabled: true, params: { temp: -18 } },
+        { id: "m", type: "match" as const, enabled: true, params: {} },
+      ],
+      { a_shift: 0, b_shift: 0, a_scale: 1, b_scale: 1 },
+    );
+    expect(out.map((s) => s.type)).toEqual(["color", "match"]);
+    expect(out[0]!.params.temp).toBe(-18);
+  });
+});

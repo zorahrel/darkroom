@@ -20,14 +20,29 @@ export function deterministicSteps(steps: GradeStep[]): GradeStep[] {
 }
 
 /** Resolve LUT ids (relative → absolute under LUT_DIR) and drop 'ai' steps, so
- *  the Python color grader receives only steps it understands with usable paths. */
-export function resolveStepsForScript(steps: GradeStep[]): GradeStep[] {
-  return deterministicSteps(steps).map((s) => {
+ *  the Python color grader receives only steps it understands with usable paths.
+ *
+ *  Il passo `match` è l'unico i cui parametri NON stanno nel grade: dipendono
+ *  dal gruppo (quali altre foto stanno in quel post) e vengono calcolati dal
+ *  server. Se non ci sono — foto non assegnata, o post con una foto sola — il
+ *  passo viene tolto invece di essere applicato a vuoto. */
+export function resolveStepsForScript(
+  steps: GradeStep[],
+  match?: { a_shift: number; b_shift: number; a_scale: number; b_scale: number } | null,
+): GradeStep[] {
+  const out: GradeStep[] = [];
+  for (const s of deterministicSteps(steps)) {
     if (s.type === "lut" && typeof s.params.lut === "string" && s.params.lut) {
-      return { ...s, params: { ...s.params, lut: join(LUT_DIR, s.params.lut) } };
+      out.push({ ...s, params: { ...s.params, lut: join(LUT_DIR, s.params.lut) } });
+      continue;
     }
-    return s;
-  });
+    if (s.type === "match") {
+      if (match) out.push({ ...s, params: { ...s.params, ...match } });
+      continue;
+    }
+    out.push(s);
+  }
+  return out;
 }
 
 export type GradeRunOpts = {
@@ -35,6 +50,8 @@ export type GradeRunOpts = {
   quality: number;
   timeoutMs: number;
   wbGain?: [number, number, number] | null;
+  /** Correzioni di armonizzazione, calcolate sul post di appartenenza. */
+  match?: { a_shift: number; b_shift: number; a_scale: number; b_scale: number } | null;
 };
 
 /** Run an ordered list of grade steps through color_grade.py. Steps are resolved
@@ -47,7 +64,7 @@ export function runGradeSteps(
   steps: GradeStep[],
   opts: GradeRunOpts,
 ): boolean {
-  const resolved = resolveStepsForScript(steps);
+  const resolved = resolveStepsForScript(steps, opts.match);
   if (resolved.length === 0) return false; // nothing deterministic to apply
   mkdirSync(dirname(out), { recursive: true });
   // The steps (with absolute LUT paths) are passed via a temp file: LUT paths

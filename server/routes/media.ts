@@ -9,6 +9,7 @@ import { parseWidth, safeSeg, serveFile } from "../http.ts";
 import { thumbnailPath } from "../thumb.ts";
 import { gradeActive, gradeFromQuery, gradedFile, runColorGrade, sceneMatchRequested } from "../gradeCache.ts";
 import { wbGainFor } from "../sceneWb.ts";
+import { setMatchFor } from "../setMatch.ts";
 
 /** Everything that serves bytes: originals, generations, thumbs, graded
  *  renders, and the built SPA. Mounted last — it owns the catch-all. */
@@ -127,9 +128,14 @@ mediaRoutes.get("/graded/:photoId/:filename", (c) => {
   }
   const width = parseWidth(c, 1600, 3200);
   const wbGain = sceneMatchRequested(cfg) ? wbGainFor(photoId) : null;
-  const out = gradedFile(photoId, filename, source, cfg, width, wbGain);
+  // I parametri del passo `match` dipendono dal post: si risolvono solo se il
+  // grade lo contiene davvero, per non pagare il calcolo su ogni miniatura.
+  const match = cfg.steps.some((s) => s.type === "match" && s.enabled)
+    ? setMatchFor(photoId)
+    : null;
+  const out = gradedFile(photoId, filename, source, cfg, width, wbGain, match);
   if (!existsSync(out)) {
-    const ok = runColorGrade(source, out, cfg, width, 90, 60000, wbGain);
+    const ok = runColorGrade(source, out, cfg, width, 90, 60000, wbGain, match);
     if (!ok) return serveFile(source); // fail open on grade error
   }
   return serveFile(out, "image/jpeg");

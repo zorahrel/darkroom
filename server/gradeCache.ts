@@ -44,6 +44,7 @@ export function gradedFile(
   cfg: ColorGrade,
   width: number,
   wbGain?: [number, number, number] | null,
+  match?: { a_shift: number; b_shift: number; a_scale: number; b_scale: number } | null,
 ): string {
   const st = statSync(source);
   const key = createHash("sha1")
@@ -54,6 +55,9 @@ export function gradedFile(
         s: st.size,
         steps: deterministicSteps(cfg.steps),
         wb: wbGain ?? null,
+        // Le correzioni di gruppo entrano nella chiave: cambiando la
+        // composizione del post cambia il risultato, e la cache deve saperlo.
+        match: match ?? null,
         width,
       }),
     )
@@ -70,8 +74,9 @@ export function runColorGrade(
   quality: number,
   timeoutMs: number,
   wbGain?: [number, number, number] | null,
+  match?: { a_shift: number; b_shift: number; a_scale: number; b_scale: number } | null,
 ): boolean {
-  return runGradeSteps(source, out, cfg.steps, { maxWidth, quality, timeoutMs, wbGain });
+  return runGradeSteps(source, out, cfg.steps, { maxWidth, quality, timeoutMs, wbGain, match });
 }
 
 /** Overlay an UNSAVED grade passed as a JSON blob in the `g` query param, so a

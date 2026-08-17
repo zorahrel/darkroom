@@ -618,7 +618,67 @@ def run_step(a, step, wb_gain):
         return split_tone(a, p)
     if t == "color":
         return color_correct(a, p)
+    if t == "match":
+        return set_match(a, p)
     return a  # unknown type → no-op
+
+
+def _srgb_to_lab(rgb):
+    """sRGB 0..255 -> CIE Lab (D65)."""
+    x = rgb / 255.0
+    lin = np.where(x <= 0.04045, x / 12.92, ((x + 0.055) / 1.055) ** 2.4)
+    m = np.array([[0.4124564, 0.3575761, 0.1804375],
+                  [0.2126729, 0.7151522, 0.0721750],
+                  [0.0193339, 0.1191920, 0.9503041]], np.float32)
+    xyz = (lin @ m.T) / np.array([0.95047, 1.0, 1.08883], np.float32)
+    e, k = 216 / 24389, 24389 / 27
+    f = np.where(xyz > e, np.cbrt(np.clip(xyz, 1e-9, None)), (k * xyz + 16) / 116)
+    return np.stack([116 * f[..., 1] - 16,
+                     500 * (f[..., 0] - f[..., 1]),
+                     200 * (f[..., 1] - f[..., 2])], -1)
+
+
+def _lab_to_srgb(lab):
+    L, A, B = lab[..., 0], lab[..., 1], lab[..., 2]
+    fy = (L + 16) / 116
+    fx, fz = fy + A / 500, fy - B / 200
+    e, k = 216 / 24389, 24389 / 27
+    def finv(t):
+        t3 = t ** 3
+        return np.where(t3 > e, t3, (116 * t - 16) / k)
+    xyz = np.stack([finv(fx), np.where(L > k * e, ((L + 16) / 116) ** 3, L / k), finv(fz)], -1)
+    xyz = xyz * np.array([0.95047, 1.0, 1.08883], np.float32)
+    m = np.array([[3.2404542, -1.5371385, -0.4985314],
+                  [-0.9692660, 1.8760108, 0.0415560],
+                  [0.0556434, -0.2040259, 1.0572252]], np.float32)
+    lin = xyz @ m.T
+    srgb = np.where(lin <= 0.0031308, lin * 12.92,
+                    1.055 * np.clip(lin, 0, None) ** (1 / 2.4) - 0.055)
+    return np.clip(srgb, 0, 1) * 255.0
+
+
+def set_match(a, p):
+    """Armonizza questa foto col resto del suo post — il "Match Color" di
+    Photoshop, in Lab e su un gruppo invece che su una coppia.
+
+    Tocca SOLO i canali cromatici a/b: la luminanza resta quella della scena.
+    È la lezione del primo tentativo, che allineava anche la luce e appiattiva
+    un interno in ombra sullo stesso valore di un esterno al sole senza per
+    questo farli sembrare parenti. La deriva che si vede scorrendo un carosello
+    è di TINTA, non di esposizione.
+
+    I parametri arrivano calcolati da match_set.py sull'intero gruppo.
+    """
+    a_shift = float(p.get("a_shift", 0.0))
+    b_shift = float(p.get("b_shift", 0.0))
+    a_scale = float(p.get("a_scale", 1.0))
+    b_scale = float(p.get("b_scale", 1.0))
+    if a_shift == 0.0 and b_shift == 0.0 and a_scale == 1.0 and b_scale == 1.0:
+        return a
+    lab = _srgb_to_lab(a)
+    lab[..., 1] = lab[..., 1] * a_scale + a_shift
+    lab[..., 2] = lab[..., 2] * b_scale + b_shift
+    return np.clip(_lab_to_srgb(lab), 0.0, 255.0)
 
 
 def grade_steps(inp, out, steps, max_width, quality, wb_gain=None):

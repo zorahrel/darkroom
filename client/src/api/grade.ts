@@ -56,6 +56,7 @@ export const STEP_LABELS: Record<GradeStepType, string> = {
   curve: "Curva",
   split_tone: "Split Tone",
   color: "Color (finale)",
+  match: "Armonizza il post",
   ai: "Generazione AI",
 };
 
@@ -86,6 +87,7 @@ export const STEP_ORDER: GradeStepType[] = [
   "curve",
   "split_tone",
   "color",
+  "match",
 ];
 
 // Zeroed hue/sat/lum for every HSL band — the neutral starting point.
@@ -103,6 +105,8 @@ const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   sakura: { sat: 0, hue_shift: 0 },
   sky: { amount: 40, desat: 0, warm: 0 },
   bloom: { amount: 35, threshold: 68, radius: 14, knee: 2, gain: 1 },
+  // I parametri veri li calcola il server sul gruppo: qui restano vuoti.
+  match: {},
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
   hsl: { ...HSL_ZERO },
   curve: { shadows: 0, darks: 0, lights: 0, highlights: 0 },

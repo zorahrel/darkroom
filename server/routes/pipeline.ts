@@ -6,6 +6,7 @@ import { finalDir } from "../project.ts";
 import { DEFAULT_CONFIG, parseConfig } from "../promptConfig.ts";
 import { effectiveConfig, ensureFinalDir, getPhoto, promptFor, withExtra } from "../photos.ts";
 import { gradeActive, runColorGrade, sceneMatchRequested } from "../gradeCache.ts";
+import { setMatchFor } from "../setMatch.ts";
 import { wbGainFor } from "../sceneWb.ts";
 import { enqueueJob } from "../jobs.ts";
 import { bakePhoto } from "../bake.ts";
@@ -40,7 +41,12 @@ pipelineRoutes.post("/api/export-favorites", (c) => {
       // Full-res graded JPG (no downscale) — the real deliverable.
       const dst = join(finalDir(), `${r.photo_id}.jpg`);
       const wbGain = sceneMatchRequested(cfg) ? wbGainFor(r.photo_id) : null;
-      if (runColorGrade(r.image_path, dst, cfg, 0, 95, 120000, wbGain)) {
+      // L'export deve armonizzare come la griglia: se il passo c'è, si applica
+      // anche qui, altrimenti quel che si è approvato non è quel che si pubblica.
+      const match = cfg.steps.some((s) => s.type === "match" && s.enabled)
+        ? setMatchFor(r.photo_id)
+        : null;
+      if (runColorGrade(r.image_path, dst, cfg, 0, 95, 120000, wbGain, match)) {
         copied++;
         continue;
       }

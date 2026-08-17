@@ -279,6 +279,7 @@ export type GradeStepType =
   | "curve"
   | "split_tone"
   | "color"
+  | "match"
   | "ai";
 
 export type GradeStep = {
