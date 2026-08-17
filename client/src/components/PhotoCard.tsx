@@ -327,7 +327,7 @@ export default function PhotoCard({
           e.preventDefault();
           e.stopPropagation();
         }}
-        className={`absolute inset-x-0 bottom-0 z-20 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${
+        className={`absolute inset-x-0 bottom-0 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${
           fbFocused
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"

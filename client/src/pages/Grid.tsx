@@ -1041,7 +1041,12 @@ export default function GridPage({
                         setDragOver(null);
                       }}
                       className={
-                        "relative " +
+                        // `group/tile`: un gruppo NOMINATO. Senza nome,
+                        // group-hover risaliva al `group` di PhotoCard più
+                        // vicino trovato nel DOM e i comandi comparivano su
+                        // tutte le foto insieme invece che su quella sotto il
+                        // mouse.
+                        "relative group/tile " +
                         (inPost ? "cursor-grab active:cursor-grabbing " : "") +
                         (dragOver === p.id && dragging?.photoId !== p.id
                           ? "ring-2 ring-sky-400 rounded-md"
@@ -1073,7 +1078,12 @@ export default function GridPage({
                           carosello" — e il riferimento colore non ha nemmeno un
                           gesto, vive solo nell'ordine invisibile del DB. */}
                       {g.collectionId && !selectMode && (
-                        <div className="absolute bottom-1 right-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        // In alto a sinistra, SOTTO il cuore: in basso passa la
+                        // nota (che occupa tutta la larghezza della card) e a
+                        // destra c'è la stella della versione preferita. Questi
+                        // due comandi riguardano il POST, non la foto, quindi
+                        // stanno insieme e lontano dagli altri.
+                        <div className="absolute left-1 top-9 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover/tile:opacity-100">
                           {slot !== 0 && (
                             <button
                               title="Metti in copertina (prima slide)"
@@ -1115,7 +1125,9 @@ export default function GridPage({
                         </div>
                       )}
                       {refByCollection[g.collectionId ?? ""] === p.id && (
-                        <span className="pointer-events-none absolute top-1 right-1 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        // Sotto il numero di slide, non in alto a destra: lì
+                        // vive la stella della versione preferita.
+                        <span className="pointer-events-none absolute bottom-1 left-8 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                           riferimento
                         </span>
                       )}
