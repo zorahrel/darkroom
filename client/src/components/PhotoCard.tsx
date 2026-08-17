@@ -238,9 +238,11 @@ export default function PhotoCard({
           anche sulla cella più piccola, dove tutto il resto sparisce. */}
       {photo.shown_provider === "higgsfield" && (
         <span
-          title="Render dal modello pro (GPT Image 2)"
-          className="pointer-events-none absolute right-1 top-9 z-20 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-black/50"
-        />
+          title="Foto pronta: render dal modello pro (GPT Image 2)"
+          className="pointer-events-none absolute bottom-1 left-1/2 z-30 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-emerald-950 shadow ring-1 ring-emerald-300/60"
+        >
+          ✓ PRONTA
+        </span>
       )}
 
       {/* Contatore versioni. Sta in BASSO a destra: in alto a sinistra c'è il
@@ -267,8 +269,23 @@ export default function PhotoCard({
         </span>
       </div>
 
-      {/* Centered status icon (big & animated) */}
-      {jobStatus && (
+      {/* Un errore è UNA riga, non un velo su tutta la foto: la generazione
+          fallita è quasi sempre un inciampo del browser, e nel frattempo la
+          foto resta l'unica cosa da guardare per decidere se tenerla. Coprirla
+          con un triangolo grande quanto lei rende illeggibile la griglia
+          proprio quando gli errori sono tanti. */}
+      {jobStatus === "failed" && (
+        <span
+          title="L'ultima generazione è fallita"
+          className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded bg-red-600/95 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+        >
+          errore
+        </span>
+      )}
+
+      {/* Lavorazione in corso: qui il velo ha senso, perché la foto sta per
+          cambiare e non è ancora quella definitiva. */}
+      {jobStatus && jobStatus !== "failed" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] pointer-events-none">
           {jobStatus === "running" && (
             <div className="flex flex-col items-center gap-1">
@@ -303,24 +320,6 @@ export default function PhotoCard({
                 <path d="M12 7v5l3 2" />
               </svg>
               <span className="text-[10px] font-medium tracking-wider text-blue-100 uppercase">in coda</span>
-            </div>
-          )}
-          {jobStatus === "failed" && (
-            <div className="flex flex-col items-center gap-1">
-              <svg
-                className="w-10 h-10 text-red-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <span className="text-[10px] font-medium tracking-wider text-red-100 uppercase">errore</span>
             </div>
           )}
         </div>

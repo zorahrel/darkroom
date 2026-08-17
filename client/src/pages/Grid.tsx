@@ -179,11 +179,14 @@ export default function GridPage({
   // Altezza reale della barra: le intestazioni dei post ci si agganciano sotto,
   // e un valore fisso sbaglierebbe appena compare la riga di selezione.
   const barRef = useRef<HTMLDivElement | null>(null);
-  const [barH, setBarH] = useState(105);
+  const [barH, setBarH] = useState(48);
   useEffect(() => {
     const el = barRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([e]) => e && setBarH(Math.round(e.contentRect.height) + 16));
+    // offsetHeight, non contentRect: serve l'altezza REALE occupata, padding e
+    // bordo compresi. Con contentRect le intestazioni si agganciavano troppo in
+    // alto e sparivano sotto la barra.
+    const ro = new ResizeObserver(() => setBarH(el.offsetHeight));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -928,25 +931,50 @@ export default function GridPage({
         {/* Raggruppamento: un select nativo invece di quattro bottoni. Sono
             300px risparmiati, ed è una scelta fra alternative esclusive —
             esattamente ciò per cui un menu a tendina esiste. */}
-        {/* Senza etichetta: le voci ("Post", "Scena") dicono già che si tratta
-            di raggruppamento, e la parola costava 50px su una barra che deve
-            entrare intera. */}
-        <label className="flex shrink-0 items-center rounded-lg border border-neutral-800/70 bg-neutral-900/40" title="Come raggruppare le foto">
-          <select
-            value={groupMode}
-            onChange={(e) => {
-              const v = e.target.value as GroupMode;
-              setGroupMode(v);
-              localStorage.setItem("darkroom.grid.group", v);
-            }}
-            className="rounded border-0 bg-transparent px-1.5 py-1 text-xs text-neutral-300"
+        {/* Menu proprio, non una select nativa: quella eredita il widget di
+            sistema — su macOS chiaro, col suo font e la sua freccia — e in
+            mezzo a una barra scura si vede solo lui. Stessa forma dei menu dei
+            filtri, così la barra ha una grammatica sola. */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setOpenFilterMenu(openFilterMenu === "__group" ? null : "__group")}
+            title="Come raggruppare le foto"
+            className="inline-flex shrink-0 items-center gap-1 rounded border border-neutral-800 px-2 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-white"
           >
-            <option value="post">Post</option>
-            <option value="scene">Scena</option>
-            <option value="day">Giorno</option>
-            <option value="none">Nessuno</option>
-          </select>
-        </label>
+            {groupLabel}
+            <span className="text-neutral-500">▾</span>
+          </button>
+          {openFilterMenu === "__group" && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setOpenFilterMenu(null)} />
+              <div className="absolute left-0 z-50 mt-1 min-w-[9rem] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-900 py-1 shadow-2xl">
+                {([
+                  { id: "post", label: "Post" },
+                  { id: "scene", label: "Scena" },
+                  { id: "day", label: "Giorno" },
+                  { id: "none", label: "Nessuno" },
+                ] as const).map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => {
+                      setGroupMode(g.id);
+                      localStorage.setItem("darkroom.grid.group", g.id);
+                      setOpenFilterMenu(null);
+                    }}
+                    className={
+                      "block w-full px-3 py-1.5 text-left transition-colors " +
+                      (groupMode === g.id
+                        ? "bg-neutral-800 text-white"
+                        : "text-neutral-200 hover:bg-neutral-800")
+                    }
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         {/* Il selettore di run è un attrezzo di diagnosi, non di curatela: sta
             in barra solo quando è già in uso, altrimenti ruba 220px a chi sta
             semplicemente guardando le foto. */}
@@ -1113,7 +1141,11 @@ export default function GridPage({
             // riferimento: deve leggersi senza cercarlo, non essere una riga
             // grigia come tutto il resto. Un post ha anche una barra di colore,
             // così si vede dove finisce uno e comincia l'altro.
-            <section key={i} className="space-y-2">
+            // Nessuno space-y: lo stacco fra intestazione e foto lo mette il
+            // padding dell'intestazione stessa. Con space-y restava una fascia
+            // trasparente sotto il titolo mentre era sticky, e ci si vedeva
+            // scorrere la griglia sotto.
+            <section key={i}>
               {g.label && (
               <header
                 // top-[104px]: subito sotto la barra unificata (header 57 +
@@ -1140,7 +1172,7 @@ export default function GridPage({
                 }}
                 style={{ top: barH + 57 }}
                 className={
-                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
+                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky bg-neutral-950/95 backdrop-blur pb-2 pt-2.5 z-10 border-b transition-colors mb-2 " +
                   (dragOverGroup === g.collectionId
                     ? "border-sky-400 bg-sky-950/40"
                     : "border-neutral-800/80")

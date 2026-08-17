@@ -277,7 +277,10 @@ export default function App() {
           due bande vuote ai lati. Il limite diventa opzionale. */}
       <main
         className={
-          "flex-1 w-full mx-auto px-4 py-4 " + (wide ? "max-w-none" : "max-w-7xl")
+          // pt-0: il padding superiore lasciava una striscia vuota che
+          // scorreva SOPRA la barra dei filtri sticky, e si vedeva la griglia
+          // passarci sotto. Lo spazio lo mette la barra stessa.
+          "flex-1 w-full mx-auto px-4 pb-4 pt-0 " + (wide ? "max-w-none" : "max-w-7xl")
         }
       >
         <Outlet context={{ jobs, activeJobs, wide, setWide, railOpen, setRailOpen }} />
