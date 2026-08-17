@@ -145,6 +145,14 @@ export default function GridPage({
   // e la griglia resta una griglia.
   const [dragging, setDragging] = useState<{ collectionId: string; photoId: string } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Post evidenziato quando ci si trascina sopra l'intestazione.
+  const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+  // Menu contestuale: le stesse azioni dei bottoni, ma raggiungibili con il
+  // tasto destro — che è dove le cerca chiunque abbia mai usato un gestore di
+  // foto, e che finora non faceva nulla.
+  const [menu, setMenu] = useState<
+    { x: number; y: number; photoId: string; collectionId: string | null } | null
+  >(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -243,6 +251,15 @@ export default function GridPage({
   useEffect(() => {
     refreshCollections();
   }, [refreshCollections, reloadKey]);
+
+  // Esc chiude il menu contestuale: cliccare fuori funziona, ma non è quello
+  // che fanno le dita quando si vuole annullare.
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
 
   // List of generation runs (batches). Refreshes when the pipeline runs.
   useEffect(() => {
@@ -485,6 +502,44 @@ export default function GridPage({
         await api.setCollectionPhotos(collectionId, next);
       } catch {
         await refreshCollections(); // il server ha rifiutato: riallinea
+      }
+    },
+    [collectionPhotos, refreshCollections],
+  );
+
+  /**
+   * Sposta una foto in un ALTRO post. `beforeId` è la foto su cui è stata
+   * lasciata: la nuova arriva al suo posto, non in fondo, perché chi trascina
+   * sta indicando una posizione. Con `null` va in coda (drop sull'intestazione).
+   */
+  const moveAcross = useCallback(
+    async (photoId: string, toCollection: string, beforeId: string | null) => {
+      const dest = [...(collectionPhotos[toCollection] ?? [])];
+      const from = Object.entries(collectionPhotos).find(([, ids]) => ids.includes(photoId));
+      // Ottimistico: il trascinamento deve sembrare istantaneo, il server
+      // conferma dopo.
+      setCollectionPhotos((m) => {
+        const next = { ...m };
+        if (from) next[from[0]] = from[1].filter((x) => x !== photoId);
+        const at = beforeId ? dest.indexOf(beforeId) : -1;
+        const list = dest.filter((x) => x !== photoId);
+        if (at >= 0) list.splice(at, 0, photoId);
+        else list.push(photoId);
+        next[toCollection] = list;
+        return next;
+      });
+      try {
+        await api.assignToCollection([photoId], toCollection);
+        if (beforeId) {
+          const list = [...(collectionPhotos[toCollection] ?? [])].filter((x) => x !== photoId);
+          const at = list.indexOf(beforeId);
+          if (at >= 0) {
+            list.splice(at, 0, photoId);
+            await api.setCollectionPhotos(toCollection, list);
+          }
+        }
+      } finally {
+        await refreshCollections();
       }
     },
     [collectionPhotos, refreshCollections],
@@ -925,7 +980,33 @@ export default function GridPage({
             // così si vede dove finisce uno e comincia l'altro.
             <section key={i} className="space-y-2">
               {g.label && (
-              <header className="flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[57px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b border-neutral-800/80">
+              <header
+                // L'intestazione è una zona di rilascio: trascinarci sopra una
+                // foto la sposta in fondo a quel post. Serve per spostare in un
+                // post che in quel momento è scrollato fuori vista, o vuoto.
+                onDragOver={(e) => {
+                  if (!dragging || !g.collectionId || dragging.collectionId === g.collectionId) return;
+                  e.preventDefault();
+                  setDragOverGroup(g.collectionId);
+                }}
+                onDragLeave={() => setDragOverGroup(null)}
+                onDrop={(e) => {
+                  if (!dragging || !g.collectionId) return;
+                  e.preventDefault();
+                  if (dragging.collectionId !== g.collectionId) {
+                    moveAcross(dragging.photoId, g.collectionId, null);
+                  }
+                  setDragging(null);
+                  setDragOver(null);
+                  setDragOverGroup(null);
+                }}
+                className={
+                  "flex items-center gap-2.5 text-xs text-neutral-400 sticky top-[57px] bg-neutral-950/95 backdrop-blur py-2.5 z-10 border-b transition-colors " +
+                  (dragOverGroup === g.collectionId
+                    ? "border-sky-400 bg-sky-950/40"
+                    : "border-neutral-800/80")
+                }
+              >
                 {g.collectionId && (
                   <span className="h-6 w-1 shrink-0 rounded-full bg-amber-400/80" />
                 )}
@@ -1029,16 +1110,34 @@ export default function GridPage({
                         setDragOver(null);
                       }}
                       onDragOver={(e) => {
-                        if (!dragging || dragging.collectionId !== g.collectionId) return;
+                        // Si accetta anche il trascinamento da un ALTRO post:
+                        // spostare una foto fra due gruppi è il gesto naturale,
+                        // e prima era bloccato senza dirlo — restava lì e basta.
+                        if (!dragging || !g.collectionId) return;
                         e.preventDefault();
                         setDragOver(p.id);
                       }}
                       onDrop={(e) => {
-                        if (!dragging || dragging.collectionId !== g.collectionId) return;
+                        if (!dragging || !g.collectionId) return;
                         e.preventDefault();
-                        reorderWithin(g.collectionId!, dragging.photoId, p.id);
+                        if (dragging.collectionId === g.collectionId) {
+                          reorderWithin(g.collectionId, dragging.photoId, p.id);
+                        } else {
+                          // Da un altro post: si sposta E si mette nel punto
+                          // dove è stata lasciata, non in fondo.
+                          moveAcross(dragging.photoId, g.collectionId, p.id);
+                        }
                         setDragging(null);
                         setDragOver(null);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          photoId: p.id,
+                          collectionId: g.collectionId ?? null,
+                        });
                       }}
                       className={
                         // `group/tile`: un gruppo NOMINATO. Senza nome,
@@ -1142,6 +1241,122 @@ export default function GridPage({
           ))}
         </div>
       )}
+
+      {/* Menu contestuale. Un gestore di foto ha il tasto destro: qui non
+          faceva nulla, e le azioni erano raggiungibili solo passando il mouse
+          in un punto preciso della card. Le stesse azioni, dove uno le cerca. */}
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
+          <div
+            className="fixed z-50 min-w-[13rem] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-900 py-1 text-sm shadow-2xl"
+            style={{
+              // Il menu non deve uscire dallo schermo quando si clicca vicino
+              // al bordo destro o in fondo alla pagina.
+              left: Math.min(menu.x, window.innerWidth - 230),
+              top: Math.min(menu.y, window.innerHeight - 320),
+            }}
+          >
+            {menu.collectionId && (
+              <>
+                <MenuItem
+                  onClick={async () => {
+                    await api.setCover(menu.collectionId!, menu.photoId);
+                    await refreshCollections();
+                    setMenu(null);
+                  }}
+                >
+                  ★ Metti in copertina
+                </MenuItem>
+                <MenuItem
+                  onClick={async () => {
+                    const cur = refByCollection[menu.collectionId!];
+                    await api.updateCollection(menu.collectionId!, {
+                      reference_photo_id: cur === menu.photoId ? null : menu.photoId,
+                    });
+                    await refreshCollections();
+                    setMenu(null);
+                  }}
+                >
+                  {refByCollection[menu.collectionId] === menu.photoId
+                    ? "◉ Non dettare più il colore"
+                    : "◉ Fai dettare il colore a questa"}
+                </MenuItem>
+                <div className="my-1 border-t border-neutral-800" />
+              </>
+            )}
+
+            <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+              Sposta in
+            </div>
+            {collections
+              .filter((c) => c.id !== menu.collectionId)
+              .map((c) => (
+                <MenuItem
+                  key={c.id}
+                  onClick={async () => {
+                    await api.assignToCollection([menu.photoId], c.id);
+                    await refreshCollections();
+                    const r = await api.listPhotos(filter);
+                    setPhotos(r.photos);
+                    setMenu(null);
+                  }}
+                >
+                  → {c.title}
+                </MenuItem>
+              ))}
+            <MenuItem
+              onClick={async () => {
+                const title = prompt("Titolo del nuovo post");
+                if (!title?.trim()) return setMenu(null);
+                await api.createCollection({ title: title.trim(), photo_ids: [menu.photoId] });
+                await refreshCollections();
+                setMenu(null);
+              }}
+            >
+              ＋ Nuovo post…
+            </MenuItem>
+            {menu.collectionId && (
+              <MenuItem
+                danger
+                onClick={async () => {
+                  await api.assignToCollection([menu.photoId], null);
+                  await refreshCollections();
+                  const r = await api.listPhotos(filter);
+                  setPhotos(r.photos);
+                  setMenu(null);
+                }}
+              >
+                — Togli dal post
+              </MenuItem>
+            )}
+          </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function MenuItem({
+  children,
+  onClick,
+  danger = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "block w-full px-3 py-1.5 text-left transition-colors " +
+        (danger
+          ? "text-red-300 hover:bg-red-950/60"
+          : "text-neutral-200 hover:bg-neutral-800")
+      }
+    >
+      {children}
+    </button>
   );
 }
