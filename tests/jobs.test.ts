@@ -113,3 +113,15 @@ describe("strategia anti-saturazione di ChatGPT", () => {
     expect(py).toContain("wait_s = 5 * i");
   });
 });
+
+describe("cap esplicito di ChatGPT", () => {
+  test("un hint di ore non viene troncato a mezz'ora", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    // Il caso reale: reset_hint="in 13 hour" veniva ridotto a 30 minuti, quindi
+    // ci ripresentavamo 26 volte a bussare, bruciando un job ogni volta.
+    expect(src).toContain("MAX_EXPLICIT_PAUSE_MS");
+    expect(src).not.toMatch(/pausedUntilMs = Math\.min\(explicitReset \+ 2 \* 60 \* 1000, cap\)/);
+    // E una pausa già in corso non deve essere accorciata da un hint più breve.
+    expect(src).toContain("Math.max(pausedUntilMs, until)");
+  });
+});

@@ -499,13 +499,22 @@ async function processJob(job: JobRow) {
         if (explicit) {
           consecutiveTimeouts++;
           const explicitReset = parseResetHint(err);
-          // Cap any pause at the cooldown so a mis-parsed hint can't stall the
-          // queue for hours — we just re-check after the cooldown.
+          // Quando ChatGPT dice ESPLICITAMENTE quando riapre, gli si crede.
+          // Troncare l'attesa a 30 minuti sembrava prudente, ma è il contrario:
+          // con un hint di 13 ore significa ripresentarsi 26 volte a bussare a
+          // una porta chiusa, bruciando un job (e ~6 minuti di timeout) ogni
+          // volta. L'unica cosa da limitare è un hint palesemente assurdo.
           const cap = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+          const MAX_EXPLICIT_PAUSE_MS = 24 * 60 * 60 * 1000;
           if (explicitReset && explicitReset > Date.now()) {
-            pausedUntilMs = Math.min(explicitReset + 2 * 60 * 1000, cap);
+            const until = Math.min(
+              explicitReset + 2 * 60 * 1000,
+              Date.now() + MAX_EXPLICIT_PAUSE_MS,
+            );
+            pausedUntilMs = Math.max(pausedUntilMs, until);
+            const ore = ((pausedUntilMs - Date.now()) / 3600000).toFixed(1);
             console.log(
-              `[jobs] explicit rate-limit reset hint — pausing queue until ${new Date(pausedUntilMs).toISOString()} (capped at cooldown)`,
+              `[jobs] ChatGPT ha dato un orario di riapertura — coda in pausa ${ore}h, fino a ${new Date(pausedUntilMs).toISOString()}`,
             );
           } else if (consecutiveTimeouts >= RATE_LIMIT_THRESHOLD) {
             pausedUntilMs = cap;
