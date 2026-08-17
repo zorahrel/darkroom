@@ -211,4 +211,34 @@ describe("dose LUT graduale, non a scalino", () => {
     const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
     expect(py).toContain('dose = dose * (1.0 - w) + float(p.get("dose_night")) * w');
   });
+
+  test("uno step notturno non tocca una scena diurna", () => {
+    // La correzione che salva un notturno (togliere l'ambra dalla pietra sotto
+    // i fari) di giorno spegnerebbe i colori del cibo: lo step dichiara quando
+    // vive e viene dosato sulla rampa continua di night_weight, non a soglia.
+    const steps = sanitizeSteps([
+      { id: "a", type: "hsl", enabled: true, only: "night", params: { sat_orange: -60 } },
+      { id: "b", type: "color", enabled: true, only: "day", params: { temp: 5 } },
+      { id: "c", type: "levels", enabled: true, params: {} },
+    ]);
+    expect(steps[0]!.only).toBe("night");
+    expect(steps[1]!.only).toBe("day");
+    expect(steps[2]!.only).toBeUndefined();
+  });
+
+  test("un valore only non valido viene scartato invece di passare al python", () => {
+    const steps = sanitizeSteps([{ id: "a", type: "levels", enabled: true, only: "sometimes", params: {} }]);
+    expect(steps[0]!.only).toBeUndefined();
+  });
+
+
+  test("il python dosa only=night sulla stessa rampa continua della LUT", async () => {
+    const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
+    // Se fosse una soglia, due scatti quasi identici prenderebbero correzioni
+    // opposte: e' lo stesso difetto gia' corretto sulla dose della LUT.
+    expect(py).toContain('only = step.get("only")');
+    expect(py).toContain('w = nw if only == "night" else (1.0 - nw)');
+    expect(py).toContain("b = a * (1.0 - w) + b * w");
+  });
+
 });

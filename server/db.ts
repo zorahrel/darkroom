@@ -531,6 +531,11 @@ export type GradeStep = {
   id: string;
   type: GradeStepType;
   enabled: boolean;
+  /** Restrict the step to night or day scenes. Undefined = always.
+   *  Serve perché una correzione giusta di notte (togliere l'ambra dalla pietra
+   *  sotto i fari) di giorno spegne i colori che fanno funzionare il cibo.
+   *  Dosato sulla stessa rampa continua della LUT, non a soglia. */
+  only?: "night" | "day";
   /** Type-specific params. For deterministic steps these are scalars
    *  (dose/lut for 'lut', temp/tint… for 'color'…); for an 'ai' step they hold
    *  { provider, config: Partial<PromptConfig> } — hence the loose value type. */
@@ -603,10 +608,12 @@ export function sanitizeSteps(raw: unknown): GradeStep[] {
     const o = s as Record<string, unknown>;
     if (!STEP_TYPES.includes(o.type as GradeStepType)) continue;
     const params = o.params && typeof o.params === "object" ? (o.params as Record<string, unknown>) : {};
+    const only = o.only === "night" || o.only === "day" ? o.only : undefined;
     out.push({
       id: typeof o.id === "string" && o.id ? o.id : `s${++_sid}_${Date.now().toString(36)}`,
       type: o.type as GradeStepType,
       enabled: o.enabled !== false,
+      ...(only ? { only } : {}),
       params,
     });
   }

@@ -707,6 +707,20 @@ def grade_steps(inp, out, steps, max_width, quality, wb_gain=None):
     for step in steps:
         if not step.get("enabled", True):
             continue
+        # Uno step può valere solo di notte (o solo di giorno). Serve perché la
+        # correzione che salva un notturno — togliere l'ambra dalla pietra sotto
+        # i fari — su una foto di cibo diurna spegnerebbe proprio i colori che
+        # la fanno funzionare. Invece di due pipeline separate lo step dichiara
+        # quando vive, dosato sulla stessa rampa continua della LUT: due scatti
+        # simili restano simili, senza salti.
+        only = step.get("only")
+        if only in ("night", "day"):
+            nw = night_weight(a)
+            w = nw if only == "night" else (1.0 - nw)
+            if w <= 0.001:
+                continue
+        else:
+            w = 1.0
         b = run_step(a, step, wb_gain)
         # Optional local mask: blend the step's result over the input by the
         # mask alpha, so the effect applies only where the mask is > 0.
@@ -715,6 +729,9 @@ def grade_steps(inp, out, steps, max_width, quality, wb_gain=None):
             m = build_mask(a.shape, mp)
             if m is not None:
                 b = a * (1.0 - m) + b * m
+        # Fuori dalla sua stagione lo step sfuma invece di spegnersi di colpo.
+        if w < 1.0 and b is not a:
+            b = a * (1.0 - w) + b * w
         a = b
 
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)

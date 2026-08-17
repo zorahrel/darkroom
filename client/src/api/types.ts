@@ -288,6 +288,8 @@ export type GradeStep = {
   id: string;
   type: GradeStepType;
   enabled: boolean;
+  /** Restrict the step to night or day scenes. Undefined = always. */
+  only?: "night" | "day";
   /** Scalars for deterministic steps; for an 'ai' step: { provider, config }. */
   params: Record<string, unknown>;
 };
