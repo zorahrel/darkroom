@@ -249,7 +249,19 @@ describe("cieli e ottiche scelte per la scena", () => {
     // il divieto "solo se c'erano gia'" lasciava vuoti i cieli sereni, che
     // sono quelli che hanno piu' bisogno di atmosfera: le nuvole si aggiungono.
     expect(p).toContain("Add them even if the original sky was clear");
+    // il notturno usciva come un unico bagno ambra: il caldo deve stare dove
+    // arrivano le lampade, il resto resta freddo. E' il contrasto a fare la notte.
+    expect(p).toContain("must NOT drown in one amber or yellow bath");
     expect(p).not.toContain("invented where the sky was clear");
+  });
+
+  test("estendere i bordi non autorizza a inventare un oggetto davanti", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" });
+    // Su IMG_2906 il reframe ha piazzato un tetto inesistente davanti alla
+    // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
+    expect(p).toContain("continue ONLY what is already there");
+    expect(p).toContain("never place anything new in the foreground");
+    expect(p).toContain("fully visible and unobstructed");
   });
 
   test("il cielo diurno chiede una superficie sola, senza chiazze", () => {
