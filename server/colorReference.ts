@@ -70,6 +70,19 @@ function versionPathOf(photoId: string): string | null {
 }
 
 export function colorReferenceFor(photoId: string): string | null {
+  // I riferimenti GLOBALI vincono su quello del post.
+  //
+  // Un riferimento per post sembrava ragionevole ma faceva l'opposto di quel
+  // che serviva: sei post, sei riferimenti diversi, con saturazioni misurate
+  // da 0,23 a 0,66. Ogni post diventava internamente coerente e diverso da
+  // tutti gli altri — ma il set è UNO, e lo si scorre di fila sullo stesso
+  // profilo.
+  //
+  // Ne bastano due: uno diurno e uno notturno. Sono le uniche due famiglie di
+  // luce che non ha senso allineare fra loro.
+  const skyRef = skyReferenceFor(photoId);
+  if (skyRef) return skyRef;
+
   const row = db()
     .query<{ ref_id: string | null }, [string]>(
       `SELECT c.reference_photo_id AS ref_id

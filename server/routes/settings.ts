@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { skyReferences } from "../colorReference.ts";
 import { readdirSync } from "node:fs";
 import {
   createPreset,
@@ -113,6 +114,28 @@ settingsRoutes.get("/api/luts", (c) => {
     })
     .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   return c.json({ luts, current: getColorGrade() });
+});
+
+/** I due riferimenti cromatici del set: uno diurno e uno notturno.
+ *
+ *  Sono globali di proposito. Un riferimento per post rendeva ogni post coerente
+ *  con sé stesso e diverso dagli altri, che è l'opposto di quel che serve a un
+ *  profilo dove le foto si scorrono di fila. */
+settingsRoutes.get("/api/settings/sky-refs", (c) => c.json(skyReferences()));
+
+settingsRoutes.put("/api/settings/sky-refs", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    day?: string | null;
+    night?: string | null;
+  };
+  const set = (k: string, v: string | null | undefined) => {
+    if (v === undefined) return;
+    if (v === null) db().run("DELETE FROM settings WHERE key = ?", [k]);
+    else db().run("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [k, v]);
+  };
+  set("sky_ref_day", body.day);
+  set("sky_ref_night", body.night);
+  return c.json({ ok: true, ...skyReferences() });
 });
 
 settingsRoutes.get("/api/settings/color-grade", (c) => c.json({ grade: getColorGrade() }));
