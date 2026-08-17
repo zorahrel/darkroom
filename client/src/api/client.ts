@@ -369,6 +369,12 @@ export const api = {
       `/api/collections/${encodeURIComponent(id)}/photos`,
       { method: "PUT", body: JSON.stringify({ photo_ids: photoIds }) },
     ),
+  /** Porta una foto in testa al post: un click invece del drag. */
+  setCover: (collectionId: string, photoId: string) =>
+    jsonFetch<{ ok: true; cover: string }>(
+      `/api/collections/${encodeURIComponent(collectionId)}/cover`,
+      { method: "POST", body: JSON.stringify({ photo_id: photoId }) },
+    ),
   /** Append photos to a collection, or pull them out of every one (null). */
   assignToCollection: (photoIds: string[], collectionId: string | null) =>
     jsonFetch<{ ok: true; moved: number; collection_id: string | null }>(

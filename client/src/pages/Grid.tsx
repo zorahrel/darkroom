@@ -132,6 +132,13 @@ export default function GridPage({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionPhotos, setCollectionPhotos] = useState<Record<string, string[]>>({});
   const [collages, setCollages] = useState<Collage[]>([]);
+  // Quale foto detta il colore di ciascun post, indicizzata per lookup diretto
+  // durante il render della griglia.
+  const refByCollection = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const c of collections) if (c.reference_photo_id) m[c.id] = c.reference_photo_id;
+    return m;
+  }, [collections]);
   const [collectionsBusy, setCollectionsBusy] = useState(false);
   // Riordino dentro un post: l'ordine È il carosello, quindi si sistema
   // trascinando le foto, non da un file. HTML5 drag nativo: nessuna dipendenza,
@@ -1058,6 +1065,58 @@ export default function GridPage({
                       {g.collectionId && (
                         <span className="pointer-events-none absolute bottom-1 left-1 z-20 min-w-[1.25rem] px-1 rounded bg-black/70 text-center text-[10px] font-semibold tabular-nums text-white">
                           {slot + 1}
+                        </span>
+                      )}
+                      {/* Copertina e riferimento colore: due decisioni, due
+                          click. Trascinare una foto in prima posizione funziona,
+                          ma è un gesto di precisione per dire "questa apre il
+                          carosello" — e il riferimento colore non ha nemmeno un
+                          gesto, vive solo nell'ordine invisibile del DB. */}
+                      {g.collectionId && !selectMode && (
+                        <div className="absolute bottom-1 right-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          {slot !== 0 && (
+                            <button
+                              title="Metti in copertina (prima slide)"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await api.setCover(g.collectionId!, p.id);
+                                await refreshCollections();
+                              }}
+                              className="rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white hover:bg-amber-500 hover:text-black"
+                            >
+                              ★ copertina
+                            </button>
+                          )}
+                          <button
+                            title={
+                              refByCollection[g.collectionId] === p.id
+                                ? "È il riferimento colore di questo post"
+                                : "Usa il colore di questa foto come riferimento del post"
+                            }
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const cur = refByCollection[g.collectionId!];
+                              await api.updateCollection(g.collectionId!, {
+                                reference_photo_id: cur === p.id ? null : p.id,
+                              });
+                              await refreshCollections();
+                            }}
+                            className={
+                              "rounded px-1.5 py-0.5 text-[10px] " +
+                              (refByCollection[g.collectionId] === p.id
+                                ? "bg-sky-500 text-white opacity-100"
+                                : "bg-black/75 text-white hover:bg-sky-500")
+                            }
+                          >
+                            ◉ colore
+                          </button>
+                        </div>
+                      )}
+                      {refByCollection[g.collectionId ?? ""] === p.id && (
+                        <span className="pointer-events-none absolute top-1 right-1 z-20 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                          riferimento
                         </span>
                       )}
                     </div>

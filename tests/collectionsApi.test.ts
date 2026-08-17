@@ -376,3 +376,29 @@ describe("riferimento cromatico del post", () => {
     expect(colorReferenceFor("a")).toBeNull();
   });
 });
+
+describe("copertina con un click", () => {
+  test("porta la foto in testa senza scombinare le altre", async () => {
+    await call("POST", "/api/collections", {
+      id: "uno", title: "Uno", photo_ids: ["a", "b", "c", "d"],
+    });
+    const r = await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
+    expect(r.status).toBe(200);
+    const { json } = await call("GET", "/api/collections");
+    // 'c' passa prima; a, b, d restano nel loro ordine relativo.
+    expect(json.photos["uno"]).toEqual(["c", "a", "b", "d"]);
+  });
+
+  test("una foto fuori dal post non può diventarne la copertina", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
+    const r = await call("POST", "/api/collections/uno/cover", { photo_id: "d" });
+    expect(r.status).toBe(400);
+  });
+
+  test("mettere in copertina la prima non cambia nulla", async () => {
+    await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
+    await call("POST", "/api/collections/uno/cover", { photo_id: "a" });
+    const { json } = await call("GET", "/api/collections");
+    expect(json.photos["uno"]).toEqual(["a", "b", "c"]);
+  });
+});

@@ -167,6 +167,36 @@ collectionRoutes.put("/api/collections/:id/photos", async (c) => {
   return c.json({ ok: true, count: body.photo_ids.length });
 });
 
+/** Porta una foto in testa al suo post: diventa la copertina.
+ *
+ *  Riordinare trascinando funziona ma è un gesto di precisione per un'azione
+ *  che è una decisione: "questa apre il carosello". Un click la mette prima e
+ *  fa scalare le altre di uno, senza toccarne l'ordine relativo. */
+collectionRoutes.post("/api/collections/:id/cover", async (c) => {
+  const collectionId = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { photo_id?: string };
+  const pid = body.photo_id;
+  if (!pid) return c.json({ error: "photo_id required" }, 400);
+
+  const ids = db()
+    .query<{ photo_id: string }, [string]>(
+      "SELECT photo_id FROM collection_photos WHERE collection_id = ? ORDER BY position ASC",
+    )
+    .all(collectionId)
+    .map((r) => r.photo_id);
+  if (!ids.includes(pid)) return c.json({ error: "la foto non è in questo post" }, 400);
+
+  const next = [pid, ...ids.filter((x) => x !== pid)];
+  const d = db();
+  const tx = d.transaction(() => {
+    next.forEach((x, i) =>
+      d.run("UPDATE collection_photos SET position = ? WHERE photo_id = ?", [i, x]),
+    );
+  });
+  tx();
+  return c.json({ ok: true, cover: pid });
+});
+
 /**
  * Move photos into a collection (append at the end), or out of every
  * collection when `collection_id` is null. This is what the grid's bulk
