@@ -117,34 +117,34 @@ export type Geometry = keyof typeof GEOMETRY;
 
 // Il permesso di ricomporre, scritto una volta sola.
 //
-// La distinzione che serviva e mancava: cambiare INQUADRATURA e cambiare
-// CONTENUTO sono due cose diverse. Muovere la camera — scendere, salire,
-// girare intorno, avvicinarsi, cambiare focale — e' esattamente cio' che si
-// vuole da un edit editoriale. Inventare un pezzo di mondo che non c'era non
-// lo e' mai, in nessuna ottica: su IMG_2906 sono comparsi prima un tetto in
-// primo piano, poi dettagli del tempio che non esistono.
+// Prima distinzione, giusta ma non sufficiente: cambiare INQUADRATURA non e'
+// cambiare CONTENUTO. Muovere la camera si', inventare no.
 //
-// La regola che le separa e' una sola e vale per tutte le ottiche: la MACCHINA
-// si muove, la SCENA resta quella. Ogni cosa nel frame nuovo deve esistere
-// nella foto di partenza; il bordo esteso mostra piu' di cio' che c'era
-// intorno (cielo, terra, la continuazione dello stesso muro), non roba nuova.
-// E un edificio reale ha una forma sua: quella non si ridisegna nemmeno quando
-// il punto di vista cambia.
+// Seconda lezione, quella che e' costata otto render su IMG_2906: finche'
+// esiste il permesso di ESTENDERE i bordi, il modello inventa comunque —
+// perche' il bordo nuovo e' spazio vuoto che qualcosa deve pur riempire, e
+// nessun divieto ("continua solo cio' che c'e'", "non aggiungere oggetti",
+// "mantieni l'architettura reale") ha retto: sono comparsi un tetto in primo
+// piano e dettagli del tempio che non esistono. Il divieto arriva sempre dopo
+// il permesso, e perde.
+//
+// Quindi il reframe vive DENTRO l'immagine esistente. Non e' una rinuncia:
+// l'inquadratura si sceglie ancora — piu' stretta, spostata, ruotata, con la
+// prospettiva corretta — e resta l'edit editoriale. Ma il rettangolo finale e'
+// fatto di pixel che erano nella foto, e la scena originale era gia' una
+// scelta di chi ha scattato: allargarla non e' un miglioramento, e' un'altra
+// foto.
 const REFRAME_FREEDOM =
-  "recompose the frame freely: you may move the camera — lower or higher, closer or further, around to another angle — and the reframe may extend beyond the original edges. What must NOT change is the scene itself: every element in the new frame has to exist in the source photo. Where the frame extends, continue only what is already there (more sky, more ground, more of the same wall, path or foliage) and never add an object, structure, roof, railing, branch, figure or silhouette that was not in the shot, least of all in the foreground between camera and subject. Buildings and monuments keep their real architecture exactly: the same number of tiers, roofs, windows, columns and ornaments, in the same proportions — a new viewpoint reveals them differently, it never redesigns them. ";
+  "recompose the frame decisively, but only from what the photograph already contains: the final image must be a crop of the source, never wider than it. Do not extend, expand, out-paint or fill beyond the original edges, and do not add any object, structure, roof, railing, branch, figure or silhouette that is not already in the shot. Choose the strongest rectangle inside the frame — tighter, shifted, or rotated — and correct perspective and level as needed, but every pixel of the result comes from the scene as photographed. Buildings and monuments keep their real architecture exactly: the same number of tiers, roofs, windows, columns and ornaments, in the same proportions — a tighter crop shows them differently, it never redesigns them. ";
 
 export const COMPOSITION = {
   off: "",
   rebalance:
     "subtly improve composition for balance: gentle crop and leveling toward rule-of-thirds and a balanced frame, without inventing or adding new content",
-  // "reframing may extend or alter the edges" e' il permesso che rende il
-  // reframe davvero libero, ma il modello lo leggeva come licenza di RIEMPIRE
-  // il bordo nuovo: su IMG_2906 e' comparso un tetto in primo piano che non
-  // esiste. Estendere significa continuare la scena, non aggiungerci roba.
   // Attenzione al rimedio opposto: chiedere il soggetto "intero e centrato"
   // ha prodotto un ritaglio piatto, cioe' esattamente lo snapshot che il
-  // prompt base vieta. Le due cose vanno tenute insieme: inquadratura DECISA,
-  // ma il soggetto non amputato dal bordo.
+  // prompt base vieta. Le due cose vanno tenute insieme: taglio DECISO, ma il
+  // soggetto non amputato dal bordo.
   recompose:
     REFRAME_FREEDOM +
     "This must be a photograph someone composed, not a rectangle cut out of a snapshot: choose a decisive point of view, work the diagonal, let the subject loom or sit off to one side against open space, and build depth with a real foreground, middle ground and background. Use the whole frame deliberately: the subject placed with intent, generous negative space where it earns tension, leading lines that carry the eye. Never a flat, dead-centre crop with the subject simply parked in the middle. The subject stays whole and unobstructed: its base and top clearly INSIDE the picture, never amputated by the bottom or side edge",
@@ -158,23 +158,23 @@ export const COMPOSITION = {
   // nell'inquadratura originale.
   "wide-hero":
     REFRAME_FREEDOM +
-    "Now reframe it as a wide-angle hero shot, around 24mm: get low and close to the subject so it fills the foreground and reads big and imposing, while the background opens up wide behind it with converging perspective lines that lead into the scene. Keep the wide-angle geometry honest — no fisheye bulge, no stretched or deformed subject at the edges",
+    "Within that crop, go for the wide-angle hero reading: pick the rectangle where the subject sits large and low in the frame, looming and imposing, with the surrounding space already in the shot opening up behind it and its lines leading into the scene. Favour a low, close feel over a distant one — but find it in the existing pixels, do not simulate a lens change by inventing more scene. Keep the geometry honest: no fisheye bulge, no stretching, no deformed edges",
   // Il grandangolo su un OGGETTO (un'auto, una moto) è un'altra cosa dal
   // grandangolo su un luogo: qui si scende all'altezza del parafango e si
   // lascia che la prospettiva allunghi il muso. È l'inquadratura da rivista di
   // automobili, e "wide-hero" generico non ci arriva.
   "hero-object":
     REFRAME_FREEDOM +
-    "Now reframe it as a low, close wide-angle hero shot of the object itself, around 20-24mm from just above ground level: get right up to it so the near corner fills the foreground and the body stretches away in dramatic perspective, low horizon, the object clearly the largest thing in the frame. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and keep its proportions honest even while the perspective exaggerates depth",
+    "Within that crop, make the object the hero: tighten onto it so it is clearly the largest thing in the frame, keep the horizon low and let its near edge dominate the foreground, using the perspective the photograph already has. Do not invent a lower viewpoint or extra bodywork. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and its proportions honest",
   // Corridoi, filari, sentieri: la prospettiva converge in fondo e crea un
   // tunnel. Chiedere "grandangolo" e basta non produce il punto di fuga.
   "tunnel":
     REFRAME_FREEDOM +
-    "Now stand in the middle of the path and shoot straight down it, so the lines on both sides converge to a single vanishing point deep in the frame and the scene reads as a tunnel drawing the eye in. Keep the frame symmetrical and the verticals dead straight",
+    "Within that crop, find the tunnel the photograph already contains: centre the path so the lines on both sides converge toward the vanishing point deep in the frame and the scene draws the eye in. Straighten and balance it into symmetry with the verticals dead straight — by cropping and correcting perspective, never by extending the path or inventing what lies further down it",
   // Teleobiettivo: il contrario, comprime e isola.
   "tele-isolate":
     REFRAME_FREEDOM +
-    "Now reframe it as a compressed telephoto shot, around 85-135mm: move back and tighten onto the subject so the background flattens and stacks behind it, isolating the subject cleanly from a busy scene",
+    "Within that crop, go telephoto: tighten hard onto the subject so it fills the frame and the background reads flat and stacked behind it, isolating it cleanly from a busy scene. This one is naturally a crop — take it as far in as the resolution allows, and never widen out to fake the distance",
 } as const;
 export type Composition = keyof typeof COMPOSITION;
 
@@ -612,7 +612,7 @@ export function assemblePrompt(c: PromptConfig, learnedNegatives: string[] = [])
   }
 
   const parts: string[] = [
-    "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden in the scene and commit to it — a bold tight detail, an unexpected angle, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Neutralize the white balance to a clean, cast-free, consistent color temperature across the set, but apply no stylistic color grade of your own — the final color look is added later. Finish it to a professional editorial standard — the way a master photographer shapes light and tone in post: precise exposure and tonal balance, deliberate dodge-and-burn, clean local corrections and crisp, controlled detail, restrained and believable, never over-processed. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent no new objects, people or signage. Output the edited image.",
+    "Reinterpret this snapshot as one iconic editorial photograph — not a faithful retouch. Reframe decisively: hunt for the single strongest image hidden INSIDE this photograph and commit to it — a bold tight detail, a striking crop, or the one subject that carries the frame — and never settle for the flat, centered snapshot. Find it within the pixels you were given: crop, tighten and straighten, never widen, extend or invent scene that was not photographed. Give it drama with strong, directional light and deep shadows, kept physically plausible for this real place and time of day — never staged, CGI or HDR. Aggressively remove passersby and incidental background clutter, but keep the subject, any meaningful human gesture, and all Japanese signage and text exactly as shot. Keep every face exactly as in the original. Neutralize the white balance to a clean, cast-free, consistent color temperature across the set, but apply no stylistic color grade of your own — the final color look is added later. Finish it to a professional editorial standard — the way a master photographer shapes light and tone in post: precise exposure and tonal balance, deliberate dodge-and-burn, clean local corrections and crisp, controlled detail, restrained and believable, never over-processed. It must read as a genuine photograph on a real lens, with true texture and faint natural grain — never a digital render, illustration or 3D look. Edit the real scene; invent no new objects, people or signage. Output the edited image.",
     "",
     "Apply:",
     ...changes.map((c) => `- ${c}`),

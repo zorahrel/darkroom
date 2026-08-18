@@ -204,15 +204,15 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
 
   test("grandangolo eroico chiede la prospettiva, non solo più campo", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
-    expect(p).toContain("24mm");
-    expect(p).toContain("converging perspective lines");
+    expect(p).toContain("wide-angle hero reading");
+    expect(p).toContain("its lines leading into the scene");
     // Un grandangolo che deforma il soggetto è il modo tipico di sbagliarlo.
     expect(p).toContain("no fisheye bulge");
   });
 
   test("tele isola comprimendo lo sfondo", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "tele-isolate" })).toContain(
-      "85-135mm",
+      "go telephoto",
     );
   });
 
@@ -229,7 +229,7 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
     );
     expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
-      "recompose the frame freely",
+      "recompose the frame decisively",
     );
   });
 });
@@ -262,8 +262,8 @@ describe("cieli e ottiche scelte per la scena", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" });
     // Su IMG_2906 il reframe ha piazzato un tetto inesistente davanti alla
     // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
-    expect(p).toContain("continue only what is already there");
-    expect(p).toContain("never add an object, structure, roof");
+    expect(p).toContain("every pixel of the result comes from the scene as photographed");
+    expect(p).toContain("do not add any object, structure, roof");
     expect(p).toContain("The subject stays whole and unobstructed");
     // era anche tagliata in basso e fuori centro per caso
     expect(p).toContain("never amputated by the bottom or side edge");
@@ -285,21 +285,21 @@ describe("cieli e ottiche scelte per la scena", () => {
   test("l'oggetto eroico non è il grandangolo generico", () => {
     const obj = assemblePrompt({ ...DEFAULT_CONFIG, composition: "hero-object" });
     const wide = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
-    expect(obj).toContain("just above ground level");
+    expect(obj).toContain("make the object the hero");
     expect(obj).toContain("no melted panels or warped wheels");
     expect(obj).not.toBe(wide);
   });
 
   test("il tunnel chiede il punto di fuga, non solo un campo largo", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "tunnel" });
-    expect(p).toContain("single vanishing point");
+    expect(p).toContain("converge toward the vanishing point");
     expect(p).toContain("verticals dead straight");
   });
 
   test("le opzioni preesistenti non cambiano", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
-      "recompose the frame freely",
+      "recompose the frame decisively",
     );
   });
 });
@@ -345,11 +345,13 @@ describe("muovere la camera non e' inventare la scena", () => {
   for (const c of OTTICHE) {
     test(`${c}: la macchina si muove, la scena resta quella`, () => {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
-      // il movimento resta esplicitamente permesso
-      expect(p).toContain("you may move the camera");
-      // ma ogni elemento deve gia' esistere
-      expect(p).toContain("every element in the new frame has to exist in the source photo");
-      expect(p).toContain("never add an object, structure, roof");
+      // Il taglio resta libero e deciso...
+      expect(p).toContain("recompose the frame decisively");
+      // ...ma dentro l'immagine che esiste: finche' si poteva estendere il
+      // bordo, ogni divieto e' stato aggirato — il vuoto va pur riempito.
+      expect(p).toContain("must be a crop of the source, never wider than it");
+      expect(p).toContain("Do not extend, expand, out-paint or fill beyond the original edges");
+      expect(p).toContain("do not add any object, structure, roof");
       // e l'architettura reale non si ridisegna col punto di vista
       expect(p).toContain("keep their real architecture exactly");
       expect(p).toContain("it never redesigns them");
@@ -362,5 +364,26 @@ describe("muovere la camera non e' inventare la scena", () => {
     // successo con "reframing may extend or alter the edges".
     expect(src).toContain("const REFRAME_FREEDOM =");
     expect(src).not.toContain('"recompose the frame freely — reframing may extend or alter the edges — and "');
+  });
+
+  test("nessuna ottica chiede di spostarsi fisicamente", () => {
+    // "get low and close", "move back": chiedere alla camera di stare dove non
+    // era e' chiedere di inventare quello che da li' si vedrebbe. Le ottiche
+    // devono descrivere un TAGLIO, non uno spostamento.
+    for (const c of OTTICHE) {
+      const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
+      expect(p).not.toContain("get low and close to the subject");
+      expect(p).not.toContain("move back and tighten");
+      expect(p).not.toContain("stand in the middle of the path");
+      expect(p).not.toContain("get right up to it");
+    }
+  });
+
+  test("il prompt base non invita a un angolo che non c'era", () => {
+    const p = assemblePrompt({ ...DEFAULT_CONFIG });
+    // "an unexpected angle" e' un invito a inventare il punto di vista.
+    expect(p).not.toContain("an unexpected angle");
+    expect(p).toContain("hidden INSIDE this photograph");
+    expect(p).toContain("never widen, extend or invent scene that was not photographed");
   });
 });
