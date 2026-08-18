@@ -201,3 +201,21 @@ describe("riconoscere il render quando ChatGPT lo mostra piccolo", () => {
     expect(py).not.toContain("(i.naturalWidth >= 512 || i.width >= 512));");
   });
 });
+
+describe("lo script del worker deve almeno compilare", () => {
+  test("edit_batch.py e' Python valido", async () => {
+    // Una graffa non raddoppiata dentro una f-string ha fatto uscire il worker
+    // con exit 1 a ogni tentativo: la coda si e' riaccodata all'infinito e
+    // nessun test se ne accorgeva, perche' controllavano solo il TESTO del file.
+    const proc = Bun.spawnSync(["python3", "-c",
+      "import ast,sys;ast.parse(open('scripts/edit_batch.py').read())"]);
+    expect(new TextDecoder().decode(proc.stderr)).toBe("");
+    expect(proc.exitCode).toBe(0);
+  });
+
+  test("color_grade.py e' Python valido", () => {
+    const proc = Bun.spawnSync(["python3", "-c",
+      "import ast;ast.parse(open('scripts/color_grade.py').read())"]);
+    expect(proc.exitCode).toBe(0);
+  });
+});

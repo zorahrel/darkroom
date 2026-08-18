@@ -364,10 +364,10 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // Un alt "immagine generata" o un URL estuary/dalle e' gia' una
             // prova d'identita' sufficiente; la soglia resta solo per le
             // immagini riconosciute unicamente dall'URL.
-            const strongId = (i) => {
+            const strongId = (i) => {{
               const alt = (i.alt || '').toLowerCase();
               return alt.startsWith('immagine generata') || alt.startsWith('generated image');
-            };
+            }};
             const bigEnough = (i) => i.naturalWidth >= 512 || i.width >= 512 || i.height >= 320;
             const candidates = imgs.filter(i => isGen(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)));
             const stillStreaming = !!document.querySelector('button[data-testid="stop-button"], button[aria-label*="ferma" i], button[aria-label*="stop" i]');
