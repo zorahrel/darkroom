@@ -264,9 +264,13 @@ describe("cieli e ottiche scelte per la scena", () => {
     // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
     expect(p).toContain("every pixel of the result comes from the scene as photographed");
     expect(p).toContain("do not add any object, structure, roof");
-    expect(p).toContain("The subject stays whole and unobstructed");
-    // era anche tagliata in basso e fuori centro per caso
-    expect(p).toContain("never amputated by the bottom or side edge");
+    expect(p).toContain("Keep the subject unobstructed");
+    // Il rimedio al taglio ("base e cima dentro l'inquadratura") ORDINAVA di
+    // inventare: se le fondamenta non erano nello scatto, per obbedire il
+    // modello deve disegnarle. Un soggetto incompleto e' un fatto della foto.
+    expect(p).toContain("only ever show the parts of it that were actually photographed");
+    expect(p).toContain("conjuring the missing bottom of a subject is not");
+    expect(p).not.toContain("its base and top clearly INSIDE the picture");
     // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
     // ritaglio piatto, che e' proprio lo snapshot vietato dal prompt base.
     expect(p).toContain("not a rectangle cut out of a snapshot");
@@ -385,5 +389,18 @@ describe("muovere la camera non e' inventare la scena", () => {
     expect(p).not.toContain("an unexpected angle");
     expect(p).toContain("hidden INSIDE this photograph");
     expect(p).toContain("never widen, extend or invent scene that was not photographed");
+  });
+});
+
+describe("un soggetto incompleto resta incompleto", () => {
+  test("nessuna ottica chiede di completare cio' che la foto non ha ripreso", () => {
+    // Su IMG_2906 la pagoda e' fotografata dal basso e le fondamenta non ci
+    // sono: chiedere "il soggetto intero" e' un ordine di inventarle, e
+    // infatti ogni render ridisegnava il tempio.
+    for (const c of ["recompose", "wide-hero", "hero-object", "tunnel", "tele-isolate"] as const) {
+      const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
+      expect(p).toContain("an incomplete subject is a fact of this photograph");
+      expect(p).toContain("Never invent the missing base, steps, plinth, ground or lower structure");
+    }
   });
 });
