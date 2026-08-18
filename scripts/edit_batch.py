@@ -307,10 +307,17 @@ async def _detect_rate_limit(cdp: CDP) -> dict:
     return await cdp.js("""
       (() => {
         const text = document.body.innerText || '';
-        const m = text.match(/(?:try again|riprova|available again|will be available)[^.]*?(?:at|alle ore|alle)\\s*(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm)?)/i)
+        // "resets in 3 hours and 36 minutes" va letto PRIMA delle regole
+        // generiche, altrimenti "in 3 hour" vince e si perdono i 36 minuti:
+        // ci si ripresenta troppo presto e si brucia un altro tentativo.
+        const m = text.match(/(?:limit )?resets? in\\s+(\\d+)\\s*(?:hours?|ore|ora)\\s*(?:and|e)\\s*(\\d+)\\s*(?:minutes?|minuti|min)/i)
+              || text.match(/(?:try again|riprova|available again|will be available)[^.]*?(?:at|alle ore|alle)\\s*(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm)?)/i)
               || text.match(/(?:in|fra|tra)\\s+(\\d+)\\s*(?:minute|minuti|min|hour|hours|ore|ora)/i)
               || text.match(/(?:limit (?:will )?reset|reset (?:in|at))[^.]*?(\\d{1,2}:\\d{2}|\\d+\\s*(?:min|hour|ore|minuti))/i);
-        const limitMentioned = /reached.*limit|raggiunto.*limite|image (?:gen|generation).*limit|limit.*image|please try again later|request limit|edit request limit/i.test(text);
+        // "You've hit the Plus plan limit for image generations" non contiene
+        // "reached": senza questo ramo il limite esplicito passava per un
+        // timeout muto e la coda continuava a bussare ogni 6 minuti.
+        const limitMentioned = /reached.*limit|hit the .*limit|raggiunto.*limite|image (?:gen|generation).*limit|limit.*image|plan limit|please try again later|request limit|edit request limit|unable to invoke the image/i.test(text);
         return { match: m ? m[0] : null, captured: m ? m[1] : null, limitMentioned };
       })()
     """) or {}

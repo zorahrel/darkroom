@@ -201,6 +201,14 @@ function parseResetHint(error: string): number | null {
   const hint = m[1].trim();
   const now = new Date();
 
+  // "in 3 hours and 36 minutes": va letto per primo, altrimenti la regola
+  // generica sotto prende solo "3 hours" e ci si ripresenta 36 minuti prima
+  // del reset, bruciando un altro tentativo contro il muro.
+  const hm = hint.match(/(\d+)\s*(?:hours?|ore|ora)\s*(?:and|e)\s*(\d+)\s*(?:minutes?|minuti|min)/i);
+  if (hm && hm[1] && hm[2]) {
+    return now.getTime() + (Number(hm[1]) * 60 + Number(hm[2])) * 60 * 1000;
+  }
+
   // "in N minutes / hours / ore / minuti"
   const rel = hint.match(/(\d+)\s*(minute|minuti|min|hour|hours|ore|ora)/i);
   if (rel && rel[1] && rel[2]) {

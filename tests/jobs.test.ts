@@ -219,3 +219,25 @@ describe("lo script del worker deve almeno compilare", () => {
     expect(proc.exitCode).toBe(0);
   });
 });
+
+describe("il limite immagini di ChatGPT va letto per intero", () => {
+  test("il worker riconosce 'You've hit the Plus plan limit'", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Messaggio reale: "You've hit the Plus plan limit for image generations
+    // requests... resets in 3 hours and 36 minutes." Non contiene "reached",
+    // quindi passava per un timeout muto e la coda continuava a bussare.
+    expect(py).toContain("hit the .*limit");
+    expect(py).toContain("plan limit");
+    expect(py).toContain("unable to invoke the image");
+    // E "3 hours and 36 minutes" va catturato intero, non solo le ore.
+    expect(py).toContain("resets? in");
+  });
+
+  test("'3 hours and 36 minutes' non diventa 3 ore secche", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    // Perdere i 36 minuti significa ripresentarsi prima del reset e bruciare
+    // un altro tentativo: e' lo stesso difetto gia' corretto per "13 hour".
+    expect(src).toContain("(?:hours?|ore|ora)\\s*(?:and|e)");
+    expect(src).toContain("(Number(hm[1]) * 60 + Number(hm[2])) * 60 * 1000");
+  });
+});
