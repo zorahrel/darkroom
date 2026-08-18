@@ -702,6 +702,20 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
                     f"downloaded image does not match the source photo "
                     f"(correlation {corr:.2f}) — likely another job's render"
                 )
+            # Il controllo aveva un lato solo: prendeva le immagini TROPPO
+            # diverse (il render di un altro job) e lasciava passare quelle
+            # TROPPO identiche. Ma questa pipeline ricompone sempre — cambia
+            # taglio, punto di vista, luce — quindi una correlazione ~1.0
+            # significa che ChatGPT ha ridato indietro la foto di partenza
+            # ridimensionata senza toccarla. Salvarla come "nuova versione" e'
+            # peggio di un errore: sembra lavoro fatto, e il difetto che si
+            # voleva correggere resta li'.
+            if corr > float(os.environ.get("SCENE_MAX_CORR", "0.985")):
+                output.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"ChatGPT returned the source photo unedited "
+                    f"(correlation {corr:.3f}) — no edit was applied"
+                )
     finally:
         cleanup_uploads([resized, *ref_cleanup])
 

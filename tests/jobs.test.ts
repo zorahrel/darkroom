@@ -258,3 +258,18 @@ describe("il rifiuto di ChatGPT non e' un guasto", () => {
     expect(src).toContain("UPDATE photos SET skipped = 1, skip_reason = ?");
   });
 });
+
+describe("un render che non ha modificato niente non e' un render", () => {
+  test("il worker rifiuta anche l'immagine IDENTICA all'originale", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Caso reale su 19A084A4: ChatGPT ha restituito la foto di partenza
+    // ridimensionata (correlazione 1.000). Il controllo guardava solo il lato
+    // "troppo diversa", quindi e' entrata in libreria come versione nuova: il
+    // difetto d'ambra che si voleva togliere e' rimasto identico.
+    expect(py).toContain("SCENE_MAX_CORR");
+    expect(py).toContain("returned the source photo unedited");
+    // La soglia bassa (render di un altro job) deve restare.
+    expect(py).toContain("SCENE_MIN_CORR");
+    expect(py).toContain("does not match the source photo");
+  });
+});
