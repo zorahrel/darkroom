@@ -115,6 +115,24 @@ export const GEOMETRY = {
 } as const;
 export type Geometry = keyof typeof GEOMETRY;
 
+// Il permesso di ricomporre, scritto una volta sola.
+//
+// La distinzione che serviva e mancava: cambiare INQUADRATURA e cambiare
+// CONTENUTO sono due cose diverse. Muovere la camera — scendere, salire,
+// girare intorno, avvicinarsi, cambiare focale — e' esattamente cio' che si
+// vuole da un edit editoriale. Inventare un pezzo di mondo che non c'era non
+// lo e' mai, in nessuna ottica: su IMG_2906 sono comparsi prima un tetto in
+// primo piano, poi dettagli del tempio che non esistono.
+//
+// La regola che le separa e' una sola e vale per tutte le ottiche: la MACCHINA
+// si muove, la SCENA resta quella. Ogni cosa nel frame nuovo deve esistere
+// nella foto di partenza; il bordo esteso mostra piu' di cio' che c'era
+// intorno (cielo, terra, la continuazione dello stesso muro), non roba nuova.
+// E un edificio reale ha una forma sua: quella non si ridisegna nemmeno quando
+// il punto di vista cambia.
+const REFRAME_FREEDOM =
+  "recompose the frame freely: you may move the camera — lower or higher, closer or further, around to another angle — and the reframe may extend beyond the original edges. What must NOT change is the scene itself: every element in the new frame has to exist in the source photo. Where the frame extends, continue only what is already there (more sky, more ground, more of the same wall, path or foliage) and never add an object, structure, roof, railing, branch, figure or silhouette that was not in the shot, least of all in the foreground between camera and subject. Buildings and monuments keep their real architecture exactly: the same number of tiers, roofs, windows, columns and ornaments, in the same proportions — a new viewpoint reveals them differently, it never redesigns them. ";
+
 export const COMPOSITION = {
   off: "",
   rebalance:
@@ -128,7 +146,8 @@ export const COMPOSITION = {
   // prompt base vieta. Le due cose vanno tenute insieme: inquadratura DECISA,
   // ma il soggetto non amputato dal bordo.
   recompose:
-    "recompose the frame more freely for stronger balance and a cleaner layout; reframing may extend or alter the edges. Where the frame is extended, continue ONLY what is already there — more sky, more ground, more of the same wall or foliage; never introduce a new object, structure, roof, railing, branch or silhouette, and above all never place anything new in the foreground between the camera and the subject. This must be a photograph someone composed, not a rectangle cut out of a snapshot: choose a decisive point of view — get lower or higher, work the diagonal, let the subject loom or sit off to one side against open space — and build depth with a real foreground, middle ground and background. Use the whole frame deliberately: the subject placed with intent, generous negative space where it earns tension, leading lines that carry the eye. Never a flat, dead-centre crop with the subject simply parked in the middle. Even so, the subject stays whole and unobstructed: its base and top clearly INSIDE the picture, never amputated by the bottom or side edge",
+    REFRAME_FREEDOM +
+    "This must be a photograph someone composed, not a rectangle cut out of a snapshot: choose a decisive point of view, work the diagonal, let the subject loom or sit off to one side against open space, and build depth with a real foreground, middle ground and background. Use the whole frame deliberately: the subject placed with intent, generous negative space where it earns tension, leading lines that carry the eye. Never a flat, dead-centre crop with the subject simply parked in the middle. The subject stays whole and unobstructed: its base and top clearly INSIDE the picture, never amputated by the bottom or side edge",
   // Grandangolo ravvicinato: il soggetto grande e vicino, lo spazio dietro che
   // si apre. È il taglio che fa "posare" un'auto o un monumento invece di
   // fotografarli e basta. Si nomina la prospettiva (le linee che convergono),
@@ -138,24 +157,24 @@ export const COMPOSITION = {
   // Prima l'ottica sostituiva "recompose" e le foto restavano incastrate
   // nell'inquadratura originale.
   "wide-hero":
-    "recompose the frame freely — reframing may extend or alter the edges — and " +
-    "reframe it as a wide-angle hero shot, around 24mm: get low and close to the subject so it fills the foreground and reads big and imposing, while the background opens up wide behind it with converging perspective lines that lead into the scene. Keep the wide-angle geometry honest — no fisheye bulge, no stretched or deformed subject at the edges",
+    REFRAME_FREEDOM +
+    "Now reframe it as a wide-angle hero shot, around 24mm: get low and close to the subject so it fills the foreground and reads big and imposing, while the background opens up wide behind it with converging perspective lines that lead into the scene. Keep the wide-angle geometry honest — no fisheye bulge, no stretched or deformed subject at the edges",
   // Il grandangolo su un OGGETTO (un'auto, una moto) è un'altra cosa dal
   // grandangolo su un luogo: qui si scende all'altezza del parafango e si
   // lascia che la prospettiva allunghi il muso. È l'inquadratura da rivista di
   // automobili, e "wide-hero" generico non ci arriva.
   "hero-object":
-    "recompose the frame freely — reframing may extend or alter the edges — and " +
-    "reframe it as a low, close wide-angle hero shot of the object itself, around 20-24mm from just above ground level: get right up to it so the near corner fills the foreground and the body stretches away in dramatic perspective, low horizon, the object clearly the largest thing in the frame. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and keep its proportions honest even while the perspective exaggerates depth",
+    REFRAME_FREEDOM +
+    "Now reframe it as a low, close wide-angle hero shot of the object itself, around 20-24mm from just above ground level: get right up to it so the near corner fills the foreground and the body stretches away in dramatic perspective, low horizon, the object clearly the largest thing in the frame. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and keep its proportions honest even while the perspective exaggerates depth",
   // Corridoi, filari, sentieri: la prospettiva converge in fondo e crea un
   // tunnel. Chiedere "grandangolo" e basta non produce il punto di fuga.
   "tunnel":
-    "recompose the frame freely — reframing may extend or alter the edges — and " +
-    "stand in the middle of the path and shoot straight down it, so the lines on both sides converge to a single vanishing point deep in the frame and the scene reads as a tunnel drawing the eye in. Keep the frame symmetrical and the verticals dead straight",
+    REFRAME_FREEDOM +
+    "Now stand in the middle of the path and shoot straight down it, so the lines on both sides converge to a single vanishing point deep in the frame and the scene reads as a tunnel drawing the eye in. Keep the frame symmetrical and the verticals dead straight",
   // Teleobiettivo: il contrario, comprime e isola.
   "tele-isolate":
-    "recompose the frame freely — reframing may extend or alter the edges — and " +
-    "reframe it as a compressed telephoto shot, around 85-135mm: move back and tighten onto the subject so the background flattens and stacks behind it, isolating the subject cleanly from a busy scene",
+    REFRAME_FREEDOM +
+    "Now reframe it as a compressed telephoto shot, around 85-135mm: move back and tighten onto the subject so the background flattens and stacks behind it, isolating the subject cleanly from a busy scene",
 } as const;
 export type Composition = keyof typeof COMPOSITION;
 

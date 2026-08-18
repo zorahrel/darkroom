@@ -229,7 +229,7 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
     );
     expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
-      "recompose the frame more freely",
+      "recompose the frame freely",
     );
   });
 });
@@ -262,9 +262,9 @@ describe("cieli e ottiche scelte per la scena", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" });
     // Su IMG_2906 il reframe ha piazzato un tetto inesistente davanti alla
     // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
-    expect(p).toContain("continue ONLY what is already there");
-    expect(p).toContain("never place anything new in the foreground");
-    expect(p).toContain("the subject stays whole and unobstructed");
+    expect(p).toContain("continue only what is already there");
+    expect(p).toContain("never add an object, structure, roof");
+    expect(p).toContain("The subject stays whole and unobstructed");
     // era anche tagliata in basso e fuori centro per caso
     expect(p).toContain("never amputated by the bottom or side edge");
     // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
@@ -299,7 +299,7 @@ describe("cieli e ottiche scelte per la scena", () => {
   test("le opzioni preesistenti non cambiano", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
-      "recompose the frame more freely",
+      "recompose the frame freely",
     );
   });
 });
@@ -332,5 +332,35 @@ describe("il cielo segue l'ora dello scatto", () => {
     const { withSkyForTime } = await import("../server/photos.ts");
     const photo = { taken_at: null, config_override: null } as never;
     expect(withSkyForTime({ ...DEFAULT_CONFIG }, photo).sky).toBe("even-blue");
+  });
+});
+
+describe("muovere la camera non e' inventare la scena", () => {
+  // La distinzione che mancava: cambiare da DOVE si guarda deve restare
+  // libero (e' il cuore dell'edit editoriale), cambiare COSA c'e' no. Il
+  // permesso di estendere i bordi veniva letto come licenza di riempire, e su
+  // IMG_2906 sono comparsi un tetto inesistente e dettagli del tempio inventati.
+  const OTTICHE = ["recompose", "wide-hero", "hero-object", "tunnel", "tele-isolate"] as const;
+
+  for (const c of OTTICHE) {
+    test(`${c}: la macchina si muove, la scena resta quella`, () => {
+      const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
+      // il movimento resta esplicitamente permesso
+      expect(p).toContain("you may move the camera");
+      // ma ogni elemento deve gia' esistere
+      expect(p).toContain("every element in the new frame has to exist in the source photo");
+      expect(p).toContain("never add an object, structure, roof");
+      // e l'architettura reale non si ridisegna col punto di vista
+      expect(p).toContain("keep their real architecture exactly");
+      expect(p).toContain("it never redesigns them");
+    });
+  }
+
+  test("la regola e' scritta una volta sola, non copiata in ogni ottica", async () => {
+    const src = await Bun.file(new URL("../server/promptConfig.ts", import.meta.url)).text();
+    // Cinque copie della stessa frase divergono al primo ritocco: e' gia'
+    // successo con "reframing may extend or alter the edges".
+    expect(src).toContain("const REFRAME_FREEDOM =");
+    expect(src).not.toContain('"recompose the frame freely — reframing may extend or alter the edges — and "');
   });
 });
