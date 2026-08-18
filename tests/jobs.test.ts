@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cancelPending, listJobs, parseRefPaths } from "../server/jobs.ts";
+import { cancelPending, listJobs, looksLikePolicyRefusal, parseRefPaths } from "../server/jobs.ts";
 import { db } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
@@ -239,5 +239,22 @@ describe("il limite immagini di ChatGPT va letto per intero", () => {
     // un altro tentativo: e' lo stesso difetto gia' corretto per "13 hour".
     expect(src).toContain("(?:hours?|ore|ora)\\s*(?:and|e)");
     expect(src).toContain("(Number(hm[1]) * 60 + Number(hm[2])) * 60 * 1000");
+  });
+});
+
+describe("il rifiuto di ChatGPT non e' un guasto", () => {
+  test("si distingue un no di policy da un errore transitorio", () => {
+    // Un guasto passa riprovando, un "no" di policy no: senza distinguerli la
+    // foto tornava in coda a ogni giro a raccogliere lo stesso rifiuto.
+    expect(looksLikePolicyRefusal("content-policy refusal (copyright/likeness) — skipped")).toBe(true);
+    expect(looksLikePolicyRefusal("no image in 360s (early-exit)")).toBe(false);
+    expect(looksLikePolicyRefusal("Connection refused")).toBe(false);
+  });
+
+  test("il runner marca la foto quando arriva il rifiuto", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    expect(src).toContain("if (looksLikePolicyRefusal(err)) {");
+    expect(src).toContain("markSkipped(job.photo_id, err)");
+    expect(src).toContain("UPDATE photos SET skipped = 1, skip_reason = ?");
   });
 });

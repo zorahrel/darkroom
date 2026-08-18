@@ -68,6 +68,8 @@ photoRoutes.get("/api/photos", (c) => {
       p.taken_at,
       p.feedback,
       p.picked,
+      p.skipped,
+      p.skip_reason,
       (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) AS version_count,
       (SELECT v.version_number FROM versions v
          WHERE v.photo_id = p.id AND v.id = p.favorite_version_id) AS favorite_version_number,
@@ -102,6 +104,8 @@ photoRoutes.get("/api/photos", (c) => {
         taken_at: number | null;
         feedback: string | null;
         picked: number;
+        skipped: number;
+        skip_reason: string | null;
         version_count: number;
         favorite_version_number: number | null;
         latest_version_id: number | null;
@@ -234,6 +238,31 @@ photoRoutes.put("/api/photos/:id/feedback", async (c) => {
     id,
   ]);
   return c.json({ ok: true, feedback: value });
+});
+
+/** Salta/riprendi una foto.
+ *
+ *  ChatGPT rifiuta certe foto (personaggi protetti, somiglianze di terzi) e il
+ *  suo "no" non cambia riprovando: la flag la toglie dagli accodamenti di
+ *  massa. Si imposta da sola quando arriva il rifiuto, ma deve essere
+ *  reversibile a mano — le policy cambiano, e una foto ferma per sempre senza
+ *  un modo di riprovarla e' un vicolo cieco. */
+photoRoutes.put("/api/photos/:id/skipped", async (c) => {
+  const id = c.req.param("id");
+  const photo = getPhoto(id);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  const body = (await c.req
+    .json<{ skipped?: boolean; reason?: string | null }>()
+    .catch(() => ({}))) as { skipped?: boolean; reason?: string | null };
+  const skipped = body.skipped !== false;
+  const reason = skipped ? (body.reason ?? photo.skip_reason ?? "saltata a mano") : null;
+  db().run("UPDATE photos SET skipped = ?, skip_reason = ?, updated_at = ? WHERE id = ?", [
+    skipped ? 1 : 0,
+    reason,
+    Date.now(),
+    id,
+  ]);
+  return c.json({ ok: true, skipped, reason });
 });
 
 /** "Mi piace" su una foto: un click nella griglia, niente altro. */

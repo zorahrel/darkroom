@@ -347,6 +347,18 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "photos", "picked")) {
     d.run("ALTER TABLE photos ADD COLUMN picked INTEGER NOT NULL DEFAULT 0");
   }
+  // Foto che ChatGPT si rifiuta di elaborare (personaggi protetti da
+  // copyright, somiglianze di terzi). Il rifiuto non e' un errore transitorio:
+  // riprovare produce lo stesso "no" e brucia un posto in coda ogni volta.
+  // Marcata qui, la foto esce dagli accodamenti di massa e la ragione resta
+  // scritta accanto, cosi' si sa perche' e' ferma invece di trovarla vuota.
+  if (!hasColumn(d, "photos", "skipped")) {
+    d.run("ALTER TABLE photos ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!hasColumn(d, "photos", "skip_reason")) {
+    d.run("ALTER TABLE photos ADD COLUMN skip_reason TEXT");
+  }
+  d.run("CREATE INDEX IF NOT EXISTS idx_photos_skipped ON photos(skipped) WHERE skipped = 1");
   d.run("CREATE INDEX IF NOT EXISTS idx_photos_picked ON photos(picked) WHERE picked = 1");
 
   // ---- Index hygiene ------------------------------------------------------
@@ -389,6 +401,9 @@ export type PhotoRow = {
   feedback: string | null;
   /** "Mi piace": 1 = la tengo. Indipendente dal post e dalla versione preferita. */
   picked: number;
+  /** 1 = ChatGPT rifiuta questa foto: non riaccodarla. */
+  skipped: number;
+  skip_reason: string | null;
   kind: "original" | "generated";
   taken_at: number | null;
   /** Storyboard: 0-based panel order. NULL = not part of a sequence (a plain photo). */

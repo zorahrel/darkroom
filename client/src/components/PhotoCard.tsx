@@ -260,12 +260,19 @@ export default function PhotoCard({
       >
         <span
           className={`font-mono rounded ${compact ? "px-1 text-[9px]" : "px-1.5 py-0.5 text-[10px]"} ${
-            photo.version_count === 0
-              ? "bg-red-900/70 text-red-100"
-              : "bg-black/60 text-neutral-200"
+            photo.skipped === 1
+              ? "bg-amber-900/80 text-amber-100"
+              : photo.version_count === 0
+                ? "bg-red-900/70 text-red-100"
+                : "bg-black/60 text-neutral-200"
           }`}
+          // Zero versioni e' rosso perche' e' un lavoro da fare. Una foto
+          // rifiutata da ChatGPT ha zero versioni per sempre: se resta rossa
+          // sembra un errore da inseguire, e ogni volta si riapre per scoprire
+          // la stessa cosa. Ambra = e' ferma, e si sa perche'.
+          title={photo.skipped === 1 ? (photo.skip_reason ?? "saltata") : undefined}
         >
-          {photo.version_count}{compact ? "" : "v"}
+          {photo.skipped === 1 ? "skip" : `${photo.version_count}${compact ? "" : "v"}`}
         </span>
       </div>
 

@@ -182,6 +182,22 @@ function looksLikeRateLimit(error: string): boolean {
 }
 
 /** Browser/CDP/worker-process transient failures — not the job's fault, retry. */
+/** ChatGPT ha rifiutato la foto (copyright, somiglianza di terzi).
+ *  Distinguerlo da un errore vero e' quello che permette di smettere di
+ *  riprovare: un guasto passa, un "no" di policy no. */
+export function looksLikePolicyRefusal(err: string): boolean {
+  return /content-policy refusal/i.test(err);
+}
+
+/** Segna la foto come da saltare, con la ragione accanto. */
+function markSkipped(photoId: string, reason: string) {
+  db().run(
+    "UPDATE photos SET skipped = 1, skip_reason = ?, updated_at = ? WHERE id = ?",
+    [reason.slice(0, 300), Date.now(), photoId],
+  );
+  console.log(`[jobs] ${photoId}: rifiutata da ChatGPT — marcata skipped`);
+}
+
 function looksLikeBrowserDown(error: string): boolean {
   return /connection refused|econnrefused|urlopen error|inspected target navigated or closed|cannot find context|no close frame|websocket|chrome did not|browser not|composer not found|exited 137|exited 143|exited \d+ without JSON|^$/i.test(
     error,
@@ -592,6 +608,12 @@ async function processJob(job: JobRow) {
           [`requeued: ${err}`.slice(0, 500), job.id],
         );
         return;
+      }
+      // Rifiuto di policy: non e' un guasto, e' un no definitivo. Marcare la
+      // foto la toglie dagli accodamenti di massa, cosi' non torna in coda a
+      // ogni giro a raccogliere lo stesso no.
+      if (looksLikePolicyRefusal(err)) {
+        markSkipped(job.photo_id, err);
       }
       fail(job.id, err);
       return;

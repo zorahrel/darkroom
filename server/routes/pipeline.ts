@@ -69,6 +69,7 @@ pipelineRoutes.post("/api/pipeline/regenerate", (c) => {
     .query<{ id: string }, []>(
       `SELECT id FROM photos
        WHERE favorite_version_id IS NOT NULL
+         AND skipped = 0
        ORDER BY (taken_at IS NULL) ASC, taken_at ASC, id ASC`,
     )
     .all();

@@ -165,3 +165,53 @@ describe("media", () => {
     }
   });
 });
+
+describe("una foto rifiutata da ChatGPT si salta", () => {
+  test("la flag si mette e si toglie", async () => {
+    const id = "skip_test_1";
+    db().run(
+      "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?)",
+      [id, Date.now(), Date.now()],
+    );
+    let r = await app.request(`/api/photos/${id}/skipped`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ skipped: true, reason: "supermario" }),
+    });
+    expect(r.status).toBe(200);
+    expect(
+      db().query<{ skipped: number; skip_reason: string }, [string]>(
+        "SELECT skipped, skip_reason FROM photos WHERE id = ?",
+      ).get(id),
+    ).toMatchObject({ skipped: 1, skip_reason: "supermario" });
+
+    // Reversibile: le policy cambiano, e una foto ferma per sempre senza modo
+    // di riprovarla e' un vicolo cieco.
+    r = await app.request(`/api/photos/${id}/skipped`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ skipped: false }),
+    });
+    expect(r.status).toBe(200);
+    expect(
+      db().query<{ skipped: number }, [string]>("SELECT skipped FROM photos WHERE id = ?").get(id)!.skipped,
+    ).toBe(0);
+  });
+
+  test("'genera mancanti' non riaccoda una foto saltata", async () => {
+    const id = "skip_test_2";
+    db().run(
+      "INSERT INTO photos (id, original_path, original_ext, skipped, skip_reason, created_at, updated_at) VALUES (?, '', '.jpg', 1, 'rifiutata', ?, ?)",
+      [id, Date.now(), Date.now()],
+    );
+    db().run("DELETE FROM jobs");
+    const r = await app.request("/api/generate-missing", { method: "POST" });
+    expect(r.status).toBe(200);
+    // Senza il filtro sarebbe la prima della lista a ogni giro: zero versioni
+    // per sempre, e ogni volta un posto in coda bruciato per lo stesso no.
+    const queued = db()
+      .query<{ n: number }, [string]>("SELECT COUNT(*) AS n FROM jobs WHERE photo_id = ?")
+      .get(id)!.n;
+    expect(queued).toBe(0);
+  });
+});

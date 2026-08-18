@@ -12,6 +12,9 @@ export type PhotoListItem = {
   feedback: string | null;
   /** "Mi piace": 1 = la tengo. Scelta umana sulla foto, non sul render. */
   picked: number;
+  /** 1 = ChatGPT la rifiuta: non viene piu' accodata. */
+  skipped: number;
+  skip_reason: string | null;
   /** Provider del render mostrato: 'higgsfield' = master, altro = bozza web. */
   shown_provider: string | null;
 };

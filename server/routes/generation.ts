@@ -173,8 +173,12 @@ generationRoutes.post("/api/photos/reindex-times", async (c) => {
 generationRoutes.post("/api/generate-missing", (c) => {
   const photos = db()
     .query<PhotoRow, []>(
+      // Le foto rifiutate da ChatGPT restano senza versione per sempre: senza
+      // questo filtro sarebbero le prime della lista a ogni "genera mancanti",
+      // e ogni giro spenderebbe un posto in coda per raccogliere lo stesso no.
       `SELECT p.* FROM photos p
        WHERE (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) = 0
+         AND p.skipped = 0
        ORDER BY p.id ASC`,
     )
     .all();
