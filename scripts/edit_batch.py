@@ -357,7 +357,19 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
               if (/backend-api\\/estuary\\/content\\?id=file_/.test(i.src)) return true;
               return false;
             }};
-            const candidates = imgs.filter(i => isGen(i) && !baseline.has(i.src) && (i.naturalWidth >= 512 || i.width >= 512));
+            // La soglia di dimensione serviva a scartare avatar e icone, ma
+            // ChatGPT renderizza il risultato in un riquadro da 400px (e
+            // naturalWidth resta 0 finche' il file non e' decodificato): la
+            // foto giusta veniva buttata e il job girava a vuoto per 6 minuti.
+            // Un alt "immagine generata" o un URL estuary/dalle e' gia' una
+            // prova d'identita' sufficiente; la soglia resta solo per le
+            // immagini riconosciute unicamente dall'URL.
+            const strongId = (i) => {
+              const alt = (i.alt || '').toLowerCase();
+              return alt.startsWith('immagine generata') || alt.startsWith('generated image');
+            };
+            const bigEnough = (i) => i.naturalWidth >= 512 || i.width >= 512 || i.height >= 320;
+            const candidates = imgs.filter(i => isGen(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)));
             const stillStreaming = !!document.querySelector('button[data-testid="stop-button"], button[aria-label*="ferma" i], button[aria-label*="stop" i]');
             const pick = candidates[candidates.length - 1];
             // Content-policy refusal (e.g. copyright / third-party likeness): ChatGPT

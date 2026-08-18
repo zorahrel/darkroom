@@ -187,3 +187,17 @@ describe("annullare un job che sta girando", () => {
     expect(statusOf(id)).toBe("cancelled");
   });
 });
+
+describe("riconoscere il render quando ChatGPT lo mostra piccolo", () => {
+  test("un alt 'immagine generata' vale quanto la dimensione", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Caso reale su IMG_2906: ChatGPT rendeva il risultato in un riquadro da
+    // 400px con naturalWidth ancora 0, la soglia >=512 lo scartava e il job
+    // girava a vuoto per 6 minuti prima di riaccodarsi.
+    expect(py).toContain("const strongId = (i) =>");
+    expect(py).toContain("alt.startsWith('immagine generata')");
+    expect(py).toContain("strongId(i) || bigEnough(i)");
+    // La soglia secca non deve tornare da sola.
+    expect(py).not.toContain("(i.naturalWidth >= 512 || i.width >= 512));");
+  });
+});
