@@ -117,9 +117,15 @@ export function listJobsForPhoto(photoId: string, limit = 30): JobRow[] {
     .all(photoId, limit);
 }
 
+/** Annulla un job in coda O in esecuzione.
+ *
+ *  Prima toccava solo 'pending', e un job bloccato — quello che si vuole
+ *  fermare davvero — restava 'running' e teneva il lock del browser: la coda
+ *  non avanzava piu'. Il runner, quando finisce il tentativo, controlla lo
+ *  stato prima di riaccodare, cosi' un cancellato non risorge. */
 export function cancelPending(jobId: number): boolean {
   const r = db().run(
-    "UPDATE jobs SET status='cancelled', finished_at=? WHERE id=? AND status='pending'",
+    "UPDATE jobs SET status='cancelled', finished_at=? WHERE id=? AND status IN ('pending','running')",
     [Date.now(), jobId],
   );
   return r.changes > 0;
@@ -475,7 +481,7 @@ async function processJob(job: JobRow) {
             pausedUntilMs = Date.now() + 15 * 60 * 1000;
             console.log(`[jobs] browser unrecoverable after ${consecutiveBrowserRestarts} restarts — backing off 15min`);
             db().run(
-              "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=?",
+              "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
               [`requeued (browser unrecoverable): ${err}`.slice(0, 500), job.id],
             );
             return;
@@ -492,7 +498,7 @@ async function processJob(job: JobRow) {
         pausedUntilMs = Date.now() + (recovered ? 10 * 1000 : 2 * 60 * 1000);
         console.log(`[jobs] requeuing job ${job.id}, pausing ${recovered ? "10s" : "2min"} for browser`);
         db().run(
-          "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=?",
+          "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
           [`requeued (browser down): ${err}`.slice(0, 500), job.id],
         );
         return;
@@ -544,7 +550,7 @@ async function processJob(job: JobRow) {
               pausedUntilMs = Date.now() + RATE_LIMIT_COOLDOWN_MS;
               console.log(`[jobs] cap hit on multiple photos — silent throttle, pausing until ${new Date(pausedUntilMs).toISOString()}`);
               db().run(
-                "UPDATE jobs SET status='pending', started_at=NULL, attempts=0, error=? WHERE id=?",
+                "UPDATE jobs SET status='pending', started_at=NULL, attempts=0, error=? WHERE id=? AND status <> 'cancelled'",
                 [`requeued (throttle pause): ${err}`.slice(0, 500), job.id],
               );
               return;
@@ -574,7 +580,7 @@ async function processJob(job: JobRow) {
           }
         }
         db().run(
-          "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=?",
+          "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
           [`requeued: ${err}`.slice(0, 500), job.id],
         );
         return;
@@ -623,8 +629,11 @@ async function processJob(job: JobRow) {
 }
 
 function fail(jobId: number, error: string) {
+  // Un job annullato mentre girava resta annullato: sovrascriverlo con
+  // 'failed' lo farebbe ricomparire come errore da guardare, quando invece
+  // la sua fine e' stata decisa.
   db().run(
-    "UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=?",
+    "UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=? AND status <> 'cancelled'",
     [error.slice(0, 500), Date.now(), jobId],
   );
 }

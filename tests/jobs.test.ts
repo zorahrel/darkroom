@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { listJobs, parseRefPaths } from "../server/jobs.ts";
+import { cancelPending, listJobs, parseRefPaths } from "../server/jobs.ts";
 import { db } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
@@ -146,5 +146,44 @@ describe("il render scaricato deve essere di QUESTA foto", () => {
     // Un controllo che boccia i render buoni perché numpy non c'è sarebbe
     // peggio del problema: il fallback restituisce 1.0 (= identiche).
     expect(py).toMatch(/except Exception:\s*\n\s*#[^\n]*\n\s*#[^\n]*\n\s*return 1\.0/);
+  });
+});
+
+describe("annullare un job che sta girando", () => {
+  function mk(photo: string, status: string): number {
+    db().run(
+      `INSERT INTO jobs (photo_id, prompt, status, seen, created_at) VALUES (?, 'p', ?, 0, ?)`,
+      [photo, status, Date.now()],
+    );
+    return Number(db().query<{ id: number }, []>("SELECT last_insert_rowid() AS id").get()!.id);
+  }
+  const statusOf = (id: number) =>
+    db().query<{ status: string }, [number]>("SELECT status FROM jobs WHERE id = ?").get(id)!.status;
+
+  beforeEach(() => db().run("DELETE FROM jobs"));
+
+  test("un job bloccato in 'running' si puo' fermare", () => {
+    // Prima si annullavano solo i 'pending': un job appeso teneva il lock del
+    // browser e la coda non avanzava piu' finche' non si riavviava il server.
+    const id = mk("a", "running");
+    expect(cancelPending(id)).toBe(true);
+    expect(statusOf(id)).toBe("cancelled");
+  });
+
+  test("un job gia' concluso non si tocca", () => {
+    const id = mk("a", "done");
+    expect(cancelPending(id)).toBe(false);
+    expect(statusOf(id)).toBe("done");
+  });
+
+  test("il requeue del runner non resuscita un job annullato", () => {
+    const id = mk("a", "running");
+    cancelPending(id);
+    // e' la query che il runner esegue dopo un timeout silenzioso
+    db().run(
+      "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
+      ["requeued: timeout", id],
+    );
+    expect(statusOf(id)).toBe("cancelled");
   });
 });
