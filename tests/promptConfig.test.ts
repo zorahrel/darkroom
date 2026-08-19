@@ -268,8 +268,7 @@ describe("cieli e ottiche scelte per la scena", () => {
     // Il rimedio al taglio ("base e cima dentro l'inquadratura") ORDINAVA di
     // inventare: se le fondamenta non erano nello scatto, per obbedire il
     // modello deve disegnarle. Un soggetto incompleto e' un fatto della foto.
-    expect(p).toContain("only ever show the parts of it that were actually photographed");
-    expect(p).toContain("conjuring the missing bottom of a subject is not");
+    expect(p).toContain("Missing is left missing; present is kept present");
     expect(p).not.toContain("its base and top clearly INSIDE the picture");
     // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
     // ritaglio piatto, che e' proprio lo snapshot vietato dal prompt base.
@@ -401,6 +400,10 @@ describe("un soggetto incompleto resta incompleto", () => {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
       expect(p).toContain("an incomplete subject is a fact of this photograph");
       expect(p).toContain("Never invent the missing base, steps, plinth, ground or lower structure");
+      // ...ma la simmetria opposta va detta, altrimenti il rimedio diventa
+      // "taglio via il lato del tempio pur di stringere": su v90 e' successo.
+      expect(p).toContain("never TAKE AWAY what the photograph did capture");
+      expect(p).toContain("the crop must not cut a side off it");
     }
   });
 });
