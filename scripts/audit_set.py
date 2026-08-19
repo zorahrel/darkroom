@@ -53,6 +53,11 @@ AMBRA_ACCETTATA = {
     "IMG_2913": "vetrina di coltelli sotto lampade arancioni (originale +86)",
     "IMG_2928": "muro di ema illuminato a lanterne (originale +30)",
     "IMG_2726": "interno a luce calda (originale +31)",
+    # Emersa dopo il fix del NaN, esattamente sulla soglia (20.0): e' la carne
+    # alla griglia sotto lampade calde, originale +61.6 e il render l'ha gia'
+    # dimezzata a +30 in grezza. Raffreddarla ancora significherebbe spegnere
+    # il piatto, che e' il soggetto del post "Mangiare al banco".
+    "IMG_2953": "carne alla griglia sotto lampade calde (originale +61.6)",
 }
 BRUCIATO_SOGLIA = 1.0   # % di pixel completamente bianchi
 PIATTO_SOGLIA = 28.0    # std della luminanza
@@ -75,7 +80,14 @@ def graded(photo_id: str, image_path: str) -> "Image.Image | None":
 def misura(im: "Image.Image") -> dict:
     a = np.asarray(im).astype(float)
     L = a.mean(2)
-    lit = a[L > np.percentile(L, 88)]          # le superfici illuminate
+    # ">" stretto su un'immagine uniforme non seleziona NULLA (tutti i valori
+    # coincidono col percentile): la media di un array vuoto e' NaN, e un NaN
+    # fallisce in silenzio ogni confronto — il difetto passerebbe inosservato
+    # proprio nel caso piu' degenere. ">=" garantisce almeno un pixel.
+    soglia = np.percentile(L, 88)
+    lit = a[L >= soglia]
+    if lit.size == 0:                      # cintura di sicurezza
+        lit = a.reshape(-1, a.shape[2])
     R, G, B = (lit[:, i].mean() for i in range(3))
     bianchi = float((a.min(2) >= 254).mean() * 100)
     return {

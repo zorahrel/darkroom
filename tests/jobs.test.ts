@@ -308,3 +308,25 @@ describe("la soglia dell'audit non e' inventata", () => {
     expect(py).toMatch(/"IMG_2913": "[^"]{20,}"/);
   });
 });
+
+describe("le misure dell'audit non devono degenerare in silenzio", () => {
+  test("una superficie uniforme non produce NaN", () => {
+    // Con ">" stretto, su un'immagine uniforme il filtro sul percentile non
+    // seleziona nessun pixel: media di array vuoto = NaN, e un NaN fallisce
+    // OGNI confronto senza dire niente. Il caso piu' degenere sarebbe stato
+    // anche l'unico invisibile.
+    const py = Bun.spawnSync(["python3", "-c", `
+import numpy as np, sys, importlib.util
+from PIL import Image
+spec = importlib.util.spec_from_file_location("aud", "scripts/audit_set.py")
+aud = importlib.util.module_from_spec(spec); sys.argv = ["audit"]
+spec.loader.exec_module(aud)
+m = aud.misura(Image.fromarray(np.full((80, 80, 3), 128, np.uint8)))
+assert m["ambra"] == m["ambra"], "NaN"
+assert m["piattezza"] < aud.PIATTO_SOGLIA, "una superficie piatta deve essere rilevata"
+print("ok")
+`]);
+    expect(new TextDecoder().decode(py.stdout).trim()).toBe("ok");
+    expect(py.exitCode).toBe(0);
+  });
+});
