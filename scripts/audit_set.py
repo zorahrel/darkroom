@@ -14,6 +14,13 @@ gia' verificati a occhio:
                v93 = +16.8  "ottimo"                 (accettata)
              quindi il confine sta fra 17 e 23: 20 e' il punto medio. La prima
              soglia era 25 e avrebbe promosso proprio la v83 gia' bocciata.
+             Nota: NON si confronta con l'originale. Sembrava piu' onesto
+             ("segnala solo se il render e' piu' caldo dello scatto"), ma gli
+             originali di questo set sono tutti molto piu' caldi dei render
+             (+114 contro +77 su 19A084A4), quindi la regola non sarebbe mai
+             scattata: un audit che non trova nulla per costruzione. Verificato
+             rimettendo come preferita una versione gia' bocciata a occhio —
+             passava liscia. La soglia assoluta invece la ripesca.
   bruciato : percentuale di pixel a 255 su tutti e tre i canali — dettaglio
              perso per sempre, non recuperabile in grading.
   piatto   : deviazione standard della luminanza molto bassa = immagine morta.
@@ -36,6 +43,17 @@ from PIL import Image
 DB = "photos.db"
 BASE = "http://127.0.0.1:3535"
 AMBRA_SOGLIA = 20.0
+
+# Scene la cui luce E' davvero arancione: la dominante e' il soggetto, non un
+# difetto del render. Silenziarle una per una e con una motivazione e' meglio
+# di una regola generica: una regola che le copre tutte copre anche i difetti
+# veri (provato: confrontare col proprio originale rendeva l'audit cieco).
+# Verificate a occhio + descrizione dell'originale.
+AMBRA_ACCETTATA = {
+    "IMG_2913": "vetrina di coltelli sotto lampade arancioni (originale +86)",
+    "IMG_2928": "muro di ema illuminato a lanterne (originale +30)",
+    "IMG_2726": "interno a luce calda (originale +31)",
+}
 BRUCIATO_SOGLIA = 1.0   # % di pixel completamente bianchi
 PIATTO_SOGLIA = 28.0    # std della luminanza
 
@@ -98,7 +116,7 @@ def main() -> int:
             import datetime
             ora = datetime.datetime.fromtimestamp(taken / 1000).hour
         notte = ora is not None and (ora >= 18 or ora < 6)
-        if notte and m["ambra"] > AMBRA_SOGLIA:
+        if notte and m["ambra"] > AMBRA_SOGLIA and pid not in AMBRA_ACCETTATA:
             problemi.append((pid, "ambra sul soggetto", m["ambra"]))
         if m["bruciato"] > BRUCIATO_SOGLIA:
             problemi.append((pid, "highlight bruciati", m["bruciato"]))
@@ -106,6 +124,8 @@ def main() -> int:
             problemi.append((pid, "immagine piatta", m["piattezza"]))
 
     print(f"foto nei post analizzate: {len(rows)}")
+    if AMBRA_ACCETTATA:
+        print(f"ambra accettata (scena realmente calda): {len(AMBRA_ACCETTATA)}")
     print(f"problemi trovati: {len(problemi)}\n")
     for pid, why, val in sorted(problemi, key=lambda x: -x[2]):
         print(f"  {pid:42s} {why:22s} {val:6.1f}")

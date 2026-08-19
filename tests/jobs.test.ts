@@ -284,3 +284,27 @@ describe("gli script di audit devono compilare", () => {
     });
   }
 });
+
+describe("la soglia dell'audit non e' inventata", () => {
+  test("e' tarata sui giudizi reali, non su un numero tondo a caso", async () => {
+    const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
+    // v83 misurava +23 ed era stata bocciata a occhio ("ancora troppo
+    // gialla"), v93 +16.8 accettata: una soglia a 25 avrebbe promosso proprio
+    // la versione gia' rifiutata.
+    expect(py).toContain("AMBRA_SOGLIA = 20.0");
+    expect(py).toContain('v83 = +23.0');
+    expect(py).toContain('v93 = +16.8');
+  });
+
+  test("le eccezioni sono nominate una per una, non una regola che copre tutto", async () => {
+    const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
+    // Confrontare col proprio originale sembrava piu' onesto ma rendeva
+    // l'audit cieco: gli originali sono tutti piu' caldi dei render, quindi
+    // la condizione non scattava mai. Provato rimettendo una versione gia'
+    // bocciata: passava liscia.
+    expect(py).toContain("AMBRA_ACCETTATA");
+    expect(py).not.toContain("originale_ambra(");
+    // ogni eccezione porta con se' il motivo
+    expect(py).toMatch(/"IMG_2913": "[^"]{20,}"/);
+  });
+});
