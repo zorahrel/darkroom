@@ -487,3 +487,24 @@ describe("filtro pro", () => {
     expect(c.shown_provider).toBe("chatgpt");
   });
 });
+
+describe("un post dice quante foto usciranno davvero", () => {
+  test("publishable_count esclude le foto saltate", async () => {
+    const cid = "pub_test";
+    db().run("INSERT INTO collections (id, title, position, created_at) VALUES (?, 'T', 99, ?)", [cid, Date.now()]);
+    for (const [pid, skip] of [["pub_a", 0], ["pub_b", 0], ["pub_c", 1]] as const) {
+      db().run(
+        "INSERT INTO photos (id, original_path, original_ext, skipped, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?, ?)",
+        [pid, skip, Date.now(), Date.now()],
+      );
+      db().run("INSERT INTO collection_photos (collection_id, photo_id, position) VALUES (?, ?, 0)", [cid, pid]);
+    }
+    const r = await app.request("/api/collections");
+    const body = (await r.json()) as { collections: { id: string; photo_count: number; publishable_count: number }[] };
+    const col = body.collections.find((c) => c.id === cid)!;
+    // 3 nel post, ma una e' rifiutata da ChatGPT e non avra' mai un render:
+    // annunciare 3 slide e pubblicarne 2 e' una sorpresa al momento sbagliato.
+    expect(col.photo_count).toBe(3);
+    expect(col.publishable_count).toBe(2);
+  });
+});

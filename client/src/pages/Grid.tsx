@@ -440,13 +440,18 @@ export default function GridPage({
       if (photos.length === 0) continue;
       const slides = slidesFor(col.id, byId);
       const nCollages = slides.filter((x) => x.kind === "collage").length;
+      const nSkipped = photos.filter((p) => p.skipped === 1).length;
       groups.push({
         // Il conteggio che conta è quello delle SLIDE (il carosello ha un
         // limite di 20), con le foto fra parentesi quando un collage ne
         // assorbe più d'una.
+        // Le foto saltate (ChatGPT le rifiuta, non avranno mai un render) non
+        // usciranno nel post: dirlo qui evita di scoprire a pubblicazione che
+        // il carosello ha una slide in meno di quelle annunciate.
         label:
           `${col.title} · ${slides.length} slide` +
-          (nCollages ? ` (${photos.length} foto, ${nCollages} collage)` : ""),
+          (nCollages ? ` (${photos.length} foto, ${nCollages} collage)` : "") +
+          (nSkipped ? ` — ${nSkipped} saltata${nSkipped > 1 ? "e" : ""}` : ""),
         photos,
         collectionId: col.id,
         slides,

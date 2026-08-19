@@ -464,6 +464,10 @@ export type Collection = {
   reference_photo_id: string | null;
   created_at: number;
   photo_count: number;
+  /** Quante ne usciranno davvero: esclude le foto saltate (rifiutate da
+   *  ChatGPT, quindi senza render). Diverge da photo_count quando il post
+   *  contiene una foto che non verra' mai pubblicata. */
+  publishable_count?: number;
 };
 
 /** Una slide del carosello composta da più foto (collage). */

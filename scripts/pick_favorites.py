@@ -5,8 +5,15 @@ cambia da sola al prossimo rigenero. Un render buono puo' sparire senza che
 nessuno se ne accorga — e' esattamente il "perdersi le cose" da evitare.
 Fissare la preferita congela la scelta; resta modificabile a mano in un click.
 
-Come sceglie: fra le ultime versioni di ogni foto prende quella che misura
-meglio sul file SERVITO (grading applicato, cioe' quello che si vede davvero).
+Cosa fa DAVVERO, detto senza abbellirlo: fra le ultime versioni scarta quelle
+con un difetto MISURABILE e fra le restanti tiene la piu' recente. Non e' un
+giudizio estetico e non sostituisce il tuo occhio: sulla corsa reale ha
+cambiato scelta in 7 casi su 62, negli altri 55 ha semplicemente preso
+l'ultima. Serve a togliere il rischio "la preferita non esiste, quindi il post
+mostra qualcosa che cambia da solo", non a decidere quale foto e' bella.
+
+Il confronto avviene sul file SERVITO (grading applicato, cioe' quello che si
+vede davvero nella dashboard e nel post).
 Penalizza i difetti che abbiamo visto emergere su questo set:
   - ambra sul soggetto illuminato, solo per gli scatti notturni;
   - highlight bruciati (dettaglio perso, non recuperabile);

@@ -12,13 +12,20 @@ import { serveFile } from "../http.ts";
  */
 export const collectionRoutes = new Hono();
 
-type CollectionWithCount = CollectionRow & { photo_count: number };
+type CollectionWithCount = CollectionRow & { photo_count: number; publishable_count: number };
 
 function listCollections(): CollectionWithCount[] {
   return db()
     .query<CollectionWithCount, []>(
+      // photo_count e' quante foto sono NEL post; publishable_count quante ne
+      // usciranno davvero. Divergono quando una foto e' saltata (ChatGPT la
+      // rifiuta e non avra' mai un render): un carosello annunciato a 9 che ne
+      // pubblica 8 e' una sorpresa al momento sbagliato.
       `SELECT c.*,
-              (SELECT COUNT(*) FROM collection_photos cp WHERE cp.collection_id = c.id) AS photo_count
+              (SELECT COUNT(*) FROM collection_photos cp WHERE cp.collection_id = c.id) AS photo_count,
+              (SELECT COUNT(*) FROM collection_photos cp
+                 JOIN photos p ON p.id = cp.photo_id
+                WHERE cp.collection_id = c.id AND p.skipped = 0) AS publishable_count
          FROM collections c
         ORDER BY c.position ASC, c.created_at ASC`,
     )
