@@ -139,6 +139,24 @@ export default function PipelineBar({
     next.splice(to, 0, moved);
     patch({ steps: next });
   }
+  /** "Solo questo": spegne ogni altro step e lascia acceso il suo — la griglia
+   *  ridipinge subito e si vede COSA fa davvero quello che stai regolando.
+   *  Ricliccando si torna a tutti accesi.
+   *
+   *  Nasce da un difetto costato ore: la LUT personale veniva applicata e poi
+   *  annullata da una saturazione in coda. Guardando l'elenco degli step era
+   *  tutto normale; l'unico modo di accorgersene era isolare i passi a mano,
+   *  uno per uno, riattivandoli dopo. */
+  function soloStepAt(idx: number) {
+    const others = grade.steps.filter((s, j) => j !== idx && s.type !== "ai");
+    const isSolo = others.every((s) => !s.enabled) && grade.steps[idx]?.enabled;
+    patch({
+      steps: grade.steps.map((s, j) =>
+        s.type === "ai" ? s : { ...s, enabled: isSolo ? true : j === idx },
+      ),
+    });
+  }
+
   function removeStepAt(idx: number) {
     patch({ steps: grade.steps.filter((_, j) => j !== idx) });
   }
@@ -272,6 +290,10 @@ export default function PipelineBar({
           canDown: idx < grade.steps.length - 1,
           onMove: (dir) => moveStepAt(idx, dir),
           onRemove: () => removeStepAt(idx),
+          onSolo: () => soloStepAt(idx),
+          isSolo:
+            s.enabled &&
+            grade.steps.filter((x, j) => j !== idx && x.type !== "ai").every((x) => !x.enabled),
           onReset: isStepTouched(s)
             ? () => patchStepAt(idx, { params: newStep(s.type).params })
             : undefined,

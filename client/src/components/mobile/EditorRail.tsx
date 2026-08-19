@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ToolGroup, AddableStep } from "./BottomToolbar";
 import type { MasterControls } from "./EditorShell";
 import {
@@ -197,6 +197,23 @@ export function PipelineList({
   );
   const openId = open.size > 0 ? Array.from(open)[0] : null;
   const onToggle = (id: string) => setOpen((cur) => (cur.has(id) ? new Set() : new Set([id])));
+  // Pennello on/off: si tiene premuto sul pallino di uno step e si trascina
+  // sugli altri per accenderli o spegnerli in blocco. Serve a capire cosa fa
+  // ogni passo — provare "con e senza" un gruppo di step, senza aprirli uno per
+  // uno. Il verso lo decide il PRIMO step toccato: se era acceso si spegne, e
+  // tutti quelli che si attraversano seguono lo stesso verso (come le caselle
+  // di un foglio di calcolo), altrimenti trascinando si invertirebbe due volte
+  // lo stesso step.
+  const paint = useRef<boolean | null>(null);
+  useEffect(() => {
+    const stop = () => { paint.current = null; };
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, []);
 
   // Deep-link: scroll the requested section into view once its row exists.
   useEffect(() => {
@@ -301,6 +318,7 @@ export function PipelineList({
               open={false}
               onToggle={() => onToggle(g.id)}
               dnd={dnd}
+              paint={paint}
             />
           );
         })}
@@ -362,11 +380,14 @@ function Section({
   open,
   onToggle,
   dnd,
+  paint,
 }: {
   group: ToolGroup;
   open: boolean;
   onToggle: () => void;
   dnd?: SectionDnd;
+  /** Verso corrente del "pennello" on/off (null = non si sta trascinando). */
+  paint?: { current: boolean | null };
 }) {
   const step = group.step;
   const dim = step && !step.enabled;
@@ -413,6 +434,43 @@ function Section({
         ) : (
           <span className="w-1.5 shrink-0" />
         )}
+        {step && (
+          // Interruttore diretto: prima lo stato era un pallino decorativo e per
+          // spegnere uno step bisognava aprirlo. Tenendolo premuto e passando
+          // sugli altri si accendono/spengono in blocco — e' cosi' che si
+          // capisce cosa fa un gruppo di step, provando "con e senza".
+          <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const next = !step.enabled;
+              if (paint) paint.current = next;
+              step.onToggle(next);
+            }}
+            onPointerEnter={() => {
+              if (!paint || paint.current === null) return;
+              if (step.enabled !== paint.current) step.onToggle(paint.current);
+            }}
+            className={
+              "shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors " +
+              (step.enabled
+                ? "bg-emerald-500/20 hover:bg-emerald-500/30"
+                : "bg-neutral-800 hover:bg-neutral-700")
+            }
+            title={
+              step.enabled
+                ? "Attivo — clicca per spegnerlo (tieni premuto e trascina per piu' step)"
+                : "Spento — clicca per accenderlo (tieni premuto e trascina per piu' step)"
+            }
+            aria-label={step.enabled ? "disattiva step" : "attiva step"}
+          >
+            <span
+              className={
+                "w-2 h-2 rounded-full " + (step.enabled ? "bg-emerald-400" : "bg-neutral-500")
+              }
+            />
+          </button>
+        )}
         <button
           onClick={onToggle}
           className="flex-1 min-w-0 flex items-center gap-2 py-2.5 text-left"
@@ -424,14 +482,6 @@ function Section({
         )}
         <span className={"text-neutral-300 shrink-0 relative " + (dim ? "opacity-40" : "")}>
           {group.icon}
-          {step && (
-            <span
-              className={
-                "absolute -right-1 -top-0.5 w-1.5 h-1.5 rounded-full " +
-                (step.enabled ? "bg-emerald-400" : "bg-neutral-600")
-              }
-            />
-          )}
         </span>
         <span className="flex-1 min-w-0">
           <span className={"block text-sm truncate " + (dim ? "text-neutral-500" : "text-neutral-100")}>
@@ -484,6 +534,25 @@ function Section({
               >
                 <IconChevronDown />
               </button>
+              {step.onSolo && (
+                <button
+                  onClick={step.onSolo}
+                  className={
+                    "px-1.5 py-1 rounded text-[10px] font-bold tracking-wide " +
+                    (step.isSolo
+                      ? "bg-amber-500 text-black"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-800")
+                  }
+                  aria-label="mostra solo questo step"
+                  title={
+                    step.isSolo
+                      ? "Riaccendi tutti gli step"
+                      : "Solo questo: spegne gli altri per vedere cosa fa davvero"
+                  }
+                >
+                  SOLO
+                </button>
+              )}
               {step.onReset && (
                 <button
                   onClick={step.onReset}
