@@ -26,15 +26,20 @@ function PageFallback() {
 function RootRedirect() {
   const [to, setTo] = useState<string | null>(null);
   useEffect(() => {
+    // La query string va portata dentro il redirect: filtro, raggruppamento e
+    // zoom vivono li'. Senza, un link come "/?filter=covers_todo" atterrava su
+    // "/p/darkroom" mostrando tutte e 190 le foto — e sembrava che il filtro
+    // non funzionasse, quando invece era stato buttato via per strada.
+    const qs = window.location.search + window.location.hash;
     const last = lastProject();
     if (last) {
-      setTo(`/p/${encodeURIComponent(last)}`);
+      setTo(`/p/${encodeURIComponent(last)}${qs}`);
       return;
     }
     api
       .studioProjects()
       .then((r) =>
-        setTo(r.projects[0] ? `/p/${encodeURIComponent(r.projects[0].id)}` : "/studio"),
+        setTo(r.projects[0] ? `/p/${encodeURIComponent(r.projects[0].id)}${qs}` : "/studio"),
       )
       .catch(() => setTo("/studio"));
   }, []);

@@ -237,11 +237,20 @@ export default function PhotoCard({
           mentre si scorre — e a differenza di una scritta resta leggibile
           anche sulla cella più piccola, dove tutto il resto sparisce. */}
       {/* Copertina: nella vista "Copertine" le foto arrivano da post diversi e
-          senza il titolo non si sa cosa promettono. Il badge sta in alto a
-          sinistra, dove non copre ne' il cuore ne' il contatore versioni. */}
+          senza il titolo non si sa cosa promettono.
+          NON in alto a sinistra: li' ci sono gia' il cuore "mi piace" (z-20) e
+          il numero di slot (z-10), e con z-30 li copriva entrambi. Qui sta in
+          BASSO, largo quanto la cella meno i margini, sopra la striscia della
+          nota ma sotto l'overlay di caricamento. */}
       {photo.cover_of && (
         <span
-          className="pointer-events-none absolute top-1 left-1 z-30 max-w-[92%] truncate rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-black"
+          // Larga fino al bordo destro copriva il contatore versioni su tutte
+          // e 7 le card (misurato: ~500px di sovrapposizione). Si ferma prima,
+          // lasciandogli il suo angolo.
+          className={
+            "pointer-events-none absolute bottom-1 left-1 z-20 truncate rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-black " +
+            (selectMode ? "right-16" : "right-9")
+          }
           title={`Copertina di: ${photo.cover_of}`}
         >
           ★ {photo.cover_of}
@@ -250,7 +259,9 @@ export default function PhotoCard({
       {photo.shown_provider === "higgsfield" && (
         <span
           title="Foto pronta: render dal modello pro (GPT Image 2)"
-          className="pointer-events-none absolute bottom-1 left-1/2 z-30 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-emerald-950 shadow ring-1 ring-emerald-300/60"
+          // Sul filtro "Copertine" convivono con la fascia gialla del titolo:
+          // stesso bordo inferiore, si coprirebbero. Qui salgono sopra di essa.
+          className={`pointer-events-none absolute ${photo.cover_of ? "bottom-7" : "bottom-1"} left-1/2 z-30 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-emerald-950 shadow ring-1 ring-emerald-300/60`}
         >
           ✓ PRONTA
         </span>
@@ -444,7 +455,7 @@ export default function PhotoCard({
 
       {/* Persistent badge: this photo carries a note (hidden while editing) */}
       {savedFb.trim().length > 0 && !fbFocused && (
-        <div className="absolute bottom-1 left-1 z-10 flex items-center gap-1 rounded bg-amber-400/90 text-amber-950 text-[9px] font-semibold px-1 py-0.5 opacity-100 group-hover:opacity-0 transition-opacity pointer-events-none">
+        <div className={`absolute ${photo.cover_of ? "bottom-7" : "bottom-1"} left-1 z-10 flex items-center gap-1 rounded bg-amber-400/90 text-amber-950 text-[9px] font-semibold px-1 py-0.5 opacity-100 group-hover:opacity-0 transition-opacity pointer-events-none`}>
           <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="currentColor">
             <path d="M4 4h16v11H8l-4 4V4z" />
           </svg>
