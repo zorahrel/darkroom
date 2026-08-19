@@ -15,6 +15,8 @@ export type PhotoListItem = {
   /** 1 = ChatGPT la rifiuta: non viene piu' accodata. */
   skipped: number;
   skip_reason: string | null;
+  /** Titolo del post di cui questa foto e' la copertina, se lo e'. */
+  cover_of?: string | null;
   /** Provider del render mostrato: 'higgsfield' = master, altro = bozza web. */
   shown_provider: string | null;
 };

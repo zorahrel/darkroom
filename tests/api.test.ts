@@ -250,3 +250,21 @@ describe("cosa resta da rifinire in pro", () => {
     expect(ids).not.toContain("pt_free");
   });
 });
+
+describe("le copertine si guardano tutte insieme", () => {
+  test("filter=covers restituisce solo le copertine, col titolo del post", async () => {
+    const now = Date.now();
+    db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('cv_a','', '.jpg', ?, ?)", [now, now]);
+    db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('cv_b','', '.jpg', ?, ?)", [now, now]);
+    db().run("INSERT INTO collections (id, title, position, created_at, cover_photo_id) VALUES ('cv','Il verde',97,?, 'cv_a')", [now]);
+
+    const r = await app.request("/api/photos?filter=covers");
+    const photos = ((await r.json()) as { photos: { id: string; cover_of: string | null }[] }).photos;
+    const ids = photos.map((p) => p.id);
+    expect(ids).toContain("cv_a");
+    expect(ids).not.toContain("cv_b");
+    // Sette copertine affiancate senza il titolo di cio' che aprono sono
+    // sette foto qualsiasi: la domanda e' se ognuna promette il suo post.
+    expect(photos.find((p) => p.id === "cv_a")!.cover_of).toBe("Il verde");
+  });
+});

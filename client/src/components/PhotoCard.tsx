@@ -236,6 +236,17 @@ export default function PhotoCard({
           etichetta. Serve a distinguere master e bozza con la coda dell'occhio
           mentre si scorre — e a differenza di una scritta resta leggibile
           anche sulla cella più piccola, dove tutto il resto sparisce. */}
+      {/* Copertina: nella vista "Copertine" le foto arrivano da post diversi e
+          senza il titolo non si sa cosa promettono. Il badge sta in alto a
+          sinistra, dove non copre ne' il cuore ne' il contatore versioni. */}
+      {photo.cover_of && (
+        <span
+          className="pointer-events-none absolute top-1 left-1 z-30 max-w-[92%] truncate rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-black"
+          title={`Copertina di: ${photo.cover_of}`}
+        >
+          ★ {photo.cover_of}
+        </span>
+      )}
       {photo.shown_provider === "higgsfield" && (
         <span
           title="Foto pronta: render dal modello pro (GPT Image 2)"

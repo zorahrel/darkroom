@@ -43,7 +43,8 @@ type Filter =
   | "not_picked"
   | "recent"
   | "pro"
-  | "pro_todo";
+  | "pro_todo"
+  | "covers";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
@@ -83,7 +84,7 @@ type GridGroup = {
  * la lavorazione? cosa devo ancora sistemare?
  */
 const FILTER_GROUPS: { label: string; ids: Filter[] }[] = [
-  { label: "Nei post", ids: ["assigned", "unassigned"] },
+  { label: "Nei post", ids: ["covers", "assigned", "unassigned"] },
   { label: "Stato", ids: ["pro_todo", "pro", "recent", "with_versions", "no_versions", "in_queue"] },
   { label: "Da fare", ids: ["no_favorite", "with_favorite", "failed", "with_override"] },
 ];
@@ -96,6 +97,7 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   { id: "picked", label: "Mi piace", icon: Heart, accent: "rose" },
   { id: "not_picked", label: "Da guardare", icon: HeartOff },
   { id: "recent", label: "Rigenerate ora", icon: Clock3, accent: "amber" },
+  { id: "covers", label: "Copertine", icon: Star, accent: "star" },
   { id: "pro", label: "Ha un master pro", icon: Sparkles, accent: "emerald" },
   // La domanda che ci si fa prima di spendere: cosa manca da rifinire. Solo
   // foto che usciranno davvero (in un post, non saltate) e guardando la

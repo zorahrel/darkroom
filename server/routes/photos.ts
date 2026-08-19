@@ -45,6 +45,12 @@ photoRoutes.get("/api/photos", (c) => {
     where.push(`EXISTS (
       SELECT 1 FROM versions v WHERE v.photo_id = p.id AND v.provider = 'higgsfield'
     )`);
+  } else if (filter === "covers") {
+    // Le 7 copertine, tutte insieme. E' l'unica immagine che decide se qualcuno
+    // apre il carosello, e finora si potevano guardare solo una alla volta
+    // entrando in ogni post: cosi' non si vede MAI se il profilo, scorrendo,
+    // e' coerente.
+    where.push("EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)");
   } else if (filter === "pro_todo") {
     // Il complemento di "pro", ed e' la domanda che ci si fa davvero prima di
     // spendere: cosa MANCA da rifinire. Solo foto gia' assegnate a un post e
@@ -82,6 +88,11 @@ photoRoutes.get("/api/photos", (c) => {
       p.picked,
       p.skipped,
       p.skip_reason,
+      -- Il post di cui questa foto e' la COPERTINA. Serve nella vista
+      -- "Copertine": sette foto affiancate senza il titolo di cio' che aprono
+      -- sono sette foto qualsiasi, e la domanda vera e' se ognuna promette il
+      -- suo post.
+      (SELECT c.title FROM collections c WHERE c.cover_photo_id = p.id) AS cover_of,
       (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) AS version_count,
       (SELECT v.version_number FROM versions v
          WHERE v.photo_id = p.id AND v.id = p.favorite_version_id) AS favorite_version_number,
@@ -118,6 +129,7 @@ photoRoutes.get("/api/photos", (c) => {
         picked: number;
         skipped: number;
         skip_reason: string | null;
+        cover_of: string | null;
         version_count: number;
         favorite_version_number: number | null;
         latest_version_id: number | null;
