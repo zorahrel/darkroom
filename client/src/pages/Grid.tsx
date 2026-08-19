@@ -476,10 +476,17 @@ export default function GridPage({
   // Final groups rendered, driven by the selected grouping mode.
   const displayGroups = useMemo<GridGroup[]>(() => {
     if (groupMode === "none") return [{ label: "", photos: allPhotos }];
+    // Un filtro stretto (3 copertine, 2 fallite) unito al raggruppamento per
+    // scena produce gruppetti da una foto ciascuno, separati da intestazioni:
+    // sembra che il filtro non abbia trovato niente. Sotto una manciata di
+    // risultati la divisione non informa piu', li nasconde.
+    if (allPhotos.length <= 8 && filter !== "all") {
+      return [{ label: "", photos: allPhotos }];
+    }
     if (groupMode === "day") return dayGroups;
     if (groupMode === "post") return postGroups;
     return sceneGroups;
-  }, [groupMode, allPhotos, dayGroups, sceneGroups, postGroups]);
+  }, [groupMode, allPhotos, dayGroups, sceneGroups, postGroups, filter]);
 
   /**
    * Sposta la selezione in un post (o la libera con null, o ne crea uno nuovo
