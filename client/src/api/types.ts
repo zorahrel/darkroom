@@ -275,6 +275,8 @@ export type PipelineStatus = {
   queue: Record<string, number>;
   /** Avviso se il build servito e' piu' vecchio dei sorgenti del client. */
   stale_dist?: string | null;
+  /** Conflitti nel grade che si vedono nelle foto, non nella lista di step. */
+  grade_warnings?: string[];
 };
 
 export type GradeStepType =

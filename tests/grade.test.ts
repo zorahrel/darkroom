@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { gradeWarnings } from "../server/grade.ts";
 import {
   DEFAULT_LUT,
   defaultSteps,
@@ -241,4 +242,38 @@ describe("dose LUT graduale, non a scalino", () => {
     expect(py).toContain("b = a * (1.0 - w) + b * w");
   });
 
+});
+
+describe("la LUT personale deve arrivare fino in fondo", () => {
+  const lutStep = (dose = 100, dose_night = 45) => ({
+    id: "lut", type: "lut" as const, enabled: true,
+    params: { lut: "X.cube", dose, dose_night },
+  });
+  const colorStep = (saturation: number) => ({
+    id: "color", type: "color" as const, enabled: true, params: { saturation },
+  });
+
+  test("una saturazione alzata DOPO la lut viene segnalata", () => {
+    // Caso reale: la CMG SUMMER desatura (0.66 -> 0.38 al 100%), ma uno step
+    // 'color' con saturation=+40 in coda la annullava. Il file c'era, il passo
+    // girava, il risultato spariva subito dopo: foto sature e "senza la mia
+    // LUT", senza un solo segnale.
+    const w = gradeWarnings([lutStep(), colorStep(40)]);
+    expect(w.join(" ")).toContain("DOPO la LUT");
+  });
+
+  test("una saturazione PRIMA della lut non e' un problema", () => {
+    expect(gradeWarnings([colorStep(40), lutStep()])).toEqual([]);
+  });
+
+  test("una dose notturna quasi nulla viene segnalata", () => {
+    // dose_night=14 su 100: di notte il look del set spariva, e meta' del
+    // viaggio e' notturna.
+    const w = gradeWarnings([lutStep(70, 14)]);
+    expect(w.join(" ")).toContain("di notte");
+  });
+
+  test("un grade sano non produce avvisi", () => {
+    expect(gradeWarnings([lutStep(100, 45), colorStep(0)])).toEqual([]);
+  });
 });

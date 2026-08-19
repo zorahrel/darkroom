@@ -92,3 +92,40 @@ export function runGradeSteps(
   try { unlinkSync(stepsFile); } catch { /* best-effort cleanup */ }
   return r.status === 0 && existsSync(out);
 }
+
+/** Difetti del grade che non si vedono guardando la lista degli step, ma si
+ *  vedono nelle foto — e si scoprono tardi, dopo aver rigenerato tutto.
+ *
+ *  Caso reale: la LUT personale (CMG SUMMER) DESATURA parecchio (0.66 -> 0.38
+ *  al 100%), ma in coda c'era uno step `color` con saturation=+40 che la
+ *  annullava. Il file c'era, il passo girava, il risultato spariva subito
+ *  dopo: le foto uscivano sature e "senza la mia LUT" senza che niente lo
+ *  segnalasse. Stessa storia per dose_night=14, che di notte la spegneva
+ *  quasi del tutto — e meta' del viaggio e' notturna. */
+export function gradeWarnings(steps: GradeStep[]): string[] {
+  const out: string[] = [];
+  const active = steps.filter((s) => s.enabled !== false);
+  const iLut = active.findIndex((s) => s.type === "lut" && s.params?.lut);
+  if (iLut < 0) return out;
+  const lut = active[iLut]!;
+  const p = lut.params as { dose?: number; dose_night?: number };
+
+  for (let i = iLut + 1; i < active.length; i++) {
+    const st = active[i]!;
+    if (st.type !== "color") continue;
+    const sat = Number((st.params as { saturation?: number }).saturation ?? 0);
+    if (sat > 15) {
+      out.push(
+        `Lo step "${st.id}" alza la saturazione di +${sat} DOPO la LUT: la annulla, e le foto escono sature come se la LUT non ci fosse.`,
+      );
+    }
+  }
+  const dose = Number(p.dose ?? 100);
+  const night = p.dose_night == null ? null : Number(p.dose_night);
+  if (night != null && night < dose * 0.3) {
+    out.push(
+      `La LUT di notte scende a ${night} contro ${dose} di giorno: sugli scatti notturni il look del set sparisce.`,
+    );
+  }
+  return out;
+}

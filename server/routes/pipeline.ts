@@ -11,6 +11,7 @@ import { wbGainFor } from "../sceneWb.ts";
 import { enqueueJob } from "../jobs.ts";
 import { REPO_ROOT } from "../config.ts";
 import { staleDistWarning } from "../distFreshness.ts";
+import { gradeWarnings } from "../grade.ts";
 import { bakePhoto } from "../bake.ts";
 
 /** The pipeline: export, regenerate/promote the set, bake, and run history. */
@@ -156,6 +157,10 @@ pipelineRoutes.get("/api/pipeline/status", (c) => {
     // UI stantia sono passati inosservati proprio perche' l'unico indizio
     // sarebbe stato in un log che nessuno apre.
     stale_dist: staleDistWarning(REPO_ROOT),
+    // Conflitti nel grade che non si vedono nella lista degli step ma si
+    // vedono nelle foto (una saturazione che annulla la LUT, la LUT spenta
+    // di notte). Vanno detti dove si guarda, non scoperti a valle.
+    grade_warnings: gradeWarnings(grade.steps),
   });
 });
 

@@ -46,6 +46,7 @@ export default function App() {
   // nove giorni il dist servito era piu' vecchio del codice, e ogni modifica
   // alla UI sembrava non essere stata fatta.
   const [staleDist, setStaleDist] = useState<string | null>(null);
+  const [gradeWarns, setGradeWarns] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const pid = currentProject();
@@ -58,7 +59,10 @@ export default function App() {
   useEffect(() => {
     api
       .pipelineStatus()
-      .then((r) => setStaleDist(r.stale_dist ?? null))
+      .then((r) => {
+        setStaleDist(r.stale_dist ?? null);
+        setGradeWarns(r.grade_warnings ?? []);
+      })
       .catch(() => {});
   }, []);
 
@@ -282,6 +286,12 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {gradeWarns.map((w) => (
+        <div key={w} className="bg-rose-900/80 text-rose-50 text-xs px-4 py-2 border-b border-rose-700">
+          {w}
+        </div>
+      ))}
 
       {staleDist && (
         <div className="bg-amber-900/80 text-amber-50 text-xs px-4 py-2 border-b border-amber-700">
