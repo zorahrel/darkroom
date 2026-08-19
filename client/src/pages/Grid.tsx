@@ -42,7 +42,8 @@ type Filter =
   | "picked"
   | "not_picked"
   | "recent"
-  | "pro";
+  | "pro"
+  | "pro_todo";
 
 // accent = colored emphasis when the filter has matches (queue amber, failed red,
 // favorites amber-star). Others use the neutral active style.
@@ -83,7 +84,7 @@ type GridGroup = {
  */
 const FILTER_GROUPS: { label: string; ids: Filter[] }[] = [
   { label: "Nei post", ids: ["assigned", "unassigned"] },
-  { label: "Stato", ids: ["pro", "recent", "with_versions", "no_versions", "in_queue"] },
+  { label: "Stato", ids: ["pro_todo", "pro", "recent", "with_versions", "no_versions", "in_queue"] },
   { label: "Da fare", ids: ["no_favorite", "with_favorite", "failed", "with_override"] },
 ];
 /** Sempre visibili: sono le tre viste con cui si lavora davvero. */
@@ -96,6 +97,10 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   { id: "not_picked", label: "Da guardare", icon: HeartOff },
   { id: "recent", label: "Rigenerate ora", icon: Clock3, accent: "amber" },
   { id: "pro", label: "Ha un master pro", icon: Sparkles, accent: "emerald" },
+  // La domanda che ci si fa prima di spendere: cosa manca da rifinire. Solo
+  // foto che usciranno davvero (in un post, non saltate) e guardando la
+  // PREFERITA, perche' e' quella che finisce nel carosello.
+  { id: "pro_todo", label: "Da fare in pro", icon: Sparkles, accent: "amber" },
   { id: "with_versions", label: "Con versioni", icon: Images },
   { id: "no_versions", label: "Senza versioni", icon: ImageOff },
   { id: "with_favorite", label: "Con preferita", icon: Star, accent: "star" },

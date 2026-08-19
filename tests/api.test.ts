@@ -215,3 +215,38 @@ describe("una foto rifiutata da ChatGPT si salta", () => {
     expect(queued).toBe(0);
   });
 });
+
+describe("cosa resta da rifinire in pro", () => {
+  test("il filtro pro_todo esclude le saltate, le non assegnate e le gia' fatte", async () => {
+    const now = Date.now();
+    const mk = (id: string, skipped = 0) =>
+      db().run(
+        "INSERT INTO photos (id, original_path, original_ext, skipped, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?, ?)",
+        [id, skipped, now, now],
+      );
+    db().run("INSERT INTO collections (id, title, position, created_at) VALUES ('pt','T',98,?)", [now]);
+    const inPost = (pid: string) =>
+      db().run("INSERT INTO collection_photos (collection_id, photo_id, position) VALUES ('pt', ?, 0)", [pid]);
+    const withFav = (pid: string, provider: string) => {
+      db().run(
+        "INSERT INTO versions (photo_id, version_number, image_path, provider, prompt_used, source, created_at) VALUES (?, 1, '/x.png', ?, 'p', 'generated', ?)",
+        [pid, provider, now],
+      );
+      const vid = db().query<{ id: number }, []>("SELECT last_insert_rowid() AS id").get()!.id;
+      db().run("UPDATE photos SET favorite_version_id = ? WHERE id = ?", [vid, pid]);
+    };
+
+    mk("pt_todo"); inPost("pt_todo"); withFav("pt_todo", "chatgpt");     // da fare
+    mk("pt_done"); inPost("pt_done"); withFav("pt_done", "higgsfield");  // gia' pro
+    mk("pt_skip", 1); inPost("pt_skip"); withFav("pt_skip", "chatgpt");  // non uscira'
+    mk("pt_free"); withFav("pt_free", "chatgpt");                        // fuori dai post
+
+    const r = await app.request("/api/photos?filter=pro_todo");
+    const ids = ((await r.json()) as { photos: { id: string }[] }).photos.map((p) => p.id);
+    expect(ids).toContain("pt_todo");
+    // Un master su una foto che non verra' pubblicata e' denaro buttato.
+    expect(ids).not.toContain("pt_done");
+    expect(ids).not.toContain("pt_skip");
+    expect(ids).not.toContain("pt_free");
+  });
+});

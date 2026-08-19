@@ -45,6 +45,18 @@ photoRoutes.get("/api/photos", (c) => {
     where.push(`EXISTS (
       SELECT 1 FROM versions v WHERE v.photo_id = p.id AND v.provider = 'higgsfield'
     )`);
+  } else if (filter === "pro_todo") {
+    // Il complemento di "pro", ed e' la domanda che ci si fa davvero prima di
+    // spendere: cosa MANCA da rifinire. Solo foto gia' assegnate a un post e
+    // non saltate — le altre non usciranno, quindi un master su di esse e'
+    // denaro buttato. E si guarda la PREFERITA, non una versione qualsiasi:
+    // e' quella che finira' nel post.
+    where.push(`EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)
+      AND p.skipped = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM versions v
+         WHERE v.id = p.favorite_version_id AND v.provider = 'higgsfield'
+      )`);
   } else if (filter === "recent") {
     // Le foto rigenerate di recente: dopo una tornata di modifiche al prompt o
     // al grade, è l'unico gruppo che vale la pena riguardare. 24 ore, non 12:
