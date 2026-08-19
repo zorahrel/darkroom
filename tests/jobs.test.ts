@@ -273,3 +273,14 @@ describe("un render che non ha modificato niente non e' un render", () => {
     expect(py).toContain("does not match the source photo");
   });
 });
+
+describe("gli script di audit devono compilare", () => {
+  // Stessa lezione della f-string rotta in edit_batch.py: un test che controlla
+  // solo il TESTO di un file non si accorge che non gira.
+  for (const f of ["scripts/audit_set.py", "scripts/pick_favorites.py"]) {
+    test(`${f} e' Python valido`, () => {
+      const proc = Bun.spawnSync(["python3", "-c", `import ast;ast.parse(open('${f}').read())`]);
+      expect(proc.exitCode).toBe(0);
+    });
+  }
+});
