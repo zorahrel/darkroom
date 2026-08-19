@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { initSchemaOn } from "../server/db.ts";
+import { db, initSchemaOn } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
 /** Column names of a table, straight from SQLite. */
@@ -271,5 +271,20 @@ describe.skipIf(!existsSync(REAL_DB))("real gallery DB", () => {
       d.query<{ c: number }, []>("SELECT COUNT(*) c FROM photos WHERE sequence_index IS NOT NULL").get()!.c,
     ).toBe(0);
     d.close();
+  });
+});
+
+describe("due scrittori non devono far esplodere il server", () => {
+  test("il busy_timeout e' impostato, non lasciato a zero", () => {
+    // Caso reale: uno script di manutenzione con una transazione aperta e ogni
+    // scrittura del server rispondeva 500 (SQLITE_BUSY). WAL separa lettori e
+    // scrittore, non due scrittori: senza timeout SQLite fallisce all'istante.
+    const v = db().query<{ timeout: number }, []>("PRAGMA busy_timeout").get();
+    expect(v!.timeout).toBeGreaterThanOrEqual(5000);
+  });
+
+  test("il WAL resta attivo", () => {
+    const v = db().query<{ journal_mode: string }, []>("PRAGMA journal_mode").get();
+    expect(v!.journal_mode.toLowerCase()).toBe("wal");
   });
 });

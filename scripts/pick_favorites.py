@@ -55,8 +55,10 @@ def penalita(im, notte: bool) -> float:
     piattezza = float(L.std())
 
     p = 0.0
-    if notte and ambra > 25:
-        p += (ambra - 25) * 2
+    # Soglia tarata sui giudizi reali: +23 era "ancora troppo gialla", +17
+    # "ottimo". Vedi scripts/audit_set.py per la tabella completa.
+    if notte and ambra > 20:
+        p += (ambra - 20) * 2
     if bruciato > 1.0:
         p += (bruciato - 1.0) * 10
     if piattezza < 28:

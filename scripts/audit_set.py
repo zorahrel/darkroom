@@ -7,8 +7,13 @@ gia' verificati a occhio:
 
   ambra    : dominante gialla sul SOGGETTO ILLUMINATO (non sulla media del
              frame, che su un notturno e' fredda per via del cielo e nasconde
-             il problema). Tarato su IMG_2906 v83 (+45 = ambra evidente) e
-             19A084A4 (+50). Sotto +25 nessuno si e' mai lamentato.
+             il problema). La soglia NON e' inventata: e' tarata sui giudizi
+             espressi davvero su questo set —
+               v80 = +74.7  "troppo gialla"          (rifiutata)
+               v83 = +23.0  "ancora troppo gialla"   (rifiutata)
+               v93 = +16.8  "ottimo"                 (accettata)
+             quindi il confine sta fra 17 e 23: 20 e' il punto medio. La prima
+             soglia era 25 e avrebbe promosso proprio la v83 gia' bocciata.
   bruciato : percentuale di pixel a 255 su tutti e tre i canali — dettaglio
              perso per sempre, non recuperabile in grading.
   piatto   : deviazione standard della luminanza molto bassa = immagine morta.
@@ -30,7 +35,7 @@ from PIL import Image
 
 DB = "photos.db"
 BASE = "http://127.0.0.1:3535"
-AMBRA_SOGLIA = 25.0
+AMBRA_SOGLIA = 20.0
 BRUCIATO_SOGLIA = 1.0   # % di pixel completamente bianchi
 PIATTO_SOGLIA = 28.0    # std della luminanza
 
