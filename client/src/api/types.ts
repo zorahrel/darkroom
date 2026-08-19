@@ -271,6 +271,8 @@ export type PipelineStatus = {
   grade: ColorGrade;
   favorites: number;
   queue: Record<string, number>;
+  /** Avviso se il build servito e' piu' vecchio dei sorgenti del client. */
+  stale_dist?: string | null;
 };
 
 export type GradeStepType =

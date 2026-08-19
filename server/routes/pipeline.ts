@@ -9,6 +9,8 @@ import { gradeActive, runColorGrade, sceneMatchRequested } from "../gradeCache.t
 import { setMatchFor } from "../setMatch.ts";
 import { wbGainFor } from "../sceneWb.ts";
 import { enqueueJob } from "../jobs.ts";
+import { REPO_ROOT } from "../config.ts";
+import { staleDistWarning } from "../distFreshness.ts";
 import { bakePhoto } from "../bake.ts";
 
 /** The pipeline: export, regenerate/promote the set, bake, and run history. */
@@ -149,6 +151,11 @@ pipelineRoutes.get("/api/pipeline/status", (c) => {
     grade,
     favorites: favs?.n ?? 0,
     queue: jobsBy,
+    // Se la dashboard che stai guardando e' piu' vecchia del codice, deve
+    // dirtelo LEI: e' l'unica superficie che si guarda davvero. Nove giorni di
+    // UI stantia sono passati inosservati proprio perche' l'unico indizio
+    // sarebbe stato in un log che nessuno apre.
+    stale_dist: staleDistWarning(REPO_ROOT),
   });
 });
 

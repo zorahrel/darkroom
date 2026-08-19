@@ -42,6 +42,10 @@ export default function App() {
   }, [railOpen]);
   const [launching, setLaunching] = useState(false);
   const [projects, setProjects] = useState<StudioProject[]>([]);
+  // Avviso "stai guardando una dashboard vecchia". Nasce da un caso reale: per
+  // nove giorni il dist servito era piu' vecchio del codice, e ogni modifica
+  // alla UI sembrava non essere stata fatta.
+  const [staleDist, setStaleDist] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const pid = currentProject();
@@ -50,6 +54,13 @@ export default function App() {
   useEffect(() => {
     if (pid) rememberProject(pid);
   }, [pid]);
+
+  useEffect(() => {
+    api
+      .pipelineStatus()
+      .then((r) => setStaleDist(r.stale_dist ?? null))
+      .catch(() => {});
+  }, []);
 
   // Project list for the switcher (also tells us if we're multi-project).
   useEffect(() => {
@@ -271,6 +282,12 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {staleDist && (
+        <div className="bg-amber-900/80 text-amber-50 text-xs px-4 py-2 border-b border-amber-700">
+          {staleDist}
+        </div>
+      )}
 
       {/* `max-w-7xl` incolonna tutto a 1280px: giusto per una pagina di testo,
           sbagliato per una griglia di foto su un monitor largo, dove restano
