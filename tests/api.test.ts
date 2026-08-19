@@ -268,3 +268,30 @@ describe("le copertine si guardano tutte insieme", () => {
     expect(photos.find((p) => p.id === "cv_a")!.cover_of).toBe("Il verde");
   });
 });
+
+describe("le copertine ancora da rifinire", () => {
+  test("covers_todo tiene solo le copertine senza master pro", async () => {
+    const now = Date.now();
+    const mk = (id: string) =>
+      db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?)", [id, now, now]);
+    const fav = (pid: string, provider: string) => {
+      db().run(
+        "INSERT INTO versions (photo_id, version_number, image_path, provider, prompt_used, source, created_at) VALUES (?, 1, '/x.png', ?, 'p', 'generated', ?)",
+        [pid, provider, now],
+      );
+      const vid = db().query<{ id: number }, []>("SELECT last_insert_rowid() AS id").get()!.id;
+      db().run("UPDATE photos SET favorite_version_id = ? WHERE id = ?", [vid, pid]);
+    };
+    mk("ct_draft"); fav("ct_draft", "chatgpt");
+    mk("ct_pro"); fav("ct_pro", "higgsfield");
+    mk("ct_plain"); fav("ct_plain", "chatgpt");   // non e' copertina di niente
+    db().run("INSERT INTO collections (id, title, position, created_at, cover_photo_id) VALUES ('ct1','A',95,?, 'ct_draft')", [now]);
+    db().run("INSERT INTO collections (id, title, position, created_at, cover_photo_id) VALUES ('ct2','B',96,?, 'ct_pro')", [now]);
+
+    const r = await app.request("/api/photos?filter=covers_todo");
+    const ids = ((await r.json()) as { photos: { id: string }[] }).photos.map((p) => p.id);
+    expect(ids).toContain("ct_draft");
+    expect(ids).not.toContain("ct_pro");    // gia' rifinita
+    expect(ids).not.toContain("ct_plain");  // non apre nessun post
+  });
+});

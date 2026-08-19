@@ -51,6 +51,16 @@ photoRoutes.get("/api/photos", (c) => {
     // entrando in ogni post: cosi' non si vede MAI se il profilo, scorrendo,
     // e' coerente.
     where.push("EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)");
+  } else if (filter === "covers_todo") {
+    // Le copertine che NON hanno ancora il master pro: il primo lotto sensato
+    // da pagare. La copertina e' l'unica immagine che decide se qualcuno apre
+    // il carosello, quindi vale il pro prima di ogni altra foto del post.
+    where.push(`EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)
+      AND p.skipped = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM versions v
+         WHERE v.id = p.favorite_version_id AND v.provider = 'higgsfield'
+      )`);
   } else if (filter === "pro_todo") {
     // Il complemento di "pro", ed e' la domanda che ci si fa davvero prima di
     // spendere: cosa MANCA da rifinire. Solo foto gia' assegnate a un post e
