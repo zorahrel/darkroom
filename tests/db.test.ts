@@ -288,3 +288,16 @@ describe("due scrittori non devono far esplodere il server", () => {
     expect(v!.journal_mode.toLowerCase()).toBe("wal");
   });
 });
+
+describe("l'ordine dei PRAGMA all'apertura", () => {
+  test("busy_timeout viene impostato PRIMA di journal_mode", async () => {
+    const src = await Bun.file(new URL("../server/db.ts", import.meta.url)).text();
+    // `journal_mode = WAL` e' una scrittura: con un altro processo sul DB
+    // falliva con SQLITE_BUSY_RECOVERY prima ancora che il timeout esistesse,
+    // e il server moriva all'avvio. Visto davvero sul backend.
+    const iBusy = src.indexOf('PRAGMA busy_timeout');
+    const iWal = src.indexOf('PRAGMA journal_mode');
+    expect(iBusy).toBeGreaterThan(0);
+    expect(iBusy).toBeLessThan(iWal);
+  });
+});

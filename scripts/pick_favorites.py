@@ -35,7 +35,7 @@ import urllib.request
 import numpy as np
 from PIL import Image
 
-BASE = "http://127.0.0.1:3535"
+BASE = os.environ.get("DARKROOM_URL", "http://127.0.0.1:3737")
 ULTIME_N = 3
 
 

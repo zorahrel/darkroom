@@ -41,6 +41,10 @@ export default function Video() {
     video.current.play().catch(() => {});
   };
 
+  // Quale ripresa si sta guardando, per piano. Prima erano affiancate: due
+  // verticali 9:16 dentro una tessera fanno ~80px l'una, e a quella dimensione
+  // non si giudica niente. Una alla volta, a tutta larghezza, e si cambia.
+  const [ripresa, setRipresa] = useState<Record<string, number>>({});
   const [scrivo, setScrivo] = useState<string | null>(null);
   const [testo, setTesto] = useState("");
 
@@ -159,35 +163,51 @@ export default function Video() {
       </div>
 
       <div className="mt-3 grid gap-3"
-           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))" }}>
+           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))" }}>
         {visibili.map((s) => (
           <div key={s.id}
                className={`rounded-sm border ${s.kept ? "border-neutral-800" : "border-neutral-900 opacity-45"}`}>
-            <div className="flex">
-              {s.takes.map((tk) => (
-                <div key={tk.take} className="relative" style={{ width: `${100 / s.takes.length}%` }}>
+            {(() => {
+              const i = Math.min(ripresa[s.id] ?? 0, Math.max(0, s.takes.length - 1));
+              const tk = s.takes[i];
+              if (!tk) return null;
+              return (
+                <div className="relative">
                   <video
+                    key={tk.clip}
                     src={pq(tk.clip)}
                     poster={pq(tk.poster)}
                     muted loop playsInline preload="none"
                     onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
                     onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
-                    className={`w-full bg-black ${tk.kept ? "" : "opacity-25 grayscale"}`}
+                    className={`w-full bg-black ${tk.kept ? "" : "opacity-30 grayscale"}`}
                   />
-                  {/* Il voto sta sulla singola ripresa: due riprese dello stesso
-                      piano non valgono uguale, e buttarne una non deve costare
-                      il piano intero. */}
+                  {s.takes.length > 1 && (
+                    <div className="absolute top-1 right-1 flex gap-0.5">
+                      {s.takes.map((t2, k) => (
+                        <button
+                          key={t2.take}
+                          onClick={() => setRipresa((r) => ({ ...r, [s.id]: k }))}
+                          title={`ripresa ${t2.take}${t2.kept ? "" : " (scartata)"}`}
+                          className={`w-4 h-4 text-[9px] leading-none rounded-sm border
+                            ${k === i ? "bg-neutral-200 text-black border-neutral-200"
+                                      : "bg-black/70 text-neutral-400 border-neutral-700"}
+                            ${t2.kept ? "" : "line-through opacity-50"}`}>
+                          {t2.take}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onClick={() => pickTake(s.id, tk.take, !tk.kept)}
-                    title={tk.kept ? `ripresa ${tk.take}: in uso` : `ripresa ${tk.take}: scartata`}
-                    className={`absolute bottom-1 left-1 text-[9px] leading-none px-1 py-0.5 rounded-sm border
+                    className={`absolute bottom-1 left-1 text-[9.5px] leading-none px-1.5 py-0.5 rounded-sm border
                       ${tk.kept ? "bg-black/70 border-neutral-600 text-neutral-200"
-                                : "bg-black/80 border-neutral-800 text-neutral-600 line-through"}`}>
-                    {tk.take}
+                                : "bg-black/85 border-amber-800 text-amber-500"}`}>
+                    {tk.kept ? `ripresa ${tk.take} · in uso` : `ripresa ${tk.take} · scartata`}
                   </button>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
             <div className="px-2 py-1.5">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[12px] text-neutral-200 truncate">{s.id}</span>

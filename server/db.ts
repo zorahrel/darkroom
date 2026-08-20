@@ -51,14 +51,18 @@ export function db(): Database {
   const path = dirsFor(pid).DB_PATH;
   mkdirSync(dirname(path), { recursive: true });
   const d = new Database(path, { create: true });
-  d.run("PRAGMA journal_mode = WAL");
-  // WAL lascia convivere lettori e scrittore, ma NON due scrittori: basta uno
-  // script di manutenzione con una transazione aperta e ogni scrittura del
-  // server esplode all'istante con SQLITE_BUSY -> HTTP 500. E' successo con un
-  // semplice script che accodava job. Il default di SQLite e' zero attesa:
-  // qui si aspetta il proprio turno per qualche secondo, che e' sempre meglio
-  // di un errore in faccia all'utente per una contesa di millisecondi.
+  // PRIMA di ogni altro PRAGMA. WAL lascia convivere lettori e scrittore ma non
+  // due scrittori, e il default di SQLite e' zero attesa: qualsiasi contesa
+  // diventa un errore immediato invece di una pausa di millisecondi.
+  //
+  // L'ordine non e' un dettaglio di stile: `journal_mode = WAL` e' esso stesso
+  // una scrittura, e con un altro processo in mezzo falliva con
+  // SQLITE_BUSY_RECOVERY *prima* che il timeout venisse impostato — il server
+  // non partiva proprio, morendo all'import di app.ts. Visto davvero, non
+  // teorizzato: il backend e' andato giu' cosi' mentre un secondo processo
+  // apriva lo stesso DB.
   d.run("PRAGMA busy_timeout = 5000");
+  d.run("PRAGMA journal_mode = WAL");
   d.run("PRAGMA foreign_keys = ON");
   // Register before initializing so any nested db() during schema init (none
   // today, but cheap insurance) resolves to this same handle instead of looping.

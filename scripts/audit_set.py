@@ -41,7 +41,10 @@ import numpy as np
 from PIL import Image
 
 DB = "photos.db"
-BASE = "http://127.0.0.1:3535"
+# La porta segue il servizio: 3535 era un secondo launchd duplicato, rimosso.
+# Sovrascrivibile con DARKROOM_URL per non ritrovarsi un audit che fallisce
+# tutto in silenzio solo perche' il server sta altrove.
+BASE = os.environ.get("DARKROOM_URL", "http://127.0.0.1:3737")
 AMBRA_SOGLIA = 20.0
 
 # Scene la cui luce E' davvero arancione: la dominante e' il soggetto, non un
@@ -73,6 +76,35 @@ def graded(photo_id: str, image_path: str) -> "Image.Image | None":
         if len(data) < 2000:
             return None
         return Image.open(io.BytesIO(data)).convert("RGB")
+    except Exception:
+        return None
+
+
+def originale_ambra(photo_id: str) -> "float | None":
+    """Quanto e' gia' calda la foto di PARTENZA: il metro di paragone onesto.
+
+    Il percorso viene dal DB, non indovinato dall'estensione: un tentativo
+    precedente provava .jpeg/.jpg/.png in ordine e su un originale .jpg
+    restituiva None, il che disattivava il controllo in silenzio."""
+    try:
+        con = sqlite3.connect(DB)
+        row = con.execute(
+            "select original_path from photos where id = ?", (photo_id,)
+        ).fetchone()
+    except Exception:
+        return None
+    if not row or not row[0] or not os.path.exists(row[0]):
+        return None
+    try:
+        im = Image.open(row[0]).convert("RGB")
+        im.thumbnail((400, 400))
+        a = np.asarray(im).astype(float)
+        L = a.mean(2)
+        lit = a[L >= np.percentile(L, 88)]
+        if lit.size == 0:
+            return None
+        R, G, B = (lit[:, i].mean() for i in range(3))
+        return float((R + G) / 2 - B)
     except Exception:
         return None
 
@@ -129,7 +161,24 @@ def main() -> int:
             ora = datetime.datetime.fromtimestamp(taken / 1000).hour
         notte = ora is not None and (ora >= 18 or ora < 6)
         if notte and m["ambra"] > AMBRA_SOGLIA and pid not in AMBRA_ACCETTATA:
-            problemi.append((pid, "ambra sul soggetto", m["ambra"]))
+            # Segnalare solo cio' che si puo' CORREGGERE. Se lo scatto e' gia'
+            # caldo di suo (un vicolo di lanterne, un interno a tungsteno) il
+            # render non ha "sbagliato": raffreddarlo vorrebbe dire spegnere
+            # una luce che c'era davvero. Conta quindi quanto il render ha
+            # AGGIUNTO rispetto all'originale, non il valore assoluto.
+            #
+            # La soglia assoluta resta, ma come primo filtro: senza, questo
+            # confronto lascerebbe passare tutto (verificato — vedi la prova
+            # del veleno in tests/jobs.test.ts).
+            orig = originale_ambra(pid)
+            aggiunta = None if orig is None else m["ambra"] - orig
+            if aggiunta is None or aggiunta > 8:
+                etichetta = (
+                    "ambra sul soggetto"
+                    if aggiunta is None
+                    else f"ambra aggiunta dal render (+{aggiunta:.0f} sull'originale)"
+                )
+                problemi.append((pid, etichetta, m["ambra"]))
         if m["bruciato"] > BRUCIATO_SOGLIA:
             problemi.append((pid, "highlight bruciati", m["bruciato"]))
         if m["piattezza"] < PIATTO_SOGLIA:
