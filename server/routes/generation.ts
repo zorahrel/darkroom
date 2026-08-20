@@ -74,6 +74,18 @@ generationRoutes.get("/api/higgsfield/models", async (c) => {
   return c.json({ error: String(lastErr) }, 500);
 });
 
+/** Crediti residui del piano. Senza questo l'unico modo di sapere se si puo'
+ *  generare era LANCIARE un job e vederlo fallire con "Out of credits": si
+ *  scopriva il muro sbattendoci contro, un job bruciato alla volta. */
+generationRoutes.get("/api/higgsfield/balance", async (c) => {
+  if (!higgsfieldConfigured()) return c.json({ error: "higgsfield non collegato" }, 400);
+  try {
+    return c.json(await hfBalance());
+  } catch (err) {
+    return c.json({ error: String(err) }, 500);
+  }
+});
+
 generationRoutes.get("/api/higgsfield/cost", async (c) => {
   const model = c.req.query("model");
   if (!model) return c.json({ error: "model required" }, 400);

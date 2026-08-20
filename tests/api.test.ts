@@ -295,3 +295,14 @@ describe("le copertine ancora da rifinire", () => {
     expect(ids).not.toContain("ct_plain");  // non apre nessun post
   });
 });
+
+describe("i crediti si chiedono, non si scoprono sbattendoci", () => {
+  test("esiste una rotta per il saldo Higgsfield", async () => {
+    const src = await Bun.file(new URL("../server/routes/generation.ts", import.meta.url)).text();
+    // Prima l'unico modo di sapere se si poteva generare era LANCIARE un job e
+    // vederlo fallire con "Out of credits": si scopriva il muro sbattendoci
+    // contro, un job bruciato alla volta. Successo davvero, tre volte di fila.
+    expect(src).toContain('/api/higgsfield/balance');
+    expect(src).toContain("hfBalance()");
+  });
+});
