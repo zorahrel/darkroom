@@ -298,14 +298,31 @@ describe("la soglia dell'audit non e' inventata", () => {
 
   test("le eccezioni sono nominate una per una, non una regola che copre tutto", async () => {
     const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
-    // Confrontare col proprio originale sembrava piu' onesto ma rendeva
-    // l'audit cieco: gli originali sono tutti piu' caldi dei render, quindi
-    // la condizione non scattava mai. Provato rimettendo una versione gia'
-    // bocciata: passava liscia.
     expect(py).toContain("AMBRA_ACCETTATA");
-    expect(py).not.toContain("originale_ambra(");
     // ogni eccezione porta con se' il motivo
     expect(py).toMatch(/"IMG_2913": "[^"]{20,}"/);
+  });
+
+  test("il confronto con l'originale filtra, ma non sostituisce la soglia", async () => {
+    const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
+    // Storia in due tempi. Primo tentativo: usare SOLO il confronto con
+    // l'originale ("segnala se il render e' piu' caldo dello scatto"). Sembrava
+    // piu' onesto e invece rendeva l'audit cieco — gli originali sono tutti
+    // piu' caldi dei render, quindi non scattava mai.
+    // Ora il confronto c'e' di nuovo, ma DOPO la soglia assoluta e non al suo
+    // posto: prima si guarda se il valore e' alto, poi se e' colpa del render.
+    // Cosi' un vicolo di lanterne non viene segnalato, ma un render che
+    // aggiunge ambra sua si'.
+    expect(py).toContain("AMBRA_SOGLIA = 20.0");
+    expect(py).toContain("def originale_ambra");
+    // la soglia viene prima nella condizione, il confronto e' annidato dentro
+    const iSoglia = py.indexOf('m["ambra"] > AMBRA_SOGLIA');
+    const iConfronto = py.indexOf("orig = originale_ambra(pid)");
+    expect(iSoglia).toBeGreaterThan(0);
+    expect(iSoglia).toBeLessThan(iConfronto);
+    // e il path dell'originale viene dal DB, non indovinato dall'estensione:
+    // su un .jpg il tentativo precedente restituiva None e spegneva il check.
+    expect(py).toContain("select original_path from photos where id = ?");
   });
 });
 
