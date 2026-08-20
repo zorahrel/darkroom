@@ -3,6 +3,7 @@ import { finalDir, genDir, listProjects, rawDir } from "./project.ts";
 import { startRunner } from "./jobs.ts";
 import { REPO_ROOT } from "./config.ts";
 import { staleDistWarning } from "./distFreshness.ts";
+import { chiAscoltaReale, messaggioOccupata, verificaPorta } from "./portGuard.ts";
 
 /** Boot: start the job runner and serve the app (see app.ts for the routes). */
 
@@ -13,6 +14,22 @@ const PORT = Number(process.env.PORT ?? 3535);
 // telefono usa `tailscale serve` (cifrato e legato al tuo tailnet) oppure
 // HOST=0.0.0.0 se sei consapevolmente su una rete fidata.
 const HOST = process.env.HOST ?? "127.0.0.1";
+
+// Chi arriva su una porta gia' servita e' l'intruso: si ferma qui, prima di
+// avviare il job runner e di rubare traffico a un altro progetto. Vedi
+// `portGuard.ts` per il guasto reale che questo controllo evita.
+if (process.env.DARKROOM_PORT_FORCE !== "1") {
+  const esito = verificaPorta(PORT, { chiAscolta: chiAscoltaReale, pidNostro: process.pid });
+  if (esito.stato === "occupata") {
+    console.error(messaggioOccupata(PORT, esito.occupanti));
+    process.exit(1);
+  }
+  if (esito.stato === "ignoto") {
+    // Non blocca: un controllo che non sa non ha il diritto di fermare il boot.
+    console.warn(`[porta] controllo saltato (${esito.perche}) — parto lo stesso.`);
+  }
+}
+
 startRunner();
 
 // Il client si ricostruisce da solo quando i sorgenti sono piu' recenti del
