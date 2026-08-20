@@ -1,5 +1,8 @@
 import { jsonFetch } from "./http";
 import type {
+  VideoShot,
+  VideoCut,
+  VideoAssets,
   BakeResult,
   ImportSummary,
   PhotoSource,
@@ -407,5 +410,25 @@ export const api = {
     jsonFetch<ImportTemplateResult>("/api/templates/import", {
       method: "POST",
       body: JSON.stringify({ filename, text, save }),
+    }),
+
+  // ---- Progetti video ----------------------------------------------------
+  videoShots: () => jsonFetch<{ shots: VideoShot[] }>("/api/video/shots"),
+  videoCuts: () => jsonFetch<{ cuts: VideoCut[]; durata: number; bpm: number | null }>("/api/video/cuts"),
+  videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
+  videoRipresa: (shot: string, take: string, kept: boolean) =>
+    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/ripresa", {
+      method: "POST",
+      body: JSON.stringify({ shot, take, kept }),
+    }),
+  videoProblema: (shot: string, testo?: string, i?: number) =>
+    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/problema", {
+      method: "POST",
+      body: JSON.stringify({ shot, testo, i }),
+    }),
+  videoPick: (shot: string, kept: boolean, perche?: string) =>
+    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/pick", {
+      method: "POST",
+      body: JSON.stringify({ shot, kept, perche }),
     }),
 };

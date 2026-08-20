@@ -11,6 +11,7 @@ import { pipelineRoutes } from "./routes/pipeline.ts";
 import { storyboardRoutes } from "./routes/storyboard.ts";
 import { verifyRoutes } from "./routes/verify.ts";
 import { studioRoutes } from "./routes/studio.ts";
+import { videoRoutes } from "./routes/video.ts";
 import { mediaRoutes } from "./routes/media.ts";
 import { collectionRoutes } from "./routes/collections.ts";
 
@@ -52,6 +53,7 @@ app.route("/", pipelineRoutes);
 app.route("/api/storyboard", storyboardRoutes);
 app.route("/api/verify", verifyRoutes);
 app.route("/", collectionRoutes);
+app.route("/", videoRoutes);
 app.route("/", studioRoutes);
 app.route("/", mediaRoutes);
 

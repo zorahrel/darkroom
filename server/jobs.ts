@@ -2,6 +2,8 @@ import { db, nextVersionNumber } from "./db.ts";
 import type { JobRow, VersionRow } from "./db.ts";
 import { genDir, listProjects, withProject } from "./project.ts";
 import { mkdirSync, existsSync, statSync } from "node:fs";
+import { acquireRunnerLock } from "./runnerLock.ts";
+import { RUNNER_LOCK } from "./config.ts";
 import { join } from "node:path";
 import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, restartChatgptBrowser } from "./worker.ts";
 import { runWorkerCodex } from "./worker-codex.ts";
@@ -281,6 +283,23 @@ function forEachProject(fn: () => void) {
 
 export function startRunner() {
   if (runnerStarted) return;
+  // Un solo runner per installazione. Due servizi launchd hanno girato per
+  // settimane sullo stesso DB e sullo stesso account ChatGPT: nessuno dei due
+  // sbagliava, ma insieme acceleravano il cap e si contendevano le scritture.
+  // Chi arriva secondo serve comunque l'HTTP (una seconda finestra in sola
+  // lettura e' legittima), ma NON apre una seconda coda.
+  const lock = acquireRunnerLock(RUNNER_LOCK);
+  if (!lock.ok) {
+    console.warn(
+      `[jobs] un altro Darkroom sta gia' lavorando la coda (pid ${lock.holderPid}) — questo processo NON avvia il runner. ` +
+        "Due runner sullo stesso DB si contendono l'account ChatGPT e le scritture.",
+    );
+    return;
+  }
+  const release = lock.release;
+  process.on("exit", release);
+  process.on("SIGINT", () => { release(); process.exit(0); });
+  process.on("SIGTERM", () => { release(); process.exit(0); });
   runnerStarted = true;
   // Reclaim orphaned jobs that were marked 'running' when the server died —
   // across every project (each keeps its jobs in its own DB).

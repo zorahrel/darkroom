@@ -26,7 +26,7 @@ export const REGISTRY_PATH =
 
 /** What a project is for. It decides which views the UI offers — the pipeline
  *  (generation, grade, quality checks) is the same for both. */
-export type ProjectKind = "photo" | "storyboard";
+export type ProjectKind = "photo" | "storyboard" | "video";
 
 export type Project = {
   id: string;
@@ -96,7 +96,7 @@ function normalize(p: unknown): Project | null {
     name: typeof o.name === "string" && o.name ? o.name : o.id,
     root: resolve(o.root),
     // Projects written before this field existed are photo projects.
-    kind: o.kind === "storyboard" ? "storyboard" : "photo",
+    kind: o.kind === "storyboard" || o.kind === "video" ? o.kind : "photo",
     active: o.active !== false,
     created_at: typeof o.created_at === "number" ? o.created_at : 0,
   };
@@ -189,7 +189,7 @@ export function addProject(input: {
     id,
     name,
     root,
-    kind: input.kind === "storyboard" ? "storyboard" : "photo",
+    kind: input.kind === "storyboard" || input.kind === "video" ? input.kind : "photo",
     active: input.active !== false,
     created_at: Date.now(),
   };
@@ -204,7 +204,9 @@ export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "c
   if (!p) return undefined;
   if (typeof patch.name === "string" && patch.name.trim()) p.name = patch.name.trim();
   if (typeof patch.root === "string" && patch.root.trim()) p.root = resolve(patch.root.trim());
-  if (patch.kind === "photo" || patch.kind === "storyboard") p.kind = patch.kind;
+  if (patch.kind === "photo" || patch.kind === "storyboard" || patch.kind === "video") {
+    p.kind = patch.kind;
+  }
   if (typeof patch.active === "boolean") p.active = patch.active;
   persist();
   return { ...p };

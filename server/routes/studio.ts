@@ -99,7 +99,7 @@ studioRoutes.post("/api/studio/projects", async (c) => {
     id?: string;
     name?: string;
     root?: string;
-    kind?: "photo" | "storyboard";
+    kind?: "photo" | "storyboard" | "video";
     photos?: { path: string; mode?: "link" | "copy" };
   };
   try {
@@ -157,7 +157,7 @@ studioRoutes.patch("/api/studio/projects/:pid", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     name?: string;
     active?: boolean;
-    kind?: "photo" | "storyboard";
+    kind?: "photo" | "storyboard" | "video";
   };
   const project = updateProject(pid, body);
   if (!project) return c.json({ error: "progetto non trovato" }, 404);

@@ -199,7 +199,7 @@ export type ProjectStats = {
 };
 
 /** What a project is for: it decides which views the UI offers. */
-export type ProjectKind = "photo" | "storyboard";
+export type ProjectKind = "photo" | "storyboard" | "video";
 
 export type StudioProject = {
   id: string;
@@ -494,3 +494,23 @@ export type CollectionsPayload = {
   photos: Record<string, string[]>;
   collages: Collage[];
 };
+
+// ---- Progetti video -------------------------------------------------------
+export type VideoTake = { take: string; frames: number; clip: string; poster: string; kept: boolean };
+export type VideoShot = {
+  id: string;
+  prompt: string;
+  takes: VideoTake[];
+  durezza: number | null;
+  moto: number | null;
+  dettaglio: number | null;
+  inScena: number;
+  kept: boolean;
+  perche: string | null;
+  problemi: string[];
+};
+export type VideoCut = {
+  t: number; dur: number; shot: string;
+  durezzaSuono: number; velocita: number; rovescio: boolean; fermo: boolean;
+};
+export type VideoAssets = { anteprima: string | null; reel: string | null; master: string | null };

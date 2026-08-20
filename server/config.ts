@@ -63,6 +63,13 @@ export const WORKER_LOCK =
   envPath("DARKROOM_WORKER_LOCK") ??
   join(homedir(), ".cache", "darkroom", "chatgpt-worker.lock");
 
+/** Lock del RUNNER: identifica quale processo lavora la coda di questo DB.
+ *  Distinto da WORKER_LOCK (che serializza il browser fra job): qui si tratta
+ *  di impedire che DUE server aprano due code sulla stessa installazione. */
+export const RUNNER_LOCK =
+  envPath("DARKROOM_RUNNER_LOCK") ??
+  join(homedir(), ".cache", "darkroom", "runner.lock");
+
 /** Bundled Python worker that drives ChatGPT-web over CDP. */
 export const PYTHON_SCRIPT = join(REPO_ROOT, "scripts", "edit_batch.py");
 
