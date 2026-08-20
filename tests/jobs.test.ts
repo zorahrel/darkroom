@@ -303,26 +303,19 @@ describe("la soglia dell'audit non e' inventata", () => {
     expect(py).toMatch(/"IMG_2913": "[^"]{20,}"/);
   });
 
-  test("il confronto con l'originale filtra, ma non sostituisce la soglia", async () => {
+  test("l'audit NON confronta col proprio originale", async () => {
     const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
-    // Storia in due tempi. Primo tentativo: usare SOLO il confronto con
-    // l'originale ("segnala se il render e' piu' caldo dello scatto"). Sembrava
-    // piu' onesto e invece rendeva l'audit cieco — gli originali sono tutti
-    // piu' caldi dei render, quindi non scattava mai.
-    // Ora il confronto c'e' di nuovo, ma DOPO la soglia assoluta e non al suo
-    // posto: prima si guarda se il valore e' alto, poi se e' colpa del render.
-    // Cosi' un vicolo di lanterne non viene segnalato, ma un render che
-    // aggiunge ambra sua si'.
+    // Provato due volte, sbagliato due volte, e la seconda con i numeri in
+    // mano: il confronto mette a paragone il file GRADED (raffreddato dalla
+    // pipeline) con lo scatto originale (caldo di lampade). Su 19A084A4
+    // l'originale misura +114 e ogni render sta sotto, quindi la differenza e'
+    // quasi sempre negativa e non discrimina. Misurato: la prova del veleno
+    // passava da 3/3 a 1/3 — l'audit diventava cieco proprio sui casi che
+    // erano gia' stati bocciati a occhio.
+    expect(py).not.toContain("def originale_ambra");
     expect(py).toContain("AMBRA_SOGLIA = 20.0");
-    expect(py).toContain("def originale_ambra");
-    // la soglia viene prima nella condizione, il confronto e' annidato dentro
-    const iSoglia = py.indexOf('m["ambra"] > AMBRA_SOGLIA');
-    const iConfronto = py.indexOf("orig = originale_ambra(pid)");
-    expect(iSoglia).toBeGreaterThan(0);
-    expect(iSoglia).toBeLessThan(iConfronto);
-    // e il path dell'originale viene dal DB, non indovinato dall'estensione:
-    // su un .jpg il tentativo precedente restituiva None e spegneva il check.
-    expect(py).toContain("select original_path from photos where id = ?");
+    // Le scene davvero calde restano gestite a mano, una per una col motivo.
+    expect(py).toContain("AMBRA_ACCETTATA");
   });
 });
 
