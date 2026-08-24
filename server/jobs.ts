@@ -7,12 +7,21 @@ import { RUNNER_LOCK } from "./config.ts";
 import { join } from "node:path";
 import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, restartChatgptBrowser } from "./worker.ts";
 import { runWorkerCodex } from "./worker-codex.ts";
+import { runWorkerCodexHttp } from "./worker-codex-http.ts";
 import { generateEdit } from "./higgsfield.ts";
 
 // Backend selection: WORKER_BACKEND=codex uses Codex CLI (OAuth, no Chrome/CDP,
 // no ban risk); anything else keeps the original ChatGPT-web CDP worker.
 const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
-const runActiveWorker = WORKER_BACKEND === "codex" ? runWorkerCodex : runWorker;
+// Tre backend, non due: "codex" lancia il binario Codex e scarta i reference,
+// "codex-http" parla all'endpoint della CLI e li allega (è ciò che tiene la
+// coerenza fra le varianti), "cdp" guida il browser.
+const runActiveWorker =
+  WORKER_BACKEND === "codex-http"
+    ? runWorkerCodexHttp
+    : WORKER_BACKEND === "codex"
+      ? runWorkerCodex
+      : runWorker;
 
 export function enqueueJob(
   photoId: string,
