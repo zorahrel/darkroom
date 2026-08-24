@@ -200,6 +200,21 @@ describe("riconoscere il render quando ChatGPT lo mostra piccolo", () => {
     // La soglia secca non deve tornare da sola.
     expect(py).not.toContain("(i.naturalWidth >= 512 || i.width >= 512));");
   });
+
+  test("un allegato nostro non e' mai il render", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // 24/08: 222 job falliti di fila. Il riferimento cromatico allegato da
+    // colorReference (alt 'ref_...') e' servito dallo stesso URL
+    // estuary/content?id=file_ del render, quindi passava isGen e veniva
+    // scaricato al posto della generazione: 12 secondi invece di 60, e
+    // correlazione ~0 (altra foto) o ~1 (stessa scena) contro la sorgente.
+    expect(py).toContain("alt.startsWith('ref_')");
+    // La difesa vera non e' il prefisso, che dipende da come chiamiamo i file:
+    // e' il turno della conversazione. Gli allegati stanno nel messaggio
+    // dell'utente, il render in quello dell'assistente.
+    expect(py).toContain('i.closest(\'[data-message-author-role="user"]\')');
+    expect(py).toContain("!fromUser(i)");
+  });
 });
 
 describe("lo script del worker deve almeno compilare", () => {

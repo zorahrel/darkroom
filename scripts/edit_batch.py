@@ -357,7 +357,13 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             const imgs = [...document.querySelectorAll('img')];
             const isGen = (i) => {{
               const alt = (i.alt || '').toLowerCase();
-              if (alt.startsWith('singleshot_') || alt.includes('imageinput')) return false;
+              // Ogni file che carichiamo NOI porta il proprio nome nell'alt:
+              // 'singleshot_' e' la foto di partenza, 'ref_' il riferimento
+              // cromatico allegato da colorReference. Entrambi vengono serviti
+              // dallo stesso URL estuary/file_ dell'output, quindi senza questa
+              // riga il ref veniva scaricato come se fosse il render (12s invece
+              // di 60, correlazione ~0 o ~1 a seconda di quale foto era il ref).
+              if (alt.startsWith('singleshot_') || alt.startsWith('ref_') || alt.includes('imageinput')) return false;
               if (alt.startsWith('immagine generata') || alt.startsWith('generated image')) return true;
               if (/dalle|oaiusercontent/.test(i.src)) return true;
               // estuary content URLs with file_ id are generated outputs
@@ -376,7 +382,15 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
               return alt.startsWith('immagine generata') || alt.startsWith('generated image');
             }};
             const bigEnough = (i) => i.naturalWidth >= 512 || i.width >= 512 || i.height >= 320;
-            const candidates = imgs.filter(i => isGen(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)));
+            // Il render sta SEMPRE nel turno dell'assistente; gli allegati
+            // stanno nel turno dell'utente. Il filtro sull'alt dipende da come
+            // chiamiamo i file, questo dipende dalla struttura della pagina:
+            // serve che un allegato futuro con un nome nuovo non ridiventi un
+            // candidato. Se la pagina non espone i turni (DOM cambiato) non si
+            // scarta niente e si torna al comportamento precedente.
+            const hasTurns = !!document.querySelector('[data-message-author-role]');
+            const fromUser = (i) => hasTurns && !!i.closest('[data-message-author-role="user"]');
+            const candidates = imgs.filter(i => isGen(i) && !fromUser(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)));
             const stillStreaming = !!document.querySelector('button[data-testid="stop-button"], button[aria-label*="ferma" i], button[aria-label*="stop" i]');
             const pick = candidates[candidates.length - 1];
             // Content-policy refusal (e.g. copyright / third-party likeness): ChatGPT
