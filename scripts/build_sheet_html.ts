@@ -15,6 +15,8 @@ const RECIPES: Record<string, { label: string; note: string }> = {
   "bw-hard": { label: "B/N luce dura", note: "chiave direzionale netta, fondo bianco, taglio stretto" },
   "bw-soft": { label: "B/N luce morbida", note: "sorgente ampia da sinistra, sfumatura sul fondo" },
   "color-editorial": { label: "Colore editoriale", note: "stessa luce e taglio, palette desaturata" },
+  "square-profile": { label: "Quadrata 1:1", note: "centrata, tiene anche ritagliata in tondo e in piccolo" },
+  "bw-grain": { label: "B/N grana 35mm", note: "grana sopra la pelle, neri chiusi, alte luci sollevate" },
 };
 const esc = (s: string) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const counts: Record<string, number> = {};

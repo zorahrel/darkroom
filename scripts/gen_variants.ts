@@ -37,6 +37,16 @@ const RECIPES: { key: string; prompt: string }[] = [
       "Edit this photo of me into a black and white portrait in the style of the attached reference, but with a softer large-source light from the front-left and a gentle falloff on the background. Same monochrome treatment and same clean framing. Keep my face and identity exactly as in the source photo. Natural skin texture, no retouching of features.",
   },
   {
+    key: "square-profile",
+    prompt:
+      "Edit this photo of me into a square 1:1 profile picture that borrows the lighting and mood of the attached reference: hard directional key light, clean uncluttered background, head centred with a little headroom, shoulders visible. Black and white. Keep my face, bone structure and identity exactly as in the source photo. Natural skin texture, no beauty smoothing. Composition must read well when displayed small and circular-cropped.",
+  },
+  {
+    key: "bw-grain",
+    prompt:
+      "Edit this photo of me into a black and white portrait in the style of the attached reference, but with the texture of pushed 35mm film: visible grain, deep blacks, slightly lifted highlights, a touch of contrast. Same tight framing and same directional light. Keep my face and identity exactly as in the source photo. No smoothing, grain must sit over skin texture rather than replace it.",
+  },
+  {
     key: "color-editorial",
     prompt:
       "Edit this photo of me into a colour editorial portrait that borrows the lighting and framing language of the attached black and white reference: hard directional key, clean neutral background, tight crop. Keep natural skin tones, muted desaturated palette. Keep my face and identity exactly as in the source photo. Crisp detail, no smoothing.",
