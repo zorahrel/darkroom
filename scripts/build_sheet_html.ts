@@ -237,5 +237,10 @@ document.getElementById("clear").addEventListener("click",()=>{picks.clear();sav
 render();
 </script>`;
 
-await Bun.write(outPath, html);
+// Ogni carattere non-ASCII diventa entita' numerica. La pagina viene servita
+// da host diversi (file://, http.server, l'host degli artifact) e non tutti
+// dichiarano il charset: senza questa passata "1122x1402" diventa "1122Ã—1402"
+// e la em dash diventa "â€”". Visto succedere, non ipotizzato.
+const ascii = html.replace(/[\u0080-\uFFFF]/g, (c) => `&#${c.charCodeAt(0)};`);
+await Bun.write(outPath, ascii);
 console.log(`[sheet] ${total} fotogrammi, ${m.photos.length} scatti -> ${outPath} (${Math.round((await Bun.file(outPath).size)/1024)} KB)`);
