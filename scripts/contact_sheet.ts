@@ -8,10 +8,10 @@
  * Uso: bun run scripts/contact_sheet.ts <projectId> [--edge 760] [--out file.json]
  */
 import { spawn } from "bun";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withProject } from "../server/project.ts";
+import { withProject, dirsFor } from "../server/project.ts";
 import { db, initSchema } from "../server/db.ts";
 
 const pid = process.argv[2] ?? "profilo";
@@ -55,7 +55,12 @@ withProject(pid, async () => {
     if (vs.length) out.push({ photo: p.id, source: src, sourcePath: p.original_path, variants: vs });
     console.log(`  ${p.id.slice(0, 14)}: ${vs.length} varianti`);
   }
-  await Bun.write(OUT, JSON.stringify({ project: pid, builtAt: Date.now(), photos: out }));
+  // Il riferimento va nel manifest: senza, la pagina mostra le varianti e non
+  // ciò a cui dovevano assomigliare, e la valutazione diventa a memoria.
+  const refDir = join(join(dirsFor(pid).DATA_DIR, "refs"));
+  const refFile = existsSync(refDir) ? readdirSync(refDir).find((f) => /\.(png|jpe?g|webp)$/i.test(f)) : undefined;
+  const reference = refFile ? await thumb(join(refDir, refFile)) : null;
+  await Bun.write(OUT, JSON.stringify({ project: pid, builtAt: Date.now(), reference, photos: out }));
   const kb = Math.round((await Bun.file(OUT).size) / 1024);
   console.log(`[sheet] ${out.length} foto, manifest ${kb} KB -> ${OUT}`);
 });
