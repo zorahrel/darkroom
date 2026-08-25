@@ -14,6 +14,7 @@ import { withProject, dirsFor } from "../server/project.ts";
 import { db, initSchema, nextVersionNumber } from "../server/db.ts";
 import { enqueueJob } from "../server/jobs.ts";
 import { runWorkerCodexHttp } from "../server/worker-codex-http.ts";
+import { runWorker } from "../server/worker.ts";
 
 const pid = process.argv[2] ?? "profilo";
 /** Scelto a runtime: dipende da quali reference sono stati effettivamente
@@ -37,6 +38,16 @@ const arg = (k: string) => {
 const limit = Number(arg("--limit") ?? 0);
 /** --insieme: un solo job per ricetta, con TUTTE le foto allegate insieme. */
 const TOGETHER = has("--insieme");
+/** --senza-refs: nessun allegato oltre alle sorgenti. Serve quando le foto
+ *  bastano a se stesse: un'immagine di stile di UN'ALTRA persona, allegata a
+ *  un ritratto, e' un volto in piu' che il modello puo' mediare. */
+const NO_REFS = has("--senza-refs");
+/** --canale cdp usa la superficie web di ChatGPT invece dell'endpoint Codex.
+ *  Non e' un ripiego: sono due bucket di quota distinti, e quando uno e'
+ *  esaurito l'altro puo' essere aperto (verificato il 25/08: codex 429, web ok).
+ *  Il web accetta una sola sorgente "primaria", quindi le altre viaggiano come
+ *  allegati nella stessa richiesta -- il preambolo dice che sono tutte me. */
+const CHANNEL = (arg("--canale") ?? "codex").toLowerCase();
 const rounds = Number(arg("--giri") ?? 1);
 const only = arg("--variants")?.split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -72,27 +83,27 @@ const RECIPES: { key: string; body: string }[] = [
   {
     key: "bw-hard",
     body:
-      "Edit this photo of me into a black and white editorial portrait matching the attached reference image: same hard directional key light, same deep contrast with clean white background, same wet-look hair styling, same tight head-and-shoulders crop. Keep my face, bone structure and identity exactly as in the source photo — do not change my features. Sharp skin texture, visible pores and stubble, no beauty smoothing, no makeup look.",
+      "Produce a black and white editorial portrait of me: single hard directional key light from the side, deep contrast, clean white background, tight head-and-shoulders crop. Keep my face, bone structure and identity exactly as in the source photographs - do not change my features. Sharp skin texture, visible pores and stubble, no beauty smoothing, no makeup look.",
   },
   {
     key: "bw-soft",
     body:
-      "Edit this photo of me into a black and white portrait in the style of the attached reference, but with a softer large-source light from the front-left and a gentle falloff on the background. Same monochrome treatment and same clean framing. Keep my face and identity exactly as in the source photo. Natural skin texture, no retouching of features.",
+      "Produce a black and white portrait of me with a soft large-source light from the front-left and a gentle falloff on the background. Monochrome, clean framing. Keep my face and identity exactly as in the source photographs. Natural skin texture, no retouching of features.",
   },
   {
     key: "square-profile",
     body:
-      "Edit this photo of me into a square 1:1 profile picture that borrows the lighting and mood of the attached reference: hard directional key light, clean uncluttered background, head centred with a little headroom, shoulders visible. Black and white. Keep my face, bone structure and identity exactly as in the source photo. Natural skin texture, no beauty smoothing. Composition must read well when displayed small and circular-cropped.",
+      "Produce a square 1:1 profile picture of me: hard directional key light, clean uncluttered background, head centred with a little headroom, shoulders visible. Black and white. Keep my face, bone structure and identity exactly as in the source photographs. Natural skin texture, no beauty smoothing. Composition must read well when displayed small and circular-cropped.",
   },
   {
     key: "bw-grain",
     body:
-      "Edit this photo of me into a black and white portrait in the style of the attached reference, but with the texture of pushed 35mm film: visible grain, deep blacks, slightly lifted highlights, a touch of contrast. Same tight framing and same directional light. Keep my face and identity exactly as in the source photo. No smoothing, grain must sit over skin texture rather than replace it.",
+      "Produce a black and white portrait of me with the texture of pushed 35mm film: visible grain, deep blacks, slightly lifted highlights, a touch of contrast. Tight framing, directional light. Keep my face and identity exactly as in the source photographs. No smoothing; grain must sit over skin texture rather than replace it.",
   },
   {
     key: "color-editorial",
     body:
-      "Edit this photo of me into a colour editorial portrait that borrows the lighting and framing language of the attached black and white reference: hard directional key, clean neutral background, tight crop. Keep natural skin tones, muted desaturated palette. Keep my face and identity exactly as in the source photo. Crisp detail, no smoothing.",
+      "Produce a colour editorial portrait of me: hard directional key light, clean neutral background, tight crop. Natural skin tones, muted desaturated palette. Keep my face and identity exactly as in the source photographs. Crisp detail, no smoothing.",
   },
 ];
 
@@ -109,8 +120,8 @@ withProject(pid, async () => {
     : [];
   const missing = (wanted ?? []).filter((w) => !all.includes(w));
   if (missing.length) { console.error(`[gen] reference inesistenti: ${missing.join(", ")} (in ${refDir} ci sono: ${all.join(", ")})`); process.exit(1); }
-  const refs = (wanted ?? all).map((f) => join(refDir, f));
-  if (!refs.length) console.warn("[gen] nessun reference in data/refs: le varianti non saranno coerenti fra loro");
+  const refs = NO_REFS ? [] : (wanted ?? all).map((f) => join(refDir, f));
+  if (!refs.length && !NO_REFS) console.warn("[gen] nessun reference in data/refs: le varianti non saranno coerenti fra loro");
 
   const photos = db()
     .query<{ id: string; original_path: string }, []>("SELECT id, original_path FROM photos ORDER BY id")
@@ -119,7 +130,7 @@ withProject(pid, async () => {
   nRefs = refs.length;
   const recipes = only ? RECIPES.filter((r) => only.includes(r.key)) : RECIPES;
   const targets = limit > 0 ? photos.slice(0, limit) : photos;
-  console.log(`[gen] progetto=${pid} ${TOGETHER ? `INSIEME ${targets.length} sorgenti x${Math.max(1, rounds)} giri` : `foto=${targets.length}`} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
+  console.log(`[gen] canale=${CHANNEL} progetto=${pid} ${TOGETHER ? `INSIEME ${targets.length} sorgenti x${Math.max(1, rounds)} giri` : `foto=${targets.length}`} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
 
   together = TOGETHER;
   // Con --insieme il ciclo esterno non e' piu' "una foto alla volta": c'e' un
@@ -160,7 +171,7 @@ withProject(pid, async () => {
       // sotto la stessa etichetta. "id+look" e' il preambolo che chiede di
       // seguire anche l'aspetto delle reference, non solo l'identita'.
       const refset = TOGETHER
-        ? `${unit.sources.length} sorgenti insieme${hasStyleRef ? " + stile" : ""}`
+        ? `${unit.sources.length} sorgenti insieme${refs.length ? (hasStyleRef ? " + stile" : " + rif") : ""}`
         : `${refs.length} rif: ${hasStyleRef ? (refs.length > 1 ? "id+stile" : "stile") : "id+look"}`;
       const cfg = JSON.stringify({
         recipe: recipe.key,
@@ -180,7 +191,15 @@ withProject(pid, async () => {
       // La ricetta e' gia' salvata nel config della versione: nel nome non serve.
       const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
       const t0 = Date.now();
-      const res = await runWorkerCodexHttp({ images: unit.sources, prompt, output: out, refs });
+      const res =
+        CHANNEL === "cdp"
+          ? await runWorker({
+              image: unit.sources[0]!,
+              prompt,
+              output: out,
+              refs: [...unit.sources.slice(1), ...refs],
+            })
+          : await runWorkerCodexHttp({ images: unit.sources, prompt, output: out, refs });
       if (res.status === "ok") {
         const ins = db().run(
           `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
