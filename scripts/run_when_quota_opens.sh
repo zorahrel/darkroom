@@ -5,7 +5,7 @@
 # e la quota riapre lo stesso. Un job legato alla sessione avrebbe chiesto di
 # tenere aperto un terminale per quattro ore.
 set -u
-RESETS_AT="${1:?serve l'epoch di riapertura}"
+RESETS_AT="${1:-$(cat "$HOME/.cache/darkroom-fav/quota_resets_at" 2>/dev/null || echo 0)}"
 LOG="$HOME/.cache/darkroom-fav/insieme.log"
 mkdir -p "$(dirname "$LOG")"
 
@@ -20,3 +20,8 @@ $HOME/.bun/bin/bun run scripts/gen_variants.ts profilo \
 code=$?
 echo "[$(date '+%F %T')] finito (exit $code)" >> "$LOG"
 # exit 2 = quota di nuovo esaurita: lo dice il generatore, non si insiste.
+
+# Colpo singolo: si sfila da launchd invece di ripresentarsi ogni sera. Un job
+# che si ripete da solo e' come il waiter che ha bruciato 222 generazioni.
+launchctl bootout "gui/$(id -u)/com.jarvis.darkroom-insieme" 2>/dev/null
+exit $code
