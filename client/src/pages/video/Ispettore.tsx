@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, pq, type VideoCut, type VideoShot } from "../../api";
 
 /**
@@ -22,13 +22,21 @@ type Props = {
   shots: VideoShot[];
   candidati: VideoShot[];
   chiudi: () => void;
+  /** Chiamato dopo ogni forzatura, perché l'elenco in pagina resti vero. */
+  onForzato: () => void;
 };
 
 type Fatto = { testo: string; disfa: () => Promise<unknown> };
 
-export default function Ispettore({ sel, shots, candidati, chiudi }: Props) {
+export default function Ispettore({ sel, shots, candidati, chiudi, onForzato }: Props) {
   const [fatto, setFatto] = useState<Fatto | null>(null);
   const [errore, setErrore] = useState<string | null>(null);
+  /** Il candidato che si sta guardando. Sceglierlo non cambia niente: cambia
+   *  il piano solo il bottone sotto, che dice per esteso cosa farà. Un clic
+   *  solo, com'era prima, inchiodava una battuta in silenzio — e una modifica
+   *  che non si vede è una modifica che non si può disfare. */
+  const [inProva, setInProva] = useState<VideoShot | null>(null);
+  useEffect(() => { setInProva(null); setFatto(null); setErrore(null); }, [sel.bar, sel.shot]);
 
   const mio = shots.find((s) => s.id === sel.shot) ?? null;
 
@@ -44,7 +52,7 @@ export default function Ispettore({ sel, shots, candidati, chiudi }: Props) {
 
   const agisci = async (testo: string, fa: () => Promise<unknown>, disfa: () => Promise<unknown>) => {
     setErrore(null);
-    try { await fa(); setFatto({ testo, disfa }); }
+    try { await fa(); setFatto({ testo, disfa }); onForzato(); }
     catch (e) { setErrore(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -106,14 +114,10 @@ export default function Ispettore({ sel, shots, candidati, chiudi }: Props) {
           <button
             key={s.id}
             title={`${s.id} · durezza ${(s.durezza ?? 0).toFixed(2)} · scarto ${d.toFixed(2)}`}
-            onClick={() => agisci(
-              `${s.id} inchiodato alla battuta ${sel.bar} — ricostruisci per vederlo`,
-              () => api.videoPin(sel.bar, s.id),
-              () => api.videoPin(sel.bar, null),
-            )}
+            onClick={() => setInProva((p) => (p?.id === s.id ? null : s))}
             className="group">
-            <div className="w-full aspect-[9/16] bg-cover bg-center bg-neutral-900 rounded-sm
-                            border border-neutral-800 group-hover:border-neutral-300"
+            <div className={`w-full aspect-[9/16] bg-cover bg-center bg-neutral-900 rounded-sm border
+                            ${inProva?.id === s.id ? "border-sky-400" : "border-neutral-800 group-hover:border-neutral-300"}`}
                  style={{ backgroundImage: s.takes[0]?.poster ? `url(${pq(s.takes[0].poster)})` : undefined }} />
             <div className="text-[8.5px] text-neutral-400 group-hover:text-neutral-200 truncate leading-tight">{s.id}</div>
             <div className="text-[8.5px] text-neutral-400 tabular-nums leading-tight">+{d.toFixed(2)}</div>
@@ -123,6 +127,38 @@ export default function Ispettore({ sel, shots, candidati, chiudi }: Props) {
           <span className="col-span-full text-[10.5px] text-neutral-400">nessun altro piano tenuto in questo atto</span>
         )}
       </div>
+
+      {inProva && (
+        <div className="mt-2.5 border border-sky-900/70 rounded-sm p-2">
+          <div className="flex gap-2.5 items-start">
+            <video
+              key={inProva.takes[0]?.clip}
+              src={pq(inProva.takes[0]?.clip ?? "")}
+              poster={pq(inProva.takes[0]?.poster ?? "")}
+              autoPlay muted loop playsInline
+              className="w-[86px] shrink-0 aspect-[9/16] object-cover bg-black border border-sky-500/60 rounded-sm"
+            />
+            <div className="min-w-0 text-[10.5px] text-neutral-400 leading-relaxed">
+              <span className="text-neutral-100">{inProva.id}</span><br />
+              durezza {(inProva.durezza ?? 0).toFixed(2)} · il suono qui chiede {sel.durezzaSuono.toFixed(2)}
+              <button
+                onClick={() => agisci(
+                  `battuta ${sel.bar}: ${inProva.id} al posto di ${sel.shot}`,
+                  () => api.videoPin(sel.bar, inProva.id),
+                  () => api.videoPin(sel.bar, null),
+                )}
+                className="mt-1.5 block w-full px-2 py-1 rounded-sm border border-sky-700 text-sky-200
+                           hover:bg-sky-950/50">
+                metti {inProva.id} al posto di {sel.shot}
+              </button>
+              <button onClick={() => setInProva(null)}
+                      className="mt-1 block w-full text-[10px] text-neutral-400 hover:text-neutral-100">
+                lascia stare
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex gap-1.5 items-center flex-wrap text-[10.5px]">
         <span className="text-neutral-400">durata</span>

@@ -129,3 +129,19 @@
       `<=` in `<` e bloccando una corsia
 - [x] batteria a 16 controlli sull'interfaccia vera: clic sul taglio, passo a 1/24 esatto,
       `]`, tratto, tasti, esc, maniglia, zoom, scelta a schermo pieno, zero errori in console
+
+## 12. Niente si cambia in silenzio (26/08)
+Un clic di troppo su un provino aveva inchiodato la battuta 58.5 a `w_largo`, e non
+c'era modo di accorgersene: la forzatura viveva solo dentro `scelte.json`. Il difetto
+non era il clic, era che una modifica invisibile è una modifica che non si può disfare.
+- [x] il provino nell'ispettore **sceglie**, non scrive: apre un confronto fianco a
+      fianco con un bottone che dice per esteso cosa farà («metti w_alto al posto di
+      w_taglio»)
+- [x] `GET /api/video/forzature` elenca tutto ciò che sta sopra il piano derivato —
+      inchiodature, durate forzate, scarti fatti a mano
+- [x] contatore nella barra in cima, e un elenco con «togli» / «rimetti» su ogni voce
+- [x] i tagli inchiodati portano un segno azzurro sulla timeline
+- [x] nella Scelta l'ultimo verdetto resta scritto in cima con il suo **annulla · z**,
+      che rimette ogni pezzo com'era e torna sulla scena per riguardarla
+- [x] verificato: clic sul provino → zero pin sul disco; bottone → un pin; «togli» →
+      zero. Nella Scelta: freccia → l'annulla compare, `z` → sparisce

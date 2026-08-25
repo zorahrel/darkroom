@@ -3,7 +3,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import {
   api, pq,
   type VideoAssets, type VideoAtto, type VideoBarra, type VideoCut,
-  type VideoMarcatore, type VideoOnda, type VideoRicostruzione,
+  type VideoForzature, type VideoMarcatore, type VideoOnda, type VideoRicostruzione,
   type VideoShot, type VideoSospesa,
 } from "../api";
 import type { OutletCtx } from "../App";
@@ -130,11 +130,16 @@ export default function Video() {
   const [scelto, setScelto] = useState<number | null>(null);
   const [onda, setOnda] = useState<VideoOnda | null>(null);
   const [marcatori, setMarcatori] = useState<VideoMarcatore[]>([]);
+  const [forz, setForz] = useState<VideoForzature | null>(null);
+  const leggiForzature = useCallback(() => {
+    api.videoForzature().then(setForz).catch(() => {});
+  }, []);
   const [inOut, setInOut] = useState<[number, number] | null>(null);
   const [gira, setGira] = useState(false);
   const [ciclo, setCiclo] = useState(false);
   const [appunto, setAppunto] = useState<{ t: number; testo: string } | null>(null);
   const [aiuto, setAiuto] = useState(false);
+  const [vediForz, setVediForz] = useState(false);
   const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
   const video = useRef<HTMLVideoElement | null>(null);
 
@@ -193,6 +198,7 @@ export default function Video() {
     }).catch(() => {});
     api.videoAssets().then(setAssets).catch(() => {});
     api.videoMarcatori().then((r) => setMarcatori(r.marcatori)).catch(() => {});
+    api.videoForzature().then(setForz).catch(() => {});
   }, []);
   useEffect(() => { ricarica(); }, [ricarica]);
 
@@ -258,6 +264,10 @@ export default function Video() {
     }, 80);
     return () => clearInterval(h);
   }, [ciclo, inOut, vEl]);
+
+  /** Quante cose sono state messe a mano sopra il piano derivato. Sta nella
+   *  barra perche' e' l'unica parte del montaggio che nessuna misura difende. */
+  const nForzature = (forz?.pin.length ?? 0) + (forz?.durata.length ?? 0) + (forz?.scartatiAMano.length ?? 0);
 
   const src = assets?.anteprima ?? assets?.reel ?? null;
 
@@ -352,6 +362,13 @@ export default function Video() {
         </span>
         <Stato barra={barra} onRifai={() => api.videoBarra(true).then(setBarra).catch(() => {})} />
         {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {!!nForzature && (
+          <button onClick={() => setVediForz((v) => !v)}
+                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-sky-800 text-sky-300
+                             hover:bg-sky-950/50">
+            {nForzature} {nForzature === 1 ? "forzatura" : "forzature"} a mano
+          </button>
+        )}
         {!!sospese.length && (
           <span className="text-[10.5px] text-amber-400/90" title={sospese.map((s) => `batt ${s.battuta}: ${s.garanzia}`).join(" · ")}>
             {sospese.length} garanzie sospese
@@ -432,7 +449,8 @@ export default function Video() {
                   onCambia={setWDx} onFine={salva(CHIAVE_DX)} />
         <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
           {sel ? (
-            <Ispettore sel={sel} shots={shots} candidati={candidati} chiudi={() => setScelto(null)} />
+            <Ispettore sel={sel} shots={shots} candidati={candidati} chiudi={() => setScelto(null)}
+                       onForzato={leggiForzature} />
           ) : (
             <div className="p-2.5 space-y-2.5">
               <div className="text-[11px] text-neutral-400 leading-relaxed">
@@ -485,8 +503,70 @@ export default function Video() {
           gira={gira} vaiA={vaiA} marcatori={marcatori}
           togliMarcatore={(m) => { void api.videoMarcatore(m, null).then((r) => setMarcatori(r.marcatori)); }}
           apri={apriTaglio}
+          inchiodate={new Set((forz?.pin ?? []).map((f) => f.battuta))}
         />
       </div>
+
+      {/* Ogni cosa messa a mano, in un posto solo e con il suo × accanto. È la
+          risposta a "ho toccato qualcosa per sbaglio?": prima quella domanda si
+          poteva rispondere solo aprendo `scelte.json`. */}
+      {vediForz && (
+        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setVediForz(false)}>
+          <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 w-[560px] max-w-[92vw]"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-[12px] text-neutral-100">forzature a mano</span>
+              <span className="text-[10.5px] text-neutral-400">
+                tutto il resto del montaggio è derivato dalle misure
+              </span>
+              <button onClick={() => setVediForz(false)} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">chiudi</button>
+            </div>
+
+            {!nForzature && <div className="text-[11px] text-neutral-400">niente: il piano è tutto derivato.</div>}
+
+            {forz?.pin.map((f) => (
+              <div key={`p${f.battuta}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
+                <span className="text-sky-300 w-24 shrink-0">inchiodato</span>
+                <span className="text-neutral-100">{f.piano}</span>
+                <span className="text-neutral-400">alla battuta {f.battuta}</span>
+                <button onClick={async () => { await api.videoPin(f.battuta, null); leggiForzature(); }}
+                        className="ml-auto px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
+                  togli
+                </button>
+              </div>
+            ))}
+            {forz?.durata.map((f) => (
+              <div key={`d${f.battuta}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
+                <span className="text-sky-300 w-24 shrink-0">durata</span>
+                <span className="text-neutral-400">battuta {f.battuta}: {f.battute} battute</span>
+                <button onClick={async () => { await api.videoDurata(f.battuta, null); leggiForzature(); }}
+                        className="ml-auto px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
+                  togli
+                </button>
+              </div>
+            ))}
+            {forz?.scartatiAMano.map((f) => (
+              <div key={`s${f.piano}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
+                <span className="text-rose-300 w-24 shrink-0">scartato</span>
+                <span className="text-neutral-100">{f.piano}</span>
+                <span className="text-neutral-400 truncate">{f.motivo}</span>
+                <button onClick={async () => {
+                          setShots((await api.videoPick(f.piano, true)).shots); leggiForzature();
+                        }}
+                        className="ml-auto shrink-0 px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
+                  rimetti
+                </button>
+              </div>
+            ))}
+
+            {!!nForzature && (
+              <div className="mt-3 text-[10.5px] text-neutral-400">
+                nessuna di queste è nel video finché non ricostruisci.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {aiuto && (
         <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setAiuto(false)}>

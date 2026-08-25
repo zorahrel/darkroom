@@ -212,6 +212,34 @@ export function setMarcatore(t: number, nota: string | null) {
   return s.marcatori as Record<string, string>;
 }
 
+/**
+ * Tutto ciò che è stato forzato a mano.
+ *
+ * Il montaggio è derivato: quello che si vede è il risultato di misure. Le
+ * forzature sono le uniche cose che non lo sono, e finché restavano scritte
+ * solo dentro `scelte.json` erano invisibili — un clic di troppo su un provino
+ * inchiodava una battuta e nessuno se ne accorgeva fino alla ricostruzione
+ * dopo. Un cambiamento che non si vede è un cambiamento che non si può
+ * disfare, quindi qui si elencano.
+ */
+export function forzature(): {
+  pin: { battuta: number; piano: string }[];
+  durata: { battuta: number; battute: number }[];
+  scartatiAMano: { piano: string; motivo: string }[];
+} {
+  const s = scelte();
+  const daUI = (m: string) => /a mano|dalla timeline|prova del contratto|^$/i.test(m);
+  return {
+    pin: Object.entries(s.pin ?? {}).map(([b, p]) => ({ battuta: Number(b), piano: String(p) }))
+      .sort((a, b) => a.battuta - b.battuta),
+    durata: Object.entries(s.durata ?? {}).map(([b, v]) => ({ battuta: Number(b), battute: Number(v) }))
+      .sort((a, b) => a.battuta - b.battuta),
+    scartatiAMano: Object.entries(s.scartati ?? {})
+      .filter(([, m]) => daUI(String(m)))
+      .map(([piano, motivo]) => ({ piano, motivo: String(motivo) })),
+  };
+}
+
 export function marcatori(): { t: number; nota: string }[] {
   const m = (scelte() as any).marcatori ?? {};
   return Object.entries(m)

@@ -568,3 +568,10 @@ export type VideoOnda = {
 
 /** Un appunto attaccato a un istante del montaggio. */
 export type VideoMarcatore = { t: number; nota: string };
+
+/** Ciò che è stato forzato a mano sopra il piano derivato. */
+export type VideoForzature = {
+  pin: { battuta: number; piano: string }[];
+  durata: { battuta: number; battute: number }[];
+  scartatiAMano: { piano: string; motivo: string }[];
+};

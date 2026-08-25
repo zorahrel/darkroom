@@ -38,10 +38,12 @@ type Props = {
   gira: boolean;
   marcatori: VideoMarcatore[];
   togliMarcatore: (t: number) => void;
+  /** Le battute inchiodate a mano: si vedono senza aprire l'ispettore. */
+  inchiodate: Set<number>;
 };
 
 export default function Timeline(p: Props) {
-  const { cuts, atti, onda, durata, t, poster, scelto, inOut, apri, vaiA, gira, marcatori, togliMarcatore } = p;
+  const { cuts, atti, onda, durata, t, poster, scelto, inOut, apri, vaiA, gira, marcatori, togliMarcatore, inchiodate } = p;
   const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
   const [sopra, setSopra] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -277,6 +279,13 @@ export default function Timeline(p: Props) {
                      style={{ left: x(c.t), width: Math.max(1, x(c.dur)) }}>
                   {c.shot}
                 </div>
+              ))}
+              {/* Una battuta forzata a mano non e' piu' derivata: si vede da
+                  qui, senza dover aprire il taglio per scoprirlo. */}
+              {cuts.filter((c) => inchiodate.has(c.bar)).map((c, i) => (
+                <div key={`f${i}`} title="battuta inchiodata a mano"
+                     className="absolute top-0 h-[3px] bg-sky-400 pointer-events-none"
+                     style={{ left: x(c.t), width: Math.max(2, x(c.dur)) }} />
               ))}
             </div>
 

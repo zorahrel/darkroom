@@ -8,6 +8,7 @@ import type {
   VideoJob,
   VideoOnda,
   VideoMarcatore,
+  VideoForzature,
   VideoCut,
   VideoAssets,
   BakeResult,
@@ -428,6 +429,7 @@ export const api = {
     }>("/api/video/cuts"),
   videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
   videoOnda: () => jsonFetch<VideoOnda>("/api/video/onda"),
+  videoForzature: () => jsonFetch<VideoForzature>("/api/video/forzature"),
   videoMarcatori: () => jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatori"),
   videoMarcatore: (t: number, nota: string | null) =>
     jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatore", {

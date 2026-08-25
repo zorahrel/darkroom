@@ -134,21 +134,50 @@ export default function VideoScelta() {
 
   const avanti = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, coda.length - 1))), [coda.length]);
 
+  /**
+   * L'ultimo verdetto, con com'era prima.
+   *
+   * Si giudica a raffica con le frecce, quindi prima o poi si preme quella
+   * sbagliata — e la scena e' gia' passata. Finche' l'unica traccia era una
+   * riga in `scelte.json`, "ho scartato qualcosa per sbaglio?" era una domanda
+   * a cui si poteva rispondere solo aprendo il file. Adesso l'ultimo resta
+   * scritto in pagina, con il suo annulla, finche' non se ne fa un altro.
+   */
+  const [ultimo, setUltimo] = useState<
+    { ids: string[]; nome: string; kept: boolean; prima: Map<string, boolean>; indice: number } | null
+  >(null);
+
   const giudica = useCallback(
     async (kept: boolean, perche?: string) => {
       if (!scena) return;
       const ids = scena.pezzi.map((p) => p.id);
+      const prima = new Map(scena.pezzi.map((p) => [p.id, p.kept]));
       // Ottimismo: la riga resta come l'utente l'ha messa anche se la rete tarda.
       setShots((prev) => prev.map((s) => (ids.includes(s.id) ? { ...s, kept } : s)));
+      setUltimo({ ids, nome: scena.origine, kept, prima, indice: i });
       try {
-        let ultimo = shots;
-        for (const id of ids) ultimo = (await api.videoPick(id, kept, perche)).shots;
-        setShots(ultimo);
+        let u = shots;
+        for (const id of ids) u = (await api.videoPick(id, kept, perche)).shots;
+        setShots(u);
       } catch { /* la riga resta come l'utente l'ha messa */ }
       avanti();
     },
-    [scena, shots, avanti],
+    [scena, shots, avanti, i],
   );
+
+  /** Rimette ogni pezzo com'era e torna sulla scena, così la si può riguardare. */
+  const disfaUltimo = useCallback(async () => {
+    if (!ultimo) return;
+    const u = ultimo;
+    setUltimo(null);
+    setShots((prev) => prev.map((s) => (u.prima.has(s.id) ? { ...s, kept: u.prima.get(s.id)! } : s)));
+    try {
+      let r = shots;
+      for (const id of u.ids) r = (await api.videoPick(id, u.prima.get(id) ?? true)).shots;
+      setShots(r);
+    } catch { /* niente */ }
+    setI(u.indice); setPezzo(0);
+  }, [ultimo, shots]);
 
   const annota = useCallback(async () => {
     const t = testo.trim();
@@ -169,12 +198,13 @@ export default function VideoScelta() {
       if (e.key === "ArrowLeft") { e.preventDefault(); setNota("scarto"); }
       else if (e.key === "ArrowRight") { e.preventDefault(); void giudica(true); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setNota("nota"); }
+      else if (e.key === "z") { e.preventDefault(); void disfaUltimo(); }
       else if (e.key === " ") { e.preventDefault(); const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }
       else if (e.key === "ArrowDown") { e.preventDefault(); avanti(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nota, annota, giudica, avanti]);
+  }, [nota, annota, giudica, avanti, disfaUltimo]);
 
   useEffect(() => { if (nota !== null) campo.current?.focus(); }, [nota]);
 
@@ -190,6 +220,15 @@ export default function VideoScelta() {
         <span className="text-[10.5px] text-neutral-400 tabular-nums">
           {coda.length} in coda · {daGiudicare} mai giudicate su {scene.length} prese
         </span>
+        {ultimo && (
+          <span className={`text-[10.5px] flex items-center gap-1.5 ${ultimo.kept ? "text-emerald-300" : "text-rose-300"}`}>
+            {ultimo.kept ? "tenuta" : "scartata"} <span className="text-neutral-100">{ultimo.nome}</span>
+            <button onClick={() => void disfaUltimo()}
+                    className="px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
+              annulla · z
+            </button>
+          </span>
+        )}
         <div className="ml-auto flex gap-1.5 items-center">
         {(["da_giudicare", "in_montaggio", "scartate", "tutte"] as const).map((k) => (
           <button
