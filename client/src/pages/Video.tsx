@@ -1,79 +1,86 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import {
   api, pq,
   type VideoAssets, type VideoAtto, type VideoBarra, type VideoCut,
-  type VideoRicostruzione,
-  type VideoOnda, type VideoMarcatore, type VideoShot, type VideoSospesa,
+  type VideoMarcatore, type VideoOnda, type VideoRicostruzione,
+  type VideoShot, type VideoSospesa,
 } from "../api";
+import type { OutletCtx } from "../App";
 import Timeline from "./video/Timeline";
 import Ispettore from "./video/Ispettore";
+import Libreria from "./video/Libreria";
+import Maniglia from "./video/Maniglia";
+import { indiceTaglio } from "./video/tempo";
 
 /**
  * L'editor di un progetto video.
  *
- * Il montaggio non si monta qui: si monta in Python, e la ragione non e'
- * pigrizia. Le garanzie del progetto — i tagli su beat misurati, la
- * correlazione fra durezza del suono e durezza dell'immagine, zero doppioni —
- * sono vere PER COSTRUZIONE, perche' il piano e' derivato da misure. Il giorno
- * in cui i tagli si trascinano a mano quelle proprieta' smettono di essere
- * garantite e nessuna misura puo' piu' difenderle.
+ * Un guscio che sta in uno schermo e non scorre: in alto la barra, poi la
+ * riga alta — libreria, monitor, ispettore — e sotto la linea del tempo,
+ * separate da una maniglia che si trascina. È la forma di qualunque programma
+ * di montaggio, e non per moda: se la pagina scorre, il monitor e la timeline
+ * non possono stare sotto gli occhi insieme, e guardare un taglio diventa due
+ * gesti invece che uno.
  *
- * Quindi qui si fanno le tre cose che la catena non sa fare: si guarda, si
- * decide cosa tenere, e si forzano poche scelte dichiarandole. Le forzature
- * finiscono in `scelte.json`, il pianificatore le rilegge, e se una di esse
- * sospende una garanzia lo scrive nel piano invece di tacere.
+ * L'altezza si misura, non si indovina: `100vh` meno l'intestazione vera,
+ * ricalcolata a ogni ridimensionamento.
  */
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+const FPS = 24;
 
-function Barra({ barra, onRifai }: { barra: VideoBarra | null; onRifai: () => void }) {
-  if (!barra) return <div className="text-[11px] text-neutral-700">barra non ancora misurata</div>;
-  if (barra.calcolo && !barra.righe.length) {
-    return <div className="text-[11px] text-neutral-600 border border-neutral-900 rounded-sm p-2.5">
-      misuro la barra… (check.py, un minuto e mezzo)
-    </div>;
-  }
-  const col = barra.esito === "verde" ? "text-emerald-400"
-            : barra.esito === "rosso" ? "text-rose-400" : "text-neutral-500";
+/** Quanto spazio prende la timeline, in pixel. Sta nel browser perché è una
+ *  preferenza di chi guarda, non una proprietà del montaggio. */
+const CHIAVE_ALTEZZA = "darkroom.video.altezzaTimeline";
+const CHIAVE_SX = "darkroom.video.larghezzaLibreria";
+const CHIAVE_DX = "darkroom.video.larghezzaIspettore";
+
+function leggi(chiave: string, difetto: number, min: number): number {
+  const v = Number(localStorage.getItem(chiave));
+  return Number.isFinite(v) && v >= min ? v : difetto;
+}
+
+/** Il verdetto della barra, in una riga; il dettaglio si apre. */
+function Stato({ barra, onRifai }: { barra: VideoBarra | null; onRifai: () => void }) {
+  const [aperta, setAperta] = useState(false);
+  const esito = barra?.esito ?? "sconosciuto";
+  const colore = barra?.calcolo ? "text-neutral-400"
+    : esito === "verde" ? "text-emerald-400"
+    : esito === "rosso" ? "text-rose-400" : "text-neutral-400";
+  const pallino = barra?.calcolo ? "bg-neutral-600 animate-pulse"
+    : esito === "verde" ? "bg-emerald-500" : esito === "rosso" ? "bg-rose-500" : "bg-neutral-700";
+
   return (
-    <div className="border border-neutral-900 rounded-sm p-2.5">
-      <div className="flex items-baseline gap-3 mb-1.5">
-        <span className={`text-[11px] tracking-[0.2em] ${col}`}>{barra.esito.toUpperCase()}</span>
-        <button onClick={onRifai} className="text-[10.5px] text-neutral-600 hover:text-neutral-300">
-          rimisura
-        </button>
-        {barra.calcolo && <span className="text-[10.5px] text-neutral-700">sto rimisurando…</span>}
-      </div>
-      <ul className="space-y-0.5">
-        {barra.righe.map((r) => (
-          <li key={r.n} className="text-[11px] flex gap-2 leading-snug">
-            <span className={r.ok ? "text-emerald-500" : "text-rose-500"}>{r.ok ? "✓" : "✗"}</span>
-            <span className="text-neutral-400">{r.testo}</span>
-          </li>
-        ))}
-      </ul>
-      {barra.fallite.map((f, i) => (
-        <div key={i} className="mt-1 text-[11px] text-rose-400">— {f}</div>
-      ))}
+    <div className="relative">
+      <button onClick={() => setAperta((a) => !a)} className={`flex items-center gap-1.5 text-[11px] ${colore}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${pallino}`} />
+        {barra?.calcolo ? "misuro…" : esito}
+        {!!barra?.fallite.length && <span className="text-rose-400">· {barra.fallite.length} cadute</span>}
+        <span className="text-neutral-400">{aperta ? "▴" : "▾"}</span>
+      </button>
+      {aperta && (
+        <div className="absolute z-40 mt-1 w-[640px] max-w-[86vw] bg-neutral-950 border border-neutral-800
+                        rounded-sm p-2.5 shadow-xl">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className={`text-[11px] ${colore}`}>{esito}</span>
+            <button onClick={onRifai} className="text-[10px] text-neutral-400 hover:text-neutral-300">rimisura</button>
+          </div>
+          {barra?.righe.map((r) => (
+            <div key={r.n} className="flex gap-2 text-[11px] leading-relaxed">
+              <span className={r.ok === false ? "text-rose-400" : "text-emerald-500/80"}>{r.ok === false ? "✕" : "✓"}</span>
+              <span className="text-neutral-400">{r.testo}</span>
+            </div>
+          ))}
+          {barra?.fallite.map((f, i) => <div key={i} className="text-[11px] text-rose-400">— {f}</div>)}
+          {!barra?.righe.length && <div className="text-[11px] text-neutral-400">non ancora misurata</div>}
+        </div>
+      )}
     </div>
   );
 }
 
-/** 24, come il girato. Un montaggio derivato dai beat si giudica al fotogramma:
- *  "il taglio arriva un pelo tardi" e' un quarantesimo di secondo, e con la
- *  barra nativa di `<video controls>` quel pelo non si raggiunge. */
-const FPS = 24;
-
-/**
- * Il trasporto.
- *
- * `<video controls>` sa fare play e una barra da trascinare, e su un file
- * finito non serve altro — ma qui il file finito e' l'oggetto in revisione:
- * si guarda un taglio, si torna indietro di un fotogramma, si salta al taglio
- * prima. Sono tre gesti che la barra nativa non ha, e senza si finisce a
- * cercare col mouse un istante che si conosce gia' per numero.
- */
+/** Il trasporto: quello che una barra nativa non sa fare. */
 function Trasporto({ v, t, durata, cuts, vaiA }: {
   v: HTMLVideoElement | null; t: number; durata: number;
   cuts: VideoCut[]; vaiA: (s: number, parti?: boolean) => void;
@@ -91,38 +98,25 @@ function Trasporto({ v, t, durata, cuts, vaiA }: {
   const i = indiceTaglio(cuts, t);
   const B = "px-1.5 py-0.5 rounded-sm border border-neutral-800 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600";
   return (
-    <div className="mt-2 flex items-center gap-1.5 text-[11px] flex-wrap">
+    <div className="mt-1.5 flex items-center gap-1 text-[10.5px] justify-center flex-wrap">
       <button className={B} title="taglio prima  [" onClick={() => vaiA(cuts[Math.max(0, i - 1)]?.t ?? 0)}>⏮</button>
-      <button className={B} title="un fotogramma indietro  ←" onClick={() => vaiA(t - 1 / FPS, false)}>◀|</button>
+      <button className={B} title="un fotogramma indietro  ←" onClick={() => vaiA(t - 1 / FPS)}>◀|</button>
       <button className={`${B} w-8`} title="spazio" onClick={() => (gira ? v?.pause() : v?.play())}>{gira ? "❚❚" : "▶"}</button>
-      <button className={B} title="un fotogramma avanti  →" onClick={() => vaiA(t + 1 / FPS, false)}>|▶</button>
+      <button className={B} title="un fotogramma avanti  →" onClick={() => vaiA(t + 1 / FPS)}>|▶</button>
       <button className={B} title="taglio dopo  ]" onClick={() => vaiA(cuts[Math.min(cuts.length - 1, i + 1)]?.t ?? durata)}>⏭</button>
-      <span className="ml-1 tabular-nums text-neutral-500">
-        {mmss(t)} / {mmss(durata)} · f{Math.round(t * FPS)}
-      </span>
-      <select
-        value={vel} onChange={(e) => setVel(Number(e.target.value))}
-        className="ml-1 bg-neutral-950 border border-neutral-800 rounded-sm px-1 py-0.5 text-neutral-400">
+      <span className="ml-1 tabular-nums text-neutral-400">{mmss(t)} / {mmss(durata)} · f{Math.round(t * FPS)}</span>
+      <select value={vel} onChange={(e) => setVel(Number(e.target.value))}
+              className="ml-1 bg-neutral-950 border border-neutral-800 rounded-sm px-1 py-0.5 text-neutral-400">
         {[0.25, 0.5, 1, 1.5, 2].map((x) => <option key={x} value={x}>{x}x</option>)}
       </select>
-      <span className="ml-auto text-neutral-700">spazio · ←→ fotogramma · ⇧←→ secondo · [ ] taglio · f schermo</span>
     </div>
   );
 }
 
-/** Quale taglio sta sotto la testina. Ricerca binaria perche' la chiamano il
- *  player a ogni `timeupdate` e la timeline a ogni ridisegno. */
-function indiceTaglio(cuts: VideoCut[], t: number): number {
-  let lo = 0, hi = cuts.length - 1, r = 0;
-  while (lo <= hi) {
-    const m = (lo + hi) >> 1;
-    if ((cuts[m]?.t ?? 0) <= t) { r = m; lo = m + 1; } else hi = m - 1;
-  }
-  return r;
-}
 
 export default function Video() {
   const { pid } = useParams();
+  const ctx = useOutletContext<OutletCtx>();
   const [shots, setShots] = useState<VideoShot[]>([]);
   const [cuts, setCuts] = useState<VideoCut[]>([]);
   const [atti, setAtti] = useState<VideoAtto[]>([]);
@@ -131,12 +125,66 @@ export default function Video() {
   const [bpm, setBpm] = useState<number | null>(null);
   const [durata, setDurata] = useState(0);
   const [t, setT] = useState(0);
-  const [solo, setSolo] = useState<"tutti" | "tenuti" | "scartati">("tutti");
   const [barra, setBarra] = useState<VideoBarra | null>(null);
   const [ric, setRic] = useState<VideoRicostruzione | null>(null);
   const [scelto, setScelto] = useState<number | null>(null);
-  const video = useRef<HTMLVideoElement>(null);
+  const [onda, setOnda] = useState<VideoOnda | null>(null);
+  const [marcatori, setMarcatori] = useState<VideoMarcatore[]>([]);
+  const [inOut, setInOut] = useState<[number, number] | null>(null);
+  const [gira, setGira] = useState(false);
+  const [ciclo, setCiclo] = useState(false);
+  const [appunto, setAppunto] = useState<{ t: number; testo: string } | null>(null);
+  const [aiuto, setAiuto] = useState(false);
+  const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
+  const video = useRef<HTMLVideoElement | null>(null);
 
+  /** L'editor vuole tutta la larghezza: il limite a 1280 px è giusto per una
+   *  pagina di testo e sbagliato per una timeline. */
+  useEffect(() => {
+    const prima = ctx?.wide;
+    ctx?.setWide?.(true);
+    return () => { if (prima === false) ctx?.setWide?.(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- misure del guscio ---------------------------------------------------
+  const guscio = useRef<HTMLDivElement>(null);
+  const [hGuscio, setHGuscio] = useState(700);
+  const [hTimeline, setHTimeline] = useState(() => leggi(CHIAVE_ALTEZZA, 300, 140));
+  const [wSx, setWSx] = useState(() => leggi(CHIAVE_SX, 218, 150));
+  const [wDx, setWDx] = useState(() => leggi(CHIAVE_DX, 336, 220));
+
+  /** L'intestazione dell'app non ha un'altezza che si possa dare per scontata:
+   *  la si misura dove finisce davvero, e si ricalcola quando la finestra
+   *  cambia. Un `calc(100vh - 56px)` scritto a mano è giusto finché qualcuno
+   *  non aggiunge una riga al menu. */
+  useLayoutEffect(() => {
+    const misura = () => {
+      const el = guscio.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      // Il padding sotto del contenitore si legge, non si stima: un margine a
+      // occhio lascia otto pixel di troppo e la pagina scorre lo stesso — che
+      // e' esattamente cio' che questo guscio esiste per evitare.
+      const padre = el.parentElement;
+      const sotto = padre ? parseFloat(getComputedStyle(padre).paddingBottom) || 0 : 0;
+      setHGuscio(Math.max(360, window.innerHeight - top - sotto));
+    };
+    misura();
+    window.addEventListener("resize", misura);
+    const ro = new ResizeObserver(misura);
+    if (guscio.current?.parentElement) ro.observe(guscio.current.parentElement);
+    return () => { window.removeEventListener("resize", misura); ro.disconnect(); };
+  }, []);
+
+  const H_MANIGLIA = 6;
+  const H_BARRA = 24;
+  const hAlto = Math.max(180, hGuscio - H_BARRA - H_MANIGLIA - hTimeline);
+  const limiteTimeline = (v: number) => Math.max(140, Math.min(hGuscio - H_BARRA - H_MANIGLIA - 180, v));
+
+  const salva = (k: string) => (v: number) => localStorage.setItem(k, String(Math.round(v)));
+
+  // ---- dati ----------------------------------------------------------------
   const ricarica = useCallback(() => {
     api.videoShots().then((r) => setShots(r.shots)).catch(() => {});
     api.videoCuts().then((r) => {
@@ -144,11 +192,12 @@ export default function Video() {
       setAtti(r.atti ?? []); setSospese(r.sospese ?? []);
     }).catch(() => {});
     api.videoAssets().then(setAssets).catch(() => {});
+    api.videoMarcatori().then((r) => setMarcatori(r.marcatori)).catch(() => {});
   }, []);
-
   useEffect(() => { ricarica(); }, [ricarica]);
-  // La barra costa un minuto e mezzo di ffmpeg: il server la mette in cantiere
-  // e risponde subito, la pagina la ripesca finche' non e' pronta.
+
+  /** La barra costa un minuto e mezzo di ffmpeg sul PC: il server la mette in
+   *  cantiere e risponde subito, la pagina la ripesca finché non è pronta. */
   useEffect(() => {
     let vivo = true;
     const chiedi = async () => {
@@ -163,54 +212,7 @@ export default function Video() {
     return () => { vivo = false; };
   }, []);
 
-  // La ricostruzione si segue col polling, come il bake: e' lo stesso problema
-  // (un processo lungo con un log che cresce) e la casa ha gia' questa forma.
-  useEffect(() => {
-    if (!ric?.attiva) return;
-    const h = setInterval(async () => {
-      try {
-        const r = await api.videoRicostruzione();
-        setRic(r);
-        if (!r.attiva) {
-          ricarica();
-          api.videoBarra(true).then(setBarra).catch(() => {});
-        }
-      } catch { /* niente */ }
-    }, 1200);
-    return () => clearInterval(h);
-  }, [ric?.attiva, ricarica]);
-
-  const src = assets?.anteprima ?? assets?.reel ?? null;
-  const tenuti = shots.filter((s) => s.kept).length;
-  const inScena = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of cuts) m.set(c.shot, (m.get(c.shot) ?? 0) + c.dur);
-    return m;
-  }, [cuts]);
-
-  const vai = (s: number) => vaiA(s, true);
-
-  /** Un solo modo di muovere la testina. `parti` distingue "portami li' e fai
-   *  vedere" (clic su un taglio) da "portami li' e basta" (passo a fotogramma):
-   *  se anche il passo facesse partire il video, tenere premuta la freccia
-   *  scivolerebbe invece di scorrere quadro per quadro. */
-  const vaiA = useCallback((s: number, parti = false) => {
-    const v = video.current;
-    if (!v) return;
-    v.currentTime = Math.max(0, Math.min(durata - 1 / FPS, s));
-    setT(v.currentTime);
-    if (parti) v.play().catch(() => {});
-  }, [durata]);
-
-  const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
-  const [onda, setOnda] = useState<VideoOnda | null>(null);
-  const [marcatori, setMarcatori] = useState<VideoMarcatore[]>([]);
-  useEffect(() => { api.videoMarcatori().then((r) => setMarcatori(r.marcatori)).catch(() => {}); }, []);
-  const [inOut, setInOut] = useState<[number, number] | null>(null);
-  const [gira, setGira] = useState(false);
-
-  /** I picchi si calcolano al primo giro e restano su disco; finche' non ci
-   *  sono la corsia del suono lo dice invece di restare vuota. */
+  /** I picchi si calcolano al primo giro e restano su disco. */
   useEffect(() => {
     let vivo = true;
     const chiedi = async () => {
@@ -226,6 +228,18 @@ export default function Video() {
   }, []);
 
   useEffect(() => {
+    if (!ric?.attiva) return;
+    const h = setInterval(async () => {
+      try {
+        const r = await api.videoRicostruzione();
+        setRic(r);
+        if (!r.attiva) { ricarica(); api.videoBarra(true).then(setBarra).catch(() => {}); }
+      } catch { /* niente */ }
+    }, 1200);
+    return () => clearInterval(h);
+  }, [ric?.attiva, ricarica]);
+
+  useEffect(() => {
     if (!vEl) return;
     const a = () => setGira(true), b = () => setGira(false);
     vEl.addEventListener("play", a); vEl.addEventListener("pause", b);
@@ -233,10 +247,7 @@ export default function Video() {
   }, [vEl]);
 
   /** Il ciclo sul tratto: si guarda lo stesso passaggio dieci volte di fila
-   *  senza toccare niente, che e' come si decide se un taglio arriva tardi. */
-  const [ciclo, setCiclo] = useState(false);
-  const [appunto, setAppunto] = useState<{ t: number; testo: string } | null>(null);
-  const [aiuto, setAiuto] = useState(false);
+   *  senza toccare niente, che è come si decide se un taglio arriva tardi. */
   useEffect(() => {
     if (!ciclo || !inOut || !vEl) return;
     const h = setInterval(() => {
@@ -248,7 +259,14 @@ export default function Video() {
     return () => clearInterval(h);
   }, [ciclo, inOut, vEl]);
 
-  /** I poster della striscia: un'immagine per piano, la ripresa tenuta. */
+  const src = assets?.anteprima ?? assets?.reel ?? null;
+
+  const inScena = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of cuts) m.set(c.shot, (m.get(c.shot) ?? 0) + c.dur);
+    return m;
+  }, [cuts]);
+
   const poster = useMemo(() => {
     const m = new Map<string, string>();
     for (const sh of shots) {
@@ -258,77 +276,65 @@ export default function Video() {
     return m;
   }, [shots]);
 
-  /**
-   * La tastiera. Sta qui e non nel trasporto perche' vale sulla pagina: si
-   * guarda il video con le mani ferme sui tasti e gli occhi sull'immagine, che
-   * e' l'unico modo di accorgersi di un taglio che arriva tardi.
-   */
-  useEffect(() => {
-    const su = (e: KeyboardEvent) => {
-      const dentro = (e.target as HTMLElement)?.closest("input, textarea, select");
-      if (dentro || e.metaKey || e.ctrlKey) return;
-      const v = video.current;
-      if (!v) return;
-      const i = indiceTaglio(cuts, t);
-      const passo = e.shiftKey ? 1 : 1 / FPS;
-      if (e.key === " ") { e.preventDefault(); v.paused ? void v.play() : v.pause(); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); vaiA(t - passo); }
-      else if (e.key === "ArrowRight") { e.preventDefault(); vaiA(t + passo); }
-      else if (e.key === "[") { e.preventDefault(); const j = Math.max(0, i - 1); setScelto(j); vaiA(cuts[j]?.t ?? 0); }
-      else if (e.key === "]") { e.preventDefault(); const j = Math.min(cuts.length - 1, i + 1); setScelto(j); vaiA(cuts[j]?.t ?? 0); }
-      else if (e.key === "Home") { e.preventDefault(); vaiA(0); }
-      else if (e.key === "End") { e.preventDefault(); vaiA(durata - 1 / FPS); }
-      else if (e.key === "f") { e.preventDefault(); void v.requestFullscreen?.().catch(() => {}); }
-      else if (e.key === "i") { e.preventDefault(); setInOut([t, inOut?.[1] ?? durata]); }
-      else if (e.key === "o") { e.preventDefault(); setInOut([inOut?.[0] ?? 0, t]); }
-      else if (e.key === "l") { e.preventDefault(); setCiclo((c) => !c); }
-      else if (e.key === "m") {
-        e.preventDefault();
-        // Il video si ferma da solo: si scrive guardando il fotogramma che ha
-        // fatto scattare l'appunto, non quello di tre secondi dopo.
-        v.pause();
-        setAppunto({ t: v.currentTime, testo: "" });
-      }
-      else if (e.key === "?") { e.preventDefault(); setAiuto((a) => !a); }
-    };
-    window.addEventListener("keydown", su);
-    return () => window.removeEventListener("keydown", su);
-  }, [cuts, t, durata, vaiA, inOut]);
+  /** Un solo modo di muovere la testina. `parti` distingue "portami lì e fai
+   *  vedere" da "portami lì e basta": se anche il passo a fotogramma facesse
+   *  partire il video, tenere premuta la freccia scivolerebbe invece di
+   *  scorrere quadro per quadro. */
+  const vaiA = useCallback((s: number, parti = false) => {
+    const v = video.current;
+    if (!v || !durata) return;
+    v.currentTime = Math.max(0, Math.min(durata - 1 / FPS, s));
+    setT(v.currentTime);
+    if (parti) void v.play().catch(() => {});
+  }, [durata]);
 
-  const [ripresa, setRipresa] = useState<Record<string, number>>({});
-  const [scrivo, setScrivo] = useState<string | null>(null);
-  const [testo, setTesto] = useState("");
+  const apriTaglio = useCallback((i: number) => {
+    setScelto(i);
+    vaiA((cuts[i]?.t ?? 0) + 0.02, true);
+  }, [cuts, vaiA]);
 
-  const segnala = async (shot: string) => {
-    const t2 = testo.trim();
-    if (!t2) { setScrivo(null); return; }
-    setScrivo(null); setTesto("");
-    try { setShots((await api.videoProblema(shot, t2)).shots); } catch { /* niente */ }
-  };
-  const togli = async (shot: string, i: number) => {
-    try { setShots((await api.videoProblema(shot, undefined, i)).shots); } catch { /* niente */ }
-  };
-  const pickTake = async (shot: string, take: string, kept: boolean) => {
-    setShots((prev) => prev.map((s) => s.id === shot
-      ? { ...s, takes: s.takes.map((t2) => (t2.take === take ? { ...t2, kept } : t2)) } : s));
-    try { setShots((await api.videoRipresa(shot, take, kept)).shots); } catch { /* niente */ }
-  };
-  const pick = async (shot: string, kept: boolean) => {
-    setShots((prev) => prev.map((s) => (s.id === shot ? { ...s, kept } : s)));
-    try { setShots((await api.videoPick(shot, kept)).shots); } catch { /* niente */ }
-  };
+  /** Dalla libreria al montaggio: se quel piano è in scena, ci si va. */
+  const apriPiano = useCallback((id: string) => {
+    const i = cuts.findIndex((c) => c.shot === id);
+    if (i >= 0) apriTaglio(i);
+  }, [cuts, apriTaglio]);
 
-  const visibili = shots.filter((s) =>
-    solo === "tutti" ? true : solo === "tenuti" ? s.kept : !s.kept);
-
-  const attivo = cuts.find((c) => t >= c.t && t < c.t + c.dur);
   const sel = scelto !== null ? cuts[scelto] ?? null : null;
-  // Chi puo' prendere il posto di questo taglio: le riprese tenute dello stesso
-  // atto. Fuori dall'atto non e' una scelta di montaggio, e' un'altra storia.
+  const attivo = cuts[indiceTaglio(cuts, t)] ?? null;
   const candidati = useMemo(
     () => (sel ? shots.filter((s) => s.kept && s.atto === sel.atto && s.id !== sel.shot) : []),
     [sel, shots],
   );
+
+  /** La tastiera vale sulla pagina: si guarda il video con le mani ferme sui
+   *  tasti e gli occhi sull'immagine, che è l'unico modo di accorgersi di un
+   *  taglio che arriva tardi. */
+  useEffect(() => {
+    const su = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest("input, textarea, select") || e.metaKey || e.ctrlKey) return;
+      const v = video.current;
+      if (!v) return;
+      const i = indiceTaglio(cuts, t);
+      const passo = e.shiftKey ? 1 : 1 / FPS;
+      const k = e.key;
+      if (k === " ") { e.preventDefault(); v.paused ? void v.play() : v.pause(); }
+      else if (k === "ArrowLeft") { e.preventDefault(); vaiA(t - passo); }
+      else if (k === "ArrowRight") { e.preventDefault(); vaiA(t + passo); }
+      else if (k === "[") { e.preventDefault(); apriTaglio(Math.max(0, i - 1)); }
+      else if (k === "]") { e.preventDefault(); apriTaglio(Math.min(cuts.length - 1, i + 1)); }
+      else if (k === "Home") { e.preventDefault(); vaiA(0); }
+      else if (k === "End") { e.preventDefault(); vaiA(durata - 1 / FPS); }
+      else if (k === "f") { e.preventDefault(); void v.requestFullscreen?.().catch(() => {}); }
+      else if (k === "i") { e.preventDefault(); setInOut([t, inOut?.[1] ?? durata]); }
+      else if (k === "o") { e.preventDefault(); setInOut([inOut?.[0] ?? 0, t]); }
+      else if (k === "l") { e.preventDefault(); setCiclo((c) => !c); }
+      else if (k === "m") { e.preventDefault(); v.pause(); setAppunto({ t: v.currentTime, testo: "" }); }
+      else if (k === "?") { e.preventDefault(); setAiuto((a) => !a); }
+      else if (k === "Escape") { setScelto(null); setAiuto(false); setAppunto(null); }
+    };
+    window.addEventListener("keydown", su);
+    return () => window.removeEventListener("keydown", su);
+  }, [cuts, t, durata, vaiA, inOut, apriTaglio]);
 
   const lancia = async () => {
     try { await api.videoRicostruisci(); setRic(await api.videoRicostruzione()); }
@@ -336,293 +342,175 @@ export default function Video() {
   };
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 py-4 text-neutral-200">
-      <div className="flex items-baseline gap-4 mb-3 flex-wrap">
-        <h1 className="tracking-[0.3em] text-[13px] text-neutral-400">MONTAGGIO</h1>
-        <Link to={`/p/${pid}/video/scelta`} className="text-[11px] text-neutral-500 hover:text-neutral-300">
-          → scelta
-        </Link>
-        <span className="text-[12px] text-neutral-600">
-          {cuts.length} tagli · {shots.length} piani girati · {tenuti} tenuti
-          {bpm ? ` · ${bpm.toFixed(1)} BPM` : ""} · {durata.toFixed(1)}s
+    <div ref={guscio} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: hGuscio }}>
+      {/* ---- barra ---- */}
+      <div className="shrink-0 flex items-center gap-2.5 px-1 border-b border-neutral-900" style={{ height: H_BARRA }}>
+        <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">MONTAGGIO</span>
+        <Link to={`/p/${pid}/video/scelta`} className="text-[11px] text-neutral-400 hover:text-neutral-200">scelta →</Link>
+        <span className="text-[10.5px] text-neutral-400 tabular-nums">
+          {cuts.length} tagli · {shots.length} piani{bpm ? ` · ${bpm.toFixed(1)} BPM` : ""} · {mmss(durata)}
         </span>
-        <button
-          onClick={lancia}
-          disabled={!!ric?.attiva}
-          className={`text-[11px] px-2 py-0.5 rounded-sm border ${
-            ric?.attiva ? "border-neutral-800 text-neutral-700"
-                        : "border-neutral-600 text-neutral-200 hover:bg-neutral-900"}`}>
-          {ric?.attiva ? "ricostruisco…" : "ricostruisci"}
-        </button>
-      </div>
-
-      {sospese.length > 0 && (
-        <div className="mb-3 border border-amber-900/60 rounded-sm p-2 text-[11px] text-amber-400/90">
-          garanzie sospese da una forzatura:
-          {sospese.map((s, i) => (
-            <span key={i}> · batt {s.battuta}: {s.garanzia}</span>
-          ))}
+        <Stato barra={barra} onRifai={() => api.videoBarra(true).then(setBarra).catch(() => {})} />
+        {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {!!sospese.length && (
+          <span className="text-[10.5px] text-amber-400/90" title={sospese.map((s) => `batt ${s.battuta}: ${s.garanzia}`).join(" · ")}>
+            {sospese.length} garanzie sospese
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => setAiuto((a) => !a)} className="text-[10.5px] text-neutral-400 hover:text-neutral-200">tasti ?</button>
+          <button onClick={lancia} disabled={!!ric?.attiva}
+                  className={`text-[10.5px] px-2 py-0.5 rounded-sm border ${
+                    ric?.attiva ? "border-neutral-800 text-neutral-400" : "border-neutral-600 text-neutral-200 hover:bg-neutral-900"}`}>
+            {ric?.attiva ? "ricostruisco…" : "ricostruisci"}
+          </button>
         </div>
-      )}
-
-      {ric && (ric.attiva || ric.finita) && (
-        <details open={ric.attiva} className="mb-3">
-          <summary className="text-[11px] text-neutral-600 cursor-pointer">
-            log della ricostruzione {ric.uscita !== null && `(uscita ${ric.uscita})`}
-          </summary>
-          <pre className="mt-1 max-h-52 overflow-auto bg-neutral-950 border border-neutral-900 rounded-sm
-                          p-2 text-[10.5px] leading-tight text-neutral-500 whitespace-pre-wrap">
-            {ric.log.slice(-4000) || "…"}
-          </pre>
-        </details>
-      )}
-
-      <div className="mb-4">
-        <Barra barra={barra} onRifai={() => api.videoBarra(true).then(setBarra).catch(() => {})} />
       </div>
 
-      {/* Sopra: il quadro e cio' che si sta guardando. Sotto: il tempo, per
-          tutta la larghezza — una timeline schiacciata in una colonna e' una
-          timeline che non si puo' leggere, ed e' la riga in cui questo lavoro
-          vive. */}
-      <div className="flex gap-5 items-start">
-        <div className="shrink-0 w-[300px]">
+      {/* ---- riga alta: libreria · monitor · ispettore ---- */}
+      <div className="flex min-h-0" style={{ height: hAlto }}>
+        <aside className="shrink-0 min-w-0" style={{ width: wSx }}>
+          <Libreria shots={shots} inScena={inScena} setShots={setShots} apri={apriPiano} />
+        </aside>
+        <Maniglia verso="col" valore={wSx} titolo="larghezza della libreria"
+                  calcola={(v0, d) => Math.max(150, Math.min(460, v0 + d))}
+                  onCambia={setWSx} onFine={salva(CHIAVE_SX)} />
+
+        <main className="shrink-0 flex flex-col items-center justify-center px-2 py-1.5 gap-0 relative">
           {src ? (
             <video
-              ref={(el) => { (video as { current: HTMLVideoElement | null }).current = el; setVEl(el); }}
+              ref={(el) => { video.current = el; setVEl(el); }}
               src={pq(`/api/video/asset/${src}`)}
               playsInline loop preload="metadata"
-              /* Un video fermo a 0 e' un rettangolo nero: il primo quadro del
-                 montaggio e' notte sul mare, quindi la pagina si apriva su un
-                 buco. Un salto di mezzo secondo dopo i metadati e la locandina
-                 e' un fotogramma vero, senza far partire niente. */
+              /* Un video fermo a 0 è un rettangolo nero: il primo quadro è
+                 notte sul mare, quindi la pagina si apriva su un buco. Mezzo
+                 secondo dopo i metadati e la locandina è un fotogramma vero. */
               onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
               onClick={(e) => { const v = e.currentTarget; v.paused ? void v.play() : v.pause(); }}
-              className="w-full aspect-[9/16] object-contain bg-black border border-neutral-800 rounded-sm cursor-pointer"
               onTimeUpdate={(e) => setT((e.target as HTMLVideoElement).currentTime)}
+              className="max-h-[calc(100%-40px)] max-w-full aspect-[9/16] object-contain bg-black
+                         border border-neutral-800 rounded-sm cursor-pointer"
             />
           ) : (
-            <div className="w-full aspect-[9/16] bg-black border border-neutral-800 rounded-sm
-                            grid place-items-center text-neutral-600 text-xs">
-              nessun montaggio ancora
-            </div>
+            <div className="h-[70%] aspect-[9/16] bg-black border border-neutral-800 rounded-sm
+                            grid place-items-center text-neutral-400 text-xs">nessun montaggio ancora</div>
           )}
           <Trasporto v={vEl} t={t} durata={durata} cuts={cuts} vaiA={vaiA} />
           {attivo && (
-            <div className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
+            <div className="text-[10px] text-neutral-400 tabular-nums">
               {attivo.shot} · {attivo.dur.toFixed(2)}s · {attivo.velocita.toFixed(2)}x
               {attivo.rovescio ? " · rovescio" : ""}{attivo.atto ? ` · ${attivo.atto}` : ""}
             </div>
           )}
-        </div>
 
-        <div className="flex-1 min-w-0">
-          {!sel && (
-            <div className="border border-dashed border-neutral-900 rounded-sm p-8 text-center
-                            text-[11.5px] text-neutral-700">
-              clicca un taglio sulla timeline qui sotto per vedere perche' sta li',
-              e per metterne un altro al suo posto, allungarlo o toglierlo
+          {appunto && (
+            <div className="absolute inset-x-6 bottom-4 border border-amber-900/70 bg-neutral-950 rounded-sm p-2">
+              <div className="text-[10px] text-amber-400/80 tabular-nums mb-1">
+                appunto a {mmss(appunto.t)} — f{Math.round(appunto.t * FPS)}
+              </div>
+              <input
+                autoFocus value={appunto.testo}
+                onChange={(e) => setAppunto({ ...appunto, testo: e.target.value })}
+                onKeyDown={async (e) => {
+                  e.stopPropagation();
+                  if (e.key === "Escape") setAppunto(null);
+                  if (e.key === "Enter" && appunto.testo.trim()) {
+                    const r = await api.videoMarcatore(appunto.t, appunto.testo.trim()).catch(() => null);
+                    if (r) setMarcatori(r.marcatori);
+                    setAppunto(null);
+                  }
+                }}
+                placeholder="cosa non va — invio per segnarlo, esc per lasciar perdere"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-sm px-2 py-1 text-[11.5px] text-neutral-200"
+              />
             </div>
           )}
-          {sel && (
+        </main>
+
+        <Maniglia verso="col" valore={wDx} titolo="larghezza dell'ispettore"
+                  calcola={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
+                  onCambia={setWDx} onFine={salva(CHIAVE_DX)} />
+        <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
+          {sel ? (
             <Ispettore sel={sel} shots={shots} candidati={candidati} chiudi={() => setScelto(null)} />
+          ) : (
+            <div className="p-2.5 space-y-2.5">
+              <div className="text-[11px] text-neutral-400 leading-relaxed">
+                clicca un taglio sulla timeline per vedere perché sta lì — e per metterne un
+                altro al suo posto, allungarlo o toglierlo.
+              </div>
+              {!!marcatori.length && (
+                <div>
+                  <div className="text-[10px] text-neutral-400 mb-1">appunti</div>
+                  <div className="space-y-1">
+                    {marcatori.map((m) => (
+                      <div key={m.t} className="flex items-start gap-1.5 text-[11px]">
+                        <button onClick={() => vaiA(m.t, true)} className="text-amber-500/70 tabular-nums shrink-0 hover:text-amber-300">
+                          {mmss(m.t)}
+                        </button>
+                        <span className="text-neutral-400 leading-tight">{m.nota}</span>
+                        <button onClick={() => void api.videoMarcatore(m.t, null).then((r) => setMarcatori(r.marcatori))}
+                                className="ml-auto text-neutral-400 hover:text-neutral-300">×</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {ric && (ric.attiva || ric.finita) && (
+                <div>
+                  <div className="text-[10px] text-neutral-400 mb-1">
+                    ricostruzione {ric.uscita !== null && `(uscita ${ric.uscita})`}
+                  </div>
+                  <pre className="max-h-52 overflow-auto bg-neutral-950 border border-neutral-900 rounded-sm
+                                  p-1.5 text-[9.5px] leading-tight text-neutral-400 whitespace-pre-wrap">
+                    {ric.log.slice(-3000) || "…"}
+                  </pre>
+                </div>
+              )}
+            </div>
           )}
-        </div>
+        </aside>
       </div>
 
-      {/* Scrivere l'appunto: il video e' fermo sul fotogramma che l'ha fatto
-          scattare, e l'istante e' gia' quello — non c'e' da ritrovarlo. */}
-      {appunto && (
-        <div className="mt-4 border border-amber-900/60 rounded-sm p-3">
-          <div className="text-[11px] text-amber-400/80 tabular-nums mb-1.5">
-            appunto a {mmss(appunto.t)} — f{Math.round(appunto.t * FPS)}
-          </div>
-          <input
-            autoFocus
-            value={appunto.testo}
-            onChange={(e) => setAppunto({ ...appunto, testo: e.target.value })}
-            onKeyDown={async (e) => {
-              e.stopPropagation();
-              if (e.key === "Escape") setAppunto(null);
-              if (e.key === "Enter" && appunto.testo.trim()) {
-                const r = await api.videoMarcatore(appunto.t, appunto.testo.trim()).catch(() => null);
-                if (r) setMarcatori(r.marcatori);
-                setAppunto(null);
-              }
-            }}
-            placeholder="cosa non va, o cosa ricordarsi — invio per segnarlo, esc per lasciar perdere"
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-sm px-2 py-1 text-[12px] text-neutral-200"
-          />
-        </div>
-      )}
+      {/* ---- maniglia ---- */}
+      <Maniglia verso="riga" valore={hTimeline} titolo="quanto spazio prende la timeline"
+                calcola={(v0, d) => limiteTimeline(v0 - d)}
+                onCambia={setHTimeline} onFine={salva(CHIAVE_ALTEZZA)} />
 
-      {marcatori.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {marcatori.map((m) => (
-            <button key={m.t} onClick={() => vaiA(m.t, true)}
-                    className="text-[11px] px-2 py-0.5 rounded-sm border border-amber-900/50
-                               text-amber-300/80 hover:border-amber-600">
-              <span className="tabular-nums text-amber-500/60">{mmss(m.t)}</span> {m.nota}
-              <span onClick={(e) => { e.stopPropagation(); void api.videoMarcatore(m.t, null).then((r) => setMarcatori(r.marcatori)); }}
-                    className="ml-1.5 text-neutral-700 hover:text-neutral-300">×</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {aiuto && (
-        <div className="mt-3 border border-neutral-800 rounded-sm p-3 text-[11.5px] text-neutral-400">
-          <div className="text-neutral-500 mb-1.5">tasti</div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-0.5 max-w-[720px]">
-            {[["spazio", "avvia e ferma"], ["← →", "un fotogramma"], ["⇧ ← →", "un secondo"],
-              ["[ ]", "taglio prima / dopo"], ["inizio · fine", "capo e coda"], ["f", "schermo intero"],
-              ["i · o", "segna inizio e fine del tratto"], ["l", "ripeti il tratto"],
-              ["m", "appunto sull'istante"], ["?", "questo elenco"],
-              ["⌥ rotellina", "zoom della timeline"], ["clic su un taglio", "aprilo nell'ispettore"]]
-              .map(([k, v]) => (
-                <div key={k} className="flex gap-3">
-                  <span className="w-28 shrink-0 text-neutral-200">{k}</span>
-                  <span className="text-neutral-600">{v}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4">
+      {/* ---- timeline ---- */}
+      <div className="shrink-0 min-h-0" style={{ height: hTimeline }}>
         <Timeline
           cuts={cuts} atti={atti} onda={onda} durata={durata} t={t}
           poster={poster} scelto={scelto} inOut={inOut} setInOut={setInOut}
           gira={gira} vaiA={vaiA} marcatori={marcatori}
           togliMarcatore={(m) => { void api.videoMarcatore(m, null).then((r) => setMarcatori(r.marcatori)); }}
-          apri={(i: number) => { setScelto(i); vai((cuts[i]?.t ?? 0) + 0.02); }}
+          apri={apriTaglio}
         />
       </div>
 
-      {/* La libreria dei 272 piani sta chiusa. Aperta la pagina misurava 28.511
-          pixel di altezza: l'editor — barra, player, timeline — spariva sopra
-          uno schermo e mezzo di provini, e il pezzo che si guarda ogni volta
-          era quello che bisognava scorrere via. */}
-      <details className="mt-6">
-        <summary className="cursor-pointer text-[11px] text-neutral-600 hover:text-neutral-400">
-          libreria dei piani girati ({shots.length}, {tenuti} tenuti)
-        </summary>
-      <div className="mt-3 flex items-center gap-3">
-        <h2 className="tracking-[0.22em] text-[12px] text-neutral-400">PIANI</h2>
-        {(["tutti", "tenuti", "scartati"] as const).map((k) => (
-          <button key={k} onClick={() => setSolo(k)}
-            className={`text-[11px] px-2 py-0.5 rounded-sm border ${
-              solo === k ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-600"}`}>
-            {k}
-          </button>
-        ))}
-        <span className="text-[11px] text-neutral-600">
-          passa sopra per farlo partire · clic su tieni/scarta
-        </span>
-      </div>
-
-      <div className="mt-3 grid gap-3"
-           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))" }}>
-        {visibili.map((s) => (
-          <div key={s.id}
-               className={`rounded-sm border ${s.kept ? "border-neutral-800" : "border-neutral-900 opacity-45"}`}>
-            {(() => {
-              const i = Math.min(ripresa[s.id] ?? 0, Math.max(0, s.takes.length - 1));
-              const tk = s.takes[i];
-              if (!tk) return null;
-              return (
-                <div className="relative">
-                  <video
-                    key={tk.clip}
-                    src={pq(tk.clip)}
-                    poster={pq(tk.poster)}
-                    muted loop playsInline preload="none"
-                    onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
-                    onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
-                    className={`w-full bg-black ${tk.kept ? "" : "opacity-30 grayscale"}`}
-                  />
-                  {s.takes.length > 1 && (
-                    <div className="absolute top-1 right-1 flex gap-0.5">
-                      {s.takes.map((t2, k) => (
-                        <button
-                          key={t2.take}
-                          onClick={() => setRipresa((r) => ({ ...r, [s.id]: k }))}
-                          title={`ripresa ${t2.take}${t2.kept ? "" : " (scartata)"}`}
-                          className={`w-4 h-4 text-[9px] leading-none rounded-sm border
-                            ${k === i ? "bg-neutral-200 text-black border-neutral-200"
-                                      : "bg-black/70 text-neutral-400 border-neutral-700"}
-                            ${t2.kept ? "" : "line-through opacity-50"}`}>
-                          {t2.take}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => pickTake(s.id, tk.take, !tk.kept)}
-                    className={`absolute bottom-1 left-1 text-[9.5px] leading-none px-1.5 py-0.5 rounded-sm border
-                      ${tk.kept ? "bg-black/70 border-neutral-600 text-neutral-200"
-                                : "bg-black/85 border-amber-800 text-amber-500"}`}>
-                    {tk.kept ? `ripresa ${tk.take} · in uso` : `ripresa ${tk.take} · scartata`}
-                  </button>
-                </div>
-              );
-            })()}
-            <div className="px-2 py-1.5">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[12px] text-neutral-200 truncate">{s.id}</span>
-                <span className="text-[10px] text-neutral-600 tabular-nums">
-                  {(inScena.get(s.id) ?? 0).toFixed(1)}s
-                </span>
-              </div>
-              <div className="mt-1 h-1 bg-neutral-900">
-                <div className="h-full bg-[#9a6a4a]" style={{ width: `${(s.durezza ?? 0) * 100}%` }} />
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-[10px] text-neutral-600 tabular-nums">
-                  dur {s.durezza?.toFixed(2) ?? "—"} · mot {s.moto?.toFixed(1) ?? "—"}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => { setScrivo(scrivo === s.id ? null : s.id); setTesto(""); }}
-                    title="segnala un problema"
-                    className="text-[10px] px-1.5 py-0.5 rounded-sm border border-neutral-800 text-neutral-500 hover:text-amber-400 hover:border-amber-700">
-                    !
-                  </button>
-                  <button
-                    onClick={() => pick(s.id, !s.kept)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded-sm border ${
-                      s.kept ? "border-neutral-700 text-neutral-300" : "border-neutral-800 text-neutral-500"}`}>
-                    {s.kept ? "tieni" : "scarta"}
-                  </button>
-                </div>
-              </div>
-              {scrivo === s.id && (
-                <input
-                  autoFocus
-                  value={testo}
-                  onChange={(e) => setTesto(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") segnala(s.id);
-                    if (e.key === "Escape") setScrivo(null);
-                  }}
-                  onBlur={() => segnala(s.id)}
-                  placeholder="cosa non va — invio per salvare"
-                  className="mt-1 w-full bg-neutral-950 border border-amber-900/60 rounded-sm
-                             px-1.5 py-1 text-[10.5px] text-neutral-200 outline-none"
-                />
-              )}
-              {s.problemi.map((q, i) => (
-                <div key={i} className="mt-1 flex items-start gap-1 text-[10px] leading-tight text-amber-500/80">
-                  <button onClick={() => togli(s.id, i)} title="risolto" className="text-neutral-700 hover:text-neutral-400">×</button>
-                  <span>{q}</span>
+      {aiuto && (
+        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setAiuto(false)}>
+          <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 max-w-[640px]"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="text-[12px] text-neutral-300 mb-2">tasti</div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-[11.5px]">
+              {[["spazio", "avvia e ferma"], ["← →", "un fotogramma"], ["⇧ ← →", "un secondo"],
+                ["[ ]", "taglio prima / dopo"], ["inizio · fine", "capo e coda"], ["f", "schermo intero"],
+                ["i · o", "inizio e fine del tratto"], ["l", "ripeti il tratto"],
+                ["m", "appunto sull'istante"], ["esc", "chiudi"],
+                ["⌥ rotellina", "zoom della timeline"], ["?", "questo elenco"]].map(([k, v]) => (
+                <div key={k} className="flex gap-3">
+                  <span className="w-28 shrink-0 text-neutral-200">{k}</span>
+                  <span className="text-neutral-400">{v}</span>
                 </div>
               ))}
-              {s.perche && <div className="mt-1 text-[10px] text-neutral-600 leading-tight">{s.perche}</div>}
+            </div>
+            <div className="mt-3 text-[10.5px] text-neutral-400">
+              la maniglia sopra la timeline si trascina: la timeline cresce e le corsie con lei.
             </div>
           </div>
-        ))}
-      </div>
-      </details>
+        </div>
+      )}
     </div>
   );
 }

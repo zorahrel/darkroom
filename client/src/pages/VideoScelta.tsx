@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, pq, type VideoShot, type VideoJob } from "../api";
 
@@ -68,6 +68,23 @@ export default function VideoScelta() {
   const [promptMod, setPromptMod] = useState("");
   const [par, setPar] = useState({ width: 640, height: 1152, length: 61, steps: 20 });
   const [jobs, setJobs] = useState<VideoJob[]>([]);
+
+  /** Anche qui l'altezza si misura: la clip deve prendere lo schermo che c'è,
+   *  e la pagina non deve scorrere mentre si giudica a raffica. */
+  const guscio = useRef<HTMLDivElement>(null);
+  const [hGuscio, setHGuscio] = useState(700);
+  useLayoutEffect(() => {
+    const misura = () => {
+      const el = guscio.current;
+      if (!el) return;
+      const padre = el.parentElement;
+      const sotto = padre ? parseFloat(getComputedStyle(padre).paddingBottom) || 0 : 0;
+      setHGuscio(Math.max(360, window.innerHeight - el.getBoundingClientRect().top - sotto));
+    };
+    misura();
+    window.addEventListener("resize", misura);
+    return () => window.removeEventListener("resize", misura);
+  }, []);
   const video = useRef<HTMLVideoElement>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
 
@@ -164,24 +181,22 @@ export default function VideoScelta() {
   const daGiudicare = scene.filter((s) => !s.giudicata).length;
 
   return (
-    <div className="mx-auto max-w-[1400px] px-5 py-4 text-neutral-200">
-      <div className="flex items-baseline gap-4 mb-3 flex-wrap">
-        <h1 className="tracking-[0.3em] text-[13px] text-neutral-400">SCELTA</h1>
-        <Link to={`/p/${pid}/video`} className="text-[11px] text-neutral-500 hover:text-neutral-300">
-          → montaggio
+    <div ref={guscio} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: hGuscio }}>
+      <div className="shrink-0 h-[24px] flex items-center gap-2.5 px-1 border-b border-neutral-900">
+        <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">SCELTA</span>
+        <Link to={`/p/${pid}/video`} className="text-[11px] text-neutral-400 hover:text-neutral-200">
+          ← montaggio
         </Link>
-        <span className="text-[12px] text-neutral-600">
+        <span className="text-[10.5px] text-neutral-400 tabular-nums">
           {coda.length} in coda · {daGiudicare} mai giudicate su {scene.length} prese
         </span>
-      </div>
-
-      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <div className="ml-auto flex gap-1.5 items-center">
         {(["da_giudicare", "in_montaggio", "scartate", "tutte"] as const).map((k) => (
           <button
             key={k}
             onClick={() => { setFiltro(k); setI(0); }}
-            className={`text-[11px] px-2 py-0.5 rounded-sm border ${
-              filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-600"
+            className={`text-[10px] px-1.5 py-0.5 rounded-sm border ${
+              filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400"
             }`}
           >
             {k.replace("_", " ")}
@@ -190,20 +205,21 @@ export default function VideoScelta() {
         <select
           value={atto}
           onChange={(e) => { setAtto(e.target.value); setI(0); }}
-          className="text-[11px] bg-neutral-950 border border-neutral-800 rounded-sm px-1.5 py-0.5 text-neutral-400"
+          className="text-[10px] bg-neutral-950 border border-neutral-900 rounded-sm px-1 py-0.5 text-neutral-400"
         >
           <option value="">ogni atto</option>
           {atti.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
+        </div>
       </div>
 
       {!scena || !corrente ? (
-        <div className="h-[60vh] grid place-items-center text-neutral-600 text-sm border border-neutral-900 rounded-sm">
+        <div className="flex-1 min-h-0 grid place-items-center text-neutral-400 text-sm">
           {shots.length ? "niente da giudicare con questi filtri" : "nessuna ripresa nel progetto"}
         </div>
       ) : (
-        <div className="flex gap-6 items-start">
-          <div className="shrink-0">
+        <div className="flex-1 min-h-0 flex gap-3 pt-2 pb-1">
+          <div className="shrink-0 flex flex-col">
             {/* La clip prende l'altezza che lo schermo ha. A 340px un verticale
                 9:16 sta in 190 di larghezza: a quella misura un difetto si vede
                 solo se e' enorme, e sono proprio i piccoli quelli che passano
@@ -214,8 +230,7 @@ export default function VideoScelta() {
               src={pq(corrente.takes[0]?.clip ?? "")}
               poster={pq(corrente.takes[0]?.poster ?? "")}
               autoPlay muted loop playsInline
-              className="h-[calc(100vh-190px)] max-h-[840px] min-h-[420px] aspect-[9/16]
-                         bg-black border border-neutral-800 rounded-sm object-cover"
+              className="flex-1 min-h-0 aspect-[9/16] bg-black border border-neutral-800 rounded-sm object-cover"
             />
             {scena.pezzi.length > 1 && (
               <div className="mt-2 flex gap-1.5">
@@ -224,13 +239,13 @@ export default function VideoScelta() {
                     key={p.id}
                     onClick={() => setPezzo(k)}
                     className={`text-[10.5px] px-1.5 py-0.5 rounded-sm border ${
-                      k === pezzo ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-600"
+                      k === pezzo ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-400"
                     }`}
                   >
                     {p.id}
                   </button>
                 ))}
-                <span className="text-[10.5px] text-neutral-600 self-center ml-1">
+                <span className="text-[10.5px] text-neutral-400 self-center ml-1">
                   spezzoni della stessa presa
                 </span>
               </div>
@@ -240,13 +255,13 @@ export default function VideoScelta() {
           <div className="flex-1 min-w-0">
             <div className="text-[15px] text-neutral-200">{scena.origine}</div>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
-              <dt className="text-neutral-600">atto</dt>
-              <dd>{scena.atto ?? <span className="text-neutral-600">— non in montaggio</span>}</dd>
-              <dt className="text-neutral-600">in scena</dt>
+              <dt className="text-neutral-400">atto</dt>
+              <dd>{scena.atto ?? <span className="text-neutral-400">— non in montaggio</span>}</dd>
+              <dt className="text-neutral-400">in scena</dt>
               <dd>{scena.minuto === null ? "—" : `${scena.inScena.toFixed(1)}s a ${mmss(scena.minuto)}`}</dd>
-              <dt className="text-neutral-600">durezza</dt>
+              <dt className="text-neutral-400">durezza</dt>
               <dd className="tabular-nums">{corrente.durezza?.toFixed(2) ?? "—"}</dd>
-              <dt className="text-neutral-600">stato</dt>
+              <dt className="text-neutral-400">stato</dt>
               <dd>
                 {scena.kept
                   ? <span className="text-neutral-300">tenuta</span>
@@ -263,7 +278,7 @@ export default function VideoScelta() {
                   <li key={k} className="text-[11.5px] text-amber-400/90 flex gap-2">
                     <span>▸ {p}</span>
                     <button
-                      className="text-neutral-700 hover:text-neutral-400"
+                      className="text-neutral-400 hover:text-neutral-400"
                       onClick={async () => {
                         try { setShots((await api.videoProblema(corrente.id, undefined, k)).shots); } catch { /* niente */ }
                       }}
@@ -283,7 +298,7 @@ export default function VideoScelta() {
               setRigen(aperto);
               if (aperto && !promptMod) setPromptMod(corrente.prompt ?? "");
             }}>
-              <summary className="text-[11px] text-neutral-600 cursor-pointer">
+              <summary className="text-[11px] text-neutral-400 cursor-pointer">
                 prompt e rigenerazione{corrente.prompt ? "" : " (nessun prompt registrato)"}
               </summary>
               <div className="mt-2 space-y-2">
@@ -303,7 +318,7 @@ export default function VideoScelta() {
                     Chi lancia deve poter vedere il numero che decide. */}
                 <div className="flex gap-2 text-[11px]">
                   {(["width", "height", "length", "steps"] as const).map((k) => (
-                    <label key={k} className="flex items-center gap-1 text-neutral-600">
+                    <label key={k} className="flex items-center gap-1 text-neutral-400">
                       {k}
                       <input
                         type="number"
@@ -328,11 +343,11 @@ export default function VideoScelta() {
                   rigenera sulla 3090
                 </button>
                 {jobs.filter((j) => j.piano === corrente.id).slice(0, 3).map((j) => (
-                  <div key={j.id} className="text-[11px] text-neutral-500">
+                  <div key={j.id} className="text-[11px] text-neutral-400">
                     #{j.id} {j.status}
                     {j.frames ? ` — ${j.frames} fotogrammi` : ""}
                     {j.error && <span className="text-rose-400"> — {j.error}</span>}
-                    {j.log && <pre className="mt-1 max-h-24 overflow-auto text-[10px] text-neutral-600 whitespace-pre-wrap">{j.log.split("\n").slice(-6).join("\n")}</pre>}
+                    {j.log && <pre className="mt-1 max-h-24 overflow-auto text-[10px] text-neutral-400 whitespace-pre-wrap">{j.log.split("\n").slice(-6).join("\n")}</pre>}
                   </div>
                 ))}
               </div>
@@ -358,34 +373,37 @@ export default function VideoScelta() {
                   >
                     {nota === "scarto" ? "scarta" : "annota"}
                   </button>
-                  <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-600"
+                  <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400"
                           onClick={() => { setNota(null); setTesto(""); }}>
                     lascia stare
                   </button>
-                  <span className="self-center text-neutral-700">⌘↵ conferma · esc annulla</span>
+                  <span className="self-center text-neutral-400">⌘↵ conferma · esc annulla</span>
                 </div>
               </div>
             ) : (
               <div className="mt-4 flex gap-2 items-center">
                 <button
                   onClick={() => setNota("scarto")}
-                  className="px-3 py-1 rounded-sm border border-rose-900/70 text-rose-300 text-[12px]"
+                  className="px-4 py-1.5 rounded-sm border border-rose-800 text-rose-300 text-[13px]
+                             hover:bg-rose-950/50"
                 >
                   ✕ scarta
                 </button>
                 <button
                   onClick={() => void giudica(true)}
-                  className="px-3 py-1 rounded-sm border border-emerald-900/70 text-emerald-300 text-[12px]"
+                  className="px-4 py-1.5 rounded-sm border border-emerald-800 text-emerald-300 text-[13px]
+                             hover:bg-emerald-950/50"
                 >
                   ♥ tieni
                 </button>
                 <button
                   onClick={() => setNota("nota")}
-                  className="px-3 py-1 rounded-sm border border-neutral-800 text-neutral-400 text-[12px]"
+                  className="px-4 py-1.5 rounded-sm border border-neutral-800 text-neutral-400 text-[13px]
+                             hover:border-neutral-600"
                 >
                   ✎ annota
                 </button>
-                <span className="text-[11px] text-neutral-700 ml-2">
+                <span className="text-[11px] text-neutral-400 ml-2">
                   ← scarta · → tieni · ↑ annota · ↓ salta · spazio rivedi
                 </span>
               </div>
@@ -394,24 +412,25 @@ export default function VideoScelta() {
             {/* Quanto manca, e cosa arriva. Un contatore "12 / 176" dice solo
                 che la fine e' lontana; le facce dopo dicono se conviene tirare
                 dritto o cambiare filtro, e il giudizio va a raffica per questo. */}
-            <div className="mt-5">
+            <div className="mt-4 flex-1 min-h-0 flex flex-col">
               <div className="h-0.5 bg-neutral-900 rounded-full overflow-hidden">
                 <div className="h-full bg-neutral-600"
                      style={{ width: `${coda.length ? ((i + 1) / coda.length) * 100 : 0}%` }} />
               </div>
-              <div className="mt-1 text-[11px] text-neutral-700 tabular-nums">
-                {Math.min(i + 1, coda.length)} / {coda.length}
+              <div className="mt-1 text-[10.5px] text-neutral-400 tabular-nums shrink-0">
+                {Math.min(i + 1, coda.length)} / {coda.length} · cosa arriva dopo
               </div>
-              <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
-                {coda.slice(i + 1, i + 13).map((sc, k) => {
+              <div className="mt-3 grid gap-1.5"
+                   style={{ gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))" }}>
+                {coda.slice(i + 1, i + 61).map((sc, k) => {
                   const pr = sc.pezzi[0];
                   return (
                     <button
                       key={sc.origine}
                       onClick={() => { setI(i + 1 + k); setPezzo(0); }}
                       title={`${sc.origine}${sc.atto ? ` · ${sc.atto}` : ""}`}
-                      className="shrink-0 w-12 h-[85px] rounded-sm border border-neutral-900 bg-cover bg-center
-                                 opacity-50 hover:opacity-100 transition-opacity"
+                      className="w-full aspect-[9/16] rounded-sm border border-neutral-900 bg-cover bg-center
+                                 opacity-45 hover:opacity-100 transition-opacity"
                       style={{ backgroundImage: pr?.takes[0]?.poster ? `url(${pq(pr.takes[0].poster)})` : undefined }}
                     />
                   );
