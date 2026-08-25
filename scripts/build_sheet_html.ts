@@ -22,6 +22,15 @@ const esc = (s: string) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", 
 const counts: Record<string, number> = {};
 for (const p of m.photos) for (const v of p.variants) counts[v.recipe] = (counts[v.recipe] ?? 0) + 1;
 const total = m.photos.reduce((n: number, p: any) => n + p.variants.length, 0);
+// I set di riferimenti non sono noti in anticipo: nascono da come sono state
+// lanciate le passate. Elencarli a mano significa dimenticarne uno al primo
+// esperimento nuovo, e un filtro che non elenca tutto nasconde lavoro fatto.
+const setCounts: Record<string, number> = {};
+for (const p of m.photos) for (const v of p.variants) {
+  const k = v.refset ?? "solo stile";
+  setCounts[k] = (setCounts[k] ?? 0) + 1;
+}
+const sets = Object.keys(setCounts).sort();
 
 const strips = m.photos.map((p: any, i: number) => `
   <section class="strip">
@@ -185,9 +194,8 @@ footer.note{padding:34px 0;color:var(--ink-muted);font-size:.9rem;max-width:64ch
     <span>nativo <b>1122×1402</b></span>
   </div>
   <div class="filters" role="group" aria-label="Filtra per set di riferimenti">
-    <button data-filter="all" aria-pressed="true">tutte</button>
-    <button data-filter="id+stile" aria-pressed="false">identit&agrave; + stile</button>
-    <button data-filter="solo stile" aria-pressed="false">solo stile</button>
+    <button data-filter="all" aria-pressed="true">tutte &middot; ${total}</button>
+    ${sets.map((k) => `<button data-filter="${esc(k)}" aria-pressed="false">${esc(k)} &middot; ${setCounts[k]}</button>`).join("\n    ")}
   </div>
 </header>
 
