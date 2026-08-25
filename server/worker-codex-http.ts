@@ -54,6 +54,21 @@ async function dataUri(path: string): Promise<string> {
   return `data:${mime};base64,${b64}`;
 }
 
+/** Correlazione strutturale via lo script python (numpy/Pillow ci sono gia').
+ *  `null` quando non si puo' misurare: un controllo che rompe le generazioni
+ *  buone e' peggio del problema che risolve. */
+async function correlation(a: string, b: string): Promise<number | null> {
+  try {
+    const p = spawn({ cmd: ["python3", new URL("../scripts/img_corr.py", import.meta.url).pathname, a, b], stdout: "pipe", stderr: "pipe" });
+    const out = (await new Response(p.stdout).text()).trim();
+    if ((await p.exited) !== 0) return null;
+    const n = Number(out);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runWorkerCodexHttp(input: {
   image?: string;
   prompt: string;
@@ -158,6 +173,28 @@ export async function runWorkerCodexHttp(input: {
     }
     mkdirSync(dirname(input.output), { recursive: true });
     writeFileSync(input.output, Buffer.from(b64, "base64"));
+
+    // L'unico controllo che serve qui, e l'unico che si puo' fare senza
+    // sbagliare: l'immagine tornata NON deve essere uno degli allegati. Il 24/08
+    // il worker CDP ha scaricato per 222 volte il riferimento cromatico al posto
+    // del render; quel modo di fallire e' reale e va chiuso anche qui.
+    //
+    // Quel che NON si controlla, di proposito: quanto il risultato somigli alla
+    // sorgente. Le ricette cambiano inquadratura (ritaglio quadrato, crop
+    // stretto), e su un ritaglio legittimo la correlazione scende a 0.03:
+    // un cancello su quel numero boccerebbe il lavoro giusto.
+    const attachedFiles = [input.image, ...(input.refs ?? [])].filter((f): f is string => !!f && existsSync(f));
+    for (const f of attachedFiles) {
+      const c = await correlation(f, input.output);
+      if (c !== null && c > 0.9) {
+        const which = f === input.image ? "la foto di partenza, non modificata" : `l'allegato ${f.split("/").pop()}`;
+        return {
+          status: "error",
+          error: `ha restituito ${which} (correlazione ${c.toFixed(2)})`,
+          duration_s: (Date.now() - startedAt) / 1000,
+        };
+      }
+    }
     const size_kb = Math.round(statSync(input.output).size / 1024);
     return { status: "ok", output: input.output, duration_s: (Date.now() - startedAt) / 1000, size_kb };
   } catch (err) {
