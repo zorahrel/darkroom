@@ -16,7 +16,13 @@ type Variant = {
   note: string | null;
   favorite: boolean;
 };
-type Group = { recipe: string; refset: string; preamble: string | null; variants: Variant[] };
+type Group = {
+  recipe: string;
+  refset: string;
+  preamble: string | null;
+  sources: string[];
+  variants: Variant[];
+};
 type Node = { photo: string; variants: number; recipes: number; groups: Group[] };
 
 const CYCLE = [null, "tieni", "forse", "scarta"] as const;
@@ -123,6 +129,25 @@ export default function AlberoPage() {
                     {g.variants.length}
                   </span>
                 </div>
+                {/* Una variante nata da piu' scatti ha comunque un photo_id solo:
+                    senza questa striscia la colonna a sinistra ne mostrerebbe uno
+                    spacciandolo per l'unico ingresso. */}
+                {g.sources.length > 1 && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-500">
+                      da {g.sources.length} scatti
+                    </span>
+                    {g.sources.map((sid) => (
+                      <img
+                        key={sid}
+                        src={thumbRawUrl(sid, 120)}
+                        alt={`scatto in ingresso ${sid}`}
+                        title={sid}
+                        className="w-8 h-10 object-cover border border-neutral-700 bg-neutral-900"
+                      />
+                    ))}
+                  </div>
+                )}
                 <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
                   {g.variants.map((v) => (
                     <Leaf

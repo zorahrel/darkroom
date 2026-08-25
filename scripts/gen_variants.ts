@@ -19,9 +19,15 @@ import { runWorker } from "../server/worker.ts";
 const pid = process.argv[2] ?? "profilo";
 /** Scelto a runtime: dipende da quali reference sono stati effettivamente
  *  allegati, non da come e' fatta la cartella. */
+const PACE = Number(process.env.DARKROOM_PACE ?? 20);
 let hasStyleRef = false;
 let nRefs = 0;
 let together = false;
+/** Il NOME del preambolo in uso. Serve nell'albero: due passate con la stessa
+ *  ricetta ma istruzioni diverse sono due esperimenti, e senza nome finiscono
+ *  sotto la stessa etichetta proprio dove il confronto serve. */
+const ROLES_NAME = () =>
+  together ? (hasStyleRef ? "insieme+stile" : "insieme") : !hasStyleRef ? "solo-id" : nRefs > 1 ? "id+stile" : "solo-stile";
 const ROLES = () =>
   together
     ? ROLES_MULTI_SOURCE + (hasStyleRef ? "One further image is attached as a styling reference only: never copy that face, take from it lighting, tonality, framing and treatment. " : "")
@@ -190,6 +196,10 @@ withProject(pid, async () => {
       // un nome "piu' descrittivo" rende l'immagine irraggiungibile dalla UI.
       // La ricetta e' gia' salvata nel config della versione: nel nome non serve.
       const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
+      // Una pausa fra un lavoro e l'altro: senza, il sito limita l'accesso e
+      // smette di generare del tutto (misurato il 25/08, 9 job persi). Meglio
+      // 20 secondi che una passata intera buttata.
+      if (ok + ko > 0 && PACE > 0) await new Promise((r) => setTimeout(r, PACE * 1000));
       const t0 = Date.now();
       const res =
         CHANNEL === "cdp"
@@ -201,10 +211,23 @@ withProject(pid, async () => {
             })
           : await runWorkerCodexHttp({ images: unit.sources, prompt, output: out, refs });
       if (res.status === "ok") {
+        // config e lineage NON sono lo stesso dato: config e' cosa si e' chiesto,
+        // lineage e' da cosa e' nata la variante. L'albero legge lineage, e con
+        // --insieme e' l'unico posto in cui resta scritto che le sorgenti erano
+        // tre: lo schema ha un photo_id solo, quindi senza questo campo due
+        // delle tre sparirebbero.
+        const lineage = JSON.stringify({
+          recipe: recipe.key,
+          refset,
+          preamble: ROLES_NAME(),
+          sources: unit.sources.map((r) => r.split("/").pop()),
+          refs: refs.map((r) => r.split("/").pop()),
+          backend: CHANNEL === "cdp" ? "web-cdp" : "codex-http",
+        });
         const ins = db().run(
-          `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
-           VALUES (?, ?, ?, ?, ?, 'chatgpt', NULL, 0, 'generated', ?)`,
-          [unit.photoId, n, out, prompt, JSON.stringify({ recipe: recipe.key, refset, backend: "codex-http", sources: unit.sources.map((r) => r.split("/").pop()) }), Date.now()],
+          `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, provider_params, credits, source, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', NULL, 0, 'generated', ?)`,
+          [unit.photoId, n, out, prompt, cfg, lineage, Date.now()],
         );
         db().run("UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?", [Number(ins.lastInsertRowid), Date.now(), job.id]);
         ok++; streak = 0;
@@ -212,6 +235,13 @@ withProject(pid, async () => {
       } else {
         db().run("UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=?", [String(res.error).slice(0, 500), Date.now(), job.id]);
         ko++; streak++;
+        // La strozzatura del sito non e' un fallimento da ritentare: insistere
+        // la prolunga. Ci si ferma dicendo di aspettare, come per la quota.
+        if (String(res.error).includes("chatgpt-throttled")) {
+          console.error(`[gen] ChatGPT ha limitato l'accesso per troppe richieste. Mi fermo: riprendere fra qualche minuto, piu' lenti (DARKROOM_PACE).`);
+          console.log(`[gen] fatte ${ok}, fallite ${ko}`);
+          process.exit(3);
+        }
         const m = /"resets_at":(\d+)/.exec(String(res.error));
         if (m) quotaResetsAt = Number(m[1]);
         console.log(`  KO  ${unit.label.slice(0, 14)} ${recipe.key} — ${String(res.error).slice(0, 120)}`);

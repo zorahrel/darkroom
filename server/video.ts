@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
 
@@ -16,6 +17,29 @@ import { rootDir } from "./project.ts";
  */
 
 export type Take = { take: string; frames: number; clip: string; poster: string; kept: boolean };
+
+/**
+ * Da quale generazione viene una ripresa: il nome senza le cifre finali.
+ *
+ * `z43_0` e `z43_1` non sono due riprese, sono due meta' della stessa presa —
+ * stesso seme, stessa inquadratura. Contando i nomi il montaggio dichiarava 122
+ * riprese diverse; contando le origini ne aveva 48, e quarantanove volte due
+ * pezzi della stessa presa passavano a meno di otto secondi l'uno dall'altro.
+ *
+ * Si toglie UNA sola cifra finale, e solo se prima c'e' qualcosa che cifra non
+ * e'. Togliendole tutte si univa troppo: `k00` e `k15` diventavano entrambi
+ * `k`, cioe' sedici riprese di mare diverse trattate come pezzi della stessa
+ * presa. Misurato sui descrittori: la famiglia `k` cosi' unita si somiglia
+ * 0.705 e la `x` 0.761 — non sono la stessa cosa. Con una cifra sola le
+ * famiglie stanno fra 0.75 e 0.99, che e' il campo giusto.
+ *
+ * La stessa funzione vive in `pianifica.py`. E' una definizione, non una
+ * politica: duplicarla costa una riga e i test dicono se le due divergono.
+ */
+export const origine = (shot: string) => {
+  const m = /^(.*[^0-9])_?[0-9]$/.exec(shot);
+  return m?.[1]?.replace(/_+$/, "") ?? shot;
+};
 export type Shot = {
   id: string;
   prompt: string;
@@ -31,17 +55,32 @@ export type Shot = {
   perche: string | null;
   /** Problems flagged from the editor. Not a verdict: a note for the next round. */
   problemi: string[];
+  /** Which generation it comes from: two halves of one take share this. */
+  origine: string;
+  /** The act it plays in, from `atti.json`. Null when it is not in the edit. */
+  atto: string | null;
+  /** Seconds into the film where it first appears, null when unused. */
+  minuto: number | null;
+  /** Why it is out, when it was excluded by the planner rather than by hand. */
+  escluso: string | null;
 };
 
 export type Cut = {
   t: number;
   dur: number;
+  bar: number;
   shot: string;
   durezzaSuono: number;
+  /** The shot's own measured hardness: the other half of the pairing. Seeing
+   *  the two side by side is what tells "ugly shot" from "wrong place". */
+  durezzaPiano: number | null;
   velocita: number;
   rovescio: boolean;
-  fermo: boolean;
+  atto: string | null;
+  origine: string;
 };
+
+export type Atto = { da: number; a: number; nome: string; t0: number; t1: number };
 
 const readJson = <T,>(p: string, fallback: T): T => {
   try {
@@ -85,12 +124,18 @@ type Scelte = {
   /** Per-take rejections: two takes of the same shot are not worth the same,
    *  and dropping one should not cost you the whole shot. */
   riprese?: Record<string, string[]>;
+  /** Forced choices from the editor, read back by `pianifica.py`. Few, and
+   *  declared: everything else stays derived. */
+  pin?: Record<string, string>;
+  durata?: Record<string, number>;
 };
 
 export function scelte(): Scelte {
   const s = readJson<Scelte>(at("scelte.json"), { scartati: {} });
   if (!s.problemi) s.problemi = {};
   if (!s.riprese) s.riprese = {};
+  if (!s.pin) s.pin = {};
+  if (!s.durata) s.durata = {};
   return s;
 }
 
@@ -135,6 +180,39 @@ export function setRipresa(shot: string, take: string, kept: boolean) {
   return s;
 }
 
+/** Nail a shot to a bar. The planner reads it back and says, in the plan, which
+ *  guarantee the pin suspended — a forced edit is allowed, a silent one is not. */
+export function setPin(bar: number, shot: string | null) {
+  const s = scelte();
+  if (shot) s.pin![String(bar)] = shot;
+  else delete s.pin![String(bar)];
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s;
+}
+
+/** Force a block's length, in bars. */
+export function setDurata(bar: number, bars: number | null) {
+  const s = scelte();
+  if (bars && bars > 0) s.durata![String(bar)] = bars;
+  else delete s.durata![String(bar)];
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s;
+}
+
+/** The story, from `atti.json`. Empty when the planner does not write it: the
+ *  page then draws no bands rather than inventing a division. */
+export function atti(): Atto[] {
+  return readJson<Atto[]>(at("atti.json"), []);
+}
+
+/** Guarantees a forced edit suspended, as recorded by the planner. */
+export function sospese(): { battuta: number; garanzia: string }[] {
+  return readJson<any>(at("plan.json"), {}).sospese ?? [];
+}
+
+const attoDi = (bar: number, as: Atto[]) =>
+  as.find((a) => bar >= a.da && bar < a.a)?.nome ?? null;
+
 export function shots(): Shot[] {
   const prompts = readJson<Record<string, any>>(at("prompts.json"), {});
   const dz = readJson<any>(at("durezza.json"), { piani: {} });
@@ -142,14 +220,21 @@ export function shots(): Shot[] {
   const bm = readJson<any>(at("beatmap.json"), {});
   const t = beatClock(bm);
   const sc = scelte();
+  const as = atti();
+  const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
   const scartati = sc.scartati;
   const problemi = sc.problemi ?? {};
   const riprFuori = sc.riprese ?? {};
 
   const inScena: Record<string, number> = {};
+  const primaVolta: Record<string, number> = {};
+  const attoDelPiano: Record<string, string> = {};
   for (const seg of plan.segments ?? []) {
     const [b0, b1] = seg.bars;
     inScena[seg.shot] = (inScena[seg.shot] ?? 0) + (t(b1) - t(b0));
+    if (primaVolta[seg.shot] === undefined) primaVolta[seg.shot] = t(b0);
+    const a = attoDi(b0, as);
+    if (a && !attoDelPiano[seg.shot]) attoDelPiano[seg.shot] = a;
   }
 
   const srcDir = at("src");
@@ -160,8 +245,12 @@ export function shots(): Shot[] {
   return names
     .map((id) => {
       const files = readdirSync(join(srcDir, id));
-      const takes: Take[] = ["a", "b", "c"]
-        .filter((tk) => files.some((f) => f.startsWith(`${tk}_`)))
+      // Le riprese erano inchiodate ad a|b|c. I piani generati da testo hanno
+      // solo la "a", ma il vincolo era comunque sbagliato nel verso opposto:
+      // si ricavano da cio' che c'e' su disco.
+      const takes: Take[] = [...new Set(
+        files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[],
+      )].sort()
         .map((tk) => ({
           take: tk,
           frames: files.filter((f) => f.startsWith(`${tk}_`)).length,
@@ -181,26 +270,46 @@ export function shots(): Shot[] {
         kept: !(id in scartati),
         perche: scartati[id] ?? null,
         problemi: problemi[id] ?? [],
+        origine: origine(id),
+        atto: attoDelPiano[id] ?? null,
+        minuto: primaVolta[id] ?? null,
+        // Scartato a mano vs escluso dal pianificatore sono due cose diverse:
+        // la prima si annulla da qui, la seconda ha una ragione scritta.
+        escluso: id in scartati ? null : (esclusi.esclusi?.[id] ?? null),
       };
     })
     .sort((a, b) => (b.durezza ?? -1) - (a.durezza ?? -1));
 }
 
 /** The edit as a timeline: one entry per cut, already in seconds. */
-export function cuts(): { cuts: Cut[]; durata: number; bpm: number | null } {
+export function cuts(): {
+  cuts: Cut[];
+  durata: number;
+  bpm: number | null;
+  atti: Atto[];
+  sospese: { battuta: number; garanzia: string }[];
+} {
   const plan = readJson<any>(at("plan.json"), { segments: [] });
   const bm = readJson<any>(at("beatmap.json"), {});
+  const dz = readJson<any>(at("durezza.json"), { piani: {} });
+  const as = atti();
   const t = beatClock(bm);
+  // `fermo` controllava `subdiv <= 0`. Col movimento pieno subdiv vale ~51 su
+  // ogni segmento: la condizione non e' mai vera e la legenda mostrava un
+  // colore che nessun blocco poteva avere.
   const cuts: Cut[] = (plan.segments ?? []).map((s: any) => {
     const t0 = t(s.bars[0]);
     return {
       t: Math.round(t0 * 1000) / 1000,
       dur: Math.round((t(s.bars[1]) - t0) * 1000) / 1000,
+      bar: s.bars[0],
       shot: s.shot,
       durezzaSuono: s.durezza ?? 0,
+      durezzaPiano: dz.piani?.[s.shot]?.durezza ?? null,
       velocita: s.velocita ?? 1,
       rovescio: !!s.rovescio,
-      fermo: Number(s.subdiv) <= 0,
+      atto: attoDi(s.bars[0], as),
+      origine: origine(s.shot),
     };
   });
   const ultimo = cuts.at(-1);
@@ -208,6 +317,8 @@ export function cuts(): { cuts: Cut[]; durata: number; bpm: number | null } {
     cuts,
     durata: ultimo ? ultimo.t + ultimo.dur : 0,
     bpm: bm.tempo_bpm ?? null,
+    atti: as,
+    sospese: plan.sospese ?? [],
   };
 }
 
@@ -222,12 +333,12 @@ export function assets() {
 }
 
 export function clipPath(shot: string, take: string) {
-  if (/[^a-z0-9_-]/i.test(shot) || !/^[abc]$/.test(take)) return null;
+  if (/[^a-z0-9_-]/i.test(shot) || !/^[a-z]$/.test(take)) return null;
   const p = at("prev", `${shot}__${take}.mp4`);
   return existsSync(p) ? p : null;
 }
 export function posterPath(shot: string, take: string) {
-  if (/[^a-z0-9_-]/i.test(shot) || !/^[abc]$/.test(take)) return null;
+  if (/[^a-z0-9_-]/i.test(shot) || !/^[a-z]$/.test(take)) return null;
   const p = at("prev", `${shot}__${take}.jpg`);
   return existsSync(p) ? p : null;
 }
@@ -235,4 +346,144 @@ export function assetPath(name: string) {
   if (!/^[A-Z_]+\.mp4$/.test(name)) return null;
   const p = at(name);
   return existsSync(p) ? p : null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  La barra, e la ricostruzione                                        */
+/* ------------------------------------------------------------------ */
+
+export type RigaBarra = { n: string; testo: string; ok: boolean | null };
+export type Barra = {
+  righe: RigaBarra[];
+  esito: "verde" | "rosso" | "sconosciuto";
+  fallite: string[];
+  quando: number | null;
+  /** Vera mentre `check.py` sta girando: la pagina si disegna subito e la
+   *  barra arriva dopo. Misurarla costa un minuto e mezzo di ffmpeg, e far
+   *  aspettare la pagina per quello e' il modo sicuro di non guardarla piu'. */
+  calcolo: boolean;
+};
+
+/**
+ * La barra si ESEGUE, non si reimplementa.
+ *
+ * `check.py` e' l'unica misura. Riscriverne le condizioni qui in TypeScript
+ * darebbe due implementazioni che concordano — e concordare non e' verificare.
+ * Il precedente e' concreto: la condizione 5 ha misurato per due mesi la cosa
+ * sbagliata (contava i fotogrammi identici e usciva 0%, ma solo perche' la
+ * grana da sola superava la soglia su ogni fotogramma). Una seconda copia
+ * avrebbe avuto lo stesso buco, e nessuno se ne sarebbe accorto.
+ *
+ * La condizione 2 stampa una riga per piano: e' un dettaglio da terminale, qui
+ * si collassa in una riga sola col conto di quelli che non tengono.
+ */
+let barraCache: { chiave: string; barra: Barra } | null = null;
+let barraInCorso: string | null = null;
+
+/** Il risultato se c'e', altrimenti lo mette in cantiere e torna subito. */
+export function barra(force = false): Barra {
+  const check = at("check.py");
+  const master = at("LUNGOMARE.mp4");
+  if (!existsSync(check)) {
+    return { righe: [], esito: "sconosciuto", fallite: [], quando: null, calcolo: false };
+  }
+  const chiave = existsSync(master) ? String(statSync(master).mtimeMs) : "senza-video";
+  if (!force && barraCache?.chiave === chiave) return barraCache.barra;
+  if (barraInCorso === chiave) {
+    return { ...(barraCache?.barra ?? { righe: [], esito: "sconosciuto", fallite: [], quando: null }), calcolo: true };
+  }
+  barraInCorso = chiave;
+  void (async () => {
+    try { misura(chiave); } finally { barraInCorso = null; }
+  })();
+  return { ...(barraCache?.barra ?? { righe: [], esito: "sconosciuto", fallite: [], quando: null }), calcolo: true };
+}
+
+function misura(chiave: string): Barra {
+  const check = at("check.py");
+  const r = spawnSync("python3", [check, "LUNGOMARE.mp4"], {
+    cwd: videoRoot(),
+    encoding: "utf8",
+    timeout: 180_000,
+  });
+  const out = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
+  const righe: RigaBarra[] = [];
+  const fallite: string[] = [];
+  let inRosso = false;
+  let ripetuti = 0;
+
+  for (const raw of out.split("\n")) {
+    const l = raw.trimEnd();
+    if (/^ROSSO:/.test(l)) { inRosso = true; continue; }
+    if (inRosso && /^\s+-\s/.test(l)) { fallite.push(l.replace(/^\s+-\s/, "")); continue; }
+    const m = /^(\d+b?)\.\s+(.*)$/.exec(l);
+    if (!m) continue;
+    const n = m[1] ?? "";
+    const testo = m[2] ?? "";
+    if (n === "2") { if (/SI RIPETE/.test(testo)) ripetuti++; continue; }
+    if (n === "3") {
+      // Dump dei livelli, un piano per riga in una riga sola: in terminale
+      // serve, in pagina e' un muro di numeri. Si tiene il conto.
+      const quanti = (testo.match(/=\d/g) ?? []).length;
+      righe.push({ n, testo: `livelli normalizzati su ${quanti} piani`, ok: true });
+      continue;
+    }
+    righe.push({ n, testo, ok: null });
+  }
+  righe.splice(1, 0, {
+    n: "2",
+    testo: ripetuti
+      ? `${ripetuti} piani ripassano il proprio girato oltre 2.5 volte`
+      : "nessun piano ripassa il proprio girato oltre 2.5 volte",
+    ok: ripetuti === 0,
+  });
+
+  const esito: Barra["esito"] = /VERDE/.test(out) ? "verde" : fallite.length ? "rosso" : "sconosciuto";
+  // Una riga e' rossa se il suo testo compare fra i motivi del fallimento.
+  for (const r2 of righe) {
+    if (r2.ok !== null) continue;
+    const chiavi = (r2.testo.match(/[a-zà-ù]{5,}/gi) ?? []).slice(0, 3);
+    r2.ok = !fallite.some((f) => chiavi.some((k) => f.toLowerCase().includes(k.toLowerCase())));
+  }
+  const b: Barra = { righe, esito, fallite, quando: Date.now(), calcolo: false };
+  barraCache = { chiave, barra: b };
+  return b;
+}
+
+export type Ricostruzione = {
+  attiva: boolean;
+  log: string;
+  iniziata: number | null;
+  finita: number | null;
+  uscita: number | null;
+};
+
+let ricostruzione: Ricostruzione = { attiva: false, log: "", iniziata: null, finita: null, uscita: null };
+
+export const statoRicostruzione = () => ricostruzione;
+
+/** Lancia `master.sh`. Uno per progetto alla volta: due giri in parallelo si
+ *  contendono `_work/` e il secondo cancella i quadri del primo. */
+export function ricostruisci(): { ok: boolean; errore?: string } {
+  if (ricostruzione.attiva) return { ok: false, errore: "una ricostruzione e' gia' in corso" };
+  const sh = at("master.sh");
+  if (!existsSync(sh)) return { ok: false, errore: "master.sh non trovato nel progetto" };
+  ricostruzione = { attiva: true, log: "", iniziata: Date.now(), finita: null, uscita: null };
+  const proc = Bun.spawn([sh], { cwd: videoRoot(), stdout: "pipe", stderr: "pipe" });
+
+  const bevi = async (stream: ReadableStream<Uint8Array> | null) => {
+    if (!stream) return;
+    const dec = new TextDecoder();
+    for await (const chunk of stream as any) {
+      ricostruzione.log = (ricostruzione.log + dec.decode(chunk)).slice(-60_000);
+    }
+  };
+  void Promise.all([bevi(proc.stdout as any), bevi(proc.stderr as any)]);
+  void proc.exited.then((code) => {
+    ricostruzione.attiva = false;
+    ricostruzione.finita = Date.now();
+    ricostruzione.uscita = code;
+    barraCache = null;            // il video e' cambiato: la barra va rifatta
+  });
+  return { ok: true };
 }

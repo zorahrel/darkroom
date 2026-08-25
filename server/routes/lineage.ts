@@ -28,7 +28,12 @@ type VersionRow = {
 /** Configurazione leggibile di una variante, ricavata da lineage o, per lo
  *  storico che lineage non ce l'ha, da config. Cio' che non e' registrato
  *  resta dichiarato come non registrato: inventarlo sarebbe peggio del vuoto. */
-function configOf(v: VersionRow): { recipe: string; refset: string; preamble: string | null } {
+function configOf(v: VersionRow): {
+  recipe: string;
+  refset: string;
+  preamble: string | null;
+  sources: string[];
+} {
   const read = (raw: string | null): Record<string, unknown> => {
     if (!raw) return {};
     try {
@@ -39,10 +44,16 @@ function configOf(v: VersionRow): { recipe: string; refset: string; preamble: st
   };
   const lin = read(v.lineage);
   const cfg = read(v.config);
+  // Le sorgenti vere, non la foto a cui la riga e' appesa: una variante nata da
+  // tre scatti insieme ha un photo_id solo, e senza questo elenco la vista ne
+  // mostrerebbe uno spacciandolo per l'unico ingresso.
+  const rawSources = (lin.sources ?? cfg.sources) as unknown;
+  const sources = Array.isArray(rawSources) ? rawSources.map(String) : [];
   return {
     recipe: String(lin.recipe ?? cfg.recipe ?? "senza ricetta"),
     refset: String(lin.refset ?? cfg.refset ?? "origine non registrata"),
     preamble: (lin.preamble as string | undefined) ?? null,
+    sources,
   };
 }
 
@@ -52,6 +63,11 @@ lineageRoutes.get("/api/lineage", (c) => {
       "SELECT id, original_path, favorite_version_id FROM photos ORDER BY id",
     )
     .all();
+
+  // lineage registra i NOMI dei file sorgente, la vista indirizza le miniature
+  // per id foto: senza questa mappa il client dovrebbe indovinare l'id dal nome,
+  // e sbaglierebbe su ogni file con un'estensione inattesa.
+  const byBasename = new Map(photos.map((p) => [p.original_path.split("/").pop() ?? "", p.id]));
 
   const out = photos.map((p) => {
     const versions = db()
@@ -67,7 +83,7 @@ lineageRoutes.get("/api/lineage", (c) => {
     // lavorato e quindi quello in cui si ricorda.
     const groups = new Map<
       string,
-      { recipe: string; refset: string; preamble: string | null; variants: unknown[] }
+      { recipe: string; refset: string; preamble: string | null; sources: string[]; variants: unknown[] }
     >();
     for (const v of versions) {
       const cfg = configOf(v);
@@ -81,6 +97,10 @@ lineageRoutes.get("/api/lineage", (c) => {
         favorite: p.favorite_version_id === v.id,
         created_at: v.created_at,
       });
+    }
+
+    for (const g of groups.values()) {
+      g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
     }
 
     return {

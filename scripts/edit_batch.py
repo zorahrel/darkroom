@@ -397,11 +397,18 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // returns text instead of an image. Detect so we skip instead of retrying.
             const arts = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
             const lastTxt = arts.length ? (arts[arts.length-1].innerText || '').toLowerCase() : '';
+            // La strozzatura del sito non e' un rifiuto e non e' un'attesa: la
+            // generazione non parte proprio. Senza riconoscerla, il picker
+            // ripiega su un'immagine gia' presente (l'allegato appena caricato,
+            // o un residuo della chat) e il fallimento viene diagnosticato come
+            // "render di un altro job" — misurato il 25/08 su 9 job di fila.
+            const throttled = /troppe richieste|too many requests|limitato temporaneamente|rate ?limit(?:ed)?|slow down/i.test(document.body.innerText.slice(-2500));
             const refused = /misure di protezione|somiglianza con contenuti|contenuti di terzi|third[- ]party|copyright|can'?t help with|unable to (?:create|generate|help)|non posso (?:aiutarti|creare|generare)|viola(?:no|re)? (?:le|la) (?:nostre|policy)|content polic/i.test(lastTxt);
             return {{
               done: !!pick && !stillStreaming,
               src: pick ? pick.src : null,
               refused: refused && !pick && !stillStreaming,
+              throttled: throttled && !pick,
               status: pick ? (stillStreaming ? 'img-streaming' : 'img-present') : (stillStreaming ? 'streaming' : 'waiting'),
             }};
           }})()
@@ -409,6 +416,10 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
         status = info.get("status", "")
         if status in ("img-streaming", "img-present"):
             saw_image_candidate = True
+        # Throttling: stop now and say so. Waiting out the timeout would end in
+        # a wrong picked image and a misleading error.
+        if info.get("throttled"):
+            raise RuntimeError("chatgpt-throttled: ChatGPT ha limitato temporaneamente l'accesso (troppe richieste) — nessuna immagine generata")
         # Content-policy refusal → skip this photo (don't retry forever).
         if info.get("refused"):
             raise RuntimeError("content-policy refusal (copyright/likeness) — skipped")

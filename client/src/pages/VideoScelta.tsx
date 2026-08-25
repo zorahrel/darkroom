@@ -1,0 +1,397 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { api, pq, type VideoShot, type VideoJob } from "../api";
+
+/**
+ * Giudicare le scene, una alla volta.
+ *
+ * La griglia serve a sfogliare, questa serve a decidere, e le due cose vogliono
+ * layout diversi. Nella griglia due verticali 9:16 dentro una tessera fanno
+ * ~80px l'una: a quella dimensione i difetti che contano non si vedono — il
+ * buco bianco sulla schiena di `g_scal1` era passato due volte prima che
+ * qualcuno aprisse quella ripresa da sola.
+ *
+ * Il giudizio e' l'unica cosa della catena che una misura non sa dare. Ne sono
+ * state provate tre (bilancio tonale, area di dettaglio, salto della sagoma) e
+ * nessuna separa una figura che si scioglie da una che entra in un'onda:
+ * l'indice di `d02`, che si sfascia a vista, sta in mezzo al gruppo.
+ */
+
+/** Una scena e' una PRESA, non un file: `z43_0` e `z43_1` sono due meta' della
+ *  stessa generazione e giudicarle separate e' la ragione per cui il montaggio
+ *  sembrava pieno di doppioni pur avendo 122 nomi diversi. */
+type Scena = {
+  origine: string;
+  pezzi: VideoShot[];
+  atto: string | null;
+  minuto: number | null;
+  inScena: number;
+  kept: boolean;
+  giudicata: boolean;
+};
+
+const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+
+function raggruppa(shots: VideoShot[]): Scena[] {
+  const per = new Map<string, VideoShot[]>();
+  for (const s of shots) per.set(s.origine, [...(per.get(s.origine) ?? []), s]);
+  return [...per.entries()]
+    .map(([origine, pezzi]) => {
+      const inM = pezzi.filter((p) => p.minuto !== null);
+      return {
+        origine,
+        pezzi: pezzi.sort((a, b) => a.id.localeCompare(b.id)),
+        atto: inM[0]?.atto ?? null,
+        minuto: inM.length ? Math.min(...inM.map((p) => p.minuto!)) : null,
+        inScena: pezzi.reduce((n, p) => n + p.inScena, 0),
+        // Una presa e' "tenuta" se almeno un pezzo lo e'.
+        kept: pezzi.some((p) => p.kept),
+        // Giudicata = qualcuno l'ha toccata: scartata, o annotata.
+        giudicata: pezzi.some((p) => !p.kept || p.problemi.length > 0),
+      };
+    })
+    .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
+}
+
+type Filtro = "da_giudicare" | "in_montaggio" | "scartate" | "tutte";
+
+export default function VideoScelta() {
+  const { pid } = useParams();
+  const [shots, setShots] = useState<VideoShot[]>([]);
+  const [filtro, setFiltro] = useState<Filtro>("da_giudicare");
+  const [atto, setAtto] = useState<string>("");
+  const [i, setI] = useState(0);
+  const [pezzo, setPezzo] = useState(0);
+  const [nota, setNota] = useState<string | null>(null);
+  const [testo, setTesto] = useState("");
+  const [rigen, setRigen] = useState(false);
+  const [promptMod, setPromptMod] = useState("");
+  const [par, setPar] = useState({ width: 640, height: 1152, length: 61, steps: 20 });
+  const [jobs, setJobs] = useState<VideoJob[]>([]);
+  const video = useRef<HTMLVideoElement>(null);
+  const campo = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    api.videoShots().then((r) => setShots(r.shots)).catch(() => {});
+  }, []);
+
+  const scene = useMemo(() => raggruppa(shots), [shots]);
+  const atti = useMemo(
+    () => [...new Set(scene.map((s) => s.atto).filter(Boolean))] as string[],
+    [scene],
+  );
+
+  const coda = useMemo(
+    () =>
+      scene.filter((s) => {
+        if (atto && s.atto !== atto) return false;
+        if (filtro === "da_giudicare") return !s.giudicata;
+        if (filtro === "in_montaggio") return s.minuto !== null;
+        if (filtro === "scartate") return !s.kept;
+        return true;
+      }),
+    [scene, filtro, atto],
+  );
+
+  const scena = coda[Math.min(i, Math.max(0, coda.length - 1))] ?? null;
+  const corrente = scena?.pezzi[Math.min(pezzo, scena.pezzi.length - 1)] ?? null;
+
+  // Le generazioni si guardano solo mentre ce n'e' una viva: una scheda sola,
+  // e un sondaggio a vuoto ogni tre secondi per tutta la sessione non serve.
+  useEffect(() => {
+    let vivo = true;
+    const giro = async () => {
+      try {
+        const r = await api.videoGenerazioni();
+        if (!vivo) return;
+        setJobs(r.jobs);
+        if (r.jobs.some((j) => j.status === "running" || j.status === "pending")) setTimeout(giro, 3000);
+      } catch { /* il server puo' non essere un progetto video */ }
+    };
+    void giro();
+    return () => { vivo = false; };
+  }, [rigen]);
+
+  useEffect(() => { setPezzo(0); }, [scena?.origine]);
+  useEffect(() => { if (i >= coda.length) setI(Math.max(0, coda.length - 1)); }, [coda.length, i]);
+
+  const avanti = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, coda.length - 1))), [coda.length]);
+
+  const giudica = useCallback(
+    async (kept: boolean, perche?: string) => {
+      if (!scena) return;
+      const ids = scena.pezzi.map((p) => p.id);
+      // Ottimismo: la riga resta come l'utente l'ha messa anche se la rete tarda.
+      setShots((prev) => prev.map((s) => (ids.includes(s.id) ? { ...s, kept } : s)));
+      try {
+        let ultimo = shots;
+        for (const id of ids) ultimo = (await api.videoPick(id, kept, perche)).shots;
+        setShots(ultimo);
+      } catch { /* la riga resta come l'utente l'ha messa */ }
+      avanti();
+    },
+    [scena, shots, avanti],
+  );
+
+  const annota = useCallback(async () => {
+    const t = testo.trim();
+    setNota(null); setTesto("");
+    if (!t || !scena) return;
+    try { setShots((await api.videoProblema(scena.pezzi[0]!.id, t)).shots); } catch { /* niente */ }
+  }, [testo, scena]);
+
+  // Tastiera: le mani restano ferme e si giudica a raffica. Il campo nota e'
+  // l'unico posto dove i tasti tornano a essere lettere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (nota !== null) {
+        if (e.key === "Escape") { setNota(null); setTesto(""); }
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void annota();
+        return;
+      }
+      if (e.key === "ArrowLeft") { e.preventDefault(); setNota("scarto"); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); void giudica(true); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setNota("nota"); }
+      else if (e.key === " ") { e.preventDefault(); const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }
+      else if (e.key === "ArrowDown") { e.preventDefault(); avanti(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [nota, annota, giudica, avanti]);
+
+  useEffect(() => { if (nota !== null) campo.current?.focus(); }, [nota]);
+
+  const daGiudicare = scene.filter((s) => !s.giudicata).length;
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-5 py-4 text-neutral-200">
+      <div className="flex items-baseline gap-4 mb-3 flex-wrap">
+        <h1 className="tracking-[0.3em] text-[13px] text-neutral-400">SCELTA</h1>
+        <Link to={`/p/${pid}/video`} className="text-[11px] text-neutral-500 hover:text-neutral-300">
+          → montaggio
+        </Link>
+        <span className="text-[12px] text-neutral-600">
+          {coda.length} in coda · {daGiudicare} mai giudicate su {scene.length} prese
+        </span>
+      </div>
+
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        {(["da_giudicare", "in_montaggio", "scartate", "tutte"] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => { setFiltro(k); setI(0); }}
+            className={`text-[11px] px-2 py-0.5 rounded-sm border ${
+              filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-600"
+            }`}
+          >
+            {k.replace("_", " ")}
+          </button>
+        ))}
+        <select
+          value={atto}
+          onChange={(e) => { setAtto(e.target.value); setI(0); }}
+          className="text-[11px] bg-neutral-950 border border-neutral-800 rounded-sm px-1.5 py-0.5 text-neutral-400"
+        >
+          <option value="">ogni atto</option>
+          {atti.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+
+      {!scena || !corrente ? (
+        <div className="h-[60vh] grid place-items-center text-neutral-600 text-sm border border-neutral-900 rounded-sm">
+          {shots.length ? "niente da giudicare con questi filtri" : "nessuna ripresa nel progetto"}
+        </div>
+      ) : (
+        <div className="flex gap-6 items-start">
+          <div className="shrink-0">
+            <video
+              ref={video}
+              key={corrente.id}
+              src={pq(corrente.takes[0]?.clip ?? "")}
+              poster={pq(corrente.takes[0]?.poster ?? "")}
+              autoPlay muted loop playsInline
+              className="w-[340px] aspect-[9/16] bg-black border border-neutral-800 rounded-sm object-cover"
+            />
+            {scena.pezzi.length > 1 && (
+              <div className="mt-2 flex gap-1.5">
+                {scena.pezzi.map((p, k) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPezzo(k)}
+                    className={`text-[10.5px] px-1.5 py-0.5 rounded-sm border ${
+                      k === pezzo ? "border-neutral-500 text-neutral-200" : "border-neutral-800 text-neutral-600"
+                    }`}
+                  >
+                    {p.id}
+                  </button>
+                ))}
+                <span className="text-[10.5px] text-neutral-600 self-center ml-1">
+                  spezzoni della stessa presa
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="text-[15px] text-neutral-200">{scena.origine}</div>
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
+              <dt className="text-neutral-600">atto</dt>
+              <dd>{scena.atto ?? <span className="text-neutral-600">— non in montaggio</span>}</dd>
+              <dt className="text-neutral-600">in scena</dt>
+              <dd>{scena.minuto === null ? "—" : `${scena.inScena.toFixed(1)}s a ${mmss(scena.minuto)}`}</dd>
+              <dt className="text-neutral-600">durezza</dt>
+              <dd className="tabular-nums">{corrente.durezza?.toFixed(2) ?? "—"}</dd>
+              <dt className="text-neutral-600">stato</dt>
+              <dd>
+                {scena.kept
+                  ? <span className="text-neutral-300">tenuta</span>
+                  : <span className="text-rose-400">scartata — {corrente.perche}</span>}
+                {corrente.escluso && (
+                  <span className="text-amber-500/80"> · esclusa dal piano: {corrente.escluso}</span>
+                )}
+              </dd>
+            </dl>
+
+            {corrente.problemi.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {corrente.problemi.map((p, k) => (
+                  <li key={k} className="text-[11.5px] text-amber-400/90 flex gap-2">
+                    <span>▸ {p}</span>
+                    <button
+                      className="text-neutral-700 hover:text-neutral-400"
+                      onClick={async () => {
+                        try { setShots((await api.videoProblema(corrente.id, undefined, k)).shots); } catch { /* niente */ }
+                      }}
+                    >
+                      togli
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Il prompt e' il posto dove si corregge cio' che la nota dice.
+                Finche' erano in due finestre diverse, il giro "questa si
+                deforma" -> prompt nuovo -> generazione si chiudeva a mano. */}
+            <details className="mt-3" open={rigen} onToggle={(e) => {
+              const aperto = (e.currentTarget as HTMLDetailsElement).open;
+              setRigen(aperto);
+              if (aperto && !promptMod) setPromptMod(corrente.prompt ?? "");
+            }}>
+              <summary className="text-[11px] text-neutral-600 cursor-pointer">
+                prompt e rigenerazione{corrente.prompt ? "" : " (nessun prompt registrato)"}
+              </summary>
+              <div className="mt-2 space-y-2">
+                {corrente.problemi.length > 0 && (
+                  <div className="text-[11px] text-amber-400/80 border-l-2 border-amber-500/40 pl-2">
+                    {corrente.problemi.map((x, k) => <div key={k}>{x}</div>)}
+                  </div>
+                )}
+                <textarea
+                  value={promptMod}
+                  onChange={(e) => setPromptMod(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="w-full h-28 bg-neutral-950 border border-neutral-800 rounded-sm p-2 text-[11.5px] text-neutral-300 leading-relaxed"
+                />
+                {/* Non sono costanti nascoste: a 704x1280 con 81 fotogrammi la
+                    3090 arriva a 23,9 GB su 24,5 e non scrive niente per un'ora.
+                    Chi lancia deve poter vedere il numero che decide. */}
+                <div className="flex gap-2 text-[11px]">
+                  {(["width", "height", "length", "steps"] as const).map((k) => (
+                    <label key={k} className="flex items-center gap-1 text-neutral-600">
+                      {k}
+                      <input
+                        type="number"
+                        value={par[k]}
+                        onChange={(e) => setPar({ ...par, [k]: Number(e.target.value) })}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="w-16 bg-neutral-950 border border-neutral-800 rounded-sm px-1 py-0.5 text-neutral-300"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="px-2 py-0.5 rounded-sm border border-sky-700 text-sky-300 text-[11px] disabled:opacity-40"
+                  disabled={!promptMod.trim() || jobs.some((j) => j.status === "running" || j.status === "pending")}
+                  onClick={async () => {
+                    try {
+                      await api.videoGenera(corrente.id, promptMod, corrente.takes[0]?.take ?? "a", par);
+                      setJobs((await api.videoGenerazioni()).jobs);
+                    } catch (err) { alert(String(err)); }
+                  }}
+                >
+                  rigenera sulla 3090
+                </button>
+                {jobs.filter((j) => j.piano === corrente.id).slice(0, 3).map((j) => (
+                  <div key={j.id} className="text-[11px] text-neutral-500">
+                    #{j.id} {j.status}
+                    {j.frames ? ` — ${j.frames} fotogrammi` : ""}
+                    {j.error && <span className="text-rose-400"> — {j.error}</span>}
+                    {j.log && <pre className="mt-1 max-h-24 overflow-auto text-[10px] text-neutral-600 whitespace-pre-wrap">{j.log.split("\n").slice(-6).join("\n")}</pre>}
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            {nota !== null ? (
+              <div className="mt-4">
+                <textarea
+                  ref={campo}
+                  value={testo}
+                  onChange={(e) => setTesto(e.target.value)}
+                  placeholder={nota === "scarto" ? "perche' la scarti?" : "cosa c'e' da sistemare?"}
+                  className="w-full h-20 bg-neutral-950 border border-neutral-800 rounded-sm p-2 text-[12px] text-neutral-200"
+                />
+                <div className="mt-1 flex gap-2 text-[11px]">
+                  <button
+                    className="px-2 py-0.5 rounded-sm border border-neutral-600 text-neutral-200"
+                    onClick={async () => {
+                      const t = testo;
+                      if (nota === "scarto") { setNota(null); setTesto(""); await giudica(false, t); }
+                      else await annota();
+                    }}
+                  >
+                    {nota === "scarto" ? "scarta" : "annota"}
+                  </button>
+                  <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-600"
+                          onClick={() => { setNota(null); setTesto(""); }}>
+                    lascia stare
+                  </button>
+                  <span className="self-center text-neutral-700">⌘↵ conferma · esc annulla</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 flex gap-2 items-center">
+                <button
+                  onClick={() => setNota("scarto")}
+                  className="px-3 py-1 rounded-sm border border-rose-900/70 text-rose-300 text-[12px]"
+                >
+                  ✕ scarta
+                </button>
+                <button
+                  onClick={() => void giudica(true)}
+                  className="px-3 py-1 rounded-sm border border-emerald-900/70 text-emerald-300 text-[12px]"
+                >
+                  ♥ tieni
+                </button>
+                <button
+                  onClick={() => setNota("nota")}
+                  className="px-3 py-1 rounded-sm border border-neutral-800 text-neutral-400 text-[12px]"
+                >
+                  ✎ annota
+                </button>
+                <span className="text-[11px] text-neutral-700 ml-2">
+                  ← scarta · → tieni · ↑ annota · ↓ salta · spazio rivedi
+                </span>
+              </div>
+            )}
+
+            <div className="mt-5 text-[11px] text-neutral-700 tabular-nums">
+              {Math.min(i + 1, coda.length)} / {coda.length}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,6 +1,11 @@
 import { jsonFetch } from "./http";
 import type {
   VideoShot,
+  VideoAtto,
+  VideoSospesa,
+  VideoBarra,
+  VideoRicostruzione,
+  VideoJob,
   VideoCut,
   VideoAssets,
   BakeResult,
@@ -414,7 +419,11 @@ export const api = {
 
   // ---- Progetti video ----------------------------------------------------
   videoShots: () => jsonFetch<{ shots: VideoShot[] }>("/api/video/shots"),
-  videoCuts: () => jsonFetch<{ cuts: VideoCut[]; durata: number; bpm: number | null }>("/api/video/cuts"),
+  videoCuts: () =>
+    jsonFetch<{
+      cuts: VideoCut[]; durata: number; bpm: number | null;
+      atti: VideoAtto[]; sospese: VideoSospesa[];
+    }>("/api/video/cuts"),
   videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
   videoRipresa: (shot: string, take: string, kept: boolean) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/ripresa", {
@@ -431,4 +440,28 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ shot, kept, perche }),
     }),
+  videoPin: (bar: number, shot: string | null) =>
+    jsonFetch<{ ok: true }>("/api/video/pin", {
+      method: "POST",
+      body: JSON.stringify({ bar, shot }),
+    }),
+  videoDurata: (bar: number, battute: number | null) =>
+    jsonFetch<{ ok: true }>("/api/video/durata", {
+      method: "POST",
+      body: JSON.stringify({ bar, battute }),
+    }),
+  videoBarra: (force = false) =>
+    jsonFetch<VideoBarra>(`/api/video/barra${force ? "?force=1" : ""}`),
+  videoRicostruisci: () =>
+    jsonFetch<{ ok: true }>("/api/video/ricostruisci", { method: "POST" }),
+  videoRicostruzione: () => jsonFetch<VideoRicostruzione>("/api/video/ricostruzione"),
+  videoGenerazioni: () =>
+    jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generazioni"),
+  videoGenera: (piano: string, prompt: string, take: string, params: Record<string, number | string>) =>
+    jsonFetch<{ job: VideoJob }>("/api/video/genera", {
+      method: "POST",
+      body: JSON.stringify({ piano, prompt, take, params }),
+    }),
+  videoAnnullaGenerazione: (id: number) =>
+    jsonFetch<{ ok: boolean }>(`/api/video/genera/${id}/annulla`, { method: "POST" }),
 };

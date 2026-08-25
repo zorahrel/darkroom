@@ -111,6 +111,26 @@ const SCHEMA_STATEMENTS = [
     finished_at INTEGER
   )`,
   `CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, created_at)`,
+  // Video generation runs on one GPU over the network, so the queue is a
+  // queue of one — but it still has to survive a restart: a WAN generation is
+  // ninety seconds when it fits in memory and an hour when it doesn't, and a
+  // reload in the middle would otherwise lose the fact that the card is busy.
+  `CREATE TABLE IF NOT EXISTS video_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    piano TEXT NOT NULL,
+    take TEXT NOT NULL DEFAULT 'a',
+    prompt TEXT NOT NULL,
+    params TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','running','done','failed','cancelled')),
+    prompt_id TEXT,
+    frames INTEGER,
+    log TEXT,
+    error TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    finished_at INTEGER
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_video_jobs_status ON video_jobs(status, created_at)`,
   `CREATE TABLE IF NOT EXISTS orphans (
     filename TEXT PRIMARY KEY,
     source_path TEXT NOT NULL,
@@ -121,6 +141,17 @@ const SCHEMA_STATEMENTS = [
   // Saved color-grade templates. `grade` is a full ColorGrade JSON; `source`
   // records where it came from (manual save, or an imported Lightroom/LUT/JSON
   // template) so the UI can badge provenance.
+  // Ricette estratte da un'immagine di riferimento (REF-02). Separate dai
+  // `presets` (che sono gradazioni colore): qui il corpo e' il testo del prompt,
+  // e `from_reference` tiene il legame con l'immagine da cui e' nato — senza,
+  // fra sei mesi una ricetta e' una frase senza provenienza.
+  `CREATE TABLE IF NOT EXISTS recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    body TEXT NOT NULL,
+    from_reference TEXT,
+    created_at INTEGER NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS presets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

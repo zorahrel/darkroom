@@ -508,9 +508,50 @@ export type VideoShot = {
   kept: boolean;
   perche: string | null;
   problemi: string[];
+  /** Due meta' della stessa presa condividono questa: `z43_0` e `z43_1` -> `z43`. */
+  origine: string;
+  atto: string | null;
+  /** Secondo del film in cui compare la prima volta, null se non e' in montaggio. */
+  minuto: number | null;
+  /** Perche' il pianificatore l'ha escluso, quando non e' stato scartato a mano. */
+  escluso: string | null;
 };
 export type VideoCut = {
-  t: number; dur: number; shot: string;
-  durezzaSuono: number; velocita: number; rovescio: boolean; fermo: boolean;
+  t: number; dur: number; bar: number; shot: string;
+  durezzaSuono: number; durezzaPiano: number | null;
+  velocita: number; rovescio: boolean;
+  atto: string | null; origine: string;
 };
+export type VideoAtto = { da: number; a: number; nome: string; t0: number; t1: number };
+export type VideoSospesa = { battuta: number; garanzia: string };
 export type VideoAssets = { anteprima: string | null; reel: string | null; master: string | null };
+export type BarraRiga = { n: string; testo: string; ok: boolean | null };
+export type VideoBarra = {
+  righe: BarraRiga[];
+  esito: "verde" | "rosso" | "sconosciuto";
+  fallite: string[];
+  quando: number | null;
+  calcolo: boolean;
+};
+export type VideoRicostruzione = {
+  attiva: boolean; log: string;
+  iniziata: number | null; finita: number | null; uscita: number | null;
+};
+
+/** Una generazione sulla 3090. Il tempo che ci mette dipende dai parametri, non
+ *  dal prompt: e' la memoria della scheda a decidere se sono 90 secondi o mai. */
+export type VideoJob = {
+  id: number;
+  piano: string;
+  take: string;
+  prompt: string;
+  params: string;
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
+  prompt_id: string | null;
+  frames: number | null;
+  log: string | null;
+  error: string | null;
+  created_at: number;
+  started_at: number | null;
+  finished_at: number | null;
+};

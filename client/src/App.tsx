@@ -185,6 +185,12 @@ export default function App() {
               <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
                 Albero
               </ViewTab>
+              <ViewTab
+                to={`/p/${pid}/riferimenti`}
+                current={location.pathname.includes("/riferimenti")}
+              >
+                Riferimenti
+              </ViewTab>
               {orphanCount > 0 && (
                 <ViewTab
                   to={`/p/${pid}/orphans`}
