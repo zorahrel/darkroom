@@ -71,6 +71,12 @@ async function correlation(a: string, b: string): Promise<number | null> {
 
 export async function runWorkerCodexHttp(input: {
   image?: string;
+  /** Piu' foto sorgente allegate alla stessa richiesta (GEN-01). Una sorgente
+   *  e' materiale da cui esce il risultato; un riferimento e' un bersaglio a
+   *  cui assomigliare. Tre ritratti della stessa persona come input contemporaneo
+   *  sono il primo caso, e trattarli come riferimenti direbbe al modello di
+   *  copiarne il look invece di usarli come materiale. */
+  images?: string[];
   prompt: string;
   output: string;
   refs?: string[];
@@ -78,13 +84,19 @@ export async function runWorkerCodexHttp(input: {
   const startedAt = Date.now();
   try {
     const { token, accountId } = readToken();
+    const sources = input.images?.length ? input.images : input.image ? [input.image] : [];
     const attachments: string[] = [];
-    if (input.image) {
-      if (!existsSync(input.image)) return { status: "error", error: `foto sorgente assente: ${input.image}` };
-      attachments.push(await dataUri(input.image));
+    for (const src of sources) {
+      if (!existsSync(src)) return { status: "error", error: `foto sorgente assente: ${src}` };
+      attachments.push(await dataUri(src));
     }
     for (const r of input.refs ?? []) if (existsSync(r)) attachments.push(await dataUri(r));
 
+    // Limite dichiarato: il payload e' JSON, e sei immagini in base64 sono gia'
+    // diversi MB. Meglio un errore leggibile che una connessione chiusa a meta'.
+    if (attachments.length > 6) {
+      return { status: "error", error: `troppi allegati: ${attachments.length} (massimo 6)`, duration_s: 0 };
+    }
     const content: Record<string, unknown>[] = attachments.map((u) => ({ type: "input_image", image_url: u }));
     content.push({ type: "input_text", text: input.prompt });
 
@@ -183,7 +195,7 @@ export async function runWorkerCodexHttp(input: {
     // sorgente. Le ricette cambiano inquadratura (ritaglio quadrato, crop
     // stretto), e su un ritaglio legittimo la correlazione scende a 0.03:
     // un cancello su quel numero boccerebbe il lavoro giusto.
-    const attachedFiles = [input.image, ...(input.refs ?? [])].filter((f): f is string => !!f && existsSync(f));
+    const attachedFiles = [...sources, ...(input.refs ?? [])].filter((f) => existsSync(f));
     for (const f of attachedFiles) {
       const c = await correlation(f, input.output);
       if (c !== null && c > 0.9) {

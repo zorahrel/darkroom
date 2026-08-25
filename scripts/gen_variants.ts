@@ -20,13 +20,24 @@ const pid = process.argv[2] ?? "profilo";
  *  allegati, non da come e' fatta la cartella. */
 let hasStyleRef = false;
 let nRefs = 0;
+let together = false;
 const ROLES = () =>
-  !hasStyleRef ? ROLES_ID_ONLY : nRefs > 1 ? ROLES_MIXED : ROLES_STYLE_ONLY;
+  together
+    ? ROLES_MULTI_SOURCE + (hasStyleRef ? "One further image is attached as a styling reference only: never copy that face, take from it lighting, tonality, framing and treatment. " : "")
+    : !hasStyleRef
+      ? ROLES_ID_ONLY
+      : nRefs > 1
+        ? ROLES_MIXED
+        : ROLES_STYLE_ONLY;
+const has = (k: string) => process.argv.includes(k);
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
 const limit = Number(arg("--limit") ?? 0);
+/** --insieme: un solo job per ricetta, con TUTTE le foto allegate insieme. */
+const TOGETHER = has("--insieme");
+const rounds = Number(arg("--giri") ?? 1);
 const only = arg("--variants")?.split(",").map((s) => s.trim()).filter(Boolean);
 
 /** Le ricette. Tutte citano il reference allegato: è quello che tiene insieme
@@ -51,6 +62,11 @@ const ROLES_ID_ONLY =
  *  che e' un'altra persona. */
 const ROLES_STYLE_ONLY =
   "The attached image is a photograph of a DIFFERENT person, attached only as a styling reference. Never copy that face. Take from it the lighting, tonality, framing and treatment. The face, bone structure and identity must remain exactly those of the photo being edited. ";
+
+/** Piu' scatti come input unico (GEN-01). Va detto che sono la stessa persona:
+ *  senza, il modello puo' leggerli come persone diverse e mediare i volti. */
+const ROLES_MULTI_SOURCE =
+  "The attached photographs are all of ME, the same person in different shots and lighting. Use all of them together as material: take my face and identity from them, and produce ONE new portrait. ";
 
 const RECIPES: { key: string; body: string }[] = [
   {
@@ -103,12 +119,36 @@ withProject(pid, async () => {
   nRefs = refs.length;
   const recipes = only ? RECIPES.filter((r) => only.includes(r.key)) : RECIPES;
   const targets = limit > 0 ? photos.slice(0, limit) : photos;
-  console.log(`[gen] progetto=${pid} foto=${targets.length} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
+  console.log(`[gen] progetto=${pid} ${TOGETHER ? `INSIEME ${targets.length} sorgenti x${Math.max(1, rounds)} giri` : `foto=${targets.length}`} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
+
+  together = TOGETHER;
+  // Con --insieme il ciclo esterno non e' piu' "una foto alla volta": c'e' un
+  // solo insieme di sorgenti, e si gira sulle ricette (per `--giri` volte, per
+  // avere piu' varianti della stessa ricetta invece di una sola).
+  const units: { label: string; photoId: string; sources: string[] }[] = TOGETHER
+    ? Array.from({ length: Math.max(1, rounds) }, (_, r) => ({
+        label: `insieme g${r + 1}`,
+        // La versione si appende alla PRIMA foto: lo schema ha un photo_id solo.
+        // Le sorgenti vere restano tutte in lineage, che e' l'unico posto dove
+        // non si perde l'informazione che erano tre.
+        photoId: targets[0]!.id,
+        sources: targets.map((t) => t.original_path),
+      }))
+    : targets.map((t) => ({ label: t.id, photoId: t.id, sources: [t.original_path] }));
 
   let ok = 0, ko = 0, streak = 0;
-  for (const photo of targets) {
+  let quotaResetsAt: number | null = null;
+  for (const unit of units) {
     for (const recipe of recipes) {
       if (streak >= 4) { console.error("[gen] 4 fallimenti di fila: mi fermo, non è un caso"); process.exit(1); }
+      if (quotaResetsAt) {
+        // Il muro della quota non e' un fallimento da ritentare: insistere
+        // brucia tempo e non sposta l'orario di riapertura. Meglio fermarsi
+        // dicendo QUANDO, cosi' si riprende invece di indovinare.
+        const when = new Date(quotaResetsAt * 1000).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+        console.error(`[gen] quota ChatGPT esaurita, riapre alle ${when}. Mi fermo qui.`);
+        process.exit(2);
+      }
       // Il set di reference va registrato con la variante: due passate fatte con
       // reference diversi non sono confrontabili, e senza etichetta nel provino
       // sembrano solo due tentativi della stessa cosa.
@@ -119,13 +159,20 @@ withProject(pid, async () => {
       // istruzioni diverse producono cose diverse, e nel provino finirebbero
       // sotto la stessa etichetta. "id+look" e' il preambolo che chiede di
       // seguire anche l'aspetto delle reference, non solo l'identita'.
-      const refset = `${refs.length} rif: ${hasStyleRef ? (refs.length > 1 ? "id+stile" : "stile") : "id+look"}`;
-      const cfg = JSON.stringify({ recipe: recipe.key, refset, refs: refs.map((r) => r.split("/").pop()) });
+      const refset = TOGETHER
+        ? `${unit.sources.length} sorgenti insieme${hasStyleRef ? " + stile" : ""}`
+        : `${refs.length} rif: ${hasStyleRef ? (refs.length > 1 ? "id+stile" : "stile") : "id+look"}`;
+      const cfg = JSON.stringify({
+        recipe: recipe.key,
+        refset,
+        refs: refs.map((r) => r.split("/").pop()),
+        sources: unit.sources.map((r) => r.split("/").pop()),
+      });
       const prompt = ROLES() + recipe.body;
-      const job = enqueueJob(photo.id, prompt, cfg, "chatgpt", null, "edit", null, JSON.stringify(refs));
+      const job = enqueueJob(unit.photoId, prompt, cfg, "chatgpt", null, "edit", null, JSON.stringify(refs));
       db().run("UPDATE jobs SET status='running', started_at=?, attempts=attempts+1 WHERE id=?", [Date.now(), job.id]);
-      const n = nextVersionNumber(photo.id);
-      const dir = join(d.GEN_DIR, photo.id);
+      const n = nextVersionNumber(unit.photoId);
+      const dir = join(d.GEN_DIR, unit.photoId);
       mkdirSync(dir, { recursive: true });
       // Il nome del file segue la convenzione di darkroom (vNN.png): l'interfaccia
       // lo ricostruisce dal numero di versione, non lo legge dal database, quindi
@@ -133,20 +180,22 @@ withProject(pid, async () => {
       // La ricetta e' gia' salvata nel config della versione: nel nome non serve.
       const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
       const t0 = Date.now();
-      const res = await runWorkerCodexHttp({ image: photo.original_path, prompt, output: out, refs });
+      const res = await runWorkerCodexHttp({ images: unit.sources, prompt, output: out, refs });
       if (res.status === "ok") {
         const ins = db().run(
           `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
            VALUES (?, ?, ?, ?, ?, 'chatgpt', NULL, 0, 'generated', ?)`,
-          [photo.id, n, out, prompt, JSON.stringify({ recipe: recipe.key, refset, backend: "codex-http" }), Date.now()],
+          [unit.photoId, n, out, prompt, JSON.stringify({ recipe: recipe.key, refset, backend: "codex-http", sources: unit.sources.map((r) => r.split("/").pop()) }), Date.now()],
         );
         db().run("UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?", [Number(ins.lastInsertRowid), Date.now(), job.id]);
         ok++; streak = 0;
-        console.log(`  ok  ${photo.id.slice(0, 12)} ${recipe.key} — ${res.size_kb}KB ${res.duration_s.toFixed(0)}s`);
+        console.log(`  ok  ${unit.label.slice(0, 14)} ${recipe.key} — ${res.size_kb}KB ${res.duration_s.toFixed(0)}s`);
       } else {
         db().run("UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=?", [String(res.error).slice(0, 500), Date.now(), job.id]);
         ko++; streak++;
-        console.log(`  KO  ${photo.id.slice(0, 12)} ${recipe.key} — ${String(res.error).slice(0, 120)}`);
+        const m = /"resets_at":(\d+)/.exec(String(res.error));
+        if (m) quotaResetsAt = Number(m[1]);
+        console.log(`  KO  ${unit.label.slice(0, 14)} ${recipe.key} — ${String(res.error).slice(0, 120)}`);
       }
     }
   }
