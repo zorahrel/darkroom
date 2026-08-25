@@ -38,14 +38,19 @@ const strips = m.photos.map((p: any, i: number) => `
       <figure class="frame" data-set="${esc(v.refset ?? "solo stile")}" data-pick="${esc(p.photo)}/v${String(v.n).padStart(2, "0")}_${esc(v.recipe)}" data-path="${esc(v.path)}" data-vid="${v.id}">
         <div class="img-wrap">
           <img src="${v.thumb}" alt="${esc(RECIPES[v.recipe]?.label ?? v.recipe)} da ${esc(p.photo)}" loading="lazy">
-          <button class="mark" aria-pressed="false" aria-label="Tieni questo fotogramma"><svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="60" rx="50" ry="44" transform="rotate(-7 60 60)"/></svg></button>
+          <svg class="glyph" viewBox="0 0 120 120" aria-hidden="true">
+            <ellipse class="g-ring" cx="60" cy="60" rx="50" ry="44" transform="rotate(-7 60 60)"/>
+            <path class="g-cross" d="M18 20 L102 100 M102 22 L20 98"/>
+          </svg>
         </div>
         <figcaption class="rebate">
           <span class="fnum">${String(v.n).padStart(2, "0")}</span>
           <span class="fname">${esc(RECIPES[v.recipe]?.label ?? v.recipe)}</span>
-          <span class="fset">${esc(v.refset ?? "solo stile")}</span>
-          <span class="fid">v${v.id}</span>
+          <span class="fset" title="riferimenti: ${esc(v.refset ?? "solo stile")}">${esc((v.refset ?? "solo stile").replace("solo stile", "stile").replace("id+stile", "id+st").replace(/^(\d+) identit.*/, "$1 id"))}</span>
+          <button class="vote" type="button" title="Voto: clicca per ciclare tieni / forse / scarta">&#9675;</button>
+          <button class="notebtn" type="button" title="Nota" aria-expanded="false">&#9998;</button>
         </figcaption>
+        <div class="notebox" hidden><textarea rows="2" placeholder="perch&eacute; s&igrave;, perch&eacute; no&hellip;"></textarea></div>
       </figure>`).join("")}
     </div>
   </section>`).join("");
@@ -100,26 +105,39 @@ h1{font-family:"Bodoni Moda",Didot,Georgia,serif;font-weight:600;font-size:clamp
   font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
 .roll{color:var(--grease);font-weight:500}
 .strip-id{color:var(--ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.frames{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.frames{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
 .frame{margin:0;background:var(--sheet);border:1px solid var(--edge);box-shadow:var(--shadow)}
 .frame.is-source{opacity:.72}
 .img-wrap{position:relative;background:var(--frame-mat);aspect-ratio:4/5;overflow:hidden}
 .img-wrap img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
-.mark{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;padding:0;cursor:pointer}
-.mark svg{width:82%;height:82%;position:absolute;left:9%;top:9%;fill:none;
-  stroke:var(--grease);stroke-width:4;stroke-linecap:round;opacity:0;
-  stroke-dasharray:300;stroke-dashoffset:300;transition:opacity .18s}
-.mark:hover svg{opacity:.32}
-.frame.picked .mark svg{opacity:1;animation:draw .5s ease forwards}
-.frame.picked{outline:2px solid var(--grease);outline-offset:-1px;background:var(--grease-soft)}
+/* Il glifo e' decorazione, non un bersaglio: se copre l'immagine si mangia il
+   click che apre l'ingrandimento, e senza ingrandimento non si valuta niente. */
+.glyph{position:absolute;left:9%;top:9%;width:82%;height:82%;pointer-events:none;
+  fill:none;stroke:var(--grease);stroke-width:4;stroke-linecap:round}
+.glyph .g-ring,.glyph .g-cross{opacity:0;stroke-dasharray:320;stroke-dashoffset:320;transition:opacity .15s}
+.frame[data-vote="si"] .g-ring,.frame[data-vote="forse"] .g-ring,.frame[data-vote="no"] .g-cross{
+  opacity:1;animation:draw .45s ease forwards}
+.frame[data-vote="forse"] .g-ring{stroke-dasharray:14 12;stroke-dashoffset:0;animation:none;opacity:.85}
 @keyframes draw{to{stroke-dashoffset:0}}
-@media (prefers-reduced-motion:reduce){.frame.picked .mark svg{animation:none;stroke-dashoffset:0}}
-.mark:focus-visible{outline:2px solid var(--grease);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.glyph *{animation:none!important;stroke-dashoffset:0}}
+.frame[data-vote="si"]{outline:2px solid var(--grease);outline-offset:-1px;background:var(--grease-soft)}
+.frame[data-vote="no"]{opacity:.5}
+.frame[data-vote="forse"]{outline:1px dashed var(--grease);outline-offset:-1px}
+.vote,.notebtn{font:inherit;line-height:1;border:0;background:transparent;color:var(--ink-muted);
+  cursor:pointer;padding:2px 4px;font-size:.95rem}
+.vote:hover,.notebtn:hover{color:var(--grease)}
+.vote:focus-visible,.notebtn:focus-visible{outline:2px solid var(--grease);outline-offset:1px}
+.frame[data-vote="si"] .vote,.frame[data-vote="no"] .vote,.frame[data-vote="forse"] .vote{color:var(--grease)}
+.frame.hasnote .notebtn{color:var(--grease)}
+.notebox{padding:0 9px 9px}
+.notebox textarea{width:100%;font:inherit;font-size:.78rem;background:transparent;color:var(--ink);
+  border:1px solid var(--edge);padding:6px;resize:vertical}
+.notebox textarea:focus-visible{outline:2px solid var(--grease);outline-offset:1px}
 .rebate{display:flex;align-items:center;gap:9px;padding:7px 9px;border-top:1px solid var(--edge);
   font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-variant-numeric:tabular-nums}
 .fnum{color:var(--grease);font-weight:500}
-.fname{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fset{margin-left:auto;color:var(--ink-muted);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase}
+.fname{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;min-width:0}
+.fset{color:var(--ink-muted);font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;flex:0 0 auto}
 .frame[data-set="id+stile"] .fset{color:var(--grease)}
 .fid{color:var(--ink-muted);opacity:.6}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 0}
@@ -207,7 +225,7 @@ ${strips}
 
 <div class="bar">
   <span class="n"><b id="cnt">0</b> / ${total} tenuti</span>
-  <button class="act" id="copy">Copia elenco</button>
+  <button class="act" id="copy">Copia valutazione</button>
   <button class="act" id="clear">Azzera</button>
   <span class="picks" id="list">nessuna scelta</span>
 </div>
@@ -215,32 +233,58 @@ ${strips}
 <dialog class="lb" id="lb"><img alt=""><div class="cap"></div></dialog>
 
 <script>
-const KEY="provino-profilo-picks";
-let picks=new Set();
-try{picks=new Set(JSON.parse(localStorage.getItem(KEY)||"[]"))}catch(e){}
+const KEY="provino-profilo-v2";
+// {chiave: {v:"si|forse|no", n:"nota"}} \\u2014 voto e nota vivono insieme: una nota
+// senza voto e' comunque un giudizio, e va esportata.
+let data={};
+try{data=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){}
+const CYCLE=["","si","forse","no"];
+const GLYPH={"":"\\u25CB",si:"\\u25CF",forse:"?",no:"\\u2715"};
 const cnt=document.getElementById("cnt"), list=document.getElementById("list");
-function save(){try{localStorage.setItem(KEY,JSON.stringify([...picks]))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+function lines(){
+  return Object.entries(data)
+    .filter(([,x])=>x&&(x.v||x.n))
+    .map(function(e){var k=e[0],x=e[1];return k+"  "+(x.v||"-").toUpperCase()+(x.n?"  \\u2014 "+x.n:"");});
+}
 function render(){
-  cnt.textContent=picks.size;
-  list.textContent=picks.size?[...picks].join("  ·  "):"nessuna scelta";
+  const si=Object.values(data).filter(x=>x&&x.v==="si").length;
+  const forse=Object.values(data).filter(x=>x&&x.v==="forse").length;
+  const no=Object.values(data).filter(x=>x&&x.v==="no").length;
+  const note=Object.values(data).filter(x=>x&&x.n).length;
+  cnt.textContent=si;
+  list.textContent=(si+forse+no+note)===0?"nessun giudizio"
+    :si+" tenuti \\u00b7 "+forse+" forse \\u00b7 "+no+" scartati \\u00b7 "+note+" note";
   document.querySelectorAll(".frame[data-pick]").forEach(f=>{
-    const on=picks.has(f.dataset.pick);
-    f.classList.toggle("picked",on);
-    f.querySelector(".mark").setAttribute("aria-pressed",String(on));
+    const d=data[f.dataset.pick]||{};
+    f.dataset.vote=d.v||"";
+    f.classList.toggle("hasnote",!!d.n);
+    f.querySelector(".vote").textContent=GLYPH[d.v||""];
+    const ta=f.querySelector("textarea"); if(ta && ta.value!==(d.n||"")) ta.value=d.n||"";
   });
 }
 document.querySelectorAll(".frame[data-pick]").forEach(f=>{
-  f.querySelector(".mark").addEventListener("click",e=>{
-    e.stopPropagation();
-    const k=f.dataset.pick;
-    picks.has(k)?picks.delete(k):picks.add(k);
-    save();render();
+  const k=f.dataset.pick;
+  f.querySelector(".vote").addEventListener("click",()=>{
+    const cur=(data[k]&&data[k].v)||"";
+    const next=CYCLE[(CYCLE.indexOf(cur)+1)%CYCLE.length];
+    data[k]={...(data[k]||{}),v:next}; save(); render();
+  });
+  const box=f.querySelector(".notebox"), btn=f.querySelector(".notebtn");
+  btn.addEventListener("click",()=>{
+    const open=box.hasAttribute("hidden");
+    if(open){box.removeAttribute("hidden"); box.querySelector("textarea").focus();}
+    else box.setAttribute("hidden","");
+    btn.setAttribute("aria-expanded",String(open));
+  });
+  box.querySelector("textarea").addEventListener("input",e=>{
+    data[k]={...(data[k]||{}),n:e.target.value.trim()}; save();
+    f.classList.toggle("hasnote",!!e.target.value.trim());
   });
 });
 const lb=document.getElementById("lb"), lbImg=lb.querySelector("img"), lbCap=lb.querySelector(".cap");
 document.querySelectorAll(".frame img").forEach(img=>{
-  img.addEventListener("click",e=>{
-    e.stopPropagation();
+  img.addEventListener("click",()=>{
     lbImg.src=img.src; lbImg.alt=img.alt;
     const fr=img.closest(".frame");
     lbCap.textContent=fr.dataset.path||img.alt;
@@ -249,12 +293,12 @@ document.querySelectorAll(".frame img").forEach(img=>{
 });
 lb.addEventListener("click",()=>lb.close());
 document.getElementById("copy").addEventListener("click",async ()=>{
-  const t=[...picks].join("\\n")||"(nessuna)";
-  try{await navigator.clipboard.writeText(t);document.getElementById("copy").textContent="Copiato";
-      setTimeout(()=>document.getElementById("copy").textContent="Copia elenco",1400);}
-  catch(e){list.textContent=t.replace(/\\n/g,"  ·  ")}
+  const t=lines().join("\\n")||"(nessun giudizio)";
+  const b=document.getElementById("copy");
+  try{await navigator.clipboard.writeText(t);b.textContent="Copiato";setTimeout(()=>b.textContent="Copia valutazione",1400);}
+  catch(e){list.textContent=t.replace(/\\n/g,"  |  ")}
 });
-document.getElementById("clear").addEventListener("click",()=>{picks.clear();save();render()});
+document.getElementById("clear").addEventListener("click",()=>{data={};save();render()});
 document.querySelectorAll(".filters button").forEach(b=>{
   b.addEventListener("click",()=>{
     const f=b.dataset.filter;
@@ -271,6 +315,13 @@ render();
 // da host diversi (file://, http.server, l'host degli artifact) e non tutti
 // dichiarano il charset: senza questa passata "1122x1402" diventa "1122Ã—1402"
 // e la em dash diventa "â€”". Visto succedere, non ipotizzato.
-const ascii = html.replace(/[\u0080-\uFFFF]/g, (c) => `&#${c.charCodeAt(0)};`);
+// Le entita' vanno messe nel MARKUP, mai dentro <script>: un glifo come "o"
+// barrato diventerebbe "&#9675;" in mezzo al codice e la pagina morirebbe con
+// un SyntaxError, muta. Successo davvero, non ipotizzato: il provino e' rimasto
+// senza voti finche' non ho letto la console.
+const parts = html.split(/(<script>[\s\S]*?<\/script>)/);
+const ascii = parts
+  .map((chunk) => (chunk.startsWith("<script>") ? chunk : chunk.replace(/[\u0080-\uFFFF]/g, (c) => `&#${c.charCodeAt(0)};`)))
+  .join("");
 await Bun.write(outPath, ascii);
 console.log(`[sheet] ${total} fotogrammi, ${m.photos.length} scatti -> ${outPath} (${Math.round((await Bun.file(outPath).size)/1024)} KB)`);
