@@ -167,7 +167,8 @@ export default function App() {
                 current={
                   location.pathname.startsWith("/p/") &&
                   !location.pathname.includes("/orphans") &&
-                  !location.pathname.includes("/storyboard")
+                  !location.pathname.includes("/storyboard") &&
+                  !location.pathname.includes("/albero")
                 }
               >
                 Griglia
@@ -181,6 +182,9 @@ export default function App() {
                   Storyboard
                 </ViewTab>
               )}
+              <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
+                Albero
+              </ViewTab>
               {orphanCount > 0 && (
                 <ViewTab
                   to={`/p/${pid}/orphans`}

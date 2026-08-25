@@ -12,6 +12,7 @@ import { storyboardRoutes } from "./routes/storyboard.ts";
 import { verifyRoutes } from "./routes/verify.ts";
 import { studioRoutes } from "./routes/studio.ts";
 import { videoRoutes } from "./routes/video.ts";
+import { lineageRoutes } from "./routes/lineage.ts";
 import { mediaRoutes } from "./routes/media.ts";
 import { collectionRoutes } from "./routes/collections.ts";
 
@@ -55,6 +56,7 @@ app.route("/api/verify", verifyRoutes);
 app.route("/", collectionRoutes);
 app.route("/", videoRoutes);
 app.route("/", studioRoutes);
+app.route("/", lineageRoutes);
 app.route("/", mediaRoutes);
 
 export default app;

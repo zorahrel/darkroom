@@ -336,6 +336,24 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "jobs", "ref_paths")) {
     d.run("ALTER TABLE jobs ADD COLUMN ref_paths TEXT");
   }
+  // Il giudizio umano su UNA VARIANTE, distinto da "mi piace" che sta sulla
+  // foto: scegliere fra varianti e scegliere fra foto sono due gesti diversi,
+  // e tenerli sullo stesso campo costringerebbe a sceglierne uno solo.
+  // NULL = non ancora giudicata, che non e' la stessa cosa di "scartata".
+  if (!hasColumn(d, "versions", "verdict")) {
+    d.run("ALTER TABLE versions ADD COLUMN verdict TEXT"); // tieni | forse | scarta
+  }
+  // Il perche' della scelta. Senza, tornano indietro solo i sopravvissuti e non
+  // il motivo, che e' l'unica parte riutilizzabile per la passata successiva.
+  if (!hasColumn(d, "versions", "note")) {
+    d.run("ALTER TABLE versions ADD COLUMN note TEXT");
+  }
+  // Da cosa e' nata la variante: sorgenti, riferimenti, ricetta, preambolo.
+  // Sullo storico resta NULL, e la vista lo dichiara invece di inventarlo.
+  if (!hasColumn(d, "versions", "lineage")) {
+    d.run("ALTER TABLE versions ADD COLUMN lineage TEXT");
+  }
+
   // Only the rows of an actual storyboard land in this index.
   d.run(
     `CREATE INDEX IF NOT EXISTS idx_photos_sequence ON photos(sequence_index)

@@ -16,6 +16,8 @@ const StudioPage = lazy(() => import("./pages/Studio"));
 const StoryboardPage = lazy(() => import("./pages/Storyboard"));
 const SourcesPage = lazy(() => import("./pages/Sources"));
 const VideoPage = lazy(() => import("./pages/Video"));
+// La vista di scelta: pesa quanto la griglia, quindi code-split come le altre.
+const AlberoPage = lazy(() => import("./pages/Albero"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-500 text-sm">Carico…</div>;
@@ -95,6 +97,14 @@ ReactDOM.createRoot(root).render(
             element={
               <Suspense fallback={<PageFallback />}>
                 <SourcesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/albero"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <AlberoPage />
               </Suspense>
             }
           />
