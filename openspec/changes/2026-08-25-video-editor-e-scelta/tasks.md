@@ -106,3 +106,26 @@
       chi ha un'anteprima, col conto in `raccolte.json`
 - [x] il servizio non muore piu' quando il client e' da ricompilare (`bunx` non e' nel PATH
       di launchd, e `spawnSync` su un eseguibile assente solleva invece di tornare non-zero)
+
+## 11. Il guscio (26/08, quarta passata)
+- [x] la pagina **non scorre**: altezza misurata sul contenitore vero (compreso il suo
+      padding, che a occhio lasciava otto pixel) — verificato a 1440×900, 1920×1080, 1280×800
+- [x] tre pannelli e la timeline, come in un programma di montaggio: libreria con ricerca
+      e filtri a sinistra, monitor al centro dimensionato dall'immagine, ispettore a destra
+      che prende lo spazio che avanza invece di lasciarlo nero
+- [x] maniglie fra i pannelli e sopra la timeline, misure ricordate nel browser
+- [x] **la timeline cresce e le corsie con lei**: trascinando il separatore l'onda passa da
+      61 a 103 px, i blocchi e i fotogrammi con lei
+- [x] zoom ancorato al punto sotto il cursore: ingrandire e poi dover ritrovare il punto
+      è come non aver ingrandito
+- [x] riga di hover oltre alla testina, con l'istante in cima
+- [x] **contrasti misurati in pagina** sui colori calcolati (Tailwind scrive `oklch`, quindi
+      la conversione la fa il browser): `neutral-600` e sotto stanno fra 1.3:1 e 2.5:1, cioè
+      illeggibili. Il testo dell'editor ora sta a **7.66:1 o meglio**; restano due elementi
+      sotto soglia e sono la `/` e il `▾` del menu dell'app
+- [x] barra in cima da 30 a 24 px, padding stretti dove non servivano
+- [x] `indiceTaglio`, `altezzeCorsie` e `passoTacche` in `video/tempo.ts`, usati dai
+      componenti invece di essere ricopiati — 12 test, **visti diventare rossi** mutando
+      `<=` in `<` e bloccando una corsia
+- [x] batteria a 16 controlli sull'interfaccia vera: clic sul taglio, passo a 1/24 esatto,
+      `]`, tratto, tasti, esc, maniglia, zoom, scelta a schermo pieno, zero errori in console
