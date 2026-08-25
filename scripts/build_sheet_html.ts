@@ -35,7 +35,7 @@ const strips = m.photos.map((p: any, i: number) => `
         <figcaption class="rebate"><span class="fnum">00</span><span class="fname">partenza</span></figcaption>
       </figure>
       ${p.variants.map((v: any) => `
-      <figure class="frame" data-pick="${esc(p.photo)}/v${String(v.n).padStart(2, "0")}_${esc(v.recipe)}" data-path="${esc(v.path)}" data-vid="${v.id}">
+      <figure class="frame" data-set="${esc(v.refset ?? "solo stile")}" data-pick="${esc(p.photo)}/v${String(v.n).padStart(2, "0")}_${esc(v.recipe)}" data-path="${esc(v.path)}" data-vid="${v.id}">
         <div class="img-wrap">
           <img src="${v.thumb}" alt="${esc(RECIPES[v.recipe]?.label ?? v.recipe)} da ${esc(p.photo)}" loading="lazy">
           <button class="mark" aria-pressed="false" aria-label="Tieni questo fotogramma"><svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="60" rx="50" ry="44" transform="rotate(-7 60 60)"/></svg></button>
@@ -43,6 +43,7 @@ const strips = m.photos.map((p: any, i: number) => `
         <figcaption class="rebate">
           <span class="fnum">${String(v.n).padStart(2, "0")}</span>
           <span class="fname">${esc(RECIPES[v.recipe]?.label ?? v.recipe)}</span>
+          <span class="fset">${esc(v.refset ?? "solo stile")}</span>
           <span class="fid">v${v.id}</span>
         </figcaption>
       </figure>`).join("")}
@@ -80,7 +81,8 @@ body{margin:0;background:var(--ground);color:var(--ink);
 header.top{padding:56px 0 28px;border-bottom:1px solid var(--edge)}
 h1{font-family:"Bodoni Moda",Didot,Georgia,serif;font-weight:600;font-size:clamp(2.4rem,6vw,4rem);
   line-height:.98;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance}
-.dek{max-width:62ch;color:var(--ink-muted);margin:0;font-size:1.02rem}
+.dek em{font-style:normal;color:var(--ink);font-weight:500}
+.dek{max-width:64ch;color:var(--ink-muted);margin:0;font-size:1.02rem}
 .meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:22px;
   font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.76rem;letter-spacing:.06em;
   text-transform:uppercase;color:var(--ink-muted);font-variant-numeric:tabular-nums}
@@ -117,7 +119,15 @@ h1{font-family:"Bodoni Moda",Didot,Georgia,serif;font-weight:600;font-size:clamp
   font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-variant-numeric:tabular-nums}
 .fnum{color:var(--grease);font-weight:500}
 .fname{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fid{margin-left:auto;color:var(--ink-muted)}
+.fset{margin-left:auto;color:var(--ink-muted);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase}
+.frame[data-set="id+stile"] .fset{color:var(--grease)}
+.fid{color:var(--ink-muted);opacity:.6}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 0}
+.filters button{font:inherit;font-size:.78rem;padding:6px 13px;border:1px solid var(--edge-strong);
+  background:transparent;color:var(--ink-muted);cursor:pointer}
+.filters button[aria-pressed="true"]{border-color:var(--grease);color:var(--grease)}
+.filters button:focus-visible{outline:2px solid var(--grease);outline-offset:2px}
+.frame.hidden{display:none}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--sheet);border-top:1px solid var(--edge-strong);
   padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;z-index:20}
 .bar .n{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--ink-muted);font-variant-numeric:tabular-nums}
@@ -144,13 +154,22 @@ footer.note{padding:34px 0;color:var(--ink-muted);font-size:.9rem;max-width:64ch
 <div class="wrap">
 <header class="top">
   <h1>Provino Profilo</h1>
-  <p class="dek">Nove scatti, tre ricette, un solo riferimento allegato a ogni generazione — è quello che tiene insieme le varianti invece di avere nove foto ritoccate ognuna a modo suo. Segna col rosso quelle da tenere, poi copia l'elenco e passamelo.</p>
+  <p class="dek">Due passate a confronto. Nella prima ogni generazione portava con sé un solo riferimento di stile;
+  nella seconda ne porta quattro, con due ruoli distinti: tre foto a colori che dicono <em>chi</em> deve essere la
+  persona, una in bianco e nero che detta solo luce, taglio e trattamento. Il filtro qui sopra le separa.
+  Segna col rosso quelle da tenere, poi copia l'elenco e passamelo.</p>
   <div class="meta">
     <span>fotogrammi <b>${total}</b></span>
     <span>scatti <b>${m.photos.length}</b></span>
+    <span>ricette <b>${Object.keys(counts).length}</b></span>
     <span>modello <b>gpt-image 2.0</b></span>
     <span>via <b>codex-http</b></span>
     <span>nativo <b>1122×1402</b></span>
+  </div>
+  <div class="filters" role="group" aria-label="Filtra per set di riferimenti">
+    <button data-filter="all" aria-pressed="true">tutte</button>
+    <button data-filter="id+stile" aria-pressed="false">identit&agrave; + stile</button>
+    <button data-filter="solo stile" aria-pressed="false">solo stile</button>
   </div>
 </header>
 
@@ -236,6 +255,15 @@ document.getElementById("copy").addEventListener("click",async ()=>{
   catch(e){list.textContent=t.replace(/\\n/g,"  ·  ")}
 });
 document.getElementById("clear").addEventListener("click",()=>{picks.clear();save();render()});
+document.querySelectorAll(".filters button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    const f=b.dataset.filter;
+    document.querySelectorAll(".filters button").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));
+    document.querySelectorAll(".frame[data-set]").forEach(fr=>{
+      fr.classList.toggle("hidden", f!=="all" && fr.dataset.set!==f);
+    });
+  });
+});
 render();
 </script>`;
 

@@ -48,9 +48,16 @@ withProject(pid, async () => {
     for (const v of versions) {
       const t = await thumb(v.image_path);
       if (!t) continue;
-      let recipe = "?";
-      try { recipe = JSON.parse(v.config ?? "{}").recipe ?? "?"; } catch {}
-      vs.push({ id: v.id, n: v.version_number, recipe, path: v.image_path, thumb: t });
+      let recipe = "?", refset = "solo stile";
+      try {
+        const c = JSON.parse(v.config ?? "{}");
+        recipe = c.recipe ?? "?";
+        // Le varianti della prima passata non hanno l'etichetta: sono nate
+        // prima che esistesse, e per definizione avevano il solo riferimento
+        // di stile. Va scritto, non lasciato vuoto.
+        refset = c.refset ?? "solo stile";
+      } catch {}
+      vs.push({ id: v.id, n: v.version_number, recipe, refset, path: v.image_path, thumb: t });
     }
     if (vs.length) out.push({ photo: p.id, source: src, sourcePath: p.original_path, variants: vs });
     console.log(`  ${p.id.slice(0, 14)}: ${vs.length} varianti`);
