@@ -127,7 +127,11 @@ withProject(pid, async () => {
       const n = nextVersionNumber(photo.id);
       const dir = join(d.GEN_DIR, photo.id);
       mkdirSync(dir, { recursive: true });
-      const out = join(dir, `v${String(n).padStart(2, "0")}_${recipe.key}.png`);
+      // Il nome del file segue la convenzione di darkroom (vNN.png): l'interfaccia
+      // lo ricostruisce dal numero di versione, non lo legge dal database, quindi
+      // un nome "piu' descrittivo" rende l'immagine irraggiungibile dalla UI.
+      // La ricetta e' gia' salvata nel config della versione: nel nome non serve.
+      const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
       const t0 = Date.now();
       const res = await runWorkerCodexHttp({ image: photo.original_path, prompt, output: out, refs });
       if (res.status === "ok") {
