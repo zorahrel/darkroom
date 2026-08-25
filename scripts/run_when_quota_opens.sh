@@ -15,8 +15,10 @@ wait=$(( RESETS_AT - now + 120 ))   # due minuti di margine: il server arrotonda
 
 cd "$HOME/Projects/darkroom" || exit 1
 echo "[$(date '+%F %T')] parto: 3 sorgenti insieme, NESSUN riferimento, 5 ricette, 3 giri" >> "$LOG"
-$HOME/.bun/bin/bun run scripts/gen_variants.ts profilo \
-  --insieme --senza-refs --giri 3 >> "$LOG" 2>&1   # canale codex: alle 21:14 la sua quota e' riaperta
+# Il rubinetto lento non e' prudenza: senza, il sito limita l'accesso e smette
+# di generare del tutto (25/08, 9 lavori persi in fila).
+DARKROOM_PACE=30 $HOME/.bun/bin/bun run scripts/gen_variants.ts profilo \
+  --insieme --senza-refs --giri 4 >> "$LOG" 2>&1   # canale codex: alle 21:14 la sua quota e' riaperta
 code=$?
 echo "[$(date '+%F %T')] finito (exit $code)" >> "$LOG"
 # exit 2 = quota di nuovo esaurita: lo dice il generatore, non si insiste.
