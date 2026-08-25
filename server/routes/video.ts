@@ -3,7 +3,7 @@ import { serveFile } from "../http.ts";
 import {
   shots, cuts, assets, setScelta, clipPath, posterPath, assetPath,
   segnalaProblema, togliProblema, setRipresa, setPin, setDurata,
-  barra, ricostruisci, statoRicostruzione,
+  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori,
 } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
 import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT } from "../comfy.ts";
@@ -54,15 +54,15 @@ videoRoutes.post("/api/video/ripresa", async (c) => {
 
 videoRoutes.get("/api/video/clip/:shot/:take", (c) => {
   const p = clipPath(c.req.param("shot"), c.req.param("take"));
-  return p ? serveFile(p) : new Response("not found", { status: 404 });
+  return p ? serveFile(p, undefined, c.req.raw) : new Response("not found", { status: 404 });
 });
 videoRoutes.get("/api/video/poster/:shot/:take", (c) => {
   const p = posterPath(c.req.param("shot"), c.req.param("take"));
-  return p ? serveFile(p) : new Response("not found", { status: 404 });
+  return p ? serveFile(p, undefined, c.req.raw) : new Response("not found", { status: 404 });
 });
 videoRoutes.get("/api/video/asset/:name", (c) => {
   const p = assetPath(c.req.param("name"));
-  return p ? serveFile(p) : new Response("not found", { status: 404 });
+  return p ? serveFile(p, undefined, c.req.raw) : new Response("not found", { status: 404 });
 });
 
 videoRoutes.post("/api/video/pin", async (c) => {
@@ -81,6 +81,18 @@ videoRoutes.post("/api/video/durata", async (c) => {
 
 // La barra costa: `check.py` estrae fotogrammi con ffmpeg. Il risultato e'
 // tenuto finche' il montaggio non cambia; `?force=1` lo rifa comunque.
+videoRoutes.get("/api/video/marcatori", (c) => c.json({ marcatori: marcatori() }));
+
+videoRoutes.post("/api/video/marcatore", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const t = Number(b.t);
+  if (!Number.isFinite(t) || t < 0) return c.json({ error: "istante non valido" }, 400);
+  setMarcatore(t, b.nota ? String(b.nota).slice(0, 300) : null);
+  return c.json({ marcatori: marcatori() });
+});
+
+videoRoutes.get("/api/video/onda", (c) => c.json(onda()));
+
 videoRoutes.get("/api/video/barra", (c) => c.json(barra(c.req.query("force") === "1")));
 
 videoRoutes.post("/api/video/ricostruisci", (c) => {

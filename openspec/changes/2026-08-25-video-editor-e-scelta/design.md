@@ -83,16 +83,24 @@ cui questa generazione fallisce è restare al 100% di GPU senza scrivere niente.
 
 ## Cosa NON si costruisce, e perché
 
-Un NLE. Pluto Cut (`~/Downloads/PLUTO-main`) mostra cosa vuol dire farlo davvero:
-`Timeline.tsx` da solo è 4.864 righe, il preview decodifica con WebCodecs e un anello di
-fotogrammi per clip, l'export e l'anteprima passano dallo stesso compositore perché il file
-non possa smentire ciò che si è guardato. È fatto bene e non ha un file di licenza —
-Darkroom è MIT, quindi si guarda e non si copia.
-
-Ma il motivo vero per non farlo è un altro: le garanzie di questo progetto esistono perché
-il montaggio è **derivato**. Zero doppioni è vero per costruzione, non per attenzione. ρ ≥
+Un NLE. Non per mancanza di tempo: le garanzie di questo progetto esistono perché il
+montaggio è **derivato**. Zero doppioni è vero per costruzione, non per attenzione. ρ ≥
 0.85 è vero perché l'assegnazione appaia per rango. Il giorno in cui i tagli si trascinano
 a mano, quelle proprietà smettono di essere garantite e nessuna misura può più difenderle —
 e la barra diventerebbe un controllo che boccia il lavoro dell'utente invece di guidarlo.
 
-Per il montaggio libero c'è Pluto Cut, e i file esportati ci si aprono.
+Quello che si costruisce è l'altra metà: **guardare bene ciò che è già stato derivato**. Un
+player che sa andare al fotogramma, una striscia di immagini per trovare la ripresa a
+occhio invece che a nome, una testina che dice dove sei, e tre forzature dichiarate
+(inchioda, durata, escludi) che passano da `scelte.json` e rientrano nel piano dalla porta
+principale.
+
+### Il difetto che rendeva inutile tutto il resto
+
+`serveFile` rispondeva `200` con il file intero e senza `accept-ranges`. Un video servito
+così **non è cercabile**: `currentTime = 120` non porta a 2:00, riporta la testina a zero.
+Clic sulla striscia, passo a fotogramma, trascinamento sulla timeline fallivano tutti
+insieme, senza un errore da nessuna parte — l'unica traccia era un `200` dove serviva un
+`206`. Misurato dopo la correzione: clic sul 55° riquadro → 124,69s; freccia destra →
++0,042s esatti, cioè un fotogramma a 24; `]` → 126,55s. Sette test coprono i pezzi di file,
+suffisso e `416` compresi, perché il modo in cui questo si rompe è silenzioso.

@@ -555,3 +555,16 @@ export type VideoJob = {
   started_at: number | null;
   finished_at: number | null;
 };
+
+/** Il suono sotto la timeline: profilo di ampiezza, beat misurati, confini di
+ *  battuta. `pronta` e' falso finche' i picchi non sono stati calcolati. */
+export type VideoOnda = {
+  picchi: number[];
+  beats: number[];
+  battute: number[];
+  durata: number;
+  pronta: boolean;
+};
+
+/** Un appunto attaccato a un istante del montaggio. */
+export type VideoMarcatore = { t: number; nota: string };

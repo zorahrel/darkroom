@@ -1,7 +1,8 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db as getDb } from "./db.ts";
 import { videoRoot } from "./video.ts";
+import { listProjects, withProject } from "./project.ts";
 
 /**
  * Generazione video sulla 3090.
@@ -126,6 +127,43 @@ const appendi = (id: number, riga: string) => {
 
 let inCorso = false;
 
+/**
+ * I job che il riavvio ha lasciato a meta'.
+ *
+ * La coda vive nel database ma chi la fa girare vive nel processo: un riavvio
+ * del server lascia una riga `running` senza nessuno che la segua, e il job
+ * resta li' per sempre anche quando la GPU ha finito da un pezzo. Successo
+ * davvero — 61 PNG scritti, coda di ComfyUI vuota, e il log fermo a "401s — 0
+ * fotogrammi".
+ *
+ * Il `prompt_id` pero' e' su disco, quindi la generazione si puo' riagganciare:
+ * si torna ad aspettare quel prompt e si raccoglie come se non fosse successo
+ * niente. Chi non ha un `prompt_id` non era ancora partito e torna in coda.
+ */
+export function riprendiInterrotti(): void {
+  // Al boot non c'e' un progetto "corrente": il contesto vale per richiesta, e
+  // fuori da una richiesta `getDb()` cade sul primo progetto registrato — che
+  // e' un progetto foto e non ha job video. Quindi si entra in ognuno.
+  for (const p of listProjects().filter((x) => x.kind === "video")) {
+    withProject(p.id, () => riprendiIn(p.id));
+  }
+}
+
+function riprendiIn(_pid: string): void {
+  const db = getDb();
+  const persi = db.query(`SELECT * FROM video_jobs WHERE status='running'`).all() as VideoJob[];
+  for (const j of persi) {
+    if (j.prompt_id) {
+      appendi(j.id, "-- il server e' ripartito: mi riaggancio alla generazione --");
+      scrivi(j.id, { status: "pending" });
+    } else {
+      appendi(j.id, "-- il server e' ripartito prima che partisse: torna in coda --");
+      scrivi(j.id, { status: "pending" });
+    }
+  }
+  if (persi.length) avviaCoda();
+}
+
 /** Una scheda, una generazione: la coda avanza da sola finche' c'e' lavoro. */
 export function avviaCoda(): void {
   if (inCorso) return;
@@ -148,6 +186,33 @@ async function esegui(job: VideoJob): Promise<void> {
   const prefix = `${job.piano}_${job.take}_${job.id}`;
   scrivi(job.id, { status: "running", started_at: Date.now(), log: "" });
   appendi(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
+
+  /**
+   * Prima si svuota la scheda.
+   *
+   * I default stanno dentro i 24 GB *se la scheda e' libera*. ComfyUI pero'
+   * tiene in memoria i modelli dell'ultima generazione, e la richiesta dopo
+   * parte da quel che resta: misurato su questo stesso job — 640x1152, 61
+   * fotogrammi, cioe' i parametri da novanta secondi — la 3090 stava a 24.036
+   * MiB su 24.576 e dopo cinque minuti non aveva scritto un PNG. Non e' un
+   * problema di parametri, e' che il budget dipendeva da cosa era girato prima.
+   */
+  await fetch(`${HOST}/free`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unload_models: true, free_memory: true }),
+  }).catch(() => { /* se non risponde lo dira' la generazione */ });
+
+  // Riagganciarsi: se questo job aveva gia' un prompt vivo su ComfyUI, non se
+  // ne manda un altro — si torna ad aspettare quello. Rimandarlo vorrebbe dire
+  // rifare novanta secondi di GPU per fotogrammi che ci sono gia'.
+  if (job.prompt_id) {
+    const h = await fetch(`${HOST}/history/${job.prompt_id}`).then((x) => x.json() as any).catch(() => ({}));
+    if (h[job.prompt_id]) {
+      appendi(job.id, `ripreso: ${job.prompt_id} era gia' finito`);
+      return await raccogli(job, `${job.piano}_${job.take}_${job.id}`);
+    }
+  }
 
   const r = await fetch(`${HOST}/prompt`, {
     method: "POST",
@@ -189,7 +254,11 @@ async function esegui(job: VideoJob): Promise<void> {
     }
   }
 
-  // I fotogrammi diventano una ripresa del progetto, sul PC.
+  return await raccogli(job, prefix);
+}
+
+/** Dai PNG alla ripresa: succede sul PC, e di qui passa solo l'anteprima. */
+async function raccogli(job: VideoJob, prefix: string): Promise<void> {
   appendi(job.id, "-> raccolta sul PC");
   const rac = await ssh(`"${BASH}" -lc "/d/progetto/raccogli.sh ${prefix} ${job.piano} ${job.take}"`);
   appendi(job.id, (rac.out + rac.err).trim());
@@ -202,6 +271,19 @@ async function esegui(job: VideoJob): Promise<void> {
     if ((await scp.exited) !== 0) appendi(job.id, `!! anteprima ${est} non ritirata`);
   }
   const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
+
+  /**
+   * I fotogrammi restano sul PC, e va bene — ma `shots()` costruisce l'elenco
+   * dei piani leggendo `src/` **qui**, quindi una ripresa nata la' non
+   * comparirebbe da nessuna parte pur avendo la sua anteprima sul Mac. Il conto
+   * si annota accanto all'anteprima: e' l'unica cosa che di quei fotogrammi
+   * serva sapere senza attraversare la rete.
+   */
+  const reg = join(videoRoot(), "raccolte.json");
+  const prec = existsSync(reg) ? JSON.parse(readFileSync(reg, "utf8")) as Record<string, any> : {};
+  prec[`${job.piano}__${job.take}`] = { frames, quando: Date.now(), prompt: job.prompt, remota: true };
+  writeFileSync(reg, JSON.stringify(prec, null, 1));
+
   scrivi(job.id, { status: "done", frames, finished_at: Date.now() });
   appendi(job.id, `fatto: ${frames} fotogrammi, anteprima ${existsSync(join(videoRoot(), "prev", `${nome}.mp4`)) ? "pronta" : "MANCANTE"}`);
 }

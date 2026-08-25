@@ -164,7 +164,7 @@ export default function VideoScelta() {
   const daGiudicare = scene.filter((s) => !s.giudicata).length;
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 py-4 text-neutral-200">
+    <div className="mx-auto max-w-[1400px] px-5 py-4 text-neutral-200">
       <div className="flex items-baseline gap-4 mb-3 flex-wrap">
         <h1 className="tracking-[0.3em] text-[13px] text-neutral-400">SCELTA</h1>
         <Link to={`/p/${pid}/video`} className="text-[11px] text-neutral-500 hover:text-neutral-300">
@@ -204,13 +204,18 @@ export default function VideoScelta() {
       ) : (
         <div className="flex gap-6 items-start">
           <div className="shrink-0">
+            {/* La clip prende l'altezza che lo schermo ha. A 340px un verticale
+                9:16 sta in 190 di larghezza: a quella misura un difetto si vede
+                solo se e' enorme, e sono proprio i piccoli quelli che passano
+                due volte prima che qualcuno se ne accorga. */}
             <video
               ref={video}
               key={corrente.id}
               src={pq(corrente.takes[0]?.clip ?? "")}
               poster={pq(corrente.takes[0]?.poster ?? "")}
               autoPlay muted loop playsInline
-              className="w-[340px] aspect-[9/16] bg-black border border-neutral-800 rounded-sm object-cover"
+              className="h-[calc(100vh-190px)] max-h-[840px] min-h-[420px] aspect-[9/16]
+                         bg-black border border-neutral-800 rounded-sm object-cover"
             />
             {scena.pezzi.length > 1 && (
               <div className="mt-2 flex gap-1.5">
@@ -386,8 +391,32 @@ export default function VideoScelta() {
               </div>
             )}
 
-            <div className="mt-5 text-[11px] text-neutral-700 tabular-nums">
-              {Math.min(i + 1, coda.length)} / {coda.length}
+            {/* Quanto manca, e cosa arriva. Un contatore "12 / 176" dice solo
+                che la fine e' lontana; le facce dopo dicono se conviene tirare
+                dritto o cambiare filtro, e il giudizio va a raffica per questo. */}
+            <div className="mt-5">
+              <div className="h-0.5 bg-neutral-900 rounded-full overflow-hidden">
+                <div className="h-full bg-neutral-600"
+                     style={{ width: `${coda.length ? ((i + 1) / coda.length) * 100 : 0}%` }} />
+              </div>
+              <div className="mt-1 text-[11px] text-neutral-700 tabular-nums">
+                {Math.min(i + 1, coda.length)} / {coda.length}
+              </div>
+              <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+                {coda.slice(i + 1, i + 13).map((sc, k) => {
+                  const pr = sc.pezzi[0];
+                  return (
+                    <button
+                      key={sc.origine}
+                      onClick={() => { setI(i + 1 + k); setPezzo(0); }}
+                      title={`${sc.origine}${sc.atto ? ` · ${sc.atto}` : ""}`}
+                      className="shrink-0 w-12 h-[85px] rounded-sm border border-neutral-900 bg-cover bg-center
+                                 opacity-50 hover:opacity-100 transition-opacity"
+                      style={{ backgroundImage: pr?.takes[0]?.poster ? `url(${pq(pr.takes[0].poster)})` : undefined }}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

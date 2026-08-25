@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
 
@@ -89,6 +88,11 @@ const readJson = <T,>(p: string, fallback: T): T => {
     return fallback;
   }
 };
+
+/** La fonderia: dove si monta, si codifica e si misura. Gli stessi due valori
+ *  che stanno in `master.sh` — il Mac e' l'autore, non il nodo di calcolo. */
+const PC = "<utente>@$COMFY_HOST";
+const REMOTO = "D:\\progetto";
 
 export const videoRoot = () => rootDir();
 const at = (...p: string[]) => join(videoRoot(), ...p);
@@ -190,6 +194,31 @@ export function setPin(bar: number, shot: string | null) {
   return s;
 }
 
+/**
+ * I marcatori: un appunto attaccato a un istante.
+ *
+ * Guardando il montaggio si nota una cosa in un secondo e la si perde nel
+ * successivo — "qui il taglio arriva tardi", "questa gia' vista". Segnarla
+ * altrove vuol dire perdere il punto esatto; segnarla qui vuol dire ritrovarla
+ * al secondo giusto. Vivono in `scelte.json` come tutto il resto che l'occhio
+ * decide, e il Python li ignora perche' non sono una scelta di montaggio.
+ */
+export function setMarcatore(t: number, nota: string | null) {
+  const s = scelte() as any;
+  s.marcatori ??= {};
+  const k = t.toFixed(2);
+  if (nota) s.marcatori[k] = nota; else delete s.marcatori[k];
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s.marcatori as Record<string, string>;
+}
+
+export function marcatori(): { t: number; nota: string }[] {
+  const m = (scelte() as any).marcatori ?? {};
+  return Object.entries(m)
+    .map(([k, v]) => ({ t: Number(k), nota: String(v) }))
+    .sort((a, b) => a.t - b.t);
+}
+
 /** Force a block's length, in bars. */
 export function setDurata(bar: number, bars: number | null) {
   const s = scelte();
@@ -238,22 +267,44 @@ export function shots(): Shot[] {
   }
 
   const srcDir = at("src");
-  const names = existsSync(srcDir)
+  const locali = existsSync(srcDir)
     ? readdirSync(srcDir).filter((n) => !n.startsWith("."))
     : [];
 
+  /**
+   * I piani generati sulla GPU tengono i fotogrammi la' — passa il cavo solo
+   * l'anteprima. Elencare i piani leggendo `src/` qui li renderebbe invisibili
+   * proprio nel momento in cui c'e' da giudicarli. Quindi l'elenco e' l'unione:
+   * ciò che ha i fotogrammi qui, piu' ciò che ha almeno un'anteprima. Il conto
+   * dei fotogrammi delle remote sta in `raccolte.json`, scritto a fine job.
+   */
+  const raccolte = readJson<Record<string, { frames?: number }>>(at("raccolte.json"), {});
+  const prevDir = at("prev");
+  const daAnteprima = new Map<string, string[]>();
+  if (existsSync(prevDir)) {
+    for (const f of readdirSync(prevDir)) {
+      const m = /^(.+)__([a-z])\.mp4$/.exec(f);
+      if (m?.[1] && m[2]) daAnteprima.set(m[1], [...(daAnteprima.get(m[1]) ?? []), m[2]]);
+    }
+  }
+  const names = [...new Set([...locali, ...daAnteprima.keys()])].sort();
+
   return names
     .map((id) => {
-      const files = readdirSync(join(srcDir, id));
+      const qui = existsSync(join(srcDir, id));
+      const files = qui ? readdirSync(join(srcDir, id)) : [];
       // Le riprese erano inchiodate ad a|b|c. I piani generati da testo hanno
       // solo la "a", ma il vincolo era comunque sbagliato nel verso opposto:
       // si ricavano da cio' che c'e' su disco.
-      const takes: Take[] = [...new Set(
-        files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[],
-      )].sort()
+      const lettere = qui
+        ? [...new Set(files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[])]
+        : (daAnteprima.get(id) ?? []);
+      const takes: Take[] = lettere.sort()
         .map((tk) => ({
           take: tk,
-          frames: files.filter((f) => f.startsWith(`${tk}_`)).length,
+          frames: qui
+            ? files.filter((f) => f.startsWith(`${tk}_`)).length
+            : (raccolte[`${id}__${tk}`]?.frames ?? 0),
           clip: `/api/video/clip/${id}/${tk}`,
           poster: `/api/video/poster/${id}/${tk}`,
           kept: !(riprFuori[id] ?? []).includes(tk),
@@ -323,6 +374,67 @@ export function cuts(): {
 }
 
 /** Files the page plays. `reel` is the delivery encode, `anteprima` the light one. */
+/**
+ * La forma d'onda del brano, i beat e i confini di battuta.
+ *
+ * Questo montaggio e' agganciato ai beat: ogni taglio cade su un beat misurato
+ * e la scelta della ripresa segue la durezza del suono. Senza il suono in
+ * pagina, la timeline mostra il risultato e nasconde la ragione — si vede *che*
+ * il taglio e' li', non *perche'*. Con l'onda sotto, un taglio fuori posto si
+ * vede prima di sentirlo.
+ *
+ * I picchi si calcolano una volta e restano in `onda.json`: decodificare due
+ * minuti e mezzo di mp3 costa un secondo, ma non a ogni apertura di pagina.
+ */
+export type Onda = { picchi: number[]; beats: number[]; battute: number[]; durata: number; pronta: boolean };
+
+let ondaInCorso = false;
+
+export function onda(): Onda {
+  const bm = readJson<any>(at("beatmap.json"), {});
+  const beats: number[] = bm.beats ?? [];
+  const durata = bm.duration_s ?? 0;
+  // I confini di battuta: un beat ogni quattro. E' la griglia su cui il piano
+  // ragiona (`bars`), quindi e' quella che va disegnata piu' marcata.
+  const battute = beats.filter((_, i) => i % 4 === 0);
+
+  const f = at("onda.json");
+  if (existsSync(f)) {
+    const d = readJson<any>(f, {});
+    if (Array.isArray(d.picchi) && d.picchi.length) {
+      return { picchi: d.picchi, beats, battute, durata, pronta: true };
+    }
+  }
+  if (!ondaInCorso) { ondaInCorso = true; void calcolaOnda().finally(() => { ondaInCorso = false; }); }
+  return { picchi: [], beats, battute, durata, pronta: false };
+}
+
+async function calcolaOnda(): Promise<void> {
+  const audio = join(videoRoot(), "..", "progetto [112].mp3");
+  if (!existsSync(audio)) return;
+  // Mono, 8 kHz, interi con segno: per un profilo di ampiezza basta e avanza, e
+  // sono 1,2 MB invece di 25.
+  const proc = Bun.spawn(
+    ["ffmpeg", "-v", "error", "-i", audio, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const buf = new Int16Array((await new Response(proc.stdout).arrayBuffer()));
+  await proc.exited;
+  if (!buf.length) return;
+  const N = 2400;                        // un picco ogni ~60 ms su due minuti e mezzo
+  const per = Math.max(1, Math.floor(buf.length / N));
+  const picchi: number[] = [];
+  for (let i = 0; i < N; i++) {
+    let max = 0;
+    for (let k = i * per; k < Math.min((i + 1) * per, buf.length); k++) {
+      const v = Math.abs(buf[k] ?? 0);
+      if (v > max) max = v;
+    }
+    picchi.push(Math.round((max / 32768) * 1000) / 1000);
+  }
+  writeFileSync(at("onda.json"), JSON.stringify({ picchi }));
+}
+
 export function assets() {
   const pick = (...names: string[]) => names.find((n) => existsSync(at(n))) ?? null;
   return {
@@ -393,20 +505,35 @@ export function barra(force = false): Barra {
     return { ...(barraCache?.barra ?? { righe: [], esito: "sconosciuto", fallite: [], quando: null }), calcolo: true };
   }
   barraInCorso = chiave;
-  void (async () => {
-    try { misura(chiave); } finally { barraInCorso = null; }
-  })();
+  void misura(chiave).finally(() => { barraInCorso = null; });
   return { ...(barraCache?.barra ?? { righe: [], esito: "sconosciuto", fallite: [], quando: null }), calcolo: true };
 }
 
-function misura(chiave: string): Barra {
-  const check = at("check.py");
-  const r = spawnSync("python3", [check, "LUNGOMARE.mp4"], {
-    cwd: videoRoot(),
-    encoding: "utf8",
-    timeout: 180_000,
-  });
-  const out = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
+/**
+ * La barra si misura sul PC, in asincrono. Due difetti in una riga sola.
+ *
+ * Era `spawnSync`. Dentro un IIFE asincrono sembrava messa in cantiere, ma
+ * `spawnSync` ferma l'unico thread di Bun finche' il processo non muore: per i
+ * novanta secondi di `check.py` il server non rispondeva a nient'altro.
+ * Misurato: `/api/video/shots` costa 45 ms da solo e oltre 60 secondi mentre la
+ * barra "girava in sottofondo" — ed e' per questo che la pagina si apriva vuota.
+ *
+ * E gira sul PC perche' `check.py` legge 49.000 fotogrammi per contare i quadri
+ * nuovi al secondo: e' lo stesso lavoro che `master.sh` fa gia' la', sullo
+ * stesso file, con gli stessi numeri (confrontati riga per riga). Se il PC non
+ * risponde la barra lo dice, invece di rifarsi in silenzio addosso al Mac.
+ */
+async function misura(chiave: string): Promise<Barra> {
+  const proc = Bun.spawn(
+    ["ssh", "-o", "ConnectTimeout=20", PC, `cd /d ${REMOTO} && python check.py LUNGOMARE.mp4`],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const [so, se] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  await proc.exited;
+  const out = `${so}\n${se}`;
   const righe: RigaBarra[] = [];
   const fallite: string[] = [];
   let inRosso = false;

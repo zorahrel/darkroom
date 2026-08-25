@@ -31,6 +31,9 @@ if (process.env.DARKROOM_PORT_FORCE !== "1") {
 }
 
 startRunner();
+// I job di generazione video che un riavvio ha lasciato a meta' si riagganciano
+// al loro prompt invece di restare "in corso" per sempre.
+try { (await import("./comfy.ts")).riprendiInterrotti(); } catch { /* progetto senza video */ }
 
 // Il client si ricostruisce da solo quando i sorgenti sono piu' recenti del
 // build servito. Nove giorni di dashboard vecchia sono passati senza un
@@ -40,11 +43,22 @@ startRunner();
 if (staleDistWarning(REPO_ROOT) && process.env.DARKROOM_NO_AUTOBUILD !== "1") {
   console.log("[dist] build del client non aggiornato — ricostruisco…");
   const t0 = Date.now();
-  const proc = Bun.spawnSync(["bunx", "vite", "build", "--config", "client/vite.config.ts"], {
-    cwd: REPO_ROOT,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  // `bunx` per nome non si trova sotto launchd: il servizio parte con un PATH
+  // minimo, e `Bun.spawnSync` su un eseguibile inesistente NON torna un codice
+  // diverso da zero — solleva, e il modulo muore prima di mettersi in ascolto.
+  // Un server che non parte perche' non sa ricompilare la dashboard e' peggio
+  // di uno che serve la dashboard vecchia dicendolo. Quindi: si usa la bun che
+  // sta gia' girando (`bun x` e' bunx), e si prende la sollevazione.
+  let proc: { exitCode: number | null; stderr: Uint8Array } = { exitCode: 1, stderr: new Uint8Array() };
+  try {
+    proc = Bun.spawnSync([process.execPath, "x", "vite", "build", "--config", "client/vite.config.ts"], {
+      cwd: REPO_ROOT,
+      stdout: "pipe",
+      stderr: "pipe",
+    }) as any;
+  } catch (e) {
+    proc = { exitCode: 1, stderr: new TextEncoder().encode(String(e)) };
+  }
   if (proc.exitCode === 0) {
     console.log(`[dist] client ricostruito in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else {

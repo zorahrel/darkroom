@@ -6,6 +6,8 @@ import type {
   VideoBarra,
   VideoRicostruzione,
   VideoJob,
+  VideoOnda,
+  VideoMarcatore,
   VideoCut,
   VideoAssets,
   BakeResult,
@@ -425,6 +427,12 @@ export const api = {
       atti: VideoAtto[]; sospese: VideoSospesa[];
     }>("/api/video/cuts"),
   videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
+  videoOnda: () => jsonFetch<VideoOnda>("/api/video/onda"),
+  videoMarcatori: () => jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatori"),
+  videoMarcatore: (t: number, nota: string | null) =>
+    jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatore", {
+      method: "POST", body: JSON.stringify({ t, nota }),
+    }),
   videoRipresa: (shot: string, take: string, kept: boolean) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/ripresa", {
       method: "POST",

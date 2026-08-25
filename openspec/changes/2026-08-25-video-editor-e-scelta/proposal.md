@@ -55,9 +55,9 @@ Tre capability, che chiudono lo stesso ciclo (**guardo → boccio → rifaccio �
   doppioni — esistono perché il montaggio è *derivato* da misure. Un montaggio a mano le
   butta via e nessuna misura può più difenderle. Le forzature restano poche, mirate, e
   dichiarate nel file che il Python legge.
-- **Nessun codice di terze parti copiato.** `~/Downloads/PLUTO-main` (Pluto Cut) è la
-  referenza per *cosa* deve fare un editor, ma non ha alcun file di licenza e Darkroom è
-  MIT. Si guardano le idee, non si copiano i file.
+- **Nessun codice di terze parti dentro Darkroom.** Darkroom è MIT e resta scritto qui:
+  ogni componente dell'editor — trasporto, striscia dei fotogrammi, testina, ispettore del
+  taglio — è codice di questo repo.
 - **Nessuna riscrittura della generazione.** Il workflow ComfyUI esiste e funziona in
   `gen.py`; qui si porta invariato, non si reinventa.
 - **Nessuna seconda implementazione della barra.** `check.py` resta l'unica misura: la
