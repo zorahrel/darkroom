@@ -19,7 +19,9 @@ const pid = process.argv[2] ?? "profilo";
 /** Scelto a runtime: dipende da quali reference sono stati effettivamente
  *  allegati, non da come e' fatta la cartella. */
 let hasStyleRef = false;
-const ROLES = () => (hasStyleRef ? ROLES_MIXED : ROLES_ID_ONLY);
+let nRefs = 0;
+const ROLES = () =>
+  !hasStyleRef ? ROLES_ID_ONLY : nRefs > 1 ? ROLES_MIXED : ROLES_STYLE_ONLY;
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -42,7 +44,13 @@ const ROLES_MIXED =
  *  non e' allegato confonde e basta. Lo stile, in quel caso, sta gia' scritto
  *  per esteso nella ricetta. */
 const ROLES_ID_ONLY =
-  "The attached images are other photographs of me. Use them to keep my face, bone structure and identity consistent — that is who the person in the result must be. ";
+  "The attached images are reference photographs of me that I like. Match them on BOTH counts: keep my face, bone structure and identity exactly as they show it, AND follow their visual language \u2014 the lighting, the tonality, the framing, the way the skin and hair are rendered. The result should look like it belongs in the same set as the attached references. "
+
+/** Un solo reference, ed e' di STILE: il volto deve restare quello della foto
+ *  sorgente. Senza dirlo, il modello prende anche la faccia dal riferimento —
+ *  che e' un'altra persona. */
+const ROLES_STYLE_ONLY =
+  "The attached image is a photograph of a DIFFERENT person, attached only as a styling reference. Never copy that face. Take from it the lighting, tonality, framing and treatment. The face, bone structure and identity must remain exactly those of the photo being edited. ";
 
 const RECIPES: { key: string; body: string }[] = [
   {
@@ -92,6 +100,7 @@ withProject(pid, async () => {
     .query<{ id: string; original_path: string }, []>("SELECT id, original_path FROM photos ORDER BY id")
     .all();
   hasStyleRef = refs.some((r) => /style|stile/i.test(r));
+  nRefs = refs.length;
   const recipes = only ? RECIPES.filter((r) => only.includes(r.key)) : RECIPES;
   const targets = limit > 0 ? photos.slice(0, limit) : photos;
   console.log(`[gen] progetto=${pid} foto=${targets.length} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
@@ -103,7 +112,14 @@ withProject(pid, async () => {
       // Il set di reference va registrato con la variante: due passate fatte con
       // reference diversi non sono confrontabili, e senza etichetta nel provino
       // sembrano solo due tentativi della stessa cosa.
-      const refset = hasStyleRef ? (refs.length > 1 ? "id+stile" : "solo stile") : `${refs.length} identita\u0300`;
+      // L'etichetta deve distinguere set diversi: "id+stile" con tre riferimenti
+      // e "id+stile" con quattro sono esperimenti diversi, e chiamarli uguale
+      // rende il confronto impossibile proprio dove serve.
+      // Non basta contare i riferimenti: due passate con gli STESSI file ma
+      // istruzioni diverse producono cose diverse, e nel provino finirebbero
+      // sotto la stessa etichetta. "id+look" e' il preambolo che chiede di
+      // seguire anche l'aspetto delle reference, non solo l'identita'.
+      const refset = `${refs.length} rif: ${hasStyleRef ? (refs.length > 1 ? "id+stile" : "stile") : "id+look"}`;
       const cfg = JSON.stringify({ recipe: recipe.key, refset, refs: refs.map((r) => r.split("/").pop()) });
       const prompt = ROLES() + recipe.body;
       const job = enqueueJob(photo.id, prompt, cfg, "chatgpt", null, "edit", null, JSON.stringify(refs));
