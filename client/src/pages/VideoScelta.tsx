@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, pq, type VideoShot, type VideoJob } from "../api";
+import { Area, Numero, Scegli } from "./video/ui";
 
 /**
  * Giudicare le scene, una alla volta.
@@ -258,14 +259,9 @@ export default function VideoScelta() {
             {k}{k === "da giudicare" ? ` ${daGiudicare}` : ""}
           </button>
         ))}
-        <select
-          value={atto}
-          onChange={(e) => { setAtto(e.target.value); setI(0); }}
-          className="text-[10px] bg-neutral-950 border border-neutral-900 rounded-sm px-1 py-0.5 text-neutral-400"
-        >
-          <option value="">ogni atto</option>
-          {atti.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
+        <Scegli valore={atto} larghezza={108} titolo="filtra per atto"
+                voci={[{ v: "", testo: "ogni atto" }, ...atti.map((a) => ({ v: a, testo: a }))]}
+                onCambia={(v) => { setAtto(v); setI(0); }} />
         </div>
       </div>
 
@@ -382,12 +378,9 @@ export default function VideoScelta() {
                     {corrente.problemi.map((x, k) => <div key={k}>{x}</div>)}
                   </div>
                 )}
-                <textarea
-                  value={promptMod}
-                  onChange={(e) => setPromptMod(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="w-full h-28 bg-neutral-950 border border-neutral-800 rounded-sm p-2 text-[11.5px] text-neutral-300 leading-relaxed"
-                />
+                <Area valore={promptMod} onCambia={setPromptMod}
+                      segnaposto="il prompt che genererà la ripresa"
+                      className="h-28 text-[11.5px] leading-relaxed" />
                 {/* Non sono costanti nascoste: a 704x1280 con 81 fotogrammi la
                     3090 arriva a 23,9 GB su 24,5 e non scrive niente per un'ora.
                     Chi lancia deve poter vedere il numero che decide. */}
@@ -395,13 +388,10 @@ export default function VideoScelta() {
                   {(["width", "height", "length", "steps"] as const).map((k) => (
                     <label key={k} className="flex items-center gap-1 text-neutral-400">
                       {k}
-                      <input
-                        type="number"
-                        value={par[k]}
-                        onChange={(e) => setPar({ ...par, [k]: Number(e.target.value) })}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        className="w-16 bg-neutral-950 border border-neutral-800 rounded-sm px-1 py-0.5 text-neutral-300"
-                      />
+                      <Numero valore={par[k]} larghezza={58} titolo={k}
+                              min={k === "steps" ? 4 : 64} max={k === "steps" ? 60 : 1536}
+                              passo={k === "steps" ? 2 : 64}
+                              onCambia={(n) => setPar({ ...par, [k]: n })} />
                     </label>
                   ))}
                 </div>
@@ -430,12 +420,11 @@ export default function VideoScelta() {
 
             {nota !== null ? (
               <div className="mt-4">
-                <textarea
-                  ref={campo}
-                  value={testo}
-                  onChange={(e) => setTesto(e.target.value)}
-                  placeholder={nota === "scarto" ? "perche' la scarti?" : "cosa c'e' da sistemare?"}
-                  className="w-full h-20 bg-neutral-950 border border-neutral-800 rounded-sm p-2 text-[12px] text-neutral-200"
+                <Area
+                  autoFuoco valore={testo} onCambia={setTesto}
+                  onEsc={() => setNota(null)} onInvia={() => void annota()}
+                  segnaposto={nota === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
+                  className="h-20 text-[12px]"
                 />
                 <div className="mt-1 flex gap-2 text-[11px]">
                   <button

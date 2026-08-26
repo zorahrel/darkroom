@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api, pq, type VideoShot } from "../../api";
+import { Campo } from "./ui";
 
 /**
  * Il browser dei piani girati.
@@ -60,13 +61,9 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0 px-2 py-1.5 border-b border-neutral-900 space-y-1.5">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={`cerca fra ${shots.length} piani…`}
-          className="w-full bg-neutral-950 border border-neutral-900 rounded-sm px-1.5 py-1
-                     text-[11px] text-neutral-200 outline-none focus:border-neutral-700"
-        />
+        <Campo valore={q} onCambia={setQ} onEsc={() => setQ("")}
+               segnaposto={`cerca fra ${shots.length} piani…`}
+               className="w-full text-[11px]" />
         <div className="flex flex-wrap gap-1">
           {(["tutti", "in montaggio", "tenuti", "scartati", "annotati"] as const).map(F)}
         </div>
@@ -132,19 +129,10 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
                   </button>
                 </div>
                 {scrivo === s.id && (
-                  <input
-                    autoFocus value={testo}
-                    onChange={(e) => setTesto(e.target.value)}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === "Enter") void segnala(s.id);
-                      if (e.key === "Escape") setScrivo(null);
-                    }}
-                    onBlur={() => void segnala(s.id)}
-                    placeholder="cosa non va — invio"
-                    className="mt-1 w-full bg-neutral-950 border border-amber-900/60 rounded-sm
-                               px-1 py-0.5 text-[10px] text-neutral-200 outline-none"
-                  />
+                  <Campo autoFuoco valore={testo} onCambia={setTesto}
+                         onInvio={() => void segnala(s.id)} onEsc={() => setScrivo(null)}
+                         segnaposto="cosa non va — invio"
+                         className="mt-1 w-full text-[10px] border-amber-900/60" />
                 )}
                 {s.problemi.map((p, i) => (
                   <div key={i} className="mt-0.5 flex items-start gap-1 text-[9.5px] leading-tight text-amber-500/80">
