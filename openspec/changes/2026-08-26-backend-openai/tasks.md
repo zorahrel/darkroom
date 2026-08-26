@@ -64,3 +64,20 @@ stimare: una tabella avrebbe sottostimato del 69% ogni immagine.
   si sarà deciso *dove* mostrarlo (griglia? lineage? un totale per progetto?).
 - **Batch dentro il job loop.** 708s per due immagini: il loop è sincrono e
   resterebbe bloccato. Il batch è una rotta separata, e va bene così.
+
+## 6. Prova end-to-end (aggiunta dopo la prima passata)
+
+La prima tornata verificava lo *status* del worker. Ma `status: "ok"` non è ciò
+che l'utente vede: quello che vede è un file in galleria, e un worker può
+rispondere ok lasciando zero byte o l'originale intatto.
+
+- [x] 6.1 `tests/openaiE2E.test.ts` — chiamate reali in `low` (~$0.006/immagine)
+- [x] 6.2 Si controllano i **byte**: firma PNG (`89 50 4E 47…`), size > 1 KB
+- [x] 6.3 L'edit deve produrre un file **diverso** dalla sorgente (un edit che
+      restituisce l'input è un fallimento che passerebbe inosservato)
+- [x] 6.4 Un errore non lascia file mezzo scritti sul disco
+- [x] 6.5 Opt-in dietro `OPENAI_E2E=1`: accesi di default portavano `bun test`
+      da 15s a **342s** e facevano pagare ogni run. Verificato nei due versi:
+      senza la variabile 2 skip in 230ms, con la variabile 3 pass in 36s.
+
+Barra finale: `tsc` 0 · **375 test, 373 pass + 2 skip opt-in, 0 fail, 10.8s**.
