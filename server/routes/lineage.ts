@@ -68,48 +68,81 @@ lineageRoutes.get("/api/lineage", (c) => {
   // per id foto: senza questa mappa il client dovrebbe indovinare l'id dal nome,
   // e sbaglierebbe su ogni file con un'estensione inattesa.
   const byBasename = new Map(photos.map((p) => [p.original_path.split("/").pop() ?? "", p.id]));
+  const favOf = new Map(photos.map((p) => [p.id, p.favorite_version_id]));
 
-  const out = photos.map((p) => {
-    const versions = db()
-      .query<VersionRow, [string]>(
-        `SELECT id, photo_id, version_number, image_path, config, lineage, verdict, note, created_at
-           FROM versions WHERE photo_id = ? AND source = 'generated'
-          ORDER BY version_number`,
-      )
-      .all(p.id);
+  const versions = db()
+    .query<VersionRow, []>(
+      `SELECT id, photo_id, version_number, image_path, config, lineage, verdict, note, created_at
+         FROM versions WHERE source = 'generated'
+        ORDER BY photo_id, version_number`,
+    )
+    .all();
 
-    // Una mappa per non perdere l'ordine di apparizione dei gruppi: chi ha
-    // generato per primo compare per primo, che e' l'ordine in cui si e'
-    // lavorato e quindi quello in cui si ricorda.
-    const groups = new Map<
+  // La radice e' l'INSIEME di ingresso, non la singola foto. Raggruppare per
+  // photo_id metteva tutte le varianti sotto la PRIMA sorgente e lasciava le
+  // altre a "0 varianti" pur avendo contribuito a tutte; dare una radice a
+  // ciascuna foto contribuente avrebbe fatto l'errore opposto, mostrando le
+  // stesse 12 varianti tre volte. Una foto sola e' l'insieme di cardinalita' 1,
+  // quindi i progetti a sorgente singola non hanno un caso speciale: misurato
+  // su Japan, 189 radici e 3007 varianti, nessuna contata due volte.
+  type Root = {
+    photos: string[];
+    variants: number;
+    recipes: Set<string>;
+    groups: Map<
       string,
       { recipe: string; refset: string; preamble: string | null; sources: string[]; variants: unknown[] }
-    >();
-    for (const v of versions) {
-      const cfg = configOf(v);
-      const key = `${cfg.refset}|${cfg.recipe}|${cfg.preamble ?? ""}`;
-      if (!groups.has(key)) groups.set(key, { ...cfg, variants: [] });
-      groups.get(key)!.variants.push({
-        id: v.id,
-        version_number: v.version_number,
-        verdict: v.verdict,
-        note: v.note,
-        favorite: p.favorite_version_id === v.id,
-        created_at: v.created_at,
-      });
-    }
+    >;
+  };
+  const roots = new Map<string, Root>();
 
-    for (const g of groups.values()) {
+  for (const v of versions) {
+    const cfg = configOf(v);
+    // I nomi che non si risolvono a una foto nota non spariscono: restano
+    // nell'identita' dell'insieme, altrimenti due insiemi diversi si
+    // fonderebbero in uno solo.
+    const ids = cfg.sources.map((f) => byBasename.get(f) ?? f);
+    const members = ids.length > 0 ? ids : [v.photo_id];
+    const key = [...members].sort().join("\u0000");
+    if (!roots.has(key))
+      roots.set(key, { photos: members, variants: 0, recipes: new Set(), groups: new Map() });
+    const root = roots.get(key)!;
+    root.variants++;
+    root.recipes.add(cfg.recipe);
+
+    const gkey = `${cfg.refset}|${cfg.recipe}|${cfg.preamble ?? ""}`;
+    if (!root.groups.has(gkey)) root.groups.set(gkey, { ...cfg, variants: [] });
+    root.groups.get(gkey)!.variants.push({
+      id: v.id,
+      version_number: v.version_number,
+      verdict: v.verdict,
+      note: v.note,
+      favorite: favOf.get(v.photo_id) === v.id,
+      created_at: v.created_at,
+    });
+  }
+
+  const out = [...roots.values()].map((r) => {
+    for (const g of r.groups.values()) {
       g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
     }
-
     return {
-      photo: p.id,
-      variants: versions.length,
-      recipes: new Set(versions.map((v) => configOf(v).recipe)).size,
-      groups: [...groups.values()],
+      // `photo` resta la prima dell'insieme: e' cio' che il client usa per la
+      // miniatura di copertina e per i link. `photos` e' l'insieme intero.
+      photo: r.photos[0],
+      photos: r.photos,
+      variants: r.variants,
+      recipes: r.recipes.size,
+      groups: [...r.groups.values()],
     };
   });
+
+  // Le foto che non hanno generato niente restano visibili: un progetto appena
+  // importato non deve sembrare vuoto.
+  for (const p of photos) {
+    if (![...roots.values()].some((r) => r.photos.includes(p.id)))
+      out.push({ photo: p.id, photos: [p.id], variants: 0, recipes: 0, groups: [] });
+  }
 
   return c.json({ photos: out });
 });

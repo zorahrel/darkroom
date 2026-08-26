@@ -23,7 +23,15 @@ type Group = {
   sources: string[];
   variants: Variant[];
 };
-type Node = { photo: string; variants: number; recipes: number; groups: Group[] };
+type Node = {
+  /** Prima foto dell'insieme: copertina e link. */
+  photo: string;
+  /** L'insieme di ingresso per intero. Una sola foto = insieme di 1. */
+  photos?: string[];
+  variants: number;
+  recipes: number;
+  groups: Group[];
+};
 
 const CYCLE = [null, "tieni", "forse", "scarta"] as const;
 const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
@@ -84,20 +92,40 @@ export default function AlberoPage() {
     <div className="space-y-6 pb-24">
       {nodes.map((n, i) => (
         <section
-          key={n.photo}
+          key={(n.photos ?? [n.photo]).join("|")}
           className="grid grid-cols-[168px_1fr] gap-5 py-5 border-b border-neutral-800 items-start"
         >
           <div className="sticky top-20 flex flex-col gap-1.5">
+            {/* La radice e' l'INSIEME di ingresso. Quando le foto sono piu' di
+                una si mostrano tutte: mostrarne una sola la spacciava per
+                l'unico scatto usato, ed e' il motivo per cui le altre
+                risultavano "0 varianti" pur avendo contribuito a tutte. */}
             <span className="font-mono text-[10px] tracking-widest uppercase text-amber-500">
-              sorgente {String(i + 1).padStart(2, "0")}
+              {(n.photos?.length ?? 1) > 1
+                ? `sorgenti ${String(i + 1).padStart(2, "0")} · ${n.photos!.length} scatti`
+                : `sorgente ${String(i + 1).padStart(2, "0")}`}
             </span>
-            <img
-              src={thumbRawUrl(n.photo, 600)}
-              alt={`Scatto di partenza ${n.photo}`}
-              className="w-full aspect-[4/5] object-cover bg-neutral-900 border border-neutral-700"
-            />
-            <span className="text-xs truncate text-neutral-300" title={n.photo}>
-              {n.photo}
+            {(n.photos?.length ?? 1) > 1 ? (
+              <div className="grid grid-cols-2 gap-1">
+                {n.photos!.map((pid) => (
+                  <img
+                    key={pid}
+                    src={thumbRawUrl(pid, 300)}
+                    alt={`Scatto di partenza ${pid}`}
+                    title={pid}
+                    className="w-full aspect-[4/5] object-cover bg-neutral-900 border border-neutral-700"
+                  />
+                ))}
+              </div>
+            ) : (
+              <img
+                src={thumbRawUrl(n.photo, 600)}
+                alt={`Scatto di partenza ${n.photo}`}
+                className="w-full aspect-[4/5] object-cover bg-neutral-900 border border-neutral-700"
+              />
+            )}
+            <span className="text-xs truncate text-neutral-300" title={(n.photos ?? [n.photo]).join(", ")}>
+              {(n.photos?.length ?? 1) > 1 ? `${n.photos!.length} scatti insieme` : n.photo}
             </span>
             <span className="font-mono text-[11px] text-neutral-400">
               {n.variants} varianti · {n.recipes} ricette
@@ -129,10 +157,12 @@ export default function AlberoPage() {
                     {g.variants.length}
                   </span>
                 </div>
-                {/* Una variante nata da piu' scatti ha comunque un photo_id solo:
-                    senza questa striscia la colonna a sinistra ne mostrerebbe uno
-                    spacciandolo per l'unico ingresso. */}
-                {g.sources.length > 1 && (
+                {/* La striscia serviva quando la colonna a sinistra mostrava una
+                    foto sola: ora la radice e' gia' l'insieme, quindi si ripete
+                    solo se questo gruppo usa un insieme DIVERSO da quello della
+                    radice (caso che oggi non capita, ma il dato lo permette). */}
+                {g.sources.length > 1 &&
+                  g.sources.join("|") !== (n.photos ?? [n.photo]).join("|") && (
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-400">
                       da {g.sources.length} scatti
