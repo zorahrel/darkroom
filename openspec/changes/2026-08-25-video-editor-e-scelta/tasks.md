@@ -145,3 +145,15 @@ non era il clic, era che una modifica invisibile è una modifica che non si può
       che rimette ogni pezzo com'era e torna sulla scena per riguardarla
 - [x] verificato: clic sul provino → zero pin sul disco; bottone → un pin; «togli» →
       zero. Nella Scelta: freccia → l'annulla compare, `z` → sparisce
+
+## 13. Un progetto video non è un progetto foto (26/08)
+- [x] `/p/<progetto>` di un progetto video porta al montaggio: mostrava la griglia delle
+      foto vuota, con «aggiungi una cartella di foto» e il pannello di sviluppo — cioè
+      l'interfaccia di un altro mestiere
+- [x] il menu in cima diventa **Montaggio · Scelta**, e nasconde Griglia/Albero/Riferimenti
+- [x] i progetti foto restano identici: Japan si apre sulla griglia con le sue voci
+- [x] i «tieni» adesso si registrano: `scelte.json` tiene anche `tenuti` con il quando, e
+      `pianifica.py` li ignora (piano identico, verificato)
+- [x] Scelta: filtri `da giudicare N · tenute · scartate · annotate · in montaggio · tutte`
+      e i conteggi in cima; il pannello distingue «mai giudicata» da «tenuta»; «scorda il
+      voto» rimette una presa in coda

@@ -125,6 +125,20 @@ export default function App() {
   const activeJobs = (summary.pending ?? 0) + (summary.running ?? 0);
   const activeProject = projects.find((p) => p.id === pid);
 
+  /**
+   * La radice di un progetto video porta al montaggio.
+   *
+   * `/p/:pid` e' la griglia delle foto: su un progetto video mostrava un elenco
+   * vuoto, il bottone "aggiungi una cartella di foto" e il pannello di sviluppo
+   * — cioe' l'interfaccia di un altro mestiere. Un progetto sa di che tipo e',
+   * quindi la sua pagina d'ingresso lo sa anche lei.
+   */
+  useEffect(() => {
+    if (!pid || activeProject?.kind !== "video") return;
+    if (location.pathname.replace(/\/+$/, "") !== `/p/${pid}`) return;
+    navigate(`/p/${pid}/video`, { replace: true });
+  }, [pid, activeProject?.kind, location.pathname, navigate]);
+
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
@@ -162,17 +176,28 @@ export default function App() {
               view is never hidden from data that exists. */}
           {pid && (
             <nav className="flex items-center gap-0.5 text-sm rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
-              <ViewTab
-                to={`/p/${pid}`}
-                current={
-                  location.pathname.startsWith("/p/") &&
-                  !location.pathname.includes("/orphans") &&
-                  !location.pathname.includes("/storyboard") &&
-                  !location.pathname.includes("/albero")
-                }
-              >
-                Griglia
-              </ViewTab>
+              {activeProject?.kind === "video" ? (
+                <>
+                  <ViewTab to={`/p/${pid}/video`} current={location.pathname.endsWith("/video")}>
+                    Montaggio
+                  </ViewTab>
+                  <ViewTab to={`/p/${pid}/video/scelta`} current={location.pathname.includes("/video/scelta")}>
+                    Scelta
+                  </ViewTab>
+                </>
+              ) : (
+                <ViewTab
+                  to={`/p/${pid}`}
+                  current={
+                    location.pathname.startsWith("/p/") &&
+                    !location.pathname.includes("/orphans") &&
+                    !location.pathname.includes("/storyboard") &&
+                    !location.pathname.includes("/albero")
+                  }
+                >
+                  Griglia
+                </ViewTab>
+              )}
               {(activeProject?.kind === "storyboard" ||
                 (activeProject?.stats?.panels ?? 0) > 0) && (
                 <ViewTab
@@ -182,15 +207,19 @@ export default function App() {
                   Storyboard
                 </ViewTab>
               )}
-              <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
-                Albero
-              </ViewTab>
-              <ViewTab
-                to={`/p/${pid}/riferimenti`}
-                current={location.pathname.includes("/riferimenti")}
-              >
-                Riferimenti
-              </ViewTab>
+              {activeProject?.kind !== "video" && (
+                <>
+                  <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
+                    Albero
+                  </ViewTab>
+                  <ViewTab
+                    to={`/p/${pid}/riferimenti`}
+                    current={location.pathname.includes("/riferimenti")}
+                  >
+                    Riferimenti
+                  </ViewTab>
+                </>
+              )}
               {orphanCount > 0 && (
                 <ViewTab
                   to={`/p/${pid}/orphans`}
