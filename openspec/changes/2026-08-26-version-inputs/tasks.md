@@ -96,3 +96,29 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
       aggiornata sotto tutte e tre, contatore a 12
 - [ ] 6.5 Japan aperto in griglia: 190 foto, nessuna anteprima rotta (la convenzione
       `v<NN>.png` non è stata toccata, ma è la cosa che si rompe in silenzio)
+
+
+## Aggiornamento 26/08 sera — LIN-04 riscritto, e la vista implementata
+
+La prima stesura di LIN-04 diceva "ogni foto compare come radice delle varianti
+a cui ha contribuito". Applicata a `profilo` avrebbe dato **3 radici con le
+stesse 12 varianti**: 36 apparizioni per 12 generazioni. Corregge il difetto di
+oggi introducendone uno peggiore, perche' il conteggio smette di dire quante
+generazioni esistono.
+
+- [x] LIN-04 riscritto: la radice e' **l'insieme di sorgenti**, identita' data
+      dai `photo_id` ordinati; nessuna variante sotto due radici; una foto sola
+      e' l'insieme di cardinalita' 1 (niente casi speciali per Japan)
+- [x] Deciso il caso limite: insiemi che si sovrappongono ({A,B} e {A,B,C}) sono
+      **due radici distinte**, non una gerarchia. Verificato su un DB temporaneo:
+      2 radici, 3 varianti, nessuna duplicata.
+- [x] La vista e' gia' implementata (commit e261162), quindi qui la spec insegue
+      il codice invece di precederlo: annotato perche' resti visibile.
+- [x] `tests/alberoInsieme.test.ts` — 6 test che bloccano **entrambe** le regole
+      sbagliate. Provato che mordono: raggruppando per photo_id → 3 fail; una
+      radice per foto contribuente → 2 fail; regola giusta → 6 pass.
+
+Misure: `profilo` 1 radice / 12 varianti · Japan 189 radici / 3007 varianti,
+identico a prima del change.
+
+Barra: `tsc` 0 · **414 test, 412 pass + 2 skip, 0 fail, 7.3s**.

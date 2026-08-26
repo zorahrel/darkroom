@@ -6,58 +6,51 @@
 > configurazione, voto `tieni|forse|scarta`, note, esportazione). Qui si fissa **da dove**
 > la vista prende le radici e gli ingressi.
 
-### Requirement: LIN-04 — La radice dell'albero è la foto che ha contribuito, non la prima sorgente
+### Requirement: LIN-04 — La radice dell'albero è l'insieme di ingresso
 
-Il sistema SHALL costruire la vista ad albero a partire da `version_inputs`, non da
-`versions.photo_id`. Ogni foto SHALL comparire come radice delle varianti a cui ha
-**contribuito** come sorgente, indipendentemente dalla posizione che occupava nell'ordine di
-allegamento.
+Il sistema SHALL costruire la vista ad albero raggruppando le varianti per
+**insieme di sorgenti**, non per singola foto. L'identità di un insieme SHALL
+essere data dai suoi `photo_id` ordinati, così che l'ordine di allegamento non
+produca radici diverse per lo stesso insieme.
 
-Il conteggio delle varianti di una radice SHALL essere il numero di versioni distinte a cui
-quella foto ha contribuito. Una foto che ha contribuito senza essere la prima sorgente NON
-SHALL comparire con zero varianti.
+Una variante NON SHALL comparire sotto più di una radice. Una foto sola SHALL
+essere trattata come l'insieme di cardinalità 1, senza casi speciali.
 
-Difetto misurato il 26/08/2026 chiamando `GET /api/lineage` sul Darkroom vivo, progetto
-`profilo`:
+Due regole sbagliate, e perché. Raggruppare per `versions.photo_id` (il
+comportamento fino al 26/08) metteva tutte le varianti sotto la **prima**
+sorgente: su `profilo`, 12 varianti sotto una foto e `0 varianti` sulle altre
+due, che avevano contribuito a tutte e dodici. La correzione apparente — una
+radice per ogni foto che ha contribuito — è peggiore: darebbe **3 radici con le
+stesse 12 varianti**, cioè 36 apparizioni per 12 generazioni reali, e il
+conteggio smetterebbe di dire quante ne esistono.
 
-```
-1                                     | variants=12 | gruppi=5
-56E417C5-821D-4DC9-B5DD-D76E0F305BB6  | variants=0  | gruppi=0
-ChatGPT Image Aug 15, 2026, 11_25_32  | variants=0  | gruppi=0
-```
+Misurato il 26/08/2026: `profilo` ha **un solo** insieme distinto (le 3 foto
+insieme) condiviso da tutte le 12 versioni → **1 radice**. Japan ha **189**
+insiemi, tutti di cardinalità 1, per 3007 versioni → 189 radici, ognuna contata
+una volta, esattamente come prima del change.
 
-**2 foto su 3** leggono "0 varianti" pur avendo contribuito a tutte e dodici: il lineage di
-ognuna delle 12 versioni le elenca entrambe fra le sorgenti. La causa è
-`routes/lineage.ts:76`, che seleziona `WHERE photo_id = ?`, e `photo_id` è per costruzione
-la **prima** foto dell'insieme (`scripts/gen_variants.ts:150`). Eseguendo la migrazione su
-una copia del database, la stessa domanda risponde `12 | 12 | 12`.
+I nomi di sorgente che non si risolvono a una foto nota SHALL restare
+nell'identità dell'insieme invece di essere scartati: scartarli farebbe
+collassare in una sola radice due insiemi diversi.
 
-Conseguenza sulla resa: una variante nata da tre sorgenti compare sotto tre radici. Su
-`profilo` significa 36 tessere dove oggi ce ne sono 12. È corretto — quella variante *è* nata
-anche da quella foto — ma SHALL essere dichiarato in pagina, e il contatore complessivo SHALL
-contare **varianti distinte**, non tessere.
-
-#### Scenario: foto che contribuisce senza essere la prima sorgente
-- **GIVEN** dodici varianti nate dalle stesse tre foto insieme
+#### Scenario: dodici varianti da tre scatti
+- **GIVEN** 12 versioni che dichiarano le stesse 3 foto sorgente
 - **WHEN** si apre la vista ad albero
-- **THEN** ognuna delle tre foto compare come radice con dodici varianti
-- **AND** nessuna delle tre legge "0 varianti"
+- **THEN** compare **una** radice che mostra tutte e tre le miniature
+- **AND** riporta 12 varianti, ognuna elencata una volta sola
+- **AND** nessuna delle tre foto compare separatamente con "0 varianti"
 
-#### Scenario: il contatore non triplica
-- **GIVEN** dodici varianti condivise da tre radici, cioè 36 tessere in pagina
-- **WHEN** si legge il contatore complessivo in fondo alla vista
-- **THEN** dice dodici, non trentasei
-
-#### Scenario: variante condivisa dichiarata come tale
-- **GIVEN** una tessera che compare sotto tre radici diverse
-- **WHEN** viene mostrata sotto una di esse
-- **THEN** dichiara di essere condivisa e con quali altre foto
-- **AND** giudicarla sotto una radice la aggiorna sotto tutte
-
-#### Scenario: foto a sorgente singola
-- **GIVEN** una foto le cui varianti sono nate solo da lei
+#### Scenario: progetto a sorgente singola
+- **GIVEN** un progetto in cui ogni versione nasce da una sola foto
 - **WHEN** si apre la vista ad albero
-- **THEN** compare come unica radice delle sue varianti, come oggi
+- **THEN** il numero di radici e di varianti è identico a prima del change
+- **AND** la radice mostra una miniatura sola, senza etichette sull'insieme
+
+#### Scenario: insiemi che si sovrappongono
+- **GIVEN** varianti nate da `{A,B}` e altre da `{A,B,C}`
+- **WHEN** si apre la vista ad albero
+- **THEN** sono **due radici distinte**, non una gerarchia
+- **AND** nessuna variante compare in entrambe
 
 ### Requirement: LIN-05 — La striscia delle sorgenti smette di essere un cerotto sul JSON
 
