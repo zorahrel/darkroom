@@ -3,7 +3,7 @@ import { serveFile } from "../http.ts";
 import {
   shots, cuts, assets, setScelta, clipPath, posterPath, assetPath,
   segnalaProblema, togliProblema, setRipresa, setPin, setDurata,
-  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature,
+  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio,
 } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
 import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT } from "../comfy.ts";
@@ -81,6 +81,14 @@ videoRoutes.post("/api/video/durata", async (c) => {
 
 // La barra costa: `check.py` estrae fotogrammi con ffmpeg. Il risultato e'
 // tenuto finche' il montaggio non cambia; `?force=1` lo rifa comunque.
+videoRoutes.post("/api/video/scordagiudizio", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const shot = String(b.shot ?? "");
+  if (!shot) return c.json({ error: "serve il piano" }, 400);
+  annullaGiudizio(shot);
+  return c.json({ ok: true, shots: shots() });
+});
+
 videoRoutes.get("/api/video/forzature", (c) => c.json(forzature()));
 
 videoRoutes.get("/api/video/marcatori", (c) => c.json({ marcatori: marcatori() }));

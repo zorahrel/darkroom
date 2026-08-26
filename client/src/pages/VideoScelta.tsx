@@ -27,7 +27,11 @@ type Scena = {
   minuto: number | null;
   inScena: number;
   kept: boolean;
-  giudicata: boolean;
+  /** Il verdetto dato, se c'è. `null` vuol dire mai passata sotto gli occhi —
+   *  che non è la stessa cosa di "tenuta": tenere è lo stato di partenza. */
+  giudizio: "tenuta" | "scartata" | null;
+  giudicataIl: number | null;
+  annotata: boolean;
 };
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -46,19 +50,25 @@ function raggruppa(shots: VideoShot[]): Scena[] {
         inScena: pezzi.reduce((n, p) => n + p.inScena, 0),
         // Una presa e' "tenuta" se almeno un pezzo lo e'.
         kept: pezzi.some((p) => p.kept),
-        // Giudicata = qualcuno l'ha toccata: scartata, o annotata.
-        giudicata: pezzi.some((p) => !p.kept || p.problemi.length > 0),
+        // Il verdetto della presa: basta un pezzo scartato perche' lo sia, e
+        // serve almeno un si' esplicito perche' conti come approvata.
+        giudizio: (pezzi.some((p) => p.giudizio === "scartata") ? "scartata"
+                 : pezzi.some((p) => p.giudizio === "tenuta") ? "tenuta"
+                 : null) as Scena["giudizio"],
+        giudicataIl: pezzi.reduce<number | null>(
+          (m, p) => (p.giudicataIl && (!m || p.giudicataIl > m) ? p.giudicataIl : m), null),
+        annotata: pezzi.some((p) => p.problemi.length > 0),
       };
     })
     .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
 }
 
-type Filtro = "da_giudicare" | "in_montaggio" | "scartate" | "tutte";
+type Filtro = "da giudicare" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
 
 export default function VideoScelta() {
   const { pid } = useParams();
   const [shots, setShots] = useState<VideoShot[]>([]);
-  const [filtro, setFiltro] = useState<Filtro>("da_giudicare");
+  const [filtro, setFiltro] = useState<Filtro>("da giudicare");
   const [atto, setAtto] = useState<string>("");
   const [i, setI] = useState(0);
   const [pezzo, setPezzo] = useState(0);
@@ -102,9 +112,11 @@ export default function VideoScelta() {
     () =>
       scene.filter((s) => {
         if (atto && s.atto !== atto) return false;
-        if (filtro === "da_giudicare") return !s.giudicata;
-        if (filtro === "in_montaggio") return s.minuto !== null;
-        if (filtro === "scartate") return !s.kept;
+        if (filtro === "da giudicare") return s.giudizio === null && !s.annotata;
+        if (filtro === "tenute") return s.giudizio === "tenuta";
+        if (filtro === "scartate") return s.giudizio === "scartata" || !s.kept;
+        if (filtro === "annotate") return s.annotata;
+        if (filtro === "in montaggio") return s.minuto !== null;
         return true;
       }),
     [scene, filtro, atto],
@@ -208,7 +220,9 @@ export default function VideoScelta() {
 
   useEffect(() => { if (nota !== null) campo.current?.focus(); }, [nota]);
 
-  const daGiudicare = scene.filter((s) => !s.giudicata).length;
+  const daGiudicare = scene.filter((s) => s.giudizio === null && !s.annotata).length;
+  const tenute = scene.filter((s) => s.giudizio === "tenuta").length;
+  const scartate = scene.filter((s) => s.giudizio === "scartata").length;
 
   return (
     <div ref={guscio} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: hGuscio }}>
@@ -218,7 +232,10 @@ export default function VideoScelta() {
           ← montaggio
         </Link>
         <span className="text-[10.5px] text-neutral-400 tabular-nums">
-          {coda.length} in coda · {daGiudicare} mai giudicate su {scene.length} prese
+          {coda.length} in coda · su {scene.length} prese:
+          <span className="text-emerald-300"> {tenute} tenute</span> ·
+          <span className="text-rose-300"> {scartate} scartate</span> ·
+          <span className="text-neutral-100"> {daGiudicare} mai viste</span>
         </span>
         {ultimo && (
           <span className={`text-[10.5px] flex items-center gap-1.5 ${ultimo.kept ? "text-emerald-300" : "text-rose-300"}`}>
@@ -230,7 +247,7 @@ export default function VideoScelta() {
           </span>
         )}
         <div className="ml-auto flex gap-1.5 items-center">
-        {(["da_giudicare", "in_montaggio", "scartate", "tutte"] as const).map((k) => (
+        {(["da giudicare", "tenute", "scartate", "annotate", "in montaggio", "tutte"] as const).map((k) => (
           <button
             key={k}
             onClick={() => { setFiltro(k); setI(0); }}
@@ -238,7 +255,7 @@ export default function VideoScelta() {
               filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400"
             }`}
           >
-            {k.replace("_", " ")}
+            {k}{k === "da giudicare" ? ` ${daGiudicare}` : ""}
           </button>
         ))}
         <select
@@ -302,9 +319,28 @@ export default function VideoScelta() {
               <dd className="tabular-nums">{corrente.durezza?.toFixed(2) ?? "—"}</dd>
               <dt className="text-neutral-400">stato</dt>
               <dd>
-                {scena.kept
-                  ? <span className="text-neutral-300">tenuta</span>
-                  : <span className="text-rose-400">scartata — {corrente.perche}</span>}
+                {scena.giudizio === "tenuta"
+                  ? <span className="text-emerald-300">
+                      tenuta{scena.giudicataIl
+                        ? ` il ${new Date(scena.giudicataIl).toLocaleString("it-IT",
+                            { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                        : ""}
+                    </span>
+                  : scena.giudizio === "scartata"
+                  ? <span className="text-rose-300">scartata — {corrente.perche}</span>
+                  : <span className="text-neutral-400">
+                      mai giudicata{scena.kept ? " · sta nel montaggio perché tenere è il valore di partenza" : ""}
+                    </span>}
+                {scena.giudizio && (
+                  <button
+                    onClick={async () => {
+                      for (const pz of scena.pezzi) setShots((await api.videoScordaGiudizio(pz.id)).shots);
+                    }}
+                    className="ml-2 px-1.5 py-0.5 rounded-sm border border-neutral-700 text-[10px]
+                               text-neutral-400 hover:text-neutral-100">
+                    scorda il voto
+                  </button>
+                )}
                 {corrente.escluso && (
                   <span className="text-amber-500/80"> · esclusa dal piano: {corrente.escluso}</span>
                 )}

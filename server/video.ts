@@ -52,6 +52,10 @@ export type Shot = {
   kept: boolean;
   /** Why it was dropped, when it was dropped by hand. */
   perche: string | null;
+  /** Il verdetto di chi guarda, in tutt'e due i versi. `null` = mai passata
+   *  sotto gli occhi, che è diverso da "tenuta" anche se sta nel montaggio. */
+  giudizio: "tenuta" | "scartata" | null;
+  giudicataIl: number | null;
   /** Problems flagged from the editor. Not a verdict: a note for the next round. */
   problemi: string[];
   /** Which generation it comes from: two halves of one take share this. */
@@ -165,10 +169,38 @@ export function togliProblema(shot: string, i: number) {
   return s;
 }
 
+/**
+ * Il verdetto su una ripresa, tenuto in tutt'e due i versi.
+ *
+ * Prima "tieni" cancellava soltanto la riga da `scartati`, e tenere è lo stato
+ * di partenza: premere il tasto su cento scene non lasciava nessuna traccia. La
+ * coda "da giudicare" restava lunga uguale, e "quali ho già approvato?" era una
+ * domanda senza risposta — l'unico giudizio registrato era quello negativo.
+ *
+ * Ora si scrive anche il sì, con quando. `pianifica.py` legge solo `scartati`,
+ * quindi il piano non se ne accorge: è memoria di chi guarda, non una scelta di
+ * montaggio.
+ */
 export function setScelta(shot: string, kept: boolean, perche?: string) {
-  const s = scelte();
-  if (kept) delete s.scartati[shot];
-  else s.scartati[shot] = perche?.trim() || "scartato a mano";
+  const s = scelte() as Scelte & { tenuti?: Record<string, number> };
+  s.tenuti ??= {};
+  if (kept) {
+    delete s.scartati[shot];
+    s.tenuti[shot] = Date.now();
+  } else {
+    s.scartati[shot] = perche?.trim() || "scartato a mano";
+    delete s.tenuti[shot];
+  }
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s;
+}
+
+/** Toglie ogni verdetto da una ripresa: torna in coda come se non fosse mai
+ *  passata sotto gli occhi. */
+export function annullaGiudizio(shot: string) {
+  const s = scelte() as Scelte & { tenuti?: Record<string, number> };
+  delete s.scartati[shot];
+  if (s.tenuti) delete s.tenuti[shot];
   writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
   return s;
 }
@@ -280,6 +312,7 @@ export function shots(): Shot[] {
   const as = atti();
   const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
   const scartati = sc.scartati;
+  const tenuti = ((sc as any).tenuti ?? {}) as Record<string, number>;
   const problemi = sc.problemi ?? {};
   const riprFuori = sc.riprese ?? {};
 
@@ -348,6 +381,8 @@ export function shots(): Shot[] {
         inScena: Math.round((inScena[id] ?? 0) * 10) / 10,
         kept: !(id in scartati),
         perche: scartati[id] ?? null,
+        giudizio: (scartati[id] !== undefined ? "scartata" : tenuti[id] !== undefined ? "tenuta" : null) as Shot["giudizio"],
+        giudicataIl: tenuti[id] ?? null,
         problemi: problemi[id] ?? [],
         origine: origine(id),
         atto: attoDelPiano[id] ?? null,

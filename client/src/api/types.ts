@@ -507,6 +507,8 @@ export type VideoShot = {
   inScena: number;
   kept: boolean;
   perche: string | null;
+  giudizio: "tenuta" | "scartata" | null;
+  giudicataIl: number | null;
   problemi: string[];
   /** Due meta' della stessa presa condividono questa: `z43_0` e `z43_1` -> `z43`. */
   origine: string;

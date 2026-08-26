@@ -429,6 +429,10 @@ export const api = {
     }>("/api/video/cuts"),
   videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
   videoOnda: () => jsonFetch<VideoOnda>("/api/video/onda"),
+  videoScordaGiudizio: (shot: string) =>
+    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/scordagiudizio", {
+      method: "POST", body: JSON.stringify({ shot }),
+    }),
   videoForzature: () => jsonFetch<VideoForzature>("/api/video/forzature"),
   videoMarcatori: () => jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatori"),
   videoMarcatore: (t: number, nota: string | null) =>
