@@ -110,9 +110,43 @@ export function listaVideoJob(limit = 50): VideoJob[] {
   return getDb().query(`SELECT * FROM video_jobs ORDER BY id DESC LIMIT ?`).all(limit) as VideoJob[];
 }
 
+/**
+ * Fermare una generazione.
+ *
+ * Una in coda si toglie e basta. Una **in corso** invece non si poteva fermare
+ * per niente: restava li' finche' non finiva o finche' non scadevano i quindici
+ * minuti senza fotogrammi nuovi, e nel frattempo teneva ferma tutta la coda
+ * dietro. Succede: si lancia una serie, si guarda la prima e si capisce che il
+ * prompt e' sbagliato — e le altre nove stanno dietro una che non si vuole piu'.
+ *
+ * Fermarla vuol dire due cose: dire a ComfyUI di interrompere (`/interrupt`
+ * ferma quella che gira, `/queue delete` toglie quelle in attesa) e segnare la
+ * riga, cosi' il ciclo d'attesa esce e la coda va avanti.
+ */
 export function annullaVideoJob(id: number): boolean {
-  const r = getDb().run(`UPDATE video_jobs SET status='cancelled', finished_at=? WHERE id=? AND status='pending'`, [Date.now(), id]);
+  const db = getDb();
+  const j = db.query(`SELECT * FROM video_jobs WHERE id=?`).get(id) as VideoJob | null;
+  if (!j || j.status === "done" || j.status === "cancelled") return false;
+
+  if (j.status === "running") {
+    fermatiSuComfy(j.prompt_id).catch(() => { /* la riga si segna comunque */ });
+  }
+  const r = db.run(`UPDATE video_jobs SET status='cancelled', finished_at=? WHERE id=? AND status IN ('pending','running')`, [Date.now(), id]);
   return r.changes > 0;
+}
+
+async function fermatiSuComfy(promptId: string | null): Promise<void> {
+  if (promptId) {
+    await fetch(`${HOST}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: [promptId] }),
+    }).catch(() => {});
+  }
+  // `/interrupt` ferma quella che sta girando ADESSO, qualunque sia: si manda
+  // dopo il delete, cosi' se il prompt era ancora in attesa non si interrompe
+  // per sbaglio quella di qualcun altro.
+  await fetch(`${HOST}/interrupt`, { method: "POST" }).catch(() => {});
 }
 
 const scrivi = (id: number, campi: Record<string, unknown>) => {
@@ -168,7 +202,11 @@ export function avviaCoda(): void {
   if (!prossimo) return;
   inCorso = true;
   void esegui(prossimo)
-    .catch((e) => scrivi(prossimo.id, { status: "failed", error: String(e), finished_at: Date.now() }))
+    .catch((e) => {
+      const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(prossimo.id) as { status: string } | null;
+      if (ora?.status === "cancelled") return;   // fermata apposta, non e' un guasto
+      scrivi(prossimo.id, { status: "failed", error: String(e), finished_at: Date.now() });
+    })
     .finally(() => { inCorso = false; avviaCoda(); });
 }
 
@@ -261,6 +299,9 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Param
   let ultimoConteggio = 0, ultimoMovimento = t0;
   for (;;) {
     await Bun.sleep(5000);
+    // Annullata mentre aspettava: si esce di qui, non si raccoglie niente.
+    const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(job.id) as { status: string } | null;
+    if (ora?.status === "cancelled") throw new Error("annullata");
     const h = await fetch(`${HOST}/history/${promptId}`).then((x) => x.json() as any).catch(() => ({}));
     if (h[promptId]) {
       const st = h[promptId].status ?? {};
