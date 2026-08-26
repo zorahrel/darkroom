@@ -106,3 +106,39 @@ describe("senza chiave non si tenta la rete", () => {
     expect(example).toContain("add-generic-password");
   });
 });
+
+describe("il backend parla davvero con OpenAI", () => {
+  // I test sopra guardano il sorgente; questo guarda il traffico. Con una
+  // chiave fittizia si arriva fino alla richiesta senza spendere: se il
+  // routing fosse sbagliato, la URL non sarebbe quella di OpenAI.
+  test("generate colpisce /v1/images/generations e un errore non lascia file", async () => {
+    const prev = process.env.OPENAI_API_KEY;
+    const prevFetch = globalThis.fetch;
+    const urls: string[] = [];
+    process.env.OPENAI_API_KEY = "sk-test-non-valida-per-il-routing";
+    // Si intercetta e NON si inoltra: cosi' il test dice la stessa cosa su una
+    // macchina senza rete, e non spende nemmeno la richiesta rifiutata.
+    globalThis.fetch = ((u: unknown) => {
+      urls.push(String(u));
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: { message: "Incorrect API key provided" } }), {
+          status: 401,
+        }),
+      );
+    }) as typeof fetch;
+    const out = "/tmp/darkroom-routing-test.png";
+    try {
+      const mod = await import(`../server/worker-openai.ts?routing=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: out });
+      expect(urls[0]).toBe("https://api.openai.com/v1/images/generations");
+      // Chiave invalida = errore pulito, non un crash e non un file vuoto in
+      // galleria (che sarebbe indistinguibile da una versione buona).
+      expect(r.status).toBe("error");
+      expect(existsSync(out)).toBe(false);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prev === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prev;
+    }
+  }, 60_000);
+});

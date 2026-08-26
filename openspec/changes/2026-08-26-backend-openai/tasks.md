@@ -95,4 +95,18 @@ invece che in forma verificabile.
 - [x] 7.4 Un test blocca la regressione peggiore: una chiave in chiaro in
       `.env.example` (regex `sk-...`)
 
-Barra finale: `tsc` 0 · **377 test, 375 pass + 2 skip opt-in, 0 fail, 8.6s**.
+## 8. Il routing provato sul traffico, non sul sorgente
+
+I controlli di 7.x leggono il file: dicono che il codice *sembra* giusto. Manca
+la prova che una richiesta parta davvero verso OpenAI quando il backend e'
+`openai`.
+
+- [x] 8.1 Test che intercetta `fetch` e verifica la URL
+      (`https://api.openai.com/v1/images/generations`)
+- [x] 8.2 Intercetta **senza inoltrare**: stessa risposta su una macchina senza
+      rete, e nessuna richiesta spesa. Verificato che offline il worker
+      restituisce un errore pulito e non lascia file (`ENOTFOUND` simulato).
+- [x] 8.3 Provato che morde: endpoint cambiato in `api.SBAGLIATO.com` -> 1 fail;
+      ripristinato -> 10 pass.
+
+Barra finale: `tsc` 0 · **378 test, 376 pass + 2 skip opt-in, 0 fail, 7.9s**.
