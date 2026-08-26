@@ -152,3 +152,45 @@ input[type="range"].dr-hue::-moz-range-thumb {
 .dr-panel-in {
   animation: dr-slide-up 0.18s ease-out;
 }
+
+/* Ogni cursore, non solo quelli colorati.
+   `.dr-hue` vestiva le bande del colore, ma tutti gli altri cursori — i valori
+   della pipeline, le dosi — restavano quelli del sistema: azzurri, con la loro
+   pista chiara, in mezzo a un pannello scuro. Questa e' la base; `.dr-hue`
+   sopra ci dipinge la pista e basta. */
+input[type="range"]:not(.dr-hue):not(.dr-touch input) {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:not(.dr-hue)::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #3f3f46;
+}
+input[type="range"]:not(.dr-hue)::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #3f3f46;
+}
+input[type="range"]:not(.dr-hue)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 1px solid #18181b;
+}
+input[type="range"]:not(.dr-hue)::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fafafa;
+  border: 1px solid #18181b;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid #d4d4d4; outline-offset: 1px; }
