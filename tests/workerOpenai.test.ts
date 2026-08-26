@@ -274,3 +274,66 @@ describe("si paga la chiamata, non la versione salvata", () => {
     }
   }, 30_000);
 });
+
+describe("il tetto giornaliero morde prima di spendere", () => {
+  // Il limite vero sta sull'account OpenAI ma non e' impostabile da qui (403) e
+  // arriva come alert DOPO. Questo si applica prima della chiamata: e' l'unico
+  // freno che Darkroom puo' azionare da solo.
+  test("oltre il tetto non parte nessuna richiesta", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevCap = process.env.OPENAI_DAILY_CAP_USD;
+    process.env.OPENAI_API_KEY = "sk-test-tetto";
+    process.env.OPENAI_DAILY_CAP_USD = "0.01"; // gia' superato dalle righe sotto
+    let chiamate = 0;
+    globalThis.fetch = (async () => {
+      chiamate++;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    try {
+      const { db } = await import("../server/db.ts");
+      db().run(
+        `INSERT INTO api_calls (provider,model,quality,output_tokens,cost_usd,ok,origin,created_at)
+         VALUES ('openai','gpt-image-2','high',7024,0.2107,1,'test',?)`,
+        [Date.now()],
+      );
+      const mod = await import(`../server/worker-openai.ts?cap=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-cap.png" });
+      expect(r.status).toBe("error");
+      expect(r.error).toContain("tetto giornaliero");
+      // Il punto: bloccare DOPO la fetch non risparmierebbe niente.
+      expect(chiamate).toBe(0);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevCap === undefined) delete process.env.OPENAI_DAILY_CAP_USD;
+      else process.env.OPENAI_DAILY_CAP_USD = prevCap;
+    }
+  }, 30_000);
+
+  test("sotto il tetto la generazione procede", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevCap = process.env.OPENAI_DAILY_CAP_USD;
+    process.env.OPENAI_API_KEY = "sk-test-tetto2";
+    process.env.OPENAI_DAILY_CAP_USD = "999";
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: png }], usage: { output_tokens: 196 } }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    try {
+      const mod = await import(`../server/worker-openai.ts?cap2=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-cap2.png" });
+      expect(r.status).toBe("ok");
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevCap === undefined) delete process.env.OPENAI_DAILY_CAP_USD;
+      else process.env.OPENAI_DAILY_CAP_USD = prevCap;
+    }
+  }, 30_000);
+});

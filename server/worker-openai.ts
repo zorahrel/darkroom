@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
-import { OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
+import { openaiDailyCapUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
 import { db } from "./db.ts";
 
 /**
@@ -27,6 +27,36 @@ const OUTPUT_RATE_PER_M: Record<string, number> = {
   "gpt-image-1": 40.0,
   "gpt-image-1-mini": 8.0,
 };
+
+/** Speso nelle ultime 24h, dalle chiamate registrate. */
+export function spesoOggi(): number {
+  try {
+    const r = db()
+      .query<{ tot: number | null }, [number]>(
+        "SELECT SUM(cost_usd) AS tot FROM api_calls WHERE provider='openai' AND created_at > ?",
+      )
+      .get(Date.now() - 24 * 60 * 60 * 1000);
+    return r?.tot ?? 0;
+  } catch {
+    // Senza DB non si puo' sapere: non si blocca una generazione per questo.
+    return 0;
+  }
+}
+
+/** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
+ *  l'errore da mostrare, o null se si puo' procedere. */
+function oltreIlTetto(): string | null {
+  // Letto qui e non all'import: un tetto che si puo' alzare solo riavviando il
+  // server e' un tetto che si aggira riavviando il server.
+  const cap = openaiDailyCapUsd();
+  if (!(cap > 0)) return null;
+  const speso = spesoOggi();
+  if (speso < cap) return null;
+  return (
+    `tetto giornaliero raggiunto: $${speso.toFixed(2)} spesi nelle ultime 24h ` +
+    `(limite $${cap.toFixed(2)}). Alza OPENAI_DAILY_CAP_USD o aspetta.`
+  );
+}
 
 /** Ogni chiamata pagata finisce qui, in qualunque progetto si trovi il
  *  chiamante: si paga la richiesta, non la versione che ne esce. Uno script di
@@ -143,6 +173,8 @@ export async function runWorkerOpenAiGenerate(input: {
         'nessuna chiave OpenAI. Salvala nel Keychain:\n  security add-generic-password -s openai -a darkroom -w "<chiave>" -U',
     };
   }
+  const oltre = oltreIlTetto();
+  if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
   const refs = (input.refs ?? []).filter((p) => existsSync(p));
 
@@ -180,6 +212,8 @@ export async function runWorkerOpenAi(input: {
   if (!existsSync(input.image)) {
     return { status: "error", error: `source image not found: ${input.image}` };
   }
+  const oltre = oltreIlTetto();
+  if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];
   return runEdits(key, images, input.prompt, input.output, startedAt);

@@ -114,6 +114,21 @@ export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2
 export const OPENAI_IMAGE_QUALITY = process.env.OPENAI_IMAGE_QUALITY ?? "high";
 export const OPENAI_IMAGE_SIZE = process.env.OPENAI_IMAGE_SIZE ?? "1024x1024";
 
+/** Tetto di spesa giornaliero in dollari, oltre il quale il backend a pagamento
+ *  smette di generare.
+ *
+ *  Il limite vero sta sull'account OpenAI, ma non e' impostabile da qui
+ *  (`/v1/organization/*` risponde 403 con una chiave di progetto) e comunque
+ *  arriva come alert DOPO aver speso. Questo si applica prima della chiamata,
+ *  sulle righe di `api_calls` delle ultime 24h: e' l'unico freno che Darkroom
+ *  puo' azionare da solo.
+ *
+ *  Il 26/08 una giornata di calibrazione ha prodotto 21 chiamate senza che
+ *  nessuno contasse: non erano troppe, ma nessuno lo sapeva mentre accadeva. */
+export function openaiDailyCapUsd(): number {
+  return Number(process.env.OPENAI_DAILY_CAP_USD ?? "5");
+}
+
 /** Chiave OpenAI dal Keychain, mai da un file in chiaro (stessa convenzione di
  *  `scripts/imagerouter_check.ts`; il .env del progetto è world-readable).
  *  OPENAI_API_KEY nell'ambiente vince, per CI e test.
