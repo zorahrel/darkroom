@@ -15,7 +15,16 @@ export { CHATGPT_CDP_PORT, CHATGPT_CDP_URL };
 const WORKER_TIMEOUT_MS = 11 * 60 * 1000; // 11 min/gen — image edits under load are slow (GEN_TIMEOUT_S=540 + overhead)
 
 export type WorkerResult =
-  | { status: "ok"; output: string; duration_s: number; size_kb: number }
+  | {
+      status: "ok";
+      output: string;
+      duration_s: number;
+      size_kb: number;
+      /** Costo in dollari, quando il backend lo sa. I backend a quota (cdp,
+       *  codex) non lo sanno e lo lasciano assente: 0 direbbe "gratis", che e'
+       *  una risposta diversa da "non misurabile". */
+      cost_usd?: number;
+    }
   | { status: "error"; error: string; duration_s?: number };
 
 // Cross-process mutex on the shared ChatGPT browser. The DB job runner and any

@@ -179,3 +179,59 @@ describe("il batch chiede davvero quello che dice di chiedere", () => {
     }
   }, 30_000);
 });
+
+describe("quanto si e' speso si vede prima, non dopo", () => {
+  // Con un backend a pagamento l'unico modo di sapere quanto costa un progetto
+  // era guardare la fattura a fine mese. Il saldo residuo non si puo' leggere:
+  // /organization/costs e /dashboard/billing rispondono 403 "Missing scopes:
+  // api.usage.read" a una chiave di progetto. Quindi si somma cio' che l'API ha
+  // riportato a ogni generazione.
+  test("il worker restituisce il costo dai token della risposta", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test-costo";
+    // 1x1 PNG valido: saveResult rilegge il file da disco.
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({ data: [{ b64_json: png }], usage: { output_tokens: 7024 } }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    try {
+      const mod = await import(`../server/worker-openai.ts?costo=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({
+        prompt: "x",
+        output: "/tmp/darkroom-costo-test.png",
+      });
+      expect(r.status).toBe("ok");
+      // 7024 token a $30/M = $0.2107, il costo vero misurato il 26/08.
+      expect(r.cost_usd).toBeCloseTo(0.2107, 4);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+    }
+  }, 30_000);
+
+  test("senza usage il costo resta assente, non zero", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test-costo";
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: png }] }), { status: 200 })) as unknown as typeof fetch;
+    try {
+      const mod = await import(`../server/worker-openai.ts?nousage=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-costo2.png" });
+      expect(r.status).toBe("ok");
+      // Zero direbbe "gratis", che e' una risposta diversa da "non misurabile".
+      expect(r.cost_usd).toBeUndefined();
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+    }
+  }, 30_000);
+});

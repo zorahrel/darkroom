@@ -670,11 +670,17 @@ async function processJob(job: JobRow) {
     // Come sul ramo Higgsfield: il numero si ricalcola al momento dell'insert,
     // perché fra la scelta e la fine della generazione passano minuti.
     const finalNumber = nextVersionNumber(photo.id);
+    // Il provider viene registrato per quello che e': dire 'chatgpt' anche
+    // quando ha generato l'Images API rendeva impossibile sapere quanto e'
+    // costato un progetto. `credits` resta NULL per i backend a quota, dove
+    // uno zero direbbe "gratis" invece di "non misurabile".
+    const provider = WORKER_BACKEND === "openai" ? "openai" : "chatgpt";
+    const costo = result.status === "ok" ? (result.cost_usd ?? null) : null;
     const versionInsert = db().run(
       `INSERT INTO versions
-        (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at)
-       VALUES (?, ?, ?, ?, ?, 'chatgpt', 'generated', ?)`,
-      [photo.id, finalNumber, outputPath, job.prompt, job.config, Date.now()],
+        (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at, credits)
+       VALUES (?, ?, ?, ?, ?, ?, 'generated', ?, ?)`,
+      [photo.id, finalNumber, outputPath, job.prompt, job.config, provider, Date.now(), costo],
     );
     const versionId = Number(versionInsert.lastInsertRowid);
 

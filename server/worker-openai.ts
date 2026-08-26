@@ -71,6 +71,7 @@ async function saveResult(
   json: ImagesResponse,
   output: string,
   startedAt: number,
+  model: string = OPENAI_IMAGE_MODEL,
 ): Promise<WorkerResult> {
   const duration_s = Math.round((Date.now() - startedAt) / 1000);
   if (json.error) return { status: "error", error: json.error.message ?? "errore sconosciuto", duration_s };
@@ -85,9 +86,21 @@ async function saveResult(
   // Il file va riletto da disco: una write parziale qui diventerebbe una
   // versione rotta in galleria, che è esattamente ciò che non si vede in griglia.
   if (!existsSync(output)) return { status: "error", error: `scrittura fallita: ${output}`, duration_s };
-  const size_kb = Math.round(statSync(output).size / 1024);
-  if (size_kb <= 0) return { status: "error", error: `file vuoto: ${basename(output)}`, duration_s };
-  return { status: "ok", output, duration_s, size_kb };
+  // Si guarda i BYTE, non i kilobyte arrotondati: `size_kb` di un file da 500
+  // byte e' 0, e la guardia scartava come "vuoto" un file che c'era.
+  const bytes_reali = statSync(output).size;
+  if (bytes_reali === 0) return { status: "error", error: `file vuoto: ${basename(output)}`, duration_s };
+  const size_kb = Math.round(bytes_reali / 1024);
+  // I token si leggono dalla risposta: la tabella dei docs dava 4160 per una
+  // high 1024 dove ne sono stati consumati 7024, il 69% in piu'.
+  const tok = json.usage?.output_tokens;
+  return {
+    status: "ok",
+    output,
+    duration_s,
+    size_kb,
+    ...(tok ? { cost_usd: costUsd(model, tok) } : {}),
+  };
 }
 
 /** Text-to-image. `refs` sono accettate e allegate: l'endpoint edits con più

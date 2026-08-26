@@ -226,6 +226,11 @@ export type StudioOverview = {
     backend: string;
     browser_alive: boolean | null;
     runner: RunnerStatus;
+    /** Solo per i backend a pagamento: quanto e' costato finora, sommato dai
+     *  job. Il saldo residuo non e' leggibile con una chiave di progetto
+     *  (403 "Missing scopes: api.usage.read"), quindi si mostra la spesa. */
+    spesa?: { usd: number; immagini: number; modello: string; qualita: string } | null;
+    openai_key?: boolean | null;
   };
 };
 

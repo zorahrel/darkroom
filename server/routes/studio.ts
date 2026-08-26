@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
-import { WORKER_BACKEND, BACKEND_USES_BROWSER } from "../config.ts";
+import { WORKER_BACKEND, BACKEND_USES_BROWSER, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, openaiKey } from "../config.ts";
 import {
   addProject,
   dirsFor,
@@ -17,6 +17,44 @@ import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, launchChatgptBrowser } from 
 
 /** Worker health and the multi-project overview. */
 export const studioRoutes = new Hono();
+
+/** Spesa registrata sulle versioni, in dollari. Somma cio' che i job hanno
+ *  riportato davvero: le versioni dei backend a quota hanno `credits` NULL e
+ *  non entrano nel conto. */
+function speso(): { usd: number; immagini: number; modello: string; qualita: string } {
+  let usd = 0;
+  let immagini = 0;
+  for (const p of listProjects()) {
+    withProject(p.id, () => {
+      const r = db()
+        .query<{ tot: number | null; n: number }, []>(
+          "SELECT SUM(credits) AS tot, COUNT(*) AS n FROM versions WHERE provider='openai' AND credits IS NOT NULL",
+        )
+        .get();
+      usd += r?.tot ?? 0;
+      immagini += r?.n ?? 0;
+    });
+  }
+  return {
+    usd: Math.round(usd * 10000) / 10000,
+    immagini,
+    modello: OPENAI_IMAGE_MODEL,
+    qualita: OPENAI_IMAGE_QUALITY,
+  };
+}
+
+/** Se un progetto qualsiasi ha gia' generato con OpenAI, la spesa si mostra
+ *  anche quando il backend attivo e' un altro: quei soldi restano spesi. */
+function hasOpenAiVersions(): boolean {
+  for (const p of listProjects()) {
+    let trovato = false;
+    withProject(p.id, () => {
+      trovato = !!db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM versions WHERE provider='openai'").get()?.n;
+    });
+    if (trovato) return true;
+  }
+  return false;
+}
 
 // ---- API: health -----------------------------------------------------------
 
@@ -110,12 +148,25 @@ studioRoutes.get("/api/studio/projects", async (c) => {
   });
   const browserAlive =
     BACKEND_USES_BROWSER ? await checkChatgptBrowserAlive().catch(() => false) : null;
+
+  // Quanto e' costato finora, sommato dai job. Il SALDO non si puo' leggere:
+  // gli endpoint /organization/costs e /dashboard/billing rispondono 403
+  // "Missing scopes: api.usage.read" con una normale chiave di progetto.
+  // Mostrare la spesa misurata e' onesto; mostrare un saldo inventato no.
+  const spesa =
+    WORKER_BACKEND === "openai" || hasOpenAiVersions()
+      ? speso()
+      : null;
   return c.json({
     projects,
     worker: {
       backend: WORKER_BACKEND,
       browser_alive: browserAlive,
       runner: getRunnerStatus(),
+      /** Presente solo per i backend a pagamento. `chiave` dice se e'
+       *  configurata: senza, il backend non parte e va detto prima. */
+      spesa,
+      openai_key: WORKER_BACKEND === "openai" ? !!openaiKey() : null,
     },
   });
 });

@@ -7,6 +7,7 @@ import {
   type Health,
   type JobsPayload,
   type StudioProject,
+  type StudioOverview,
 } from "./api";
 
 export type OutletCtx = {
@@ -41,6 +42,10 @@ export default function App() {
   }, [railOpen]);
   const [launching, setLaunching] = useState(false);
   const [projects, setProjects] = useState<StudioProject[]>([]);
+  /** Spesa dei backend a pagamento: sta accanto agli altri stati "connessi"
+   *  della barra, perche' e' la stessa domanda ("posso generare?") a cui
+   *  rispondono il browser vivo e la coda dei lavori. */
+  const [spesa, setSpesa] = useState<StudioOverview["worker"]["spesa"]>(null);
   // Avviso "stai guardando una dashboard vecchia". Nasce da un caso reale: per
   // nove giorni il dist servito era piu' vecchio del codice, e ogni modifica
   // alla UI sembrava non essere stata fatta.
@@ -67,10 +72,19 @@ export default function App() {
 
   // Project list for the switcher (also tells us if we're multi-project).
   useEffect(() => {
-    api
-      .studioProjects()
-      .then((r) => setProjects(r.projects))
-      .catch(() => {});
+    const carica = () =>
+      api
+        .studioProjects()
+        .then((r) => {
+          setProjects(r.projects);
+          setSpesa(r.worker.spesa ?? null);
+        })
+        .catch(() => {});
+    carica();
+    // La spesa cambia a ogni generazione: senza ripolling resterebbe ferma al
+    // valore del caricamento, cioe' sbagliata proprio mentre si sta spendendo.
+    const t = setInterval(carica, 20000);
+    return () => clearInterval(t);
   }, []);
 
   // Health check + periodic re-poll (so the offline badge clears once the
@@ -305,6 +319,18 @@ export default function App() {
                 {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
               </span>
             </Bott>
+
+            {/* Speso, non "residuo": il saldo non e' leggibile con una chiave di
+                progetto (403, manca lo scope api.usage.read), e un numero
+                inventato in barra sarebbe peggio di nessun numero. */}
+            {spesa && spesa.immagini > 0 && (
+              <Targa
+                tono={spesa.usd >= 5 ? "attesa" : "neutro"}
+                titolo={`${spesa.immagini} immagini generate con ${spesa.modello} (${spesa.qualita}). Somma dei costi riportati dall'API a ogni generazione. Il saldo residuo non e' esposto da OpenAI a una chiave di progetto.`}
+              >
+                ${spesa.usd.toFixed(2)} spesi
+              </Targa>
+            )}
 
             {pid && activeProject?.kind !== "video" && activeProject?.kind !== "storyboard" && (
               <Bott taglia="m"
