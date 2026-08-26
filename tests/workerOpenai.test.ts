@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import { costUsd } from "../server/worker-openai.ts";
 
 /**
@@ -59,8 +60,49 @@ describe("il costo si calcola sui token veri", () => {
     // Tornare 0 farebbe sembrare gratis una passata che invece si paga.
     expect(costUsd("gpt-image-9-inesistente", 7024)).toBeGreaterThan(0);
   });
+});
 
-  test("gpt-image-1-mini è la via economica", () => {
+describe("gpt-image-1-mini è la via economica", () => {
+  test("costa meno di gpt-image-2 a parità di token", () => {
     expect(costUsd("gpt-image-1-mini", 7024)).toBeLessThan(costUsd("gpt-image-2", 7024));
+  });
+});
+
+describe("senza chiave non si tenta la rete", () => {
+  // OAI-03: il messaggio deve contenere il comando esatto, altrimenti chi lo
+  // legge deve andarselo a cercare — ed e' il primo errore che vedra' chiunque
+  // provi questo backend su una macchina nuova.
+  //
+  // Il caso "Keychain assente" non si simula con PATH: Bun.spawnSync non
+  // rispetta un PATH cambiato a runtime e trovava la chiave vera, facendo
+  // partire una chiamata a pagamento dentro la suite. Si verifica invece sul
+  // sorgente, che e' l'unica cosa deterministica qui.
+  test("l'errore dice come registrare la chiave", async () => {
+    const src = await Bun.file(new URL("../server/worker-openai.ts", import.meta.url)).text();
+    expect(src).toContain("add-generic-password");
+    expect(src).toContain("-s");
+    expect(src).toContain("openai");
+    // Ogni entry point pubblico deve controllare la chiave come prima cosa:
+    // se la guardia stesse dopo, chi non ce l'ha vedrebbe un errore di rete
+    // invece dell'istruzione per risolverlo. Si guarda dentro ciascuna
+    // funzione, non nel file: le helper con i fetch sono dichiarate sopra.
+    for (const fn of ["runWorkerOpenAiGenerate", "runWorkerOpenAi"]) {
+      const start = src.indexOf(`export async function ${fn}`);
+      expect(start).toBeGreaterThan(0);
+      const body = src.slice(start, src.indexOf("\nexport ", start + 1) >>> 0 || undefined);
+      const guard = body.indexOf("openaiKey()");
+      const call = body.indexOf("runEdits");
+      const gen = body.indexOf("callImages");
+      const firstCall = Math.min(...[call, gen].filter((i) => i > 0));
+      expect(guard).toBeGreaterThan(-1);
+      expect(guard).toBeLessThan(firstCall);
+    }
+  });
+
+  test("la chiave non compare in nessun file versionato", async () => {
+    // La convenzione del progetto e' Keychain, non .env (che qui e' world-readable).
+    const example = await Bun.file(new URL("../.env.example", import.meta.url)).text();
+    expect(example).not.toMatch(/sk-(proj-)?[A-Za-z0-9_-]{20,}/);
+    expect(example).toContain("add-generic-password");
   });
 });

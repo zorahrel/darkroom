@@ -80,4 +80,19 @@ rispondere ok lasciando zero byte o l'originale intatto.
       da 15s a **342s** e facevano pagare ogni run. Verificato nei due versi:
       senza la variabile 2 skip in 230ms, con la variabile 3 pass in 36s.
 
-Barra finale: `tsc` 0 · **375 test, 373 pass + 2 skip opt-in, 0 fail, 10.8s**.
+## 7. Spec formale (mancava)
+
+La prima passata aveva `proposal.md` e `tasks.md` ma **non** `specs/`, che ogni
+altro change del progetto ha. Senza, i requisiti restavano dentro un discorso
+invece che in forma verificabile.
+
+- [x] 7.1 `specs/generation/spec.md` — 6 requirement OAI-01..06 in forma SHALL
+- [x] 7.2 Ogni requirement mappato a un test esistente; i due scoperti (OAI-03
+      chiave assente, OAI-05 file valido) hanno ora un test proprio
+- [x] 7.3 Il test su OAI-03 verifica l'ordine **dentro ciascun entry point**:
+      il primo tentativo guardava la posizione nel file e falliva, perché le
+      helper col `fetch` sono dichiarate sopra. Falliva a ragione.
+- [x] 7.4 Un test blocca la regressione peggiore: una chiave in chiaro in
+      `.env.example` (regex `sk-...`)
+
+Barra finale: `tsc` 0 · **377 test, 375 pass + 2 skip opt-in, 0 fail, 8.6s**.
