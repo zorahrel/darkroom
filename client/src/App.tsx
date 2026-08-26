@@ -326,9 +326,14 @@ export default function App() {
             {spesa && spesa.immagini > 0 && (
               <Targa
                 tono={spesa.usd >= 5 ? "attesa" : "neutro"}
-                titolo={`${spesa.immagini} immagini generate con ${spesa.modello} (${spesa.qualita}). Somma dei costi riportati dall'API a ogni generazione. Il saldo residuo non e' esposto da OpenAI a una chiave di progetto.`}
+                titolo={
+                  `${spesa.immagini} chiamate a ${spesa.modello}, sommando i token che l'API riporta a ogni richiesta. ` +
+                  `E' una STIMA DAL BASSO: conta le chiamate passate da Darkroom, non quelle fatte da script esterni ` +
+                  `prima che venissero registrate, e non include tasse o cambio valuta. Il totale vero sta su ` +
+                  `platform.openai.com/usage: OpenAI non lo espone a una chiave di progetto (403, manca lo scope api.usage.read).`
+                }
               >
-                ${spesa.usd.toFixed(2)} spesi
+                ~${spesa.usd.toFixed(2)} spesi
               </Targa>
             )}
 

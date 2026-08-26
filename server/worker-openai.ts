@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
 import { OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
+import { db } from "./db.ts";
 
 /**
  * Backend OpenAI: parla direttamente all'Images API invece di guidare una
@@ -26,6 +27,29 @@ const OUTPUT_RATE_PER_M: Record<string, number> = {
   "gpt-image-1": 40.0,
   "gpt-image-1-mini": 8.0,
 };
+
+/** Ogni chiamata pagata finisce qui, in qualunque progetto si trovi il
+ *  chiamante: si paga la richiesta, non la versione che ne esce. Uno script di
+ *  calibrazione che scrive in /tmp costa come un job della coda.
+ *
+ *  Non deve mai far fallire una generazione: se il DB non e' raggiungibile
+ *  (uno script fuori da un progetto) si perde la riga, non l'immagine. */
+export function registraChiamata(
+  model: string,
+  outputTokens: number,
+  ok: boolean,
+  origin = process.env.DARKROOM_CALL_ORIGIN ?? "worker",
+): void {
+  try {
+    db().run(
+      `INSERT INTO api_calls (provider, model, quality, output_tokens, cost_usd, ok, origin, created_at)
+       VALUES ('openai', ?, ?, ?, ?, ?, ?, ?)`,
+      [model, OPENAI_IMAGE_QUALITY, outputTokens, costUsd(model, outputTokens), ok ? 1 : 0, origin, Date.now()],
+    );
+  } catch {
+    // il conto e' importante, l'immagine di piu'
+  }
+}
 
 /** Costo in dollari di una generazione, dai token che l'API riporta davvero.
  *  Stimarlo dalla dimensione richiesta darebbe un numero sbagliato: una 1024²
@@ -94,6 +118,7 @@ async function saveResult(
   // I token si leggono dalla risposta: la tabella dei docs dava 4160 per una
   // high 1024 dove ne sono stati consumati 7024, il 69% in piu'.
   const tok = json.usage?.output_tokens;
+  if (tok) registraChiamata(model, tok, true);
   return {
     status: "ok",
     output,

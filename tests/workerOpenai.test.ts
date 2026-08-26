@@ -235,3 +235,42 @@ describe("quanto si e' speso si vede prima, non dopo", () => {
     }
   }, 30_000);
 });
+
+describe("si paga la chiamata, non la versione salvata", () => {
+  // Contare `versions` dava $1.26 su 6 immagini dove le chiamate erano 21 per
+  // ~$2.79: le prove di calibrazione finiscono in /tmp, gli scarti non si
+  // salvano, e i fallimenti dopo la generazione si pagano lo stesso. Nessuno di
+  // questi lasciava una versione da contare, quindi il numero in barra non era
+  // impreciso: era strutturalmente incompleto.
+  test("una generazione riuscita lascia una riga in api_calls", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test-chiamate";
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: png }], usage: { output_tokens: 7024 } }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    try {
+      const { db } = await import("../server/db.ts");
+      const prima = db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls").get()?.n ?? 0;
+      const mod = await import(`../server/worker-openai.ts?call=${Date.now()}${Math.random()}`);
+      await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-call-test.png" });
+      const dopo = db().query<{ n: number; tot: number }, []>(
+        "SELECT COUNT(*) AS n, SUM(cost_usd) AS tot FROM api_calls",
+      ).get();
+      expect(dopo!.n).toBe(prima + 1);
+      // Il costo registrato e' quello vero, non una stima da tabella.
+      const ultima = db().query<{ cost_usd: number; output_tokens: number }, []>(
+        "SELECT cost_usd, output_tokens FROM api_calls ORDER BY id DESC LIMIT 1",
+      ).get();
+      expect(ultima!.output_tokens).toBe(7024);
+      expect(ultima!.cost_usd).toBeCloseTo(0.2107, 4);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+    }
+  }, 30_000);
+});

@@ -307,6 +307,28 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "versions", "credits")) {
     d.run("ALTER TABLE versions ADD COLUMN credits REAL");
   }
+  // Ogni chiamata a un backend a pagamento, riuscita o no.
+  //
+  // Il costo stava solo su `versions`, cioe' si contava quello che finiva in
+  // galleria. Ma si paga la CHIAMATA: una generazione scartata, una fallita
+  // dopo che il modello ha gia' prodotto l'immagine, o una prova di
+  // calibrazione lanciata da uno script costano uguale e non lasciavano
+  // traccia. Misurato il 26/08: 21 immagini generate, 6 contate, $1.26
+  // mostrati contro ~$4.47 reali. Il numero in barra non era impreciso, era
+  // strutturalmente incompleto.
+  d.run(`CREATE TABLE IF NOT EXISTS api_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    quality TEXT,
+    output_tokens INTEGER,
+    cost_usd REAL NOT NULL,
+    ok INTEGER NOT NULL DEFAULT 1,
+    origin TEXT,
+    created_at INTEGER NOT NULL
+  )`);
+  d.run("CREATE INDEX IF NOT EXISTS api_calls_created ON api_calls(created_at)");
+
   // Remember the last Higgsfield selection (model + params) chosen for a photo.
   if (!hasColumn(d, "photos", "higgsfield_selection")) {
     d.run("ALTER TABLE photos ADD COLUMN higgsfield_selection TEXT");

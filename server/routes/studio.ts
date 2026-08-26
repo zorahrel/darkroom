@@ -26,9 +26,13 @@ function speso(): { usd: number; immagini: number; modello: string; qualita: str
   let immagini = 0;
   for (const p of listProjects()) {
     withProject(p.id, () => {
+      // Si contano le CHIAMATE, non le versioni salvate. Contare `versions`
+      // dava $1.26 su 6 immagini dove le chiamate erano 21 per ~$4.47: le
+      // prove di calibrazione, gli scarti e i fallimenti si pagano e non
+      // lasciavano una versione da contare.
       const r = db()
         .query<{ tot: number | null; n: number }, []>(
-          "SELECT SUM(credits) AS tot, COUNT(*) AS n FROM versions WHERE provider='openai' AND credits IS NOT NULL",
+          "SELECT SUM(cost_usd) AS tot, COUNT(*) AS n FROM api_calls WHERE provider='openai'",
         )
         .get();
       usd += r?.tot ?? 0;
@@ -49,7 +53,7 @@ function hasOpenAiVersions(): boolean {
   for (const p of listProjects()) {
     let trovato = false;
     withProject(p.id, () => {
-      trovato = !!db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM versions WHERE provider='openai'").get()?.n;
+      trovato = !!db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls WHERE provider='openai'").get()?.n;
     });
     if (trovato) return true;
   }
