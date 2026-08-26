@@ -144,7 +144,7 @@ export function riprendiInterrotti(): void {
   // Al boot non c'e' un progetto "corrente": il contesto vale per richiesta, e
   // fuori da una richiesta `getDb()` cade sul primo progetto registrato — che
   // e' un progetto foto e non ha job video. Quindi si entra in ognuno.
-  for (const p of listProjects().filter((x) => x.kind === "video")) {
+  for (const p of listProjects().filter((x) => x.views.includes("video"))) {
     withProject(p.id, () => riprendiIn(p.id));
   }
 }
@@ -153,13 +153,10 @@ function riprendiIn(_pid: string): void {
   const db = getDb();
   const persi = db.query(`SELECT * FROM video_jobs WHERE status='running'`).all() as VideoJob[];
   for (const j of persi) {
-    if (j.prompt_id) {
-      appendi(j.id, "-- il server e' ripartito: mi riaggancio alla generazione --");
-      scrivi(j.id, { status: "pending" });
-    } else {
-      appendi(j.id, "-- il server e' ripartito prima che partisse: torna in coda --");
-      scrivi(j.id, { status: "pending" });
-    }
+    appendi(j.id, j.prompt_id
+      ? "-- il server e' ripartito: mi riaggancio alla generazione --"
+      : "-- il server e' ripartito prima che partisse: torna in coda --");
+    scrivi(j.id, { status: "pending" });
   }
   if (persi.length) avviaCoda();
 }
@@ -203,15 +200,31 @@ async function esegui(job: VideoJob): Promise<void> {
     body: JSON.stringify({ unload_models: true, free_memory: true }),
   }).catch(() => { /* se non risponde lo dira' la generazione */ });
 
-  // Riagganciarsi: se questo job aveva gia' un prompt vivo su ComfyUI, non se
-  // ne manda un altro — si torna ad aspettare quello. Rimandarlo vorrebbe dire
-  // rifare novanta secondi di GPU per fotogrammi che ci sono gia'.
+  /**
+   * Riagganciarsi, per davvero.
+   *
+   * Un prompt gia' mandato puo' stare in tre posti: finito (nella cronologia),
+   * ancora vivo (nella coda di ComfyUI), o da nessuna parte. Solo il terzo caso
+   * va rimandato.
+   *
+   * Il ramo "ancora vivo" mancava, e la conseguenza si e' vista: ogni riavvio
+   * del server durante una generazione ne pubblicava una copia nuova sulla
+   * scheda. Tre riavvii in una sessione, tre copie identiche dello stesso
+   * piano in coda sulla 3090 — quattro minuti e mezzo di GPU per fotogrammi
+   * che stavano gia' arrivando.
+   */
   if (job.prompt_id) {
     const h = await fetch(`${HOST}/history/${job.prompt_id}`).then((x) => x.json() as any).catch(() => ({}));
     if (h[job.prompt_id]) {
       appendi(job.id, `ripreso: ${job.prompt_id} era gia' finito`);
-      return await raccogli(job, `${job.piano}_${job.take}_${job.id}`);
+      return await raccogli(job, prefix);
     }
+    if (await inCodaComfy(job.prompt_id)) {
+      appendi(job.id, `ripreso: ${job.prompt_id} sta ancora girando, torno ad aspettarlo`);
+      await aspetta(job, job.prompt_id, prefix, p);
+      return await raccogli(job, prefix);
+    }
+    appendi(job.id, `${job.prompt_id} non e' ne' finito ne' in coda: lo rimando`);
   }
 
   const r = await fetch(`${HOST}/prompt`, {
@@ -224,12 +237,25 @@ async function esegui(job: VideoJob): Promise<void> {
   scrivi(job.id, { prompt_id: promptId });
   appendi(job.id, `in coda su ComfyUI: ${promptId}`);
 
-  /**
-   * L'attesa non finisce per tempo, finisce per fotogrammi. Il modo in cui
-   * questa generazione fallisce non e' fermarsi: e' restare al 100% di GPU
-   * senza scrivere niente, e un timeout a tempo fisso non distingue quel caso
-   * da una generazione lenta ma viva. Si guarda quanti PNG sono comparsi.
-   */
+  await aspetta(job, promptId, prefix, p);
+  return await raccogli(job, prefix);
+}
+
+/** Quel prompt e' ancora nella coda di ComfyUI (in corso o in attesa)? */
+async function inCodaComfy(promptId: string): Promise<boolean> {
+  const q = await fetch(`${HOST}/queue`).then((x) => x.json() as any).catch(() => null);
+  if (!q) return false;
+  const dentro = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
+  return dentro(q.queue_running ?? []) || dentro(q.queue_pending ?? []);
+}
+
+/**
+ * L'attesa non finisce per tempo, finisce per fotogrammi. Il modo in cui questa
+ * generazione fallisce non e' fermarsi: e' restare al 100% di GPU senza
+ * scrivere niente, e un timeout a tempo fisso non distingue quel caso da una
+ * generazione lenta ma viva. Si guarda quanti PNG sono comparsi.
+ */
+async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ParametriComfy): Promise<void> {
   const t0 = Date.now();
   const LIMITE_SENZA_FOTOGRAMMI = 15 * 60_000;
   let ultimoConteggio = 0, ultimoMovimento = t0;
@@ -239,7 +265,7 @@ async function esegui(job: VideoJob): Promise<void> {
     if (h[promptId]) {
       const st = h[promptId].status ?? {};
       if (st.status_str === "error") throw new Error(`ComfyUI: ${JSON.stringify(st).slice(0, 600)}`);
-      break;
+      return;
     }
     const n = await contaFotogrammi(prefix);
     if (n > ultimoConteggio) { ultimoConteggio = n; ultimoMovimento = Date.now(); }
@@ -253,8 +279,6 @@ async function esegui(job: VideoJob): Promise<void> {
       );
     }
   }
-
-  return await raccogli(job, prefix);
 }
 
 /** Dai PNG alla ripresa: succede sul PC, e di qui passa solo l'anteprima. */

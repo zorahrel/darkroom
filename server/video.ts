@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
 
@@ -328,6 +328,46 @@ export function sospese(): { battuta: number; garanzia: string }[] {
 
 const attoDi = (bar: number, as: Atto[]) =>
   as.find((a) => bar >= a.da && bar < a.a)?.nome ?? null;
+
+/**
+ * Il provino di una ripresa: dodici istanti in una striscia sola.
+ *
+ * Serve a rispondere a una domanda che nessuna misura di questo progetto ha
+ * saputo rispondere — *dove* una ripresa si sminchia. Ci hanno provato in
+ * quattro modi: bilancio tonale, area di dettaglio, salto della sagoma, e
+ * (oggi) la non-liscezza della traiettoria e il disaccordo fra soggetto e
+ * sfondo. Nessuno separa una figura che si disfa da un'onda che esplode,
+ * perche' i difetti veri sono semantici: «scende in mezzo alle scale», «il
+ * gabbiano non e' coerente fra un fotogramma e l'altro». Un modello per
+ * immagini singole quei quadri li descrive come perfettamente normali.
+ *
+ * Quindi non si automatizza il giudizio: si rende istantaneo. Su una striscia
+ * l'occhio trova il punto in cui la figura cambia identita' in un secondo,
+ * mentre scorrere una clip di due secondi e mezzo avanti e indietro ne costa
+ * dieci. E ogni casella porta il video al suo istante, cosi' il sospetto si
+ * verifica senza cercare.
+ */
+export function provino(shot: string, take: string, quanti = 12): string | null {
+  const clip = at("prev", `${shot}__${take}.mp4`);
+  if (!existsSync(clip)) return null;
+  const fuori = at("provini");
+  if (!existsSync(fuori)) mkdirSync(fuori, { recursive: true });
+  const dest = join(fuori, `${shot}__${take}_${quanti}.jpg`);
+  // Si rifa' solo se la clip e' cambiata dopo: un provino e' un derivato, e
+  // rigenerarlo a ogni apertura vuol dire un ffmpeg per ogni scorrimento.
+  if (existsSync(dest) && statSync(dest).mtimeMs >= statSync(clip).mtimeMs) return dest;
+
+  const r = Bun.spawnSync([
+    "ffmpeg", "-v", "error", "-y", "-i", clip,
+    // `thumbnail=n` prende UN quadro ogni n scegliendo il piu' rappresentativo:
+    // su una clip di 61 quadri servono dodici istanti distribuiti, non i primi
+    // dodici. `-frames:v 1` chiude dopo il primo mosaico.
+    "-vf", `select='not(mod(n\,${Math.max(1, Math.floor(61 / quanti))}))',scale=180:-1,tile=${quanti}x1`,
+    "-frames:v", "1", "-q:v", "4", dest,
+  ]);
+  if (r.exitCode !== 0 || !existsSync(dest)) return null;
+  return dest;
+}
 
 export function shots(): Shot[] {
   const prompts = readJson<Record<string, any>>(at("prompts.json"), {});

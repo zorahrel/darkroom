@@ -67,6 +67,39 @@ function raggruppa(shots: VideoShot[]): Scena[] {
 
 type Filtro = "da giudicare" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
 
+/** Dodici istanti in una striscia. Ogni casella porta il video al suo. */
+function Provino({ shot, take, onVaiA }: {
+  shot: string; take: string; onVaiA: (frazione: number) => void;
+}) {
+  const N = 12;
+  const [rotto, setRotto] = useState(false);
+  useEffect(() => setRotto(false), [shot, take]);
+  if (rotto) return null;
+  return (
+    <div className="mt-3 shrink-0">
+      <div className="relative rounded-sm overflow-hidden border border-neutral-800 bg-black">
+        <img src={pq(`/api/video/provino/${shot}/${take}`)} alt=""
+             onError={() => setRotto(true)}
+             className="w-full h-[104px] object-cover object-left select-none" draggable={false} />
+        {/* Le caselle stanno sopra l'immagine invece di essere ritagliate:
+            una sola richiesta al server, e il bersaglio resta esatto anche se
+            il provino cambia numero di istanti. */}
+        <div className="absolute inset-0 flex">
+          {Array.from({ length: N }, (_, k) => (
+            <button key={k} onClick={() => onVaiA((k + 0.5) / N)}
+                    title={`vai a ${Math.round(((k + 0.5) / N) * 100)}%`}
+                    className="flex-1 border-r border-black/40 last:border-r-0
+                               hover:bg-neutral-100/15 focus-visible:bg-neutral-100/25 outline-none" />
+          ))}
+        </div>
+      </div>
+      <div className="text-[10px] text-neutral-400 mt-0.5">
+        dodici istanti della clip — clicca dove qualcosa non torna
+      </div>
+    </div>
+  );
+}
+
 export default function VideoScelta() {
   const ctx = useOutletContext<OutletCtx>();
   const { pid } = useParams();
@@ -490,6 +523,32 @@ export default function VideoScelta() {
             {/* Quanto manca, e cosa arriva. Un contatore "12 / 176" dice solo
                 che la fine e' lontana; le facce dopo dicono se conviene tirare
                 dritto o cambiare filtro, e il giudizio va a raffica per questo. */}
+            {/* Il provino: dodici istanti della clip, larghi quanto la colonna.
+                Serve a rispondere a una domanda che nessuna misura di questo
+                progetto ha saputo rispondere — DOVE una ripresa si sminchia.
+                Ci hanno provato in cinque modi (bilancio tonale, area di
+                dettaglio, salto della sagoma, non-liscezza della traiettoria,
+                disaccordo fra soggetto e sfondo) e nessuno separa una figura
+                che si disfa da un'onda che esplode: i difetti veri sono
+                semantici — «scende in mezzo alle scale», «il gabbiano non e'
+                coerente fra un fotogramma e l'altro» — e un modello per
+                immagini singole quei quadri li descrive come normalissimi.
+
+                Quindi non si automatizza il giudizio, si rende istantaneo: il
+                punto in cui la figura cambia identita' si vede in un secondo, e
+                cliccando ci si va. A trenta pixel per casella non si vedeva
+                niente, quindi sta qui e non nella colonna della clip. */}
+            <Provino
+              shot={corrente.id}
+              take={corrente.takes[0]?.take ?? "a"}
+              onVaiA={(frazione) => {
+                const v = video.current;
+                if (!v || !Number.isFinite(v.duration)) return;
+                v.pause();
+                v.currentTime = frazione * v.duration;
+              }}
+            />
+
             <div className="mt-4 flex-1 min-h-0 flex flex-col">
               <div className="h-0.5 bg-neutral-900 rounded-full overflow-hidden">
                 <div className="h-full bg-neutral-600"

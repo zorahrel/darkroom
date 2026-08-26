@@ -3,10 +3,9 @@ import { serveFile } from "../http.ts";
 import {
   shots, cuts, assets, setScelta, clipPath, posterPath, assetPath,
   segnalaProblema, togliProblema, setRipresa, setPin, setDurata,
-  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio, scambia, sganciaPin,
-} from "../video.ts";
+  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio, scambia, sganciaPin, provino } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
-import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT } from "../comfy.ts";
+import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT, type ParametriComfy } from "../comfy.ts";
 
 /** Everything a video project's editor page needs. Read-only except for the
  *  keep/kill and the three forced edits, which are the decisions the pipeline
@@ -127,6 +126,12 @@ videoRoutes.get("/api/video/ricostruzione", (c) => c.json(statoRicostruzione()))
 
 /** Generazione sulla 3090. Il Mac non tocca un fotogramma: qui si accoda, sul
  *  PC si genera, si raccoglie e si interpola, e torna solo la clip leggera. */
+videoRoutes.get("/api/video/provino/:shot/:take", (c) => {
+  const f = provino(c.req.param("shot"), c.req.param("take"));
+  if (!f) return c.json({ error: "niente provino" }, 404);
+  return serveFile(f, "image/jpeg", c.req.raw);
+});
+
 videoRoutes.get("/api/video/generazioni", (c) =>
   c.json({ jobs: listaVideoJob(), default: PARAMETRI_DEFAULT }));
 
@@ -139,7 +144,39 @@ videoRoutes.post("/api/video/genera", async (c) => {
   if (!/^[a-z0-9_]+$/i.test(piano)) return c.json({ error: "nome piano non valido" }, 400);
   const take = String(b.take ?? "a");
   if (!/^[a-z]$/.test(take)) return c.json({ error: "take non valido" }, 400);
-  return c.json({ job: accodaVideoJob(piano, prompt, take, b.params ?? {}) });
+
+  /**
+   * I parametri si accettano in tutt'e due i modi: annidati in `params` o al
+   * primo livello.
+   *
+   * Prima solo annidati — e chi li mandava al primo livello (l'MCP, e chiunque
+   * legga la firma dello strumento) se li vedeva **ignorare in silenzio**:
+   * dieci generazioni chieste con semi diversi sono partite tutte con il seme
+   * predefinito, cioe' cinque coppie di doppioni. Un parametro che non arriva
+   * deve dirlo, quindi la risposta rimanda indietro quelli applicati davvero e
+   * l'elenco di quelli che non ha riconosciuto.
+   */
+  const grezzi: Record<string, unknown> = { ...(b.params ?? {}) };
+  const ignorati: string[] = [];
+  for (const [k, v] of Object.entries(b)) {
+    if (["piano", "prompt", "take", "params", "project"].includes(k)) continue;
+    if (k in PARAMETRI_DEFAULT) grezzi[k] = v;
+    else ignorati.push(k);
+  }
+  const params: Record<string, unknown> = {};
+  for (const [k, atteso] of Object.entries(PARAMETRI_DEFAULT)) {
+    if (!(k in grezzi)) continue;
+    const v = grezzi[k];
+    if (typeof atteso === "number") {
+      const n = Number(v);
+      if (!Number.isFinite(n)) { ignorati.push(k); continue; }
+      params[k] = n;
+    } else {
+      params[k] = String(v);
+    }
+  }
+  const job = accodaVideoJob(piano, prompt, take, params as Partial<ParametriComfy>);
+  return c.json({ job, params: { ...PARAMETRI_DEFAULT, ...params }, ignorati });
 });
 
 videoRoutes.post("/api/video/genera/:id/annulla", (c) =>
