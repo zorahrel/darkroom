@@ -137,7 +137,7 @@ export default function SourcesPage() {
                     })
                   }
                   title="Dimentica questa cartella (le foto già indicizzate restano)"
-                  className="text-xs text-neutral-500 hover:text-red-300"
+                  className="text-xs text-neutral-400 hover:text-red-300"
                 >
                   ✕
                 </button>
@@ -170,7 +170,7 @@ function ModeCard({
       }
     >
       <div className="text-sm">{title}</div>
-      <div className="text-xs text-neutral-500 mt-0.5">{hint}</div>
+      <div className="text-xs text-neutral-400 mt-0.5">{hint}</div>
     </button>
   );
 }

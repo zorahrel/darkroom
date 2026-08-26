@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { JobsPayload } from "../api";
 import { api } from "../api";
 
@@ -19,6 +19,18 @@ export default function JobsPanel({
   );
 
   // Failed/cancelled jobs still showing in the panel — dismissable in bulk.
+  /** Il generatore e' globale, non del progetto: si chiede una volta sola e si
+   *  aggiorna con il resto del pannello. */
+  const [gen, setGen] = useState<{ backend: string; browser: boolean | null }>(
+    { backend: "…", browser: null });
+  useEffect(() => {
+    let vivo = true;
+    api.studioProjects()
+      .then((r) => { if (vivo) setGen({ backend: r.worker.backend, browser: r.worker.browser_alive }); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+
   const dismissable = useMemo(
     () => items.filter((j) => j.status === "failed" || j.status === "cancelled"),
     [items],
@@ -26,34 +38,57 @@ export default function JobsPanel({
 
   return (
     <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-4 z-50 w-auto sm:w-[420px] max-h-[70vh] flex flex-col bg-neutral-900 border border-neutral-800 rounded-lg shadow-2xl">
-      <div className="flex items-center px-4 py-2 border-b border-neutral-800">
-        <h3 className="font-semibold text-sm">Jobs</h3>
-        <div className="flex-1" />
-        <span className="text-xs text-neutral-400">
-          {summary.pending ?? 0} pending · {summary.running ?? 0} running ·{" "}
-          {summary.done ?? 0} done · {summary.failed ?? 0} failed
-        </span>
-        {dismissable.length > 0 && (
-          <button
-            onClick={async () => {
-              await api.markAllFailedSeen();
-            }}
-            className="ml-3 text-[11px] text-neutral-500 hover:text-emerald-400"
-            title="Nascondi tutti i job falliti/annullati dal pannello"
-          >
-            scarta falliti ({dismissable.length})
-          </button>
-        )}
-        <button
-          onClick={onClose}
-          className="ml-3 text-neutral-400 hover:text-white"
-        >
-          ✕
-        </button>
+      {/* Tre righe invece di una: titolo, conto, generatore.
+          Su 420 pixel il titolo, quattro numeri, "scarta falliti" e la chiusura
+          non ci stavano su una riga sola, e "Jobs" finiva scritto sopra il
+          conto. */}
+      <div className="px-3.5 pt-2.5 pb-2 border-b border-neutral-800 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-sm">Lavori</h3>
+          <div className="flex-1" />
+          {dismissable.length > 0 && (
+            <button
+              onClick={async () => { await api.markAllFailedSeen(); }}
+              className="text-[11px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400
+                         hover:text-neutral-100 hover:border-neutral-500"
+              title="Toglie dall'elenco i lavori falliti e annullati. Non li rilancia."
+            >
+              nascondi i {dismissable.length} falliti
+            </button>
+          )}
+          <button onClick={onClose} title="chiudi"
+                  className="text-neutral-400 hover:text-white leading-none px-1">✕</button>
+        </div>
+
+        <div className="flex items-center gap-2.5 text-[11px] tabular-nums">
+          {(summary.running ?? 0) > 0 && <span className="text-sky-300">{summary.running} in corso</span>}
+          {(summary.pending ?? 0) > 0 && <span className="text-neutral-200">{summary.pending} in coda</span>}
+          <span className="text-neutral-400">{summary.done ?? 0} fatti</span>
+          {(summary.failed ?? 0) > 0 && <span className="text-red-300">{summary.failed} falliti</span>}
+          {!(summary.running ?? 0) && !(summary.pending ?? 0) && (
+            <span className="text-neutral-400">· niente in corso</span>
+          )}
+        </div>
+
+        {/* Chi genera le immagini, e se e' in piedi. Stava sull'elenco dei
+            progetti, dove non serviva a nessuna decisione; qui e' la prima cosa
+            da guardare quando un lavoro fallisce. */}
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+            gen.browser === null ? "bg-neutral-500" : gen.browser ? "bg-emerald-500" : "bg-red-500"}`} />
+          <span className="text-neutral-400">genera con</span>
+          <span className="text-neutral-200">{gen.backend}</span>
+          {gen.browser !== null && (
+            <span className={gen.browser ? "text-neutral-400" : "text-red-300"}>
+              · {gen.browser ? "Chrome collegato" : "Chrome non collegato: i lavori falliranno"}
+            </span>
+          )}
+        </div>
       </div>
+
       <div className="overflow-y-auto flex-1 divide-y divide-neutral-800/60">
         {items.length === 0 && (
-          <div className="p-6 text-center text-sm text-neutral-500">
+          <div className="p-6 text-center text-sm text-neutral-400">
             Nessun job. Apri una foto e clicca «Genera nuova versione».
           </div>
         )}
@@ -74,7 +109,7 @@ export default function JobsPanel({
                 <ProviderChip job={j} />
                 <div className="flex-1" />
                 <span
-                  className="text-xs text-neutral-500 shrink-0 tabular-nums"
+                  className="text-xs text-neutral-400 shrink-0 tabular-nums"
                   title={eventLabel(j)}
                 >
                   {(j.attempts ?? 0) > 1 && (
@@ -89,7 +124,7 @@ export default function JobsPanel({
                     onClick={async () => {
                       await api.cancelJob(j.id);
                     }}
-                    className="text-xs text-neutral-500 hover:text-red-400"
+                    className="text-xs text-neutral-400 hover:text-red-400"
                   >
                     cancel
                   </button>
@@ -99,7 +134,7 @@ export default function JobsPanel({
                     onClick={async () => {
                       await api.markJobSeen(j.id);
                     }}
-                    className="text-xs text-neutral-600 hover:text-emerald-400"
+                    className="text-xs text-neutral-400 hover:text-emerald-400"
                     title="Scarta dal pannello"
                   >
                     scarta
@@ -126,7 +161,7 @@ export default function JobsPanel({
                 onClick={async () => {
                   await api.markJobSeen(j.id);
                 }}
-                className="shrink-0 text-[11px] text-neutral-500 hover:text-emerald-400"
+                className="shrink-0 text-[11px] text-neutral-400 hover:text-emerald-400"
                 title="Segna come visto"
               >
                 ✓ visto
@@ -177,12 +212,12 @@ function JobDetails({ job }: { job: JobsPayload["items"][number] }) {
   const showProgress = running && job.progress;
   const timing = timingLine(job);
   return (
-    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-500 truncate">
+    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-400 truncate">
       {timing && <span className="shrink-0">{timing}</span>}
-      {timing && model && <span className="text-neutral-700">·</span>}
+      {timing && model && <span className="text-neutral-400/60">·</span>}
       {model && <span className="truncate">{model}</span>}
       {(timing || model) && showProgress && (
-        <span className="text-neutral-700">·</span>
+        <span className="text-neutral-400/60">·</span>
       )}
       {showProgress && (
         <span className="text-blue-300 truncate">{job.progress}</span>

@@ -124,7 +124,7 @@ export default function RiferimentiPage() {
               className="bg-transparent border border-neutral-700 px-3 py-2 text-sm"
             />
             {origine && (
-              <span className="font-mono text-[11px] text-neutral-500">da {origine}</span>
+              <span className="font-mono text-[11px] text-neutral-400">da {origine}</span>
             )}
             <button
               onClick={salva}
@@ -139,7 +139,7 @@ export default function RiferimentiPage() {
 
       {recipes.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-neutral-800">
-          <h3 className="font-mono text-[11px] uppercase tracking-widest text-neutral-500">
+          <h3 className="font-mono text-[11px] uppercase tracking-widest text-neutral-400">
             Ricette salvate
           </h3>
           {recipes.map((r) => (
@@ -147,12 +147,12 @@ export default function RiferimentiPage() {
               <summary className="text-sm cursor-pointer flex items-center gap-2">
                 <span className="font-semibold">{r.name}</span>
                 {r.from_reference && (
-                  <span className="font-mono text-[10px] text-neutral-500">
+                  <span className="font-mono text-[10px] text-neutral-400">
                     da {r.from_reference}
                   </span>
                 )}
                 <button
-                  className="ml-auto text-neutral-600 hover:text-red-400 text-xs"
+                  className="ml-auto text-neutral-400 hover:text-red-400 text-xs"
                   onClick={async (e) => {
                     e.preventDefault();
                     await jsonFetch(`/api/recipes/${r.id}`, { method: "DELETE" });

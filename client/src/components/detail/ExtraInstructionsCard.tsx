@@ -29,7 +29,7 @@ export function ExtraInstructionsCard({
             attive
           </span>
         )}
-        <span className="ml-auto text-[10px] text-neutral-500">
+        <span className="ml-auto text-[10px] text-neutral-400">
           si sommano alla config, valgono solo qui
         </span>
       </div>

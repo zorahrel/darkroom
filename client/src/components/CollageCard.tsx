@@ -84,7 +84,7 @@ export default function CollageCard({
         />
       )}
       {!loaded && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[10px] text-neutral-500">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[10px] text-neutral-400">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-fuchsia-700 border-t-transparent" />
           compongo…
         </div>
@@ -123,7 +123,7 @@ export default function CollageCard({
                       ? "border-fuchsia-500 bg-fuchsia-600 text-white"
                       : fits
                         ? "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                        : "cursor-not-allowed border-neutral-800 text-neutral-600")
+                        : "cursor-not-allowed border-neutral-800 text-neutral-400")
                   }
                 >
                   {m.label}
@@ -150,7 +150,7 @@ export default function CollageCard({
                         ? "border-fuchsia-500 bg-fuchsia-600 text-white"
                         : fits
                           ? "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                          : "cursor-not-allowed border-neutral-800 text-neutral-600")
+                          : "cursor-not-allowed border-neutral-800 text-neutral-400")
                     }
                   >
                     {l}
@@ -161,7 +161,7 @@ export default function CollageCard({
           )}
 
           <div className="flex items-center gap-2">
-            <span className="flex-1 truncate text-[10px] text-neutral-500">{current?.hint}</span>
+            <span className="flex-1 truncate text-[10px] text-neutral-400">{current?.hint}</span>
             <button
               disabled={busy}
               onClick={async () => {

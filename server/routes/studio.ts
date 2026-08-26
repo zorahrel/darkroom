@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { db } from "../db.ts";
 import { WORKER_BACKEND, BACKEND_USES_BROWSER } from "../config.ts";
 import {
@@ -42,6 +43,32 @@ studioRoutes.post("/api/browser/launch", async (c) => {
 // single top-level page can supervise all local projects. The worker (shared
 // ChatGPT browser) is global, so its health/runner status is reported once.
 
+/**
+ * I numeri di un progetto video.
+ *
+ * Le tre colonne di un progetto foto — foto, preferite, versioni — su un video
+ * valgono zero tutte e tre, perche' quelle tabelle qui non si riempiono mai.
+ * Tre zeri non dicono "questo progetto e' vuoto": dicono che si sta guardando
+ * la cosa sbagliata. I numeri di un montaggio sono altri, e stanno nei file che
+ * la catena scrive.
+ */
+function statsVideo(root: string) {
+  const leggi = <T,>(nome: string, altrimenti: T): T => {
+    try { return JSON.parse(readFileSync(join(root, nome), "utf8")) as T; }
+    catch { return altrimenti; }
+  };
+  const plan = leggi<{ segments?: unknown[] }>("plan.json", {});
+  const edl = leggi<{ total_s?: number }>("edl.json", {});
+  // durezza.json non e' una mappa di piani: e' { musica_per_battuta, piani }.
+  // Contare le sue chiavi dava 2.
+  const durezza = leggi<{ piani?: Record<string, unknown> }>("durezza.json", {});
+  return {
+    tagli: plan.segments?.length ?? 0,
+    piani: Object.keys(durezza.piani ?? {}).length,
+    durata: edl.total_s ?? 0,
+  };
+}
+
 /** Gather a project's headline stats within its own DB context. */
 function projectStats(pid: string) {
   return withProject(pid, () => {
@@ -77,6 +104,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       db_path: d.DB_PATH,
       root_exists: existsSync(p.root),
       stats,
+      video: p.kind === "video" && existsSync(p.root) ? statsVideo(p.root) : null,
       error,
     };
   });

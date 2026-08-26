@@ -87,10 +87,10 @@ export default function VersionCarousel({
         </div>
         {freeform && (
           <div className="text-[11px] text-sky-200">
-            <span className="text-neutral-500">extra:</span> {freeform}
+            <span className="text-neutral-400">extra:</span> {freeform}
           </div>
         )}
-        <div className="flex flex-wrap gap-x-3 text-[10px] text-neutral-500">
+        <div className="flex flex-wrap gap-x-3 text-[10px] text-neutral-400">
           {preserve.length > 0 && <span>preserve: {preserve.join(", ")}</span>}
           {exclude.length > 0 && <span>esclusioni: {exclude.length}</span>}
         </div>
@@ -101,7 +101,7 @@ export default function VersionCarousel({
   const EngineTag = ({ version }: { version: Version }) => {
     if (version.provider !== "higgsfield") {
       if (version.provider === "chatgpt") {
-        return <span className="ml-2 text-neutral-500">· ChatGPT</span>;
+        return <span className="ml-2 text-neutral-400">· ChatGPT</span>;
       }
       return null;
     }
@@ -129,7 +129,7 @@ export default function VersionCarousel({
   if (versions.length === 0) {
     return (
       <div className="aspect-square w-full rounded-lg bg-neutral-900 border border-dashed border-neutral-800 flex items-center justify-center">
-        <div className="text-center text-sm text-neutral-500">
+        <div className="text-center text-sm text-neutral-400">
           <div className="text-2xl mb-2">⊕</div>
           Nessuna versione generata.
           <br />
@@ -204,11 +204,11 @@ export default function VersionCarousel({
         <span>
           v{v.version_number} di {versions.length}
           {v.source === "imported" && (
-            <span className="ml-2 text-neutral-500">(importata da TEST1)</span>
+            <span className="ml-2 text-neutral-400">(importata da TEST1)</span>
           )}
           <EngineTag version={v} />
         </span>
-        <span className="text-neutral-600">·</span>
+        <span className="text-neutral-400">·</span>
         <span>{new Date(v.created_at).toLocaleString("it-IT")}</span>
         <div className="flex-1" />
         <button
@@ -256,7 +256,7 @@ export default function VersionCarousel({
         </div>
       )}
 
-      <details className="text-xs text-neutral-500">
+      <details className="text-xs text-neutral-400">
         <summary className="cursor-pointer hover:text-neutral-300 select-none">
           prompt e configurazione usati
         </summary>

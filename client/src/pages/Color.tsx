@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Numero, Spunta } from "../ui";
 import {
   api,
   STEP_LABELS,
@@ -199,7 +200,7 @@ export default function PipelineBar({
                 className={
                   "px-3 py-1.5 border-l border-neutral-700 " +
                   (inputMode === "prompt"
-                    ? "bg-violet-600 text-white"
+                    ? "bg-neutral-700 text-neutral-100"
                     : "text-neutral-400 hover:text-white")
                 }
               >
@@ -216,14 +217,16 @@ export default function PipelineBar({
                   <button
                     onClick={reindexTimes}
                     disabled={run.active}
-                    className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
+                    className="text-[12px] h-7 px-2.5 rounded border border-neutral-700 text-neutral-200
+                               hover:border-neutral-500 hover:text-neutral-100 disabled:opacity-50"
                   >
                     Reindicizza orari
                   </button>
                   <button
                     onClick={regenerateFavorites}
                     disabled={run.active}
-                    className="text-sm px-3 py-1.5 rounded bg-violet-700/80 hover:bg-violet-600 text-white disabled:opacity-50"
+                    className="text-[12px] h-7 px-2.5 rounded border border-transparent bg-neutral-100
+                               font-medium text-neutral-900 hover:bg-white disabled:opacity-50"
                   >
                     {run.active && run.msg.startsWith("Rigenero") ? "Rigenero…" : "Rigenera preferite"}
                   </button>
@@ -236,19 +239,13 @@ export default function PipelineBar({
                   onChange={(e) => setGenPrompt(e.target.value)}
                   rows={3}
                   placeholder="Descrivi l'immagine da generare da zero…"
-                  className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm resize-y focus:border-violet-600 outline-none"
+                  className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm resize-y focus:border-neutral-300 outline-none"
                 />
                 <div className="flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm text-neutral-400">
+                  <label className="flex items-center gap-2 text-[12px] text-neutral-400">
                     variazioni
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={genCount}
-                      onChange={(e) => setGenCount(Number(e.target.value) || 1)}
-                      className="w-16 rounded bg-neutral-950 border border-neutral-700 px-2 py-1 text-sm"
-                    />
+                    <Numero valore={genCount} onCambia={(v) => setGenCount(v || 1)}
+                            min={1} max={20} larghezza={64} />
                   </label>
                   <button
                     onClick={generateFromPrompt}
@@ -303,7 +300,7 @@ export default function PipelineBar({
           s.enabled ? (
             <StepParams step={s} lutGroups={lutGroups} onParams={(p) => patchParamsAt(idx, p)} />
           ) : (
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-neutral-400">
               Step disattivo. Attivalo dall'interruttore qui sopra per modificarne i parametri.
             </p>
           ),
@@ -337,14 +334,9 @@ export default function PipelineBar({
             </button>
             {run.msg && <span className="text-xs text-neutral-400">{run.msg}</span>}
           </div>
-          <label className="flex items-center gap-2 text-sm text-neutral-400">
-            <input
-              type="checkbox"
-              checked={gradedView}
-              onChange={(e) => setGradedView(e.target.checked)}
-            />
+          <Spunta segnata={gradedView} onCambia={setGradedView}>
             Anteprima gradata nella griglia
-          </label>
+          </Spunta>
         </div>
       ),
     });
@@ -454,10 +446,10 @@ export default function PipelineBar({
         )}
         {saving && <span className="text-amber-400">salvo…</span>}
         <div className="flex-1" />
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" checked={gradedView} onChange={(e) => setGradedView(e.target.checked)} />
+        <Spunta segnata={gradedView} onCambia={setGradedView}
+                titolo="Mostra le foto della griglia già passate dalla pipeline, invece che grezze">
           anteprima gradata nella griglia
-        </label>
+        </Spunta>
       </div>
     </div>
   );
@@ -468,7 +460,7 @@ export default function PipelineBar({
 // Detail riusa la stessa grammatica pipeline invece di reinventarla.
 export function StageConnector({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 my-1.5 pl-4 text-[10px] uppercase tracking-wider text-neutral-600">
+    <div className="flex items-center gap-2 my-1.5 pl-4 text-[10px] uppercase tracking-wider text-neutral-400">
       <span aria-hidden>↓</span>
       <span>{label}</span>
       <span className="flex-1 h-px bg-neutral-800/70" />
@@ -522,12 +514,12 @@ function GenerationLook() {
         </span>
         <span className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold truncate">Look del set (prompt di default)</h2>
-          <span className="hidden @sm:block text-xs text-neutral-500 truncate">
+          <span className="hidden @sm:block text-xs text-neutral-400 truncate">
             guida ChatGPT quando rigeneri o fai un bake AI
           </span>
         </span>
         {dirty && <span className="shrink-0 text-xs text-amber-400">non salvato</span>}
-        <span className="shrink-0 flex items-center gap-1 text-neutral-500 text-xs">
+        <span className="shrink-0 flex items-center gap-1 text-neutral-400 text-xs">
           {open ? "Chiudi" : "Apri"}
           <IconChevronDown className={"w-4 h-4 transition-transform " + (open ? "rotate-180" : "")} />
         </span>
@@ -551,14 +543,14 @@ function GenerationLook() {
               >
                 {saving ? "Salvo…" : "Salva default"}
               </button>
-              <span className="text-[11px] text-neutral-500">
+              <span className="text-[11px] text-neutral-400">
                 È ciò che uno step <b className="text-neutral-300">Generazione AI</b> eredita
                 quando la sua config è vuota.
               </span>
             </div>
           </div>
         ) : (
-          <div className="mt-3 text-sm text-neutral-500">Carico il look…</div>
+          <div className="mt-3 text-sm text-neutral-400">Carico il look…</div>
         ))}
     </section>
   );

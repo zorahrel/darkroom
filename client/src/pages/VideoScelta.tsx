@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { api, pq, type VideoShot, type VideoJob } from "../api";
 import { Area, Numero, Scegli } from "./video/ui";
+import type { OutletCtx } from "../App";
 
 /**
  * Giudicare le scene, una alla volta.
@@ -67,6 +68,7 @@ function raggruppa(shots: VideoShot[]): Scena[] {
 type Filtro = "da giudicare" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
 
 export default function VideoScelta() {
+  const ctx = useOutletContext<OutletCtx>();
   const { pid } = useParams();
   const [shots, setShots] = useState<VideoShot[]>([]);
   const [filtro, setFiltro] = useState<Filtro>("da giudicare");
@@ -85,6 +87,9 @@ export default function VideoScelta() {
   const guscio = useRef<HTMLDivElement>(null);
   const [hGuscio, setHGuscio] = useState(700);
   useLayoutEffect(() => {
+    // Anche questa pagina si prende tutta l'altezza: lo spazio che il guscio
+    // dell'app mette sopra le altre, qui e' altezza rubata alla clip.
+    ctx?.setFlush?.(true);
     const misura = () => {
       const el = guscio.current;
       if (!el) return;
@@ -94,7 +99,16 @@ export default function VideoScelta() {
     };
     misura();
     window.addEventListener("resize", misura);
-    return () => window.removeEventListener("resize", misura);
+    // La misura va rifatta anche quando cambia il contenitore, non solo la
+    // finestra: navigando da Montaggio a Scelta il padding cambia sotto i piedi.
+    const ro = new ResizeObserver(misura);
+    if (guscio.current?.parentElement) ro.observe(guscio.current.parentElement);
+    return () => {
+      window.removeEventListener("resize", misura);
+      ro.disconnect();
+      ctx?.setFlush?.(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const video = useRef<HTMLVideoElement>(null);
   const campo = useRef<HTMLTextAreaElement>(null);

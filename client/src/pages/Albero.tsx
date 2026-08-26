@@ -76,9 +76,9 @@ export default function AlberoPage() {
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
   const tenute = all.filter((v) => v.verdict === "tieni");
 
-  if (loading) return <div className="py-20 text-center text-neutral-500">Carico l'albero…</div>;
+  if (loading) return <div className="py-20 text-center text-neutral-400">Carico l'albero…</div>;
   if (nodes.length === 0)
-    return <div className="py-20 text-center text-neutral-500">Nessuna variante generata.</div>;
+    return <div className="py-20 text-center text-neutral-400">Nessuna variante generata.</div>;
 
   return (
     <div className="space-y-6 pb-24">
@@ -99,7 +99,7 @@ export default function AlberoPage() {
             <span className="text-xs truncate text-neutral-300" title={n.photo}>
               {n.photo}
             </span>
-            <span className="font-mono text-[11px] text-neutral-500">
+            <span className="font-mono text-[11px] text-neutral-400">
               {n.variants} varianti · {n.recipes} ricette
             </span>
           </div>
@@ -123,9 +123,9 @@ export default function AlberoPage() {
                     {g.refset}
                   </span>
                   {g.preamble && (
-                    <span className="font-mono text-[10px] text-neutral-500">{g.preamble}</span>
+                    <span className="font-mono text-[10px] text-neutral-400">{g.preamble}</span>
                   )}
-                  <span className="ml-auto font-mono text-[11px] text-neutral-500">
+                  <span className="ml-auto font-mono text-[11px] text-neutral-400">
                     {g.variants.length}
                   </span>
                 </div>
@@ -134,7 +134,7 @@ export default function AlberoPage() {
                     spacciandolo per l'unico ingresso. */}
                 {g.sources.length > 1 && (
                   <div className="flex items-center gap-1.5 mb-2">
-                    <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-500">
+                    <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-400">
                       da {g.sources.length} scatti
                     </span>
                     {g.sources.map((sid) => (
@@ -199,7 +199,7 @@ export default function AlberoPage() {
         >
           Copia scelte
         </button>
-        <span className="font-mono text-xs text-neutral-500 truncate">
+        <span className="font-mono text-xs text-neutral-400 truncate">
           {all.filter((v) => v.verdict === "forse").length} forse ·{" "}
           {all.filter((v) => v.verdict === "scarta").length} scartate ·{" "}
           {all.filter((v) => v.note).length} note
@@ -280,10 +280,10 @@ function Leaf({
         </svg>
       </div>
       <figcaption className="flex items-center gap-2 px-2 py-1.5 border-t border-neutral-800 font-mono text-[11px]">
-        <span className="text-neutral-500">v{String(v.version_number).padStart(2, "0")}</span>
+        <span className="text-neutral-400">v{String(v.version_number).padStart(2, "0")}</span>
         {v.favorite && <span className="text-amber-500" title="preferita">★</span>}
         <button
-          className={"ml-auto px-1 " + (v.note ? "text-amber-500" : "text-neutral-500 hover:text-amber-500")}
+          className={"ml-auto px-1 " + (v.note ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           title="nota"
@@ -291,7 +291,7 @@ function Leaf({
           ✎
         </button>
         <button
-          className={"px-1 " + (v.verdict ? "text-amber-500" : "text-neutral-500 hover:text-amber-500")}
+          className={"px-1 " + (v.verdict ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
           onClick={onVote}
           title="tieni / forse / scarta"
         >

@@ -196,7 +196,7 @@ export default function DetailPage() {
   }, [generating, siblings.prev, siblings.next, navigate]);
 
   if (!id) return null;
-  if (!data) return <div className="py-20 text-center text-neutral-500">Carico…</div>;
+  if (!data) return <div className="py-20 text-center text-neutral-400">Carico…</div>;
 
   const { photo, versions, effective_prompt, global_prompt, effective_config, has_override } = data;
   // Route id changed but the loaded photo hasn't caught up yet → show a spinner
@@ -288,7 +288,7 @@ export default function DetailPage() {
   };
   const infoRow = (k: string, val: string) => (
     <div className="flex justify-between gap-3 py-1 border-b border-neutral-800/60">
-      <span className="text-neutral-500">{k}</span>
+      <span className="text-neutral-400">{k}</span>
       <span className="text-neutral-200 text-right break-all">{val}</span>
     </div>
   );
@@ -310,7 +310,7 @@ export default function DetailPage() {
       </div>
 
       <details>
-        <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300">
+        <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-300">
           Prompt inviato (effettivo)
         </summary>
         <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-400 bg-neutral-950 border border-neutral-800 rounded p-2">
@@ -319,7 +319,7 @@ export default function DetailPage() {
       </details>
 
       <div>
-        <div className="text-xs uppercase tracking-wider text-neutral-500 mb-1">
+        <div className="text-xs uppercase tracking-wider text-neutral-400 mb-1">
           Log generazioni
         </div>
         <PhotoJobsLog photoId={photo.id} />
@@ -336,7 +336,7 @@ export default function DetailPage() {
         <span className="font-mono text-sm text-neutral-300">{photo.id}</span>
         <JobStatusBadge job={latestJob} />
         <div className="flex-1" />
-        <div className="text-xs text-neutral-500 flex items-center gap-2">
+        <div className="text-xs text-neutral-400 flex items-center gap-2">
           <button
             onClick={() =>
               siblings.prev &&
@@ -364,7 +364,7 @@ export default function DetailPage() {
           >
             ▶
           </button>
-          <span className="ml-3 text-neutral-600 hidden md:inline">[g] genera · ←/→ o [/] foto</span>
+          <span className="ml-3 text-neutral-400 hidden md:inline">[g] genera · ←/→ o [/] foto</span>
         </div>
       </div>
 
@@ -382,7 +382,7 @@ export default function DetailPage() {
       >
         {/* Original */}
         <div className="space-y-2">
-          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-500">
+          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-400">
             Originale
           </div>
           <div className="aspect-square w-full rounded-lg overflow-hidden bg-black border border-neutral-800">
@@ -396,7 +396,7 @@ export default function DetailPage() {
 
         {/* Generations */}
         <div className="space-y-2">
-          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-500">
+          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-400">
             <span>Generazioni</span>
             <div className="flex-1" />
             {generateButtons}
@@ -447,7 +447,7 @@ export default function DetailPage() {
           <PhotoJobsLog photoId={photo.id} />
 
           <details className="border border-neutral-800 rounded-lg">
-            <summary className="cursor-pointer px-3 py-2 text-xs text-neutral-500 hover:text-neutral-300">
+            <summary className="cursor-pointer px-3 py-2 text-xs text-neutral-400 hover:text-neutral-300">
               Legacy: prompt freeform raw (deprecato — usa la config sopra)
             </summary>
             <div className="p-3">

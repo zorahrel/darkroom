@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Scegli } from "../ui";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
@@ -671,11 +672,14 @@ export default function GridPage({
           scorrevano via. Il riepilogo è diventato una riga sola qui dentro. */}
       <div
         ref={barRef}
-        className="sticky top-[57px] z-20 -mx-4 border-b border-neutral-800 bg-neutral-950/95 px-4 py-1.5 backdrop-blur"
+        // Niente sconfinamento orizzontale: `-mx-4` faceva finire la barra
+        // SOTTO la colonna della pipeline, e il "+" dello zoom spariva.
+        className="sticky top-[var(--h-testata,57px)] z-20 border-b border-neutral-800
+                   bg-neutral-950/95 py-1.5 backdrop-blur"
       >
       {selectMode && (
-        <div className="flex flex-wrap items-center gap-2 rounded-md bg-blue-950/40 border border-blue-900 px-3 py-2 text-sm">
-          <span className="text-blue-200 font-medium">{selectedCount}</span>
+        <div className="flex flex-wrap items-center gap-1.5 rounded bg-neutral-900 border border-neutral-700 px-2.5 py-1.5 text-[12px] mb-1.5">
+          <span className="text-neutral-100 font-medium">{selectedCount}</span>
           <span className="text-neutral-400">selezionate</span>
           {selectedHasActiveJob > 0 && (
             <span className="text-amber-300 text-xs">· {selectedHasActiveJob} in coda/run</span>
@@ -703,7 +707,8 @@ export default function GridPage({
                 setSelected(new Set());
               }
             }}
-            className="text-xs px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="text-[12px] h-7 px-2.5 rounded border border-transparent bg-neutral-100 font-medium
+                       text-neutral-900 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
@@ -748,29 +753,21 @@ export default function GridPage({
               className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               → {col.title}{" "}
-              <span className="text-neutral-500 tabular-nums">{col.photo_count}</span>
+              <span className="text-neutral-400 tabular-nums">{col.photo_count}</span>
             </button>
           ))}
-          <select
-            disabled={collectionsBusy || selectedCount === 0}
-            value=""
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!v) return;
-              e.target.value = "";
-              assignSelection(v === "__none__" ? null : v);
-            }}
-            className="text-xs px-2 py-1.5 rounded bg-neutral-800 border border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <option value="">{collectionsBusy ? "Assegno…" : "Assegna a post…"}</option>
-            <option value="__new__">＋ Nuovo post…</option>
-            {collections.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title} ({c.photo_count})
-              </option>
-            ))}
-            <option value="__none__">— Togli dal post</option>
-          </select>
+          <Scegli
+            valore=""
+            larghezza={150}
+            titolo={collectionsBusy ? "Assegno…" : "Metti le foto scelte in un post"}
+            voci={[
+              { v: "", testo: collectionsBusy ? "Assegno…" : "Assegna a post…" },
+              { v: "__new__", testo: "＋ Nuovo post…" },
+              ...collections.map((c) => ({ v: c.id, testo: c.title, nota: String(c.photo_count) })),
+              { v: "__none__", testo: "— Togli dal post" },
+            ]}
+            onCambia={(v) => { if (v) assignSelection(v === "__none__" ? null : v); }}
+          />
           <button
             disabled={bulkBusy || selectedHasActiveJob === 0}
             onClick={async () => {
@@ -792,7 +789,8 @@ export default function GridPage({
                 setBulkBusy(false);
               }
             }}
-            className="text-xs px-3 py-1.5 rounded bg-red-700 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="text-[12px] h-7 px-2.5 rounded border border-rose-900 text-rose-200
+                       hover:bg-rose-950/50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Annulla coda
           </button>
@@ -808,8 +806,11 @@ export default function GridPage({
             const empty = known && n === 0;
             const isActive = filter === f.id;
             const hot = !!f.accent && !!n && n > 0; // colored emphasis when non-empty
+            // `h-7` e `whitespace-nowrap`: senza, "Mi piace" e "Da guardare"
+            // andavano a capo dentro il bottone e la barra si ritrovava con
+            // tre altezze diverse sulla stessa riga.
             const base =
-              "inline-flex items-center gap-1 px-2 py-1.5 rounded border transition-colors ";
+              "inline-flex h-7 items-center gap-1 px-2 rounded border transition-colors whitespace-nowrap ";
             let cls: string;
             if (isActive) {
               cls =
@@ -823,7 +824,7 @@ export default function GridPage({
                       ? "bg-amber-500/90 border-amber-400 text-black"
                       : "bg-neutral-700 border-neutral-500 text-white";
             } else if (empty) {
-              cls = "bg-transparent border-neutral-900 text-neutral-600 opacity-50";
+              cls = "bg-transparent border-neutral-900 text-neutral-400 opacity-50";
             } else if (hot) {
               cls =
                 f.accent === "red"
@@ -875,14 +876,14 @@ export default function GridPage({
               <button
                 onClick={() => setOpenFilterMenu(openFilterMenu === grp.label ? null : grp.label)}
                 className={
-                  "inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1.5 transition-colors " +
+                  "inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 transition-colors whitespace-nowrap " +
                   (active
                     ? "border-neutral-500 bg-neutral-700 text-white"
                     : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white")
                 }
               >
                 {active && cur ? cur.label : grp.label}
-                <span className="text-neutral-500">▾</span>
+                <span className="text-neutral-400">▾</span>
               </button>
               {openFilterMenu === grp.label && (
                 <>
@@ -906,13 +907,13 @@ export default function GridPage({
                             (filter === id
                               ? "bg-neutral-800 text-white"
                               : n === 0
-                                ? "cursor-not-allowed text-neutral-600"
+                                ? "cursor-not-allowed text-neutral-400"
                                 : "text-neutral-200 hover:bg-neutral-800")
                           }
                         >
                           <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
                           <span className="flex-1">{f.label}</span>
-                          <span className="tabular-nums text-neutral-500">{n ?? ""}</span>
+                          <span className="tabular-nums text-neutral-400">{n ?? ""}</span>
                         </button>
                       );
                     })}
@@ -922,7 +923,7 @@ export default function GridPage({
                     {grp.label === "Stato" && runs.length > 0 && (
                       <>
                         <div className="my-1 border-t border-neutral-800" />
-                        <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+                        <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-400">
                           Generazioni
                         </div>
                         {runs.slice(0, 8).map((r) => (
@@ -965,7 +966,7 @@ export default function GridPage({
             className="inline-flex shrink-0 items-center gap-1 rounded border border-neutral-800 px-2 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-white"
           >
             {groupLabel}
-            <span className="text-neutral-500">▾</span>
+            <span className="text-neutral-400">▾</span>
           </button>
           {openFilterMenu === "__group" && (
             <>
@@ -1003,40 +1004,24 @@ export default function GridPage({
             semplicemente guardando le foto. */}
         {runs.length > 0 && selectedRun != null && (
           <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
-            <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">
+            <span className="text-[10px] uppercase tracking-wider text-neutral-400 mr-1">
               Run
             </span>
-            <select
-              value={selectedRun ?? ""}
-              onChange={(e) =>
-                setSelectedRun(e.target.value ? Number(e.target.value) : null)
-              }
-              className={
-                "bg-neutral-800 border rounded px-2 py-1.5 text-xs " +
-                (selectedRun != null
-                  ? "border-sky-600 text-sky-200"
-                  : "border-neutral-700 text-neutral-300")
-              }
-            >
-              <option value="">Tutte le versioni</option>
-              {runs.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {runLabel(r)}
-                </option>
-              ))}
-            </select>
+            <Scegli
+              valore={selectedRun == null ? "" : String(selectedRun)}
+              larghezza={190}
+              voci={[
+                { v: "", testo: "Tutte le versioni" },
+                ...runs.map((r) => ({ v: String(r.id), testo: runLabel(r) })),
+              ]}
+              onCambia={(v) => setSelectedRun(v ? Number(v) : null)}
+            />
           </div>
         )}
         {/* Azioni e conteggio in coda alla stessa riga: erano una fascia a
             parte sopra i filtri, e su una griglia di foto ogni fascia in più è
             una fila di foto in meno sul primo schermo. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span
-            title={`${counts.total} foto, ${counts.withFavorite} con una versione preferita`}
-            className="hidden text-[11px] text-neutral-500 2xl:inline"
-          >
-            {counts.total}/<span className="text-amber-400">{counts.withFavorite}</span>
-          </span>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {counts.missing > 0 && (
             <button
               disabled={activeJobs > 0}
@@ -1050,7 +1035,8 @@ export default function GridPage({
                   ? `${activeJobs} job già in coda`
                   : `Genera le ${counts.missing} foto senza versioni`
               }
-              className="shrink-0 rounded border border-blue-700 bg-blue-700 px-2 py-1.5 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 h-7 rounded border border-transparent bg-neutral-100 px-2.5 font-medium
+                         text-neutral-900 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               {activeJobs > 0 ? `Coda ${activeJobs}` : `Genera ${counts.missing}`}
             </button>
@@ -1064,10 +1050,10 @@ export default function GridPage({
               });
             }}
             className={
-              "shrink-0 rounded border px-2 py-1.5 " +
+              "shrink-0 h-7 rounded border px-2 whitespace-nowrap transition-colors " +
               (selectMode
-                ? "border-blue-600 bg-blue-700 text-white hover:bg-blue-600"
-                : "border-neutral-700 bg-neutral-800 hover:bg-neutral-700")
+                ? "border-neutral-400 bg-neutral-800 text-neutral-100"
+                : "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100")
             }
           >
             {selectMode ? "Esci" : "Selezione"}
@@ -1077,7 +1063,7 @@ export default function GridPage({
         {/* Zoom a passi invece che a cursore: un range da 100 a 400 occupa
             140px per una scelta che nella pratica è fra quattro dimensioni.
             Due bottoni ne prendono 50 e si usano senza mirare. */}
-        <div className="flex shrink-0 items-center rounded-lg border border-neutral-800/70 bg-neutral-900/40">
+        <div className="flex h-7 shrink-0 items-center rounded border border-neutral-800">
           <button
             onClick={() => {
               const v = Math.max(100, zoom - 40);
@@ -1086,11 +1072,11 @@ export default function GridPage({
             }}
             disabled={zoom <= 100}
             title="Foto più piccole"
-            className="px-2 py-1.5 text-neutral-400 hover:text-white disabled:opacity-30"
+            className="h-full px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
           >
             −
           </button>
-          <span className="w-9 text-center font-mono text-[10px] tabular-nums text-neutral-500">
+          <span className="w-7 text-center font-mono text-[10px] tabular-nums text-neutral-400">
             {zoom}
           </span>
           <button
@@ -1101,7 +1087,7 @@ export default function GridPage({
             }}
             disabled={zoom >= 400}
             title="Foto più grandi"
-            className="px-2 py-1.5 text-neutral-400 hover:text-white disabled:opacity-30"
+            className="h-full px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
           >
             +
           </button>
@@ -1111,9 +1097,9 @@ export default function GridPage({
 
       {selectedRun != null ? (
         runData === null ? (
-          <div className="py-20 text-center text-neutral-500">Carico run…</div>
+          <div className="py-20 text-center text-neutral-400">Carico run…</div>
         ) : runData.length === 0 ? (
-          <div className="py-20 text-center text-neutral-500">Run vuota.</div>
+          <div className="py-20 text-center text-neutral-400">Run vuota.</div>
         ) : (
           <div className="space-y-2">
             <div className="text-xs text-sky-300">
@@ -1138,7 +1124,7 @@ export default function GridPage({
           </div>
         )
       ) : photos === null ? (
-        <div className="py-20 text-center text-neutral-500">Carico…</div>
+        <div className="py-20 text-center text-neutral-400">Carico…</div>
       ) : photos.length === 0 ? (
         // A project with nothing in it isn't a filter problem: point at the
         // one thing that fixes it.
@@ -1153,7 +1139,7 @@ export default function GridPage({
             </Link>
           </div>
         ) : (
-          <div className="py-20 text-center text-neutral-500">
+          <div className="py-20 text-center text-neutral-400">
             Nessuna foto con questo filtro.
           </div>
         )
@@ -1236,7 +1222,7 @@ export default function GridPage({
                 {/* Un post si gestisce da dove lo vedi: rinomina e cancella
                     stanno sull'intestazione del gruppo, non in una pagina a parte. */}
                 {g.collectionId && (
-                  <span className="text-[10px] text-neutral-600">
+                  <span className="text-[10px] text-neutral-400">
                     trascina per riordinare · la 1 è la copertina
                   </span>
                 )}
@@ -1250,7 +1236,7 @@ export default function GridPage({
                         await api.updateCollection(g.collectionId!, { title: title.trim() });
                         await refreshCollections();
                       }}
-                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600"
+                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
                     >
                       rinomina
                     </button>
@@ -1260,7 +1246,7 @@ export default function GridPage({
                         await api.deleteCollection(g.collectionId!);
                         await refreshCollections();
                       }}
-                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-red-300 hover:border-red-800"
+                      className="text-[10px] px-2 py-0.5 rounded border border-neutral-800 text-neutral-400 hover:text-red-300 hover:border-red-800"
                     >
                       sciogli
                     </button>
@@ -1529,7 +1515,7 @@ export default function GridPage({
               </>
             )}
 
-            <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+            <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-400">
               Sposta in
             </div>
             {collections
@@ -1566,7 +1552,7 @@ export default function GridPage({
                 setMenu(null);
               }}
             >
-              ⧉ Copia ID <span className="text-neutral-500">{menu.photoId.slice(0, 14)}</span>
+              ⧉ Copia ID <span className="text-neutral-400">{menu.photoId.slice(0, 14)}</span>
             </MenuItem>
             <MenuItem
               onClick={() => {

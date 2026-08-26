@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Bott, Conferma, Interruttore } from "../../ui";
 import type { ToolGroup, AddableStep } from "./BottomToolbar";
 import type { MasterControls } from "./EditorShell";
 import {
@@ -289,7 +290,7 @@ export function PipelineList({
             {master.enabled ? "Grade ON" : "Grade OFF"}
           </button>
           {master.info && (
-            <span className="text-[11px] text-neutral-500 truncate">{master.info}</span>
+            <span className="text-[11px] text-neutral-400 truncate">{master.info}</span>
           )}
         </div>
       )}
@@ -425,7 +426,7 @@ function Section({
               dnd.onStart();
             }}
             onDragEnd={dnd.onEnd}
-            className="shrink-0 py-2.5 px-0.5 text-neutral-600 hover:text-neutral-300 cursor-grab active:cursor-grabbing"
+            className="shrink-0 py-2.5 px-0.5 text-neutral-400 hover:text-neutral-300 cursor-grab active:cursor-grabbing"
             title="trascina per riordinare"
             aria-label="trascina per riordinare"
           >
@@ -476,7 +477,7 @@ function Section({
           className="flex-1 min-w-0 flex items-center gap-2 py-2.5 text-left"
         >
         {step && (
-          <span className="text-[10px] tabular-nums text-neutral-600 w-3 shrink-0">
+          <span className="text-[10px] tabular-nums text-neutral-400 w-3 shrink-0">
             {step.order}
           </span>
         )}
@@ -484,14 +485,14 @@ function Section({
           {group.icon}
         </span>
         <span className="flex-1 min-w-0">
-          <span className={"block text-sm truncate " + (dim ? "text-neutral-500" : "text-neutral-100")}>
+          <span className={"block text-sm truncate " + (dim ? "text-neutral-400" : "text-neutral-100")}>
             {group.label}
           </span>
           {step?.summary && (
-            <span className="block text-[11px] text-neutral-500 truncate">{step.summary}</span>
+            <span className="block text-[11px] text-neutral-400 truncate">{step.summary}</span>
           )}
         </span>
-        <span className={"text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>
+        <span className={"text-neutral-400 transition-transform " + (open ? "rotate-90" : "")}>
           <IconChevronRight className="w-4 h-4" />
         </span>
         </button>
@@ -499,77 +500,54 @@ function Section({
 
       {open && (
         <div className="px-3 pb-3 pt-1 dr-touch">
+          {/* Gli attrezzi dello step, raggruppati per cosa fanno: prima
+              l'interruttore (e' uno stato), poi lo spostamento, poi le due cose
+              che cambiano i parametri. Cancellare sta in fondo, quieto e con la
+              domanda: era un cestino con lo stesso peso di una freccia, a un
+              dito di distanza. */}
           {step && (
             <div className="flex items-center gap-1 mb-2 pb-2 border-b border-neutral-800/70">
-              <button
-                onClick={() => step.onToggle(!step.enabled)}
-                className={
-                  "flex items-center gap-1.5 mr-auto px-2 py-1 rounded-full text-[11px] font-medium " +
-                  (step.enabled
-                    ? "bg-emerald-900/50 text-emerald-300"
-                    : "bg-neutral-800 text-neutral-400")
-                }
-              >
-                <span
-                  className={
-                    "w-1.5 h-1.5 rounded-full " +
-                    (step.enabled ? "bg-emerald-400" : "bg-neutral-500")
-                  }
-                />
-                {step.enabled ? "Attivo" : "Off"}
-              </button>
-              <button
-                onClick={() => step.onMove(-1)}
-                disabled={!step.canUp}
-                className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-25"
-                aria-label="sposta prima"
-              >
-                <IconChevronUp />
-              </button>
-              <button
-                onClick={() => step.onMove(1)}
-                disabled={!step.canDown}
-                className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-25"
-                aria-label="sposta dopo"
-              >
-                <IconChevronDown />
-              </button>
-              {step.onSolo && (
+              <Interruttore acceso={step.enabled} onCambia={step.onToggle}
+                            acceso_testo="acceso" spento_testo="spento"
+                            titolo="Se spento, questo passo non tocca l'immagine" />
+              <div className="flex-1" />
+              <div className="flex items-center rounded border border-neutral-800">
                 <button
-                  onClick={step.onSolo}
-                  className={
-                    "px-1.5 py-1 rounded text-[10px] font-bold tracking-wide " +
-                    (step.isSolo
-                      ? "bg-amber-500 text-black"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-800")
-                  }
-                  aria-label="mostra solo questo step"
-                  title={
-                    step.isSolo
-                      ? "Riaccendi tutti gli step"
-                      : "Solo questo: spegne gli altri per vedere cosa fa davvero"
-                  }
+                  onClick={() => step.onMove(-1)}
+                  disabled={!step.canUp}
+                  className="p-1 text-neutral-400 hover:text-neutral-100 disabled:opacity-25"
+                  aria-label="sposta prima" title="Sposta prima"
                 >
-                  SOLO
+                  <IconChevronUp />
                 </button>
+                <button
+                  onClick={() => step.onMove(1)}
+                  disabled={!step.canDown}
+                  className="p-1 text-neutral-400 hover:text-neutral-100 disabled:opacity-25"
+                  aria-label="sposta dopo" title="Sposta dopo"
+                >
+                  <IconChevronDown />
+                </button>
+              </div>
+              {step.onSolo && (
+                <Bott taglia="s" attivo={step.isSolo} onClick={step.onSolo}
+                      titolo={step.isSolo
+                        ? "Riaccendi tutti gli step"
+                        : "Solo questo: spegne gli altri per vedere cosa fa davvero"}>
+                  solo
+                </Bott>
               )}
               {step.onReset && (
-                <button
-                  onClick={step.onReset}
-                  className="p-1.5 rounded text-neutral-400 hover:text-white"
-                  aria-label="ripristina default"
-                  title="ripristina default"
-                >
+                <Bott peso="quieto" taglia="s" onClick={step.onReset}
+                      titolo="Rimetti i valori di partenza">
                   <IconReset />
-                </button>
+                </Bott>
               )}
-              <button
-                onClick={step.onRemove}
-                className="p-1.5 rounded text-neutral-400 hover:text-red-400"
-                aria-label="rimuovi step"
-              >
+              <Conferma taglia="s" titolo="Togli questo passo"
+                        domanda="Tolgo questo passo?"
+                        conferma="togli" onConferma={step.onRemove}>
                 <IconTrash />
-              </button>
+              </Conferma>
             </div>
           )}
           {group.render()}

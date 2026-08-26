@@ -215,7 +215,8 @@ export default function Video() {
   useEffect(() => {
     const prima = ctx?.wide;
     ctx?.setWide?.(true);
-    return () => { if (prima === false) ctx?.setWide?.(false); };
+    ctx?.setFlush?.(true);
+    return () => { if (prima === false) ctx?.setWide?.(false); ctx?.setFlush?.(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

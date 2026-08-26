@@ -60,7 +60,7 @@ export default function BottomToolbar({
         <>
           <div className="fixed inset-0 z-0" onClick={() => setAddOpen(false)} />
           <div className="absolute right-2 bottom-full mb-2 z-10 w-56 rounded-xl border border-neutral-700 bg-neutral-900 shadow-2xl p-1.5">
-            <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-neutral-500">
+            <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-neutral-400">
               Aggiungi step
             </div>
             {addable.map((a) => (
@@ -96,7 +96,7 @@ export default function BottomToolbar({
               }
             >
               {g.step && (
-                <span className="absolute top-1 left-1.5 text-[9px] tabular-nums text-neutral-600">
+                <span className="absolute top-1 left-1.5 text-[9px] tabular-nums text-neutral-400">
                   {g.step.order}
                 </span>
               )}

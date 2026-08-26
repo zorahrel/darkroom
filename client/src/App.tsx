@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import {
   api,
@@ -12,6 +12,8 @@ import {
 export type OutletCtx = {
   jobs: JobsPayload | null;
   activeJobs: number;
+  flush: boolean;
+  setFlush: (v: boolean) => void;
   /** Larghezza piena: la griglia usa tutto il monitor invece di 1280px. */
   wide: boolean;
   setWide: (v: boolean) => void;
@@ -20,12 +22,16 @@ export type OutletCtx = {
   setRailOpen: (v: boolean) => void;
 };
 import JobsPanel from "./components/JobsPanel";
+import { Bott, Targa } from "./ui";
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [jobs, setJobs] = useState<JobsPayload | null>(null);
   const [orphanCount, setOrphanCount] = useState<number>(0);
   const [showJobs, setShowJobs] = useState(false);
+  /** Le pagine che si prendono tutta l'altezza (editor video, banco colore)
+   *  disegnano fino al bordo: lo spazio sopra glielo toglierebbe. */
+  const [flush, setFlush] = useState(false);
   // Preferenza di layout: sopravvive al reload, perché è una scelta sulla
   // propria scrivania, non uno stato della sessione.
   const [wide, setWide] = useState(
@@ -139,9 +145,30 @@ export default function App() {
     navigate(`/p/${pid}/video`, { replace: true });
   }, [pid, activeProject?.kind, location.pathname, navigate]);
 
+  /**
+   * L'altezza della testata, misurata e messa in una variabile CSS.
+   *
+   * Chi si appiccica sotto di lei — la barra dei filtri della griglia, la
+   * colonna della pipeline — aveva ognuno il suo numero scritto a mano (57, 68,
+   * 88): tre numeri che dicevano la stessa cosa e che al primo ritocco della
+   * testata smettevano di coincidere. Con `--h-testata` c'e' una fonte sola, e
+   * si aggiorna quando la testata va a capo su una finestra stretta.
+   */
+  const testata = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = testata.current;
+    if (!el) return;
+    const misura = () =>
+      document.documentElement.style.setProperty("--h-testata", `${Math.round(el.getBoundingClientRect().height)}px`);
+    misura();
+    const ro = new ResizeObserver(misura);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <div className="min-h-full flex flex-col">
-      <header className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
+      <header ref={testata} className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
         <div
           className={
             "mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 " +
@@ -159,7 +186,7 @@ export default function App() {
                 <Link to="/studio" className="font-semibold tracking-tight shrink-0">
                   Darkroom
                 </Link>
-                <span className="text-neutral-600 shrink-0">/</span>
+                <span className="text-neutral-400 shrink-0">/</span>
               </>
             )}
             <ProjectMenu
@@ -234,94 +261,69 @@ export default function App() {
               (rather than interleaving with the breadcrumb/nav row above) so a
               phone gets at most two header rows instead of three or four. */}
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:ml-auto">
+            {/* La gerarchia della barra: gli allarmi per primi perché
+                cambiano cosa puoi fare, poi gli interruttori della finestra,
+                poi i lavori, e in fondo l'unica azione piena — che esiste solo
+                dove ha senso. "Esporta favorite" su un progetto video non
+                voleva dire niente, e nonostante questo era la cosa più
+                appariscente dello schermo. */}
             {health && !health.browser && (
-              <button
-                disabled={launching}
-                onClick={async () => {
-                  setLaunching(true);
-                  try {
-                    const r = await fetch("/api/browser/launch", { method: "POST" });
-                    const j = await r.json();
-                    if (!j.ok) {
-                      alert(`Errore avvio: ${j.error ?? "?"}`);
-                    } else {
-                      // launch confirmed alive server-side — clear the badge now
-                      setHealth((h) => (h ? { ...h, browser: true } : h));
-                    }
-                  } catch (e) {
-                    alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
-                  } finally {
-                    setLaunching(false);
-                  }
-                }}
-                className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 disabled:opacity-60 disabled:cursor-wait text-red-200 border border-red-900 whitespace-nowrap"
-                title={health.hint ?? ""}
-              >
-                {launching ? (
-                  <>⏳ <span className="hidden sm:inline">Avvio browser ChatGPT…</span><span className="sm:hidden">Avvio…</span></>
-                ) : (
-                  <>⚠ <span className="hidden sm:inline">Browser ChatGPT offline — click per avviare</span><span className="sm:hidden">Browser offline</span></>
-                )}
-              </button>
+              <Bott peso="pericolo" taglia="m" disabilitato={launching}
+                    titolo={health.hint ?? ""}
+                    onClick={async () => {
+                      setLaunching(true);
+                      try {
+                        const r = await fetch("/api/browser/launch", { method: "POST" });
+                        const j = await r.json();
+                        if (!j.ok) alert(`Errore avvio: ${j.error ?? "?"}`);
+                        else setHealth((h) => (h ? { ...h, browser: true } : h));
+                      } catch (e) {
+                        alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
+                      } finally { setLaunching(false); }
+                    }}>
+                {launching ? "avvio Chrome…" : "⚠ Chrome non collegato — avvialo"}
+              </Bott>
             )}
             {jobs?.runner?.paused && jobs.runner.paused_until && (
-              <span
-                className="text-xs px-2 py-1 rounded bg-amber-900/40 text-amber-200 border border-amber-900 whitespace-nowrap"
-                title={`Cap ChatGPT raggiunto. Auto-resume alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}
-              >
-                ⏸{" "}
-                <span className="hidden sm:inline">
-                  Coda in pausa fino alle{" "}
-                </span>
+              <Targa tono="attesa"
+                     titolo={`Limite ChatGPT raggiunto. Riparte da sola alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}>
+                ⏸ coda ferma fino alle{" "}
                 {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
+              </Targa>
             )}
-            {/* Layout della finestra: due interruttori compatti nell'header,
-                perché è lì che vive tutto ciò che riguarda la finestra e non il
-                contenuto. Prima occupavano una fascia sopra la griglia. */}
-            <div className="hidden items-center gap-1 rounded-lg border border-neutral-800 p-0.5 lg:flex">
-              <button
-                onClick={() => setWide(!wide)}
-                title={wide ? "Torna alla larghezza normale" : "Usa tutta la larghezza dello schermo"}
-                className={
-                  "rounded px-2 py-1 text-xs transition-colors " +
-                  (wide ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white")
-                }
-              >
+
+            <div className="hidden items-center gap-0.5 rounded-md border border-neutral-800 p-0.5 lg:flex">
+              <Bott peso="quieto" taglia="m" attivo={wide} onClick={() => setWide(!wide)}
+                    titolo={wide ? "Torna alla larghezza normale" : "Usa tutta la larghezza dello schermo"}>
                 ↔
-              </button>
-              <button
-                onClick={() => setRailOpen(!railOpen)}
-                title={railOpen ? "Nascondi la pipeline" : "Mostra la pipeline"}
-                className={
-                  "rounded px-2 py-1 text-xs transition-colors " +
-                  (railOpen ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white")
-                }
-              >
-                ⌸
-              </button>
+              </Bott>
+              {activeProject?.kind !== "video" && (
+                <Bott peso="quieto" taglia="m" attivo={railOpen} onClick={() => setRailOpen(!railOpen)}
+                      titolo={railOpen ? "Nascondi la pipeline" : "Mostra la pipeline"}>
+                  ⌸
+                </Bott>
+              )}
             </div>
-            <button
-              onClick={() => setShowJobs((v) => !v)}
-              className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 whitespace-nowrap"
-            >
-              Jobs{" "}
-              <span className="ml-1 text-neutral-400">
-                {activeJobs > 0 ? `${activeJobs} attivi` : "idle"}
+
+            <Bott taglia="m" onClick={() => setShowJobs((v) => !v)}
+                  titolo="Le generazioni in corso, quelle fatte e quelle fallite">
+              Lavori
+              <span className={activeJobs > 0 ? "text-sky-300" : "text-neutral-400"}>
+                {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
               </span>
-            </button>
-            <button
-              onClick={async () => {
-                const r = await api.exportFavorites();
-                alert(
-                  `Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`,
-                );
-              }}
-              className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 border border-emerald-700 whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">Esporta favorite</span>
-              <span className="sm:hidden">Esporta</span>
-            </button>
+            </Bott>
+
+            {pid && activeProject?.kind !== "video" && activeProject?.kind !== "storyboard" && (
+              <Bott taglia="m"
+                    titolo="Copia le preferite, già gradate, in una cartella fuori dal progetto"
+                    onClick={async () => {
+                      const r = await api.exportFavorites();
+                      alert(`Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`);
+                    }}>
+                <span className="hidden sm:inline">Esporta preferite</span>
+                <span className="sm:hidden">Esporta</span>
+              </Bott>
+            )}
           </div>
         </div>
       </header>
@@ -340,16 +342,21 @@ export default function App() {
 
       {/* `max-w-7xl` incolonna tutto a 1280px: giusto per una pagina di testo,
           sbagliato per una griglia di foto su un monitor largo, dove restano
-          due bande vuote ai lati. Il limite diventa opzionale. */}
+          due bande vuote ai lati. Il limite diventa opzionale.
+
+          Lo spazio sopra e' stato a zero per tutte le pagine perche' UNA ne
+          aveva bisogno: nella griglia il padding scorreva sopra la barra dei
+          filtri appiccicata. Il risultato e' che ogni altra pagina cominciava
+          attaccata alla barra del titolo. Adesso lo spazio c'e', e chi non lo
+          vuole — chi si prende tutta l'altezza — lo dichiara. */}
       <main
         className={
-          // pt-0: il padding superiore lasciava una striscia vuota che
-          // scorreva SOPRA la barra dei filtri sticky, e si vedeva la griglia
-          // passarci sotto. Lo spazio lo mette la barra stessa.
-          "flex-1 w-full mx-auto px-4 pb-4 pt-0 " + (wide ? "max-w-none" : "max-w-7xl")
+          "flex-1 w-full mx-auto px-4 pb-4 " +
+          (flush ? "pt-0 " : "pt-4 ") +
+          (wide ? "max-w-none" : "max-w-7xl")
         }
       >
-        <Outlet context={{ jobs, activeJobs, wide, setWide, railOpen, setRailOpen }} />
+        <Outlet context={{ jobs, activeJobs, wide, setWide, flush, setFlush, railOpen, setRailOpen }} />
       </main>
 
       {showJobs && jobs && (
@@ -417,7 +424,7 @@ function ProjectMenu({
         }
       >
         <span className="truncate">{label}</span>
-        <span className="text-neutral-500 text-xs">▾</span>
+        <span className="text-neutral-400 text-xs">▾</span>
       </button>
       {open && (
         <div

@@ -211,6 +211,9 @@ export type StudioProject = {
   db_path: string;
   root_exists: boolean;
   stats: ProjectStats | null;
+  /** Solo per i progetti video: i numeri che per un montaggio vogliono dire
+   *  qualcosa. Nullo altrove. */
+  video: { tagli: number; piani: number; durata: number } | null;
   error: string | null;
 };
 

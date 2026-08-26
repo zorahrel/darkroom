@@ -128,7 +128,7 @@ export default function EditorShell({
           </button>
 
           {master.info && (
-            <span className="text-[11px] text-neutral-500 truncate">{master.info}</span>
+            <span className="text-[11px] text-neutral-400 truncate">{master.info}</span>
           )}
 
           <div className="flex-1" />

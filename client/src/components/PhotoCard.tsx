@@ -443,7 +443,7 @@ export default function PhotoCard({
                 (e.target as HTMLTextAreaElement).blur();
               }
             }}
-            className="w-full resize-none rounded bg-black/70 border border-neutral-600 focus:border-amber-400 outline-none px-1.5 py-1 text-[11px] leading-snug text-neutral-100 placeholder:text-neutral-500"
+            className="w-full resize-none rounded bg-black/70 border border-neutral-600 focus:border-amber-400 outline-none px-1.5 py-1 text-[11px] leading-snug text-neutral-100 placeholder:text-neutral-400"
           />
           {(fbSaving || fbSaved) && (
             <span className="absolute right-1 bottom-1.5 text-[9px] font-medium text-amber-300 pointer-events-none">

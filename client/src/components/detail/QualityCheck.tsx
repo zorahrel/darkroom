@@ -58,7 +58,7 @@ export function QualityCheck({
           {busy === "check" ? "Controllo…" : "Controlla le versioni"}
         </button>
         {current && <ScoreBadge score={current.score} />}
-        <span className="text-xs text-neutral-500">
+        <span className="text-xs text-neutral-400">
           {reports.length
             ? `${reports.length} version${reports.length === 1 ? "e" : "i"} controllate`
             : "mai controllata"}
@@ -78,13 +78,13 @@ export function QualityCheck({
               <VerdictDot verdict={check.verdict} />
               <span className={check.verdict === "hit" ? "text-amber-200" : "text-neutral-400"}>
                 {check.code}
-                {check.detail && <span className="text-neutral-600"> — {check.detail}</span>}
+                {check.detail && <span className="text-neutral-400"> — {check.detail}</span>}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-400">
           Questa versione non è ancora stata controllata.
         </p>
       )}

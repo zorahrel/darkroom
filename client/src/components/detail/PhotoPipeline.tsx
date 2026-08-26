@@ -347,7 +347,7 @@ export function PhotoPipeline({
           s.enabled ? (
             <StepParams step={s} lutGroups={lutGroups} onParams={(p) => patchParamsAt(idx, p)} />
           ) : (
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-neutral-400">
               Step disattivo. Attivalo dall'interruttore qui sopra per modificarne i parametri.
             </p>
           ),
@@ -408,7 +408,7 @@ export function PhotoPipeline({
 
   if (!hasVersion) {
     return (
-      <div className="text-sm text-neutral-500">
+      <div className="text-sm text-neutral-400">
         Genera una versione per attivare il grade colore.
       </div>
     );

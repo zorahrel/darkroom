@@ -9,11 +9,11 @@ export function FinalPromptView({ prompt }: { prompt: string }) {
         <span className="text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-900">
           Prompt finale
         </span>
-        <span className="text-[11px] text-neutral-500">
+        <span className="text-[11px] text-neutral-400">
           quello che riceve ChatGPT, già assemblato
         </span>
         <div className="flex-1" />
-        <span className="text-[10px] tabular-nums text-neutral-600">
+        <span className="text-[10px] tabular-nums text-neutral-400">
           {text.length} car.
         </span>
         <button
@@ -37,7 +37,7 @@ export function FinalPromptView({ prompt }: { prompt: string }) {
           {text}
         </pre>
       ) : (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-400">
           Nessun prompt: genera una versione o imposta la config sopra.
         </p>
       )}

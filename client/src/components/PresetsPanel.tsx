@@ -144,7 +144,7 @@ export default function PresetsPanel({
         >
           <IconDownload /> Esporta JSON
         </button>
-        <span className="text-[11px] text-neutral-500">Lightroom / Camera Raw .xmp · .lrtemplate · .cube · .json</span>
+        <span className="text-[11px] text-neutral-400">Lightroom / Camera Raw .xmp · .lrtemplate · .cube · .json</span>
       </div>
 
       {err && <p className="text-xs text-red-400">{err}</p>}
@@ -188,7 +188,7 @@ export default function PresetsPanel({
 
       {/* Lista preset salvati */}
       {presets.length === 0 ? (
-        <p className="text-xs text-neutral-500">Nessun preset salvato.</p>
+        <p className="text-xs text-neutral-400">Nessun preset salvato.</p>
       ) : (
         <ul className="space-y-1">
           {presets.map((p) => (

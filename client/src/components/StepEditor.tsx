@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Scegli, Spunta } from "../ui";
 import {
   type ColorGrade,
   type GradeStep,
@@ -88,7 +89,7 @@ export default function StepEditor({
               <button
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                className="text-neutral-500 hover:text-white disabled:opacity-20 leading-none text-xs"
+                className="text-neutral-400 hover:text-white disabled:opacity-20 leading-none text-xs"
                 aria-label="su"
               >
                 ▲
@@ -96,26 +97,22 @@ export default function StepEditor({
               <button
                 onClick={() => move(i, 1)}
                 disabled={i === steps.length - 1}
-                className="text-neutral-500 hover:text-white disabled:opacity-20 leading-none text-xs"
+                className="text-neutral-400 hover:text-white disabled:opacity-20 leading-none text-xs"
                 aria-label="giù"
               >
                 ▼
               </button>
             </div>
-            <span className="text-[10px] tabular-nums text-neutral-600 w-4">{i + 1}</span>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={s.enabled}
-                onChange={(e) => patchStep(i, { enabled: e.target.checked })}
-              />
-              <span className={s.enabled ? "text-neutral-100" : "text-neutral-400"}>
+            <span className="text-[10px] tabular-nums text-neutral-400 w-4">{i + 1}</span>
+            <Spunta segnata={s.enabled} onCambia={(v) => patchStep(i, { enabled: v })}
+                    titolo={s.enabled ? "Questo passo è acceso" : "Questo passo è spento"}>
+              <span className={`text-[13px] font-medium ${s.enabled ? "text-neutral-100" : "text-neutral-400"}`}>
                 {STEP_LABELS[s.type]}
               </span>
-            </label>
+            </Spunta>
             <div className="flex-1" />
             <span
-              className="text-[11px] text-neutral-500 truncate max-w-[48%] text-right hidden sm:inline"
+              className="text-[11px] text-neutral-400 truncate max-w-[48%] text-right hidden sm:inline"
               title={stepSummary(s)}
             >
               {stepSummary(s)}
@@ -123,7 +120,7 @@ export default function StepEditor({
             {isStepTouched(s) && (
               <button
                 onClick={() => resetParams(i)}
-                className="text-neutral-500 hover:text-white text-sm px-1 leading-none"
+                className="text-neutral-400 hover:text-white text-sm px-1 leading-none"
                 aria-label="ripristina valori di default"
                 title="ripristina default"
               >
@@ -132,7 +129,7 @@ export default function StepEditor({
             )}
             <button
               onClick={() => remove(i)}
-              className="text-neutral-500 hover:text-red-400 text-sm px-1"
+              className="text-neutral-400 hover:text-red-400 text-sm px-1"
               aria-label="rimuovi step"
               title="rimuovi step"
             >
@@ -172,7 +169,7 @@ export function groupLuts(luts: Lut[]): [string, Lut[]][] {
 function AddStep({ onAdd }: { onAdd: (t: GradeStepType) => void }) {
   return (
     <div className="flex items-center gap-2 pt-1">
-      <span className="text-xs text-neutral-500">aggiungi step:</span>
+      <span className="text-xs text-neutral-400">aggiungi step:</span>
       {STEP_ORDER.filter((t) => t !== "ai").map((t) => (
         <button
           key={t}
@@ -328,23 +325,13 @@ function StepBody({
   if (step.type === "white_balance") {
     return (
       <div className="space-y-2.5 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={bool(p.awb)}
-            onChange={(e) => onParams({ awb: e.target.checked })}
-          />
+        <Spunta segnata={bool(p.awb)} onCambia={(v) => onParams({ awb: v })}>
           AWB robusto (cast stimato dai grigi)
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={bool(p.scene_match)}
-            onChange={(e) => onParams({ scene_match: e.target.checked })}
-          />
+        </Spunta>
+        <Spunta segnata={bool(p.scene_match)} onCambia={(v) => onParams({ scene_match: v })}>
           Scene-match (WB uniforme fra scatti gemelli)
-        </label>
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        </Spunta>
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Scene-match, dove attivo, sostituisce l'AWB per-immagine con un gain
           condiviso dal gruppo.
         </p>
@@ -375,21 +362,15 @@ function StepBody({
           format={(v) => v.toFixed(1)}
           resetTo={99.6}
         />
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={bool(p.soft)}
-            onChange={(e) => onParams({ soft: e.target.checked })}
-          />
-          <span className="text-neutral-400">
+        <Spunta segnata={bool(p.soft)} onCambia={(v) => onParams({ soft: v })}>
+          <span className="block">
             Proteggi le alte luci
-            <span className="block text-[11px] text-neutral-500 leading-snug">
+            <span className="block text-[11px] text-neutral-400 leading-snug">
               Comprime i toni chiari verso il bianco invece di bruciarli — utile
               su cieli e insegne molto luminose.
             </span>
           </span>
-        </label>
+        </Spunta>
       </div>
     );
   }
@@ -415,7 +396,7 @@ function StepBody({
           format={(v) => `${v > 0 ? "+" : ""}${v}%`}
           resetTo={0}
         />
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Schiarisce e uniforma i sakura. Questo passo di suo tira il rosa verso
           il grigio, e un bilanciamento freddo a valle lo spegne ancora: il
           cursore glielo rimette, solo dentro la banda del rosa — pelle, insegne
@@ -427,7 +408,7 @@ function StepBody({
 
   if (step.type === "match") {
     return (
-      <p className="text-[11px] text-neutral-500 leading-snug">
+      <p className="text-[11px] text-neutral-400 leading-snug">
         Allinea ogni foto al resto del suo <strong className="text-neutral-300">post</strong>:
         bilanciamento, esposizione e saturazione vengono avvicinati alla mediana
         del gruppo. Serve perché ogni render AI è indipendente, e due scatti
@@ -489,7 +470,7 @@ function StepBody({
           format={(v) => `×${v.toFixed(1)}`}
           resetTo={1}
         />
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Alone morbido attorno alle luci esistenti. Con «Estensione» a 2 alonano
           solo i riflessi accecanti: su una scena senza specchi di luce — l'oro
           di un tetto, una lanterna diffusa — il bloom sparisce, e va portata
@@ -530,7 +511,7 @@ function StepBody({
           format={(v) => `${v}%`}
           resetTo={0}
         />
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Maschera solo le tonalità ciano/blu chiare (cielo) e le schiarisce —
           non tocca insegne, vestiti o acqua molto saturi. «Spegni il celeste»
           toglie il cielo da cartolina lasciando intatti verdi e insegne blu:
@@ -547,22 +528,17 @@ function StepBody({
       <div className="space-y-2.5 text-sm">
         <label className="flex flex-col gap-1">
           <span className="text-neutral-400">LUT</span>
-          <select
-            className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1.5"
-            value={String(p.lut ?? "")}
-            onChange={(e) => onParams({ lut: e.target.value })}
-          >
-            <option value="">— nessuna —</option>
-            {lutGroups.map(([group, arr]) => (
-              <optgroup key={group} label={group}>
-                {arr.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <Scegli
+            valore={String(p.lut ?? "")}
+            onCambia={(v) => onParams({ lut: v })}
+            larghezza={264}
+            taglia="m"
+            voci={[
+              { v: "", testo: "— nessuna —" },
+              ...lutGroups.flatMap(([gruppo, arr]) =>
+                arr.map((l) => ({ v: l.id, testo: l.name, gruppo }))),
+            ]}
+          />
         </label>
         <SliderRow
           label="Dose"
@@ -573,14 +549,9 @@ function StepBody({
           format={(v) => `${v}%`}
           resetTo={80}
         />
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={autoDose}
-            onChange={(e) => onParams({ auto_dose: e.target.checked })}
-          />
+        <Spunta segnata={autoDose} onCambia={(v) => onParams({ auto_dose: v })}>
           Auto-dose sulle notturne/rosso-dominanti
-        </label>
+        </Spunta>
         {autoDose && (
           <SliderRow
             label="Dose notturne"
@@ -655,7 +626,7 @@ function StepBody({
           <MixerSlider label="Saturazione" k={`sat_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="sat" />
           <MixerSlider label="Luminanza" k={`lum_${hslBand}`} p={p} onParams={onParams} hue={hue} kind="lum" />
         </div>
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Color mixer per banda (8 colori). Per abbassare i celesti: seleziona
           Acqua e Blu e riduci Saturazione/Luminanza.
         </p>
@@ -704,7 +675,7 @@ function StepBody({
             </button>
           </div>
         )}
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Curva parametrica sui quarti tonali. Un import Lightroom con curva a punti
           (composita o per-canale R/G/B) la applica esattamente.
         </p>
@@ -732,7 +703,7 @@ function StepBody({
     return (
       <div className="space-y-2.5 text-sm">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Toni</div>
+          <div className="text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Toni</div>
           <div className="grid grid-cols-1 gap-y-2.5">
             <ColorSlider label="Esposizione" k="exposure" p={p} onParams={onParams} />
             <ColorSlider label="Contrasto" k="contrast" p={p} onParams={onParams} />
@@ -744,7 +715,7 @@ function StepBody({
           </div>
         </div>
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Colore</div>
+          <div className="text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Colore</div>
           <div className="grid grid-cols-1 gap-y-2.5">
             <ColorSlider label="Temperatura (freddo ↔ caldo)" k="temp" p={p} onParams={onParams} />
             <ColorSlider label="Tinta (verde ↔ magenta)" k="tint" p={p} onParams={onParams} />
@@ -780,16 +751,12 @@ function AiStepEditor({
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-sm">
         <span className="text-neutral-400">Provider</span>
-        <select
-          className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1"
-          value={provider}
-          onChange={(e) => onParams({ provider: e.target.value })}
-        >
-          <option value="chatgpt">ChatGPT (web)</option>
-          <option value="higgsfield">Higgsfield</option>
-        </select>
+        <Scegli valore={provider} larghezza={160} taglia="m"
+                onCambia={(v) => onParams({ provider: v })}
+                voci={[{ v: "chatgpt", testo: "ChatGPT (web)" },
+                       { v: "higgsfield", testo: "Higgsfield" }]} />
       </div>
-      <p className="text-[11px] text-neutral-500">
+      <p className="text-[11px] text-neutral-400">
         Rigenera l'immagine di lavoro con questa config. In un bake multi-pass,
         l'output diventa l'input dello step successivo.
       </p>
@@ -834,7 +801,7 @@ function SliderRow({
       <span
         className={
           dense
-            ? "text-[11px] text-neutral-500 flex items-center justify-between"
+            ? "text-[11px] text-neutral-400 flex items-center justify-between"
             : "text-neutral-400 flex items-center justify-between"
         }
       >
@@ -1003,7 +970,7 @@ function MaskControls({
             {bool(mask.invert) ? " · invertita" : ""}
           </span>
         ) : (
-          <span className="text-[10px] text-neutral-600">nessuna</span>
+          <span className="text-[10px] text-neutral-400">nessuna</span>
         )}
       </summary>
       <div className="px-2.5 pb-2.5 pt-1 space-y-2">
@@ -1051,16 +1018,13 @@ function MaskControls({
         )}
 
         {mask && (
-          <label className="flex items-center gap-2 text-xs pt-0.5">
-            <input
-              type="checkbox"
-              checked={bool(mask.invert)}
-              onChange={(e) => set({ invert: e.target.checked })}
-            />
-            Inverti maschera
-          </label>
+          <div className="pt-0.5">
+            <Spunta segnata={bool(mask.invert)} onCambia={(v) => set({ invert: v })}>
+              Inverti maschera
+            </Spunta>
+          </div>
         )}
-        <p className="text-[11px] text-neutral-500 leading-snug">
+        <p className="text-[11px] text-neutral-400 leading-snug">
           Applica lo step solo dentro la regione (radiale) o su un lato del
           gradiente (lineare). Il resto dell'immagine resta invariato.
         </p>

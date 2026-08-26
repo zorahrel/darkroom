@@ -92,7 +92,7 @@ export default function LivePreview({ grade }: { grade: ColorGrade }) {
             draggable={false}
           />
         ) : (
-          <span className="text-xs text-neutral-600">nessuna preferita da mostrare</span>
+          <span className="text-xs text-neutral-400">nessuna preferita da mostrare</span>
         )}
         {loading && !compare && (
           <div className="absolute top-2 right-2 w-4 h-4 rounded-full border-2 border-neutral-600 border-t-white animate-spin" />
@@ -111,7 +111,7 @@ export default function LivePreview({ grade }: { grade: ColorGrade }) {
         >
           <IconChevronLeft />
         </button>
-        <span className="text-[11px] text-neutral-500 tabular-nums flex-1 truncate" title="Usa le frecce per scegliere una foto di riferimento (es. una col cielo)">
+        <span className="text-[11px] text-neutral-400 tabular-nums flex-1 truncate" title="Usa le frecce per scegliere una foto di riferimento (es. una col cielo)">
           {ref ? `${ref.id}` : "—"}
           {refs.length ? `  ·  ${idx + 1}/${refs.length}` : ""}
         </span>

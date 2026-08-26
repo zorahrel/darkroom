@@ -436,7 +436,7 @@ function Thumb({
       <div
         className={
           className +
-          " flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-600"
+          " flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400"
         }
       >
         <span className="text-xs font-semibold">{fallbackChar}</span>
@@ -563,7 +563,7 @@ function DropdownShell({
           <Icon className="h-4 w-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
           {thumb}
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] uppercase tracking-wide text-neutral-500">
+            <span className="block text-[10px] uppercase tracking-wide text-neutral-400">
               {label}
             </span>
             <span className="block truncate text-xs text-neutral-200">
@@ -572,7 +572,7 @@ function DropdownShell({
           </span>
           <span
             className={
-              "text-[10px] text-neutral-500 transition-transform " +
+              "text-[10px] text-neutral-400 transition-transform " +
               (isOpen ? "rotate-180" : "")
             }
           >
@@ -620,7 +620,7 @@ function ToggleList<T extends string>({
               "rounded border px-2 py-1 text-[11px] transition-colors " +
               (on
                 ? "border-emerald-600 bg-emerald-700/40 text-emerald-100"
-                : "border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300")
+                : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-600 hover:text-neutral-300")
             }
           >
             {on ? "✓ " : ""}
@@ -687,7 +687,7 @@ export default function PromptBuilder({
         <Wand2
           className={
             "h-5 w-5 shrink-0 " +
-            (value.art_direction ? "text-amber-300" : "text-neutral-500")
+            (value.art_direction ? "text-amber-300" : "text-neutral-400")
           }
           strokeWidth={1.75}
         />
@@ -847,7 +847,7 @@ export default function PromptBuilder({
 
       {showPreview && preview && (
         <details className="text-xs">
-          <summary className="flex cursor-pointer items-center gap-1.5 text-neutral-500 hover:text-neutral-300">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-neutral-400 hover:text-neutral-300">
             <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
             Anteprima prompt assemblato
           </summary>

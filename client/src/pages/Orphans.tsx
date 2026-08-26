@@ -35,7 +35,7 @@ export default function OrphansPage() {
 
   if (orphans.length === 0) {
     return (
-      <div className="py-20 text-center text-neutral-500">
+      <div className="py-20 text-center text-neutral-400">
         Nessun orphan da assegnare. ✨
       </div>
     );

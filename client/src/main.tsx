@@ -22,7 +22,7 @@ const AlberoPage = lazy(() => import("./pages/Albero"));
 const RiferimentiPage = lazy(() => import("./pages/Riferimenti"));
 
 function PageFallback() {
-  return <div className="p-6 text-neutral-500 text-sm">Carico…</div>;
+  return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
 }
 
 // `/` lands on the last-opened project's grid (or the first registered one,

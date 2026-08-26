@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Numero, Scegli } from "../ui";
 import {
   api,
   panelImageUrl,
@@ -84,7 +85,7 @@ export default function StoryboardPage() {
     return photos.filter((p) => !inBoard.has(p.id));
   }, [photos, panels]);
 
-  if (loading) return <div className="p-6 text-neutral-500 text-sm">Carico…</div>;
+  if (loading) return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
 
   return (
     <div className="space-y-5">
@@ -130,7 +131,7 @@ export default function StoryboardPage() {
       />
 
       {panels.length === 0 ? (
-        <div className="py-12 text-center text-neutral-500 text-sm">
+        <div className="py-12 text-center text-neutral-400 text-sm">
           Nessun pannello. Scrivi i beat qui sopra, oppure porta nello storyboard
           delle foto che hai già.
         </div>
@@ -207,14 +208,8 @@ function BeatSheet({
         </label>
         <label className="text-xs text-neutral-400 space-y-1">
           <span className="block">Durata (ms)</span>
-          <input
-            type="number"
-            min={100}
-            step={100}
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-28"
-          />
+          <Numero valore={duration} onCambia={setDuration}
+                  min={100} max={600000} passo={100} larghezza={112} />
         </label>
         {characters.length > 0 && (
           <div className="text-xs text-neutral-400 space-y-1">
@@ -331,7 +326,7 @@ function PanelBoard({
                   loading="lazy"
                 />
               ) : (
-                <span className="text-xs text-neutral-600">in generazione…</span>
+                <span className="text-xs text-neutral-400">in generazione…</span>
               )}
               <span className="absolute top-1.5 left-1.5 text-xs px-1.5 py-0.5 rounded bg-black/70 text-neutral-200">
                 {i + 1} · {formatDuration(at)}
@@ -355,20 +350,13 @@ function PanelBoard({
                   placeholder="Scena"
                   className="flex-1 min-w-0 text-xs bg-neutral-950 border border-neutral-800 rounded px-2 py-1"
                 />
-                <input
-                  type="number"
-                  min={100}
-                  step={100}
-                  defaultValue={panel.duration_ms}
-                  onBlur={(e) => {
-                    const ms = Number(e.target.value);
-                    if (Number.isFinite(ms) && ms > 0 && ms !== panel.duration_ms) {
-                      onPatch(panel.id, { duration_ms: ms });
-                    }
-                  }}
-                  title="Durata (ms)"
-                  className="w-20 text-xs bg-neutral-950 border border-neutral-800 rounded px-2 py-1"
-                />
+                <Numero valore={panel.duration_ms} min={100} max={600000} passo={100}
+                        larghezza={80} titolo="Durata (ms)"
+                        onCambia={(ms) => {
+                          if (Number.isFinite(ms) && ms > 0 && ms !== panel.duration_ms) {
+                            onPatch(panel.id, { duration_ms: ms });
+                          }
+                        }} />
               </div>
               {characters.length > 0 && (
                 <div className="flex flex-wrap gap-1">
@@ -388,7 +376,7 @@ function PanelBoard({
                           "px-1.5 py-0.5 rounded border text-[11px] transition-colors " +
                           (on
                             ? "bg-sky-900/60 border-sky-700 text-sky-100"
-                            : "bg-neutral-950 border-neutral-800 text-neutral-500 hover:text-white")
+                            : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white")
                         }
                       >
                         {ch.name}
@@ -427,7 +415,7 @@ function CastPanel({
   return (
     <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 space-y-3">
       <div className="text-sm font-medium">Personaggi</div>
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-neutral-400">
         La foto di riferimento viene allegata a ogni generazione in cui il
         personaggio compare: è ciò che gli tiene la stessa faccia da un pannello
         all'altro.
@@ -449,12 +437,12 @@ function CastPanel({
               )}
               <span className="text-sm">{ch.name}</span>
               {ch.description && (
-                <span className="text-xs text-neutral-500">{ch.description}</span>
+                <span className="text-xs text-neutral-400">{ch.description}</span>
               )}
               <button
                 onClick={() => onDelete(ch.id)}
                 title="Elimina personaggio"
-                className="text-xs px-1.5 text-neutral-500 hover:text-red-300"
+                className="text-xs px-1.5 text-neutral-400 hover:text-red-300"
               >
                 ✕
               </button>
@@ -476,19 +464,10 @@ function CastPanel({
           placeholder="Descrizione (cappotto rosso…)"
           className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-64"
         />
-        <select
-          value={ref}
-          onChange={(e) => setRef(e.target.value)}
-          title="Foto di riferimento"
-          className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 max-w-[14rem]"
-        >
-          <option value="">Nessun riferimento</option>
-          {photos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.id}
-            </option>
-          ))}
-        </select>
+        <Scegli valore={ref} onCambia={setRef} larghezza={190} taglia="m"
+                titolo="Foto di riferimento"
+                voci={[{ v: "", testo: "Nessun riferimento" },
+                       ...photos.map((p) => ({ v: p.id, testo: p.id }))]} />
         <button
           disabled={!name.trim() || busy}
           onClick={() => {
@@ -532,7 +511,7 @@ function AddExisting({
       >
         <span>{open ? "▾" : "▸"}</span>
         Porta foto esistenti nello storyboard
-        <span className="text-neutral-500 font-normal">({photos.length} fuori dal board)</span>
+        <span className="text-neutral-400 font-normal">({photos.length} fuori dal board)</span>
       </button>
 
       {open && (
@@ -601,31 +580,16 @@ function BoardSettings({
         <div className="absolute right-0 mt-1 z-20 w-80 rounded-lg border border-neutral-700 bg-neutral-900 p-3 space-y-2 shadow-xl">
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>Formato</span>
-            <select
-              value={String(settings.aspect_ratio)}
-              onChange={(e) => onChange({ aspect_ratio: Number(e.target.value) })}
-              className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5"
-            >
-              <option value={String(16 / 9)}>16:9</option>
-              <option value="2.39">2.39:1</option>
-              <option value={String(4 / 3)}>4:3</option>
-              <option value="1">1:1</option>
-              <option value={String(9 / 16)}>9:16</option>
-            </select>
+            <Scegli valore={String(settings.aspect_ratio)} larghezza={296} taglia="m"
+                    onCambia={(v) => onChange({ aspect_ratio: Number(v) })}
+                    voci={[{ v: String(16 / 9), testo: "16:9" }, { v: "2.39", testo: "2.39:1" },
+                           { v: String(4 / 3), testo: "4:3" }, { v: "1", testo: "1:1" },
+                           { v: String(9 / 16), testo: "9:16" }]} />
           </label>
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>FPS</span>
-            <input
-              type="number"
-              min={1}
-              max={120}
-              defaultValue={settings.fps}
-              onBlur={(e) => {
-                const fps = Number(e.target.value);
-                if (Number.isFinite(fps) && fps > 0 && fps !== settings.fps) onChange({ fps });
-              }}
-              className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5"
-            />
+            <Numero valore={settings.fps} min={1} max={120} larghezza={296}
+                    onCambia={(fps) => { if (fps !== settings.fps) onChange({ fps }); }} />
           </label>
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>Stile dei pannelli (preambolo del prompt)</span>

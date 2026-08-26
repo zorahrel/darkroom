@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Scegli } from "../ui";
 import { api, type HiggsfieldModel, type HiggsfieldStatus } from "../api";
 
 export default function HiggsfieldButton({
@@ -154,76 +155,42 @@ export default function HiggsfieldButton({
           )}
 
           {models.length === 0 ? (
-            <div className="text-[11px] text-neutral-500">Carico modelli…</div>
+            <div className="text-[11px] text-neutral-400">Carico modelli…</div>
           ) : (
             <>
               <label className="block space-y-1">
-                <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+                <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                   Modello
                 </span>
-                <select
-                  value={modelId}
-                  onChange={(e) => setModelId(e.target.value)}
-                  className="w-full text-xs rounded bg-neutral-800 border border-neutral-700 px-2 py-1.5 text-neutral-100"
-                >
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} · {m.provider_name}
-                    </option>
-                  ))}
-                </select>
+                <Scegli valore={modelId} onCambia={setModelId} larghezza={264} taglia="m"
+                        voci={models.map((m) => ({ v: m.id, testo: m.name, nota: m.provider_name }))} />
               </label>
 
               {model?.description && (
-                <p className="text-[10px] text-neutral-500 leading-snug">
+                <p className="text-[10px] text-neutral-400 leading-snug">
                   {model.description}
                 </p>
               )}
 
               {model?.aspect_ratios?.length ? (
                 <label className="block space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                     aspect ratio
                   </span>
-                  <select
-                    value={params.aspect_ratio ?? ""}
-                    onChange={(e) => {
-                      setTouchedParams(true);
-                      setParams((prev) => ({
-                        ...prev,
-                        aspect_ratio: e.target.value,
-                      }));
-                    }}
-                    className="w-full text-xs rounded bg-neutral-800 border border-neutral-700 px-2 py-1.5 text-neutral-100"
-                  >
-                    {model.aspect_ratios.map((ar) => (
-                      <option key={ar} value={ar}>
-                        {ar}
-                      </option>
-                    ))}
-                  </select>
+                  <Scegli valore={params.aspect_ratio ?? ""} larghezza={264} taglia="m"
+                          onCambia={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, aspect_ratio: v })); }}
+                          voci={model.aspect_ratios.map((ar) => ({ v: ar, testo: ar }))} />
                 </label>
               ) : null}
 
               {enumParams.map((p) => (
                 <label key={p.name} className="block space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                     {p.name}
                   </span>
-                  <select
-                    value={params[p.name] ?? p.default ?? ""}
-                    onChange={(e) => {
-                      setTouchedParams(true);
-                      setParams((prev) => ({ ...prev, [p.name]: e.target.value }));
-                    }}
-                    className="w-full text-xs rounded bg-neutral-800 border border-neutral-700 px-2 py-1.5 text-neutral-100"
-                  >
-                    {p.options!.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
+                  <Scegli valore={String(params[p.name] ?? p.default ?? "")} larghezza={264} taglia="m"
+                          onCambia={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, [p.name]: v })); }}
+                          voci={p.options!.map((o) => ({ v: o, testo: o }))} />
                 </label>
               ))}
 
@@ -231,19 +198,20 @@ export default function HiggsfieldButton({
                 <span className="text-[11px] text-neutral-400">
                   Costo:{" "}
                   {costing ? (
-                    <span className="text-neutral-500">…</span>
+                    <span className="text-neutral-400">…</span>
                   ) : cost !== null ? (
                     <span className="text-fuchsia-300 font-medium">
                       {cost} cr
                     </span>
                   ) : (
-                    <span className="text-neutral-600">n/d</span>
+                    <span className="text-neutral-400">n/d</span>
                   )}
                 </span>
                 <button
                   onClick={submit}
                   disabled={submitting || notEnough}
-                  className="text-xs px-3 py-1.5 rounded bg-fuchsia-700 hover:bg-fuchsia-600 disabled:opacity-40 text-white font-medium"
+                  className="text-[12px] h-7 px-2.5 rounded border border-transparent bg-neutral-100
+                             font-medium text-neutral-900 hover:bg-white disabled:opacity-40"
                 >
                   {submitting
                     ? "Enqueue…"

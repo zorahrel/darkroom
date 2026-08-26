@@ -57,7 +57,7 @@ function JobTiming({ job }: { job: Job }) {
   if (attempts > 1) bits.push(`${attempts} tentativi`);
   if (bits.length === 0) return null;
   return (
-    <div className="text-[11px] text-neutral-500">
+    <div className="text-[11px] text-neutral-400">
       {bits.join(" · ")}
       {attempts > 1 && (
         <span className="text-amber-400/70"> (rate-limit/retry)</span>
@@ -98,12 +98,12 @@ export default function PhotoJobsLog({ photoId }: { photoId: string }) {
           <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
         )}
         {jobs.length > 0 && (
-          <span className="text-neutral-600">({jobs.length})</span>
+          <span className="text-neutral-400">({jobs.length})</span>
         )}
       </summary>
       <div className="px-3 pb-3">
         {jobs.length === 0 ? (
-          <div className="text-[11px] text-neutral-600 py-2">
+          <div className="text-[11px] text-neutral-400 py-2">
             Nessuna generazione registrata.
           </div>
         ) : (
@@ -119,12 +119,12 @@ export default function PhotoJobsLog({ photoId }: { photoId: string }) {
                       {j.provider === "higgsfield" ? "Higgsfield" : "ChatGPT"}
                     </span>
                     {model && (
-                      <span className="text-neutral-500 truncate">{model}</span>
+                      <span className="text-neutral-400 truncate">{model}</span>
                     )}
                     <div className="flex-1" />
-                    <span className="text-neutral-500">{meta.label}</span>
+                    <span className="text-neutral-400">{meta.label}</span>
                     <span
-                      className="text-neutral-600"
+                      className="text-neutral-400"
                       title={`${relIt(j.finished_at ?? j.created_at)} · ${new Date(
                         j.created_at,
                       ).toLocaleString("it-IT")}`}
@@ -135,7 +135,7 @@ export default function PhotoJobsLog({ photoId }: { photoId: string }) {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                      <span className="text-neutral-700">
+                      <span className="text-neutral-400/60">
                         {" · "}
                         {relIt(j.finished_at ?? j.created_at)}
                       </span>
@@ -156,7 +156,7 @@ export default function PhotoJobsLog({ photoId }: { photoId: string }) {
                             await api.markJobSeen(j.id);
                             load();
                           }}
-                          className="shrink-0 text-[11px] text-neutral-500 hover:text-emerald-400"
+                          className="shrink-0 text-[11px] text-neutral-400 hover:text-emerald-400"
                           title="Segna come visto"
                         >
                           ✓ visto

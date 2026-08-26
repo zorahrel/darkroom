@@ -43,7 +43,7 @@ export default function Accordion({
         className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 text-left group rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
       >
         <span
-          className={`shrink-0 text-neutral-500 transition-transform motion-reduce:transition-none ${
+          className={`shrink-0 text-neutral-400 transition-transform motion-reduce:transition-none ${
             open ? "rotate-90" : ""
           }`}
           aria-hidden
@@ -62,7 +62,7 @@ export default function Accordion({
         )}
         <div className="flex-1 min-w-[1rem]" />
         {trailing}
-        <span className="shrink-0 text-xs text-neutral-500 group-hover:text-neutral-300">
+        <span className="shrink-0 text-xs text-neutral-400 group-hover:text-neutral-300">
           {open ? "chiudi" : "apri"}
         </span>
       </button>
