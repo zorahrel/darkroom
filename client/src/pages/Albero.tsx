@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { jsonFetch, thumbGenUrl, thumbRawUrl, genUrl } from "../api";
+import { jsonFetch, thumbGenUrl, thumbRawUrl, genUrl, refUrl } from "../api";
 
 // Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
 // configurazione.
@@ -21,6 +21,8 @@ type Group = {
   refset: string;
   preamble: string | null;
   sources: string[];
+  /** File di stile allegati a questa generazione, se ce ne sono. */
+  refs?: string[];
   variants: Variant[];
 };
 type Node = {
@@ -49,6 +51,20 @@ const RECIPE_LABEL: Record<string, string> = {
 
 export default function AlberoPage() {
   const [nodes, setNodes] = useState<Node[]>([]);
+  /**
+   * Sovrapposizione del riferimento, spenta di default.
+   *
+   * Serve perche' la distanza dalla reference si puo' misurare (fondo, area,
+   * rapporto di luce) ma "quanto ci somiglia" resta un giudizio che si fa con
+   * gli occhi, e alternare due immagini in due schede non e' guardarle: le
+   * differenze piccole si perdono nel tempo che passa fra un tab e l'altro.
+   *
+   * Sempre opzionale: acceso di default coprirebbe le varianti proprio mentre
+   * le si sfoglia, che e' l'uso normale di questa pagina.
+   */
+  const [overlay, setOverlay] = useState(false);
+  const [opacita, setOpacita] = useState(0.5);
+  const [modo, setModo] = useState<"sopra" | "differenza">("sopra");
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
 
@@ -83,6 +99,9 @@ export default function AlberoPage() {
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
   const tenute = all.filter((v) => v.verdict === "tieni");
+  // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
+  // senza riferimenti sarebbero un interruttore che non accende niente.
+  const haRiferimenti = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
 
   if (loading) return <div className="py-20 text-center text-neutral-400">Carico l'albero…</div>;
   if (nodes.length === 0)
@@ -90,6 +109,54 @@ export default function AlberoPage() {
 
   return (
     <div className="space-y-6 pb-24">
+      {haRiferimenti && (
+        <div className="flex items-center gap-3 flex-wrap text-xs border border-neutral-800 bg-neutral-900/50 px-3 py-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={overlay}
+              onChange={(e) => setOverlay(e.target.checked)}
+              className="accent-amber-500"
+            />
+            <span className="font-mono uppercase tracking-wide text-[10px] text-amber-500">
+              sovrapponi il riferimento
+            </span>
+          </label>
+          {overlay && (
+            <>
+              <label className="flex items-center gap-2">
+                <span className="text-neutral-400">opacità</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={opacita}
+                  onChange={(e) => setOpacita(Number(e.target.value))}
+                  className="w-28 accent-amber-500"
+                />
+                <span className="font-mono text-neutral-400 w-8">{Math.round(opacita * 100)}%</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="text-neutral-400">modo</span>
+                <select
+                  value={modo}
+                  onChange={(e) => setModo(e.target.value as "sopra" | "differenza")}
+                  className="bg-neutral-950 border border-neutral-700 px-1.5 py-0.5"
+                >
+                  <option value="sopra">sopra</option>
+                  <option value="differenza">differenza</option>
+                </select>
+              </label>
+              <span className="text-neutral-500">
+                {modo === "differenza"
+                  ? "le zone che combaciano restano nere"
+                  : "il riferimento in trasparenza sopra la variante"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
       {nodes.map((n, i) => (
         <section
           key={(n.photos ?? [n.photo]).join("|")}
@@ -184,6 +251,9 @@ export default function AlberoPage() {
                       key={v.id}
                       photo={n.photo}
                       v={v}
+                      rif={overlay ? (g.refs?.[0] ?? null) : null}
+                      opacita={opacita}
+                      modo={modo}
                       onVote={() => {
                         const cur = (v.verdict ?? null) as (typeof CYCLE)[number];
                         const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length] ?? null;
@@ -252,12 +322,21 @@ export default function AlberoPage() {
 function Leaf({
   photo,
   v,
+  rif,
+  opacita,
+  modo,
   onVote,
   onNote,
   onZoom,
 }: {
   photo: string;
   v: Variant;
+  /** Riferimento da sovrapporre, o null quando la sovrapposizione e' spenta. */
+  rif?: string | null;
+  opacita?: number;
+  /** "sopra" giudica la somiglianza, "differenza" mostra DOVE differiscono:
+   *  le zone che combaciano restano nere. */
+  modo?: "sopra" | "differenza";
   onVote: () => void;
   onNote: (t: string) => void;
   onZoom: () => void;
@@ -289,6 +368,22 @@ function Leaf({
           className="w-full h-full object-cover cursor-zoom-in"
           onClick={onZoom}
         />
+        {/* Il riferimento sopra la variante, in trasparenza. `object-cover`
+            come sotto: due inquadrature diverse renderebbero il confronto
+            bugiardo prima ancora di guardarlo. Non intercetta i click, cosi'
+            l'ingrandimento resta raggiungibile. */}
+        {rif && (
+          <img
+            src={refUrl(rif)}
+            alt=""
+            aria-hidden="true"
+            style={{ opacity: opacita ?? 0.5 }}
+            className={
+              "absolute inset-0 w-full h-full object-cover pointer-events-none" +
+              (modo === "differenza" ? " mix-blend-difference" : "")
+            }
+          />
+        )}
         {/* Il glifo e' decorazione: se intercettasse il click, l'ingrandimento
             non si aprirebbe e si giudicherebbe senza aver guardato da vicino. */}
         <svg

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { effectiveGrade, getColorGrade } from "../db.ts";
 import { REPO_ROOT } from "../config.ts";
-import { genDir, rawDir, test1Dir } from "../project.ts";
+import { genDir, rawDir, refsDir, test1Dir } from "../project.ts";
 import { getPhoto } from "../photos.ts";
 import { parseWidth, safeSeg, serveFile } from "../http.ts";
 import { thumbnailPath } from "../thumb.ts";
@@ -28,6 +28,28 @@ mediaRoutes.get("/raw/:filename", (c) => {
 // Serve a photo's original by id, reading its stored path directly. Works for
 // both imported originals (in RAW) and generated photos (in GEN), and is the
 // canonical "original" URL used by the client.
+/** Le immagini di riferimento del progetto. Servono per sovrapporle a una
+ *  variante e vedere lo scarto invece di misurarlo soltanto: la distanza dalla
+ *  reference si legge dai numeri, ma "quanto ci somiglia" resta un giudizio
+ *  che si fa con gli occhi. */
+mediaRoutes.get("/refs/:filename", (c) => {
+  const filename = c.req.param("filename");
+  if (filename.includes("..") || filename.includes("/")) {
+    return new Response("bad request", { status: 400 });
+  }
+  return serveFile(join(refsDir(), filename));
+});
+
+mediaRoutes.get("/thumb/refs/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  if (filename.includes("..") || filename.includes("/")) {
+    return new Response("bad request", { status: 400 });
+  }
+  const src = join(refsDir(), filename);
+  if (!existsSync(src)) return new Response("not found", { status: 404 });
+  return serveFile(await thumbnailPath(src, parseWidth(c, 480)));
+});
+
 mediaRoutes.get("/orig/:id", (c) => {
   const id = c.req.param("id");
   const photo = getPhoto(id);

@@ -330,6 +330,10 @@ export const dataDir = (): string => dirs().DATA_DIR;
 export const rawDir = (): string => dirs().RAW_DIR;
 export const test1Dir = (): string => dirs().TEST1_DIR;
 export const genDir = (): string => dirs().GEN_DIR;
+/** Le immagini di stile del progetto (`data/refs`). Esistevano gia' su disco e
+ *  venivano allegate ai job, ma nessuna rotta le serviva: per confrontare una
+ *  variante col riferimento bisognava aprire il Finder. */
+export const refsDir = (): string => join(dataDir(), "refs");
 export const finalDir = (): string => dirs().FINAL_DIR;
 export const uploadsDir = (): string => dirs().UPLOADS_DIR;
 export const gradedDir = (): string => dirs().GRADED_DIR;

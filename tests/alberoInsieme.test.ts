@@ -103,3 +103,46 @@ describe("la radice è l'insieme, non la prima foto", () => {
     expect(photos.some((p) => p.photo === "mai-usata" && p.variants === 0)).toBe(true);
   });
 });
+
+describe("il riferimento si puo' guardare, non solo misurare", () => {
+  // La distanza dalla reference si calcola (fondo, area, rapporto di luce), ma
+  // "quanto ci somiglia" resta un giudizio da fare con gli occhi. Perche' sia
+  // possibile sovrapporla, il file deve essere servito e il lineage deve dire
+  // QUALE file era: il refset e' una frase per un umano, non un percorso.
+  test("il lineage riporta i file di riferimento, non solo il refset", async () => {
+    foto("A");
+    db().run(
+      `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
+       VALUES ('A',1,'/gen/v1.png','p',NULL,?,'openai','generated',?)`,
+      [
+        JSON.stringify({
+          recipe: "r",
+          refset: "3 sorgenti + stile",
+          sources: ["A.png"],
+          refs: ["stile.png"],
+        }),
+        Date.now(),
+      ],
+    );
+    const { photos } = (await (await app.request("/api/lineage")).json()) as {
+      photos: { groups: { refs?: string[] }[] }[];
+    };
+    expect(photos[0]!.groups[0]!.refs).toEqual(["stile.png"]);
+  });
+
+  test("una generazione senza riferimenti non ne inventa", async () => {
+    foto("A");
+    variante(1, ["A.png"]);
+    const { photos } = (await (await app.request("/api/lineage")).json()) as {
+      photos: { groups: { refs?: string[] }[] }[];
+    };
+    // Array vuoto, non undefined: la vista decide se mostrare i controlli
+    // contando questi, e un undefined la farebbe sbagliare in silenzio.
+    expect(photos[0]!.groups[0]!.refs).toEqual([]);
+  });
+
+  test("la rotta dei riferimenti rifiuta il path traversal", async () => {
+    const r = await app.request("/refs/..%2f..%2fphotos.db");
+    expect([400, 404]).toContain(r.status);
+  });
+});

@@ -57,6 +57,11 @@ export function thumbGenUrl(photoId: string, versionNumber: number, w?: number):
   return pq(`/thumb/gen/${encodeURIComponent(photoId)}/${filename}${q}`);
 }
 
+/** Immagine di stile del progetto (`data/refs`). */
+export function refUrl(filename: string): string {
+  return pq(`/refs/${encodeURIComponent(filename)}`);
+}
+
 export function orphanUrl(filename: string): string {
   return pq(`/orphan/${encodeURIComponent(filename)}`);
 }

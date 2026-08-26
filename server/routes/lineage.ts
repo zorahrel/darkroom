@@ -33,6 +33,9 @@ function configOf(v: VersionRow): {
   refset: string;
   preamble: string | null;
   sources: string[];
+  /** I file di stile allegati alla generazione. Servono per sovrapporli alla
+   *  variante: il refset e' una frase per un umano, questi sono i file veri. */
+  refs: string[];
 } {
   const read = (raw: string | null): Record<string, unknown> => {
     if (!raw) return {};
@@ -49,11 +52,14 @@ function configOf(v: VersionRow): {
   // mostrerebbe uno spacciandolo per l'unico ingresso.
   const rawSources = (lin.sources ?? cfg.sources) as unknown;
   const sources = Array.isArray(rawSources) ? rawSources.map(String) : [];
+  const rawRefs = (lin.refs ?? cfg.refs) as unknown;
+  const refs = Array.isArray(rawRefs) ? rawRefs.map(String) : [];
   return {
     recipe: String(lin.recipe ?? cfg.recipe ?? "senza ricetta"),
     refset: String(lin.refset ?? cfg.refset ?? "origine non registrata"),
     preamble: (lin.preamble as string | undefined) ?? null,
     sources,
+    refs,
   };
 }
 
@@ -91,7 +97,14 @@ lineageRoutes.get("/api/lineage", (c) => {
     recipes: Set<string>;
     groups: Map<
       string,
-      { recipe: string; refset: string; preamble: string | null; sources: string[]; variants: unknown[] }
+      {
+        recipe: string;
+        refset: string;
+        preamble: string | null;
+        sources: string[];
+        refs: string[];
+        variants: unknown[];
+      }
     >;
   };
   const roots = new Map<string, Root>();
