@@ -58,6 +58,9 @@ export type Shot = {
   giudicataIl: number | null;
   /** Problems flagged from the editor. Not a verdict: a note for the next round. */
   problemi: string[];
+  /** Perché questa ripresa merita di essere guardata per prima. Non è un
+   *  verdetto: vedi `sospetto()`. `null` = niente di anomalo nei numeri. */
+  sospetto: string | null;
   /** Which generation it comes from: two halves of one take share this. */
   origine: string;
   /** The act it plays in, from `atti.json`. Null when it is not in the edit. */
@@ -369,6 +372,39 @@ export function provino(shot: string, take: string, quanti = 12): string | null 
   return dest;
 }
 
+/**
+ * Perché questa ripresa va guardata per prima.
+ *
+ * **Non è una selezione automatica**, e non per prudenza: perché è stata
+ * provata e non funziona. Metà degli scarti a mano di questo progetto ha una
+ * motivazione che *sembra* misurabile — «ferma», «quasi tutto nero», «piatta e
+ * grigia», «resta due fili bianchi sul nero» — e sono quindici riprese su 256.
+ * La regola che ne prende di più (`moto < 2.5` oppure `contrasto < 38`) ne
+ * becca dieci e ne sbaglia **quarantotto** delle 241 tenute: come cancello è
+ * inservibile, perché fra le tenute ci sono riprese volutamente immobili che
+ * arrivano a `moto` 0.22.
+ *
+ * Lo stesso numero però è ottimo come **ordine di lettura**: guardando per
+ * prime le ventisei che escono, le dieci morte si trovano in un minuto e non
+ * si è buttato via niente. Un filtro, non un verdetto — e con scritto accanto
+ * cosa ha fatto scattare il sospetto, così si può dargli torto in un colpo
+ * d'occhio.
+ *
+ * (L'altra metà degli scarti — «scende in mezzo alle scale», «il gabbiano non
+ * è coerente fra un fotogramma e l'altro» — non è misurabile per niente:
+ * cinque tentativi e un VLM per fotogramma, tutti falliti. Sta in
+ * `SELEZIONE.md` del progetto, coi numeri.)
+ */
+function sospetto(m: Record<string, number | undefined>): string | null {
+  const moto = m.moto, contrasto = m.contrasto, nero = m.nero, luce = m.luce;
+  const motivi: string[] = [];
+  if (typeof moto === "number" && moto < 2.5) motivi.push(`si muove poco (${moto.toFixed(1)})`);
+  if (typeof contrasto === "number" && contrasto < 38) motivi.push(`poco contrasto (${Math.round(contrasto)})`);
+  if (typeof nero === "number" && nero > 0.9) motivi.push(`quasi tutta nera (${Math.round(nero * 100)}%)`);
+  if (typeof luce === "number" && luce < 0.015) motivi.push("buia");
+  return motivi.length ? motivi.join(" · ") : null;
+}
+
 export function shots(): Shot[] {
   const prompts = readJson<Record<string, any>>(at("prompts.json"), {});
   const dz = readJson<any>(at("durezza.json"), { piani: {} });
@@ -438,6 +474,7 @@ export function shots(): Shot[] {
           kept: !(riprFuori[id] ?? []).includes(tk),
         }));
       const m = dz.piani?.[id] ?? {};
+      const sos = sospetto(m);
       return {
         id,
         prompt: prompts[id]?.prompt ?? prompts[`${id}_b`]?.prompt ?? "",
@@ -451,6 +488,7 @@ export function shots(): Shot[] {
         giudizio: (scartati[id] !== undefined ? "scartata" : tenuti[id] !== undefined ? "tenuta" : null) as Shot["giudizio"],
         giudicataIl: tenuti[id] ?? null,
         problemi: problemi[id] ?? [],
+        sospetto: sos,
         origine: origine(id),
         atto: attoDelPiano[id] ?? null,
         minuto: primaVolta[id] ?? null,

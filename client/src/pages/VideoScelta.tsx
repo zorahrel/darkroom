@@ -34,6 +34,8 @@ type Scena = {
   giudizio: "tenuta" | "scartata" | null;
   giudicataIl: number | null;
   annotata: boolean;
+  /** Perché guardarla per prima. Non è un verdetto: è un ordine di lettura. */
+  sospetto: string | null;
 };
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -60,12 +62,14 @@ function raggruppa(shots: VideoShot[]): Scena[] {
         giudicataIl: pezzi.reduce<number | null>(
           (m, p) => (p.giudicataIl && (!m || p.giudicataIl > m) ? p.giudicataIl : m), null),
         annotata: pezzi.some((p) => p.problemi.length > 0),
+        // Il sospetto della presa e' quello del primo pezzo che ne ha uno.
+        sospetto: pezzi.find((p) => p.sospetto)?.sospetto ?? null,
       };
     })
     .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
 }
 
-type Filtro = "da giudicare" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
+type Filtro = "da giudicare" | "sospette" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
 
 /** Dodici istanti in una striscia. Ogni casella porta il video al suo. */
 function Provino({ shot, take, onVaiA }: {
@@ -161,6 +165,7 @@ export default function VideoScelta() {
       scene.filter((s) => {
         if (atto && s.atto !== atto) return false;
         if (filtro === "da giudicare") return s.giudizio === null && !s.annotata;
+        if (filtro === "sospette") return !!s.sospetto && s.giudizio === null;
         if (filtro === "tenute") return s.giudizio === "tenuta";
         if (filtro === "scartate") return s.giudizio === "scartata" || !s.kept;
         if (filtro === "annotate") return s.annotata;
@@ -269,6 +274,7 @@ export default function VideoScelta() {
   useEffect(() => { if (nota !== null) campo.current?.focus(); }, [nota]);
 
   const daGiudicare = scene.filter((s) => s.giudizio === null && !s.annotata).length;
+  const sospette = scene.filter((s) => !!s.sospetto && s.giudizio === null).length;
   const tenute = scene.filter((s) => s.giudizio === "tenuta").length;
   const scartate = scene.filter((s) => s.giudizio === "scartata").length;
 
@@ -295,7 +301,7 @@ export default function VideoScelta() {
           </span>
         )}
         <div className="ml-auto flex gap-1.5 items-center">
-        {(["da giudicare", "tenute", "scartate", "annotate", "in montaggio", "tutte"] as const).map((k) => (
+        {(["da giudicare", "sospette", "tenute", "scartate", "annotate", "in montaggio", "tutte"] as const).map((k) => (
           <button
             key={k}
             onClick={() => { setFiltro(k); setI(0); }}
@@ -303,7 +309,7 @@ export default function VideoScelta() {
               filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400"
             }`}
           >
-            {k}{k === "da giudicare" ? ` ${daGiudicare}` : ""}
+            {k}{k === "da giudicare" ? ` ${daGiudicare}` : k === "sospette" ? ` ${sospette}` : ""}
           </button>
         ))}
         <Scegli valore={atto} larghezza={108} titolo="filtra per atto"
@@ -358,7 +364,20 @@ export default function VideoScelta() {
               <dd>{scena.atto ?? <span className="text-neutral-400">— non in montaggio</span>}</dd>
               <dt className="text-neutral-400">in scena</dt>
               <dd>{scena.minuto === null ? "—" : `${scena.inScena.toFixed(1)}s a ${mmss(scena.minuto)}`}</dd>
-              <dt className="text-neutral-400">durezza</dt>
+              {corrente.sospetto && (
+              <>
+                <dt className="text-amber-500/80">da guardare</dt>
+                <dd className="text-amber-200/90">
+                  {corrente.sospetto}
+                  <span className="block text-[10.5px] text-neutral-400 leading-snug">
+                    I numeri dicono che potrebbe essere inutilizzabile. Non è un verdetto: fra le
+                    tenute ce ne sono di volutamente immobili, e questa regola ne sbaglia una su
+                    cinque. Serve solo a metterle davanti.
+                  </span>
+                </dd>
+              </>
+            )}
+            <dt className="text-neutral-400">durezza</dt>
               <dd className="tabular-nums">{corrente.durezza?.toFixed(2) ?? "—"}</dd>
               <dt className="text-neutral-400">stato</dt>
               <dd>

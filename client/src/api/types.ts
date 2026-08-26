@@ -516,6 +516,8 @@ export type VideoShot = {
   giudizio: "tenuta" | "scartata" | null;
   giudicataIl: number | null;
   problemi: string[];
+  /** Perché merita di essere guardata per prima. Non è un verdetto. */
+  sospetto: string | null;
   /** Due meta' della stessa presa condividono questa: `z43_0` e `z43_1` -> `z43`. */
   origine: string;
   atto: string | null;
