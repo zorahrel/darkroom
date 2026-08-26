@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PanelRightClose } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import type { OutletCtx } from "../App";
 import { api, type ColorGrade, type Lut } from "../api";
@@ -29,7 +30,21 @@ export default function Home() {
   const [sheetOpen, setSheetOpen] = useState(false);
   // La pipeline è uno strumento di regolazione: mentre si scelgono le foto
   // occupa 340px di griglia per niente. Richiudibile, e la scelta resta.
-  const { railOpen, setRailOpen } = useOutletContext<OutletCtx>();
+  const { railOpen, setRailOpen, setFlush } = useOutletContext<OutletCtx>();
+
+  /**
+   * La griglia comincia dal bordo.
+   *
+   * Con lo spazio sopra, la barra dei filtri scorreva di sedici pixel prima di
+   * incollarsi sotto la testata: un salto a ogni scorrimento, e la stessa cosa
+   * per il pannello del colore. Qui la barra È l'intestazione della pagina —
+   * ha il suo bordo e il suo spazio interno — quindi non serve altro sopra.
+   */
+  useEffect(() => {
+    setFlush?.(true);
+    return () => setFlush?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -82,14 +97,28 @@ export default function Home() {
         />
       </div>
 
-      {/* Reserves its column width immediately (not just once `grade` lands)
-          so the grid's flex width doesn't jump when the panel's content pops in. */}
+      {/* Prende la sua colonna subito (non quando arriva `grade`), cosi' la
+          griglia non salta di larghezza quando il pannello si riempie. */}
       <aside
         className={
-          "hidden flex-col shrink-0 sticky top-[var(--h-testata,57px)] rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 h-[calc(100vh-var(--h-testata,57px)-1rem)] " +
+          "relative hidden flex-col shrink-0 sticky top-[var(--h-testata,57px)] rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 h-[calc(100vh-var(--h-testata,57px)-1rem)] " +
           (railOpen ? "lg:flex w-[340px]" : "w-0 border-0")
         }
       >
+        {/* Chiudere il pannello si fa dal pannello.
+            Il comando c'era — un glifo ⌸ senza etichetta in mezzo alla barra in
+            alto — ma nessuno lo cerca li': una finestra la si chiude da dentro,
+            all'angolo. */}
+        {railOpen && (
+          <button
+            onClick={() => setRailOpen(false)}
+            title="Nascondi il pannello colore"
+            className="absolute top-1.5 right-1.5 z-20 px-1 py-0.5 rounded-sm leading-none
+                       text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800"
+          >
+            <PanelRightClose className="w-4 h-4" aria-hidden />
+          </button>
+        )}
         {grade && (
           <PipelineBar
             grade={grade}

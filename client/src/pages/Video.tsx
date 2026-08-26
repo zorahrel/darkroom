@@ -210,13 +210,11 @@ export default function Video() {
   const [spola, setSpola] = useState(0);
   const video = useRef<HTMLVideoElement | null>(null);
 
-  /** L'editor vuole tutta la larghezza: il limite a 1280 px è giusto per una
-   *  pagina di testo e sbagliato per una timeline. */
+  /** L'editor disegna fino al bordo: lo spazio che il guscio dell'app mette
+   *  sopra le altre pagine, qui è altezza rubata alla timeline. */
   useEffect(() => {
-    const prima = ctx?.wide;
-    ctx?.setWide?.(true);
     ctx?.setFlush?.(true);
-    return () => { if (prima === false) ctx?.setWide?.(false); ctx?.setFlush?.(false); };
+    return () => ctx?.setFlush?.(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

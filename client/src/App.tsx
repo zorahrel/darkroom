@@ -14,16 +14,13 @@ export type OutletCtx = {
   activeJobs: number;
   flush: boolean;
   setFlush: (v: boolean) => void;
-  /** Larghezza piena: la griglia usa tutto il monitor invece di 1280px. */
-  wide: boolean;
-  setWide: (v: boolean) => void;
   /** Colonna della pipeline aperta. Vive qui perché il comando sta nell'header. */
   railOpen: boolean;
   setRailOpen: (v: boolean) => void;
 };
 import JobsPanel from "./components/JobsPanel";
 import { Bott, Targa } from "./ui";
-import type { LucideIcon } from "lucide-react";
+import { SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { VISTE, vista } from "./viste";
 
 export default function App() {
@@ -36,12 +33,6 @@ export default function App() {
   const [flush, setFlush] = useState(false);
   // Preferenza di layout: sopravvive al reload, perché è una scelta sulla
   // propria scrivania, non uno stato della sessione.
-  const [wide, setWide] = useState(
-    () => localStorage.getItem("darkroom.wide") === "1",
-  );
-  useEffect(() => {
-    localStorage.setItem("darkroom.wide", wide ? "1" : "0");
-  }, [wide]);
   const [railOpen, setRailOpen] = useState(
     () => localStorage.getItem("darkroom.rail") !== "0",
   );
@@ -173,8 +164,7 @@ export default function App() {
       <header ref={testata} className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
         <div
           className={
-            "mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 " +
-            (wide ? "max-w-none" : "max-w-7xl")
+            "mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
           }
         >
           {/* Breadcrumb: the app, then which project you are in. Studio is not
@@ -300,18 +290,13 @@ export default function App() {
               </Targa>
             )}
 
-            <div className="hidden items-center gap-0.5 rounded-md border border-neutral-800 p-0.5 lg:flex">
-              <Bott peso="quieto" taglia="m" attivo={wide} onClick={() => setWide(!wide)}
-                    titolo={wide ? "Torna alla larghezza normale" : "Usa tutta la larghezza dello schermo"}>
-                ↔
+            {activeProject?.views.includes("photo") && (
+              <Bott peso="quieto" taglia="m" attivo={railOpen} onClick={() => setRailOpen(!railOpen)}
+                    titolo={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
+                    className="hidden lg:inline-flex">
+                <SlidersHorizontal className="w-4 h-4" aria-hidden />
               </Bott>
-              {activeProject?.kind !== "video" && (
-                <Bott peso="quieto" taglia="m" attivo={railOpen} onClick={() => setRailOpen(!railOpen)}
-                      titolo={railOpen ? "Nascondi la pipeline" : "Mostra la pipeline"}>
-                  ⌸
-                </Bott>
-              )}
-            </div>
+            )}
 
             <Bott taglia="m" onClick={() => setShowJobs((v) => !v)}
                   titolo="Le generazioni in corso, quelle fatte e quelle fallite">
@@ -348,23 +333,19 @@ export default function App() {
         </div>
       )}
 
-      {/* `max-w-7xl` incolonna tutto a 1280px: giusto per una pagina di testo,
-          sbagliato per una griglia di foto su un monitor largo, dove restano
-          due bande vuote ai lati. Il limite diventa opzionale.
+      {/* Niente limite di larghezza: incolonnare a 1280px e' giusto per una
+          pagina di testo e sbagliato per tutto quello che si fa qui — una
+          griglia di foto, una timeline — dove il risultato erano due bande
+          vuote ai lati di un monitor largo. C'era un interruttore per
+          toglierlo, e stava sempre su.
 
           Lo spazio sopra e' stato a zero per tutte le pagine perche' UNA ne
           aveva bisogno: nella griglia il padding scorreva sopra la barra dei
           filtri appiccicata. Il risultato e' che ogni altra pagina cominciava
           attaccata alla barra del titolo. Adesso lo spazio c'e', e chi non lo
           vuole — chi si prende tutta l'altezza — lo dichiara. */}
-      <main
-        className={
-          "flex-1 w-full mx-auto px-4 pb-4 " +
-          (flush ? "pt-0 " : "pt-4 ") +
-          (wide ? "max-w-none" : "max-w-7xl")
-        }
-      >
-        <Outlet context={{ jobs, activeJobs, wide, setWide, flush, setFlush, railOpen, setRailOpen }} />
+      <main className={`flex-1 w-full max-w-none px-4 pb-4 ${flush ? "pt-0" : "pt-4"}`}>
+        <Outlet context={{ jobs, activeJobs, flush, setFlush, railOpen, setRailOpen }} />
       </main>
 
       {showJobs && jobs && (
