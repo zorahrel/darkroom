@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   api,
-  lastProject,
+
   type ProjectKind,
   type StudioOverview,
   type StudioProject,
 } from "../api";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Altro, Bott, Campo, Conferma, Interruttore, Targa, Testata } from "../ui";
+import { Altro, Bott, Campo, Conferma, Targa, Testata, useChiudiMenu } from "../ui";
 import { VISTE, vista } from "../viste";
 
 /**
@@ -37,7 +37,6 @@ export default function StudioPage() {
     return () => clearInterval(id);
   }, []);
 
-  const predefinito = lastProject();
   const pausa = data?.worker.runner;
 
   return (
@@ -64,7 +63,6 @@ export default function StudioPage() {
           <Scheda
             key={p.id}
             p={p}
-            predefinito={p.id === predefinito || (!predefinito && p === data.projects[0])}
             onApri={() => navigate(`/p/${p.id}`)}
             onGenera={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
             onViste={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
@@ -84,13 +82,9 @@ const durataBreve = (s: number) =>
   s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}s`;
 
 function Scheda({
-  p, predefinito, onApri, onGenera, onViste, onTogli,
+  p, onApri, onGenera, onViste, onTogli,
 }: {
   p: StudioProject;
-  /** Aprendo Darkroom si entra qui. Non c'entra con `p.active`, che dice se il
-   *  generatore lavora per questo progetto: due cose diverse che per un po' si
-   *  sono chiamate tutt'e due "attivo". */
-  predefinito: boolean;
   onApri: () => void;
   onGenera: (v: boolean) => void;
   onViste: (v: ProjectKind[]) => void;
@@ -120,10 +114,8 @@ function Scheda({
     // La scheda intera è il tasto per entrare: il rettangolo bianco su ogni
     // riquadro gridava più forte del nome del progetto, e la cosa che si vuole
     // cliccare è il progetto, non un bottone dentro il progetto.
-    <div className={`group relative rounded-lg border bg-neutral-950/60 p-3 flex flex-col gap-2.5
-                     transition-colors ${predefinito
-                       ? "border-emerald-800 hover:border-emerald-600"
-                       : "border-neutral-800 hover:border-neutral-600"}`}>
+    <div className="group relative rounded-lg border border-neutral-800 bg-neutral-950/60 p-3
+                    flex flex-col gap-2.5 transition-colors hover:border-neutral-600">
       <button type="button" onClick={onApri} aria-label={`Apri ${p.name}`}
               className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-1
                          focus-visible:outline-offset-2 focus-visible:outline-neutral-300" />
@@ -133,11 +125,6 @@ function Scheda({
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-[14px] font-medium truncate group-hover:text-white">{p.name}</span>
-            {predefinito && (
-              <Targa tono="buono" titolo="Aprendo Darkroom, o andando su /, si entra in questo progetto.">
-                si apre qui
-              </Targa>
-            )}
           </div>
           <div className="text-[11px] text-neutral-400 truncate" title={p.root}>{p.root}</div>
         </div>
@@ -146,6 +133,10 @@ function Scheda({
         <Altro discreto className="pointer-events-auto">
           <VoceMenu onClick={onApri}>Apri il progetto</VoceMenu>
           <VoceMenu onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</VoceMenu>
+          <VoceMenu onClick={() => onGenera(!p.active)}
+                    nota="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
+            {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
+          </VoceMenu>
           <div className="border-t border-neutral-800 my-1" />
           <Conferma taglia="s" className="w-full justify-start"
                     domanda={`Tolgo «${p.name}»? I file restano dove sono.`}
@@ -217,35 +208,38 @@ function Scheda({
             {q.failed} falliti
           </Targa>
         )}
+        {/* Lo stato normale non si scrive: si vede che non c'è niente di
+            strano. In pausa invece è un'eccezione — i lavori ci sono e nessuno
+            li tocca — e quella va detta. */}
+        {!p.active && (
+          <Targa tono="attesa" titolo="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
+            in pausa
+          </Targa>
+        )}
         <span className="ml-auto text-neutral-400 shrink-0" title="ultima versione generata">
           {quando(s?.last_version_at ?? null)}
         </span>
-      </div>
-
-      <div className="relative z-10 flex items-center justify-between gap-2 border-t border-neutral-900 pt-2">
-        <span onClick={(e) => e.stopPropagation()} className="contents">
-          <Interruttore acceso={p.active} onCambia={onGenera}
-                        acceso_testo="generazione automatica" spento_testo="generazione in pausa"
-                        titolo={p.active
-                          ? "Il generatore prende i lavori di questo progetto appena si liberano. Spegnendola restano in coda, senza perdersi."
-                          : "I lavori di questo progetto restano in coda: il generatore non li tocca finché non riaccendi."} />
-        </span>
-        <span className="text-[11px] text-neutral-400 group-hover:text-neutral-100 transition-colors
-                         inline-flex items-center gap-1 pointer-events-none">
+        <span className="text-neutral-400 group-hover:text-neutral-100 transition-colors
+                         inline-flex items-center gap-1 shrink-0">
           apri <ArrowRight className="w-3 h-3" aria-hidden />
         </span>
       </div>
+
     </div>
   );
 }
 
-function VoceMenu({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function VoceMenu({ children, onClick, nota }: {
+  children: React.ReactNode; onClick: () => void; nota?: string;
+}) {
+  const chiudi = useChiudiMenu();
   return (
-    <button type="button" role="menuitem"
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <button type="button" role="menuitem" title={nota}
+            onClick={(e) => { e.stopPropagation(); onClick(); chiudi(); }}
             className="w-full text-left px-2 py-1 rounded-sm text-[11px] text-neutral-300
                        hover:bg-neutral-800 hover:text-neutral-100">
       {children}
+      {nota && <span className="block text-[10.5px] text-neutral-400 leading-snug mt-0.5">{nota}</span>}
     </button>
   );
 }

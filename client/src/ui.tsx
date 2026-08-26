@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 /**
@@ -436,6 +436,12 @@ export function Spunta({
  * per togliere un progetto era su ogni scheda, sempre, a un dito dal titolo:
  * qui ci si arriva in due gesti e con la sua etichetta scritta per intero.
  */
+/** Come chiudere il menu da dentro. Una voce che fa la sua cosa e lascia il
+ *  menu aperto costringe a un clic in più per togliersi di torno il pannello,
+ *  e a quel punto non si sa se l'azione è andata. */
+const ChiudiMenu = createContext<() => void>(() => {});
+export const useChiudiMenu = () => useContext(ChiudiMenu);
+
 export function Altro({
   children, titolo = "Altre azioni", className = "", discreto = false,
 }: {
@@ -469,11 +475,13 @@ export function Altro({
         <MoreHorizontal className="w-4 h-4" aria-hidden />
       </button>
       {aperto && (
-        <div role="menu"
-             className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded border border-neutral-700
-                        bg-neutral-950 p-1 shadow-2xl space-y-0.5">
-          {children}
-        </div>
+        <ChiudiMenu.Provider value={() => setAperto(false)}>
+          <div role="menu"
+               className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded border border-neutral-700
+                          bg-neutral-950 p-1 shadow-2xl space-y-0.5">
+            {children}
+          </div>
+        </ChiudiMenu.Provider>
       )}
     </div>
   );
