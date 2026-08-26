@@ -3,25 +3,35 @@ import type { JobRow, VersionRow } from "./db.ts";
 import { genDir, listProjects, withProject } from "./project.ts";
 import { mkdirSync, existsSync, statSync } from "node:fs";
 import { acquireRunnerLock } from "./runnerLock.ts";
-import { RUNNER_LOCK } from "./config.ts";
+import { RUNNER_LOCK, BACKEND_USES_BROWSER } from "./config.ts";
 import { join } from "node:path";
 import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, restartChatgptBrowser } from "./worker.ts";
 import { runWorkerCodex } from "./worker-codex.ts";
 import { runWorkerCodexHttp } from "./worker-codex-http.ts";
+import { runWorkerOpenAi, runWorkerOpenAiGenerate } from "./worker-openai.ts";
 import { generateEdit } from "./higgsfield.ts";
 
 // Backend selection: WORKER_BACKEND=codex uses Codex CLI (OAuth, no Chrome/CDP,
 // no ban risk); anything else keeps the original ChatGPT-web CDP worker.
 const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
-// Tre backend, non due: "codex" lancia il binario Codex e scarta i reference,
+// Quattro backend: "codex" lancia il binario Codex e scarta i reference,
 // "codex-http" parla all'endpoint della CLI e li allega (è ciò che tiene la
-// coerenza fra le varianti), "cdp" guida il browser.
+// coerenza fra le varianti), "openai" chiama l'Images API a pagamento (per le
+// passate lunghe, dove la quota di un account interattivo finisce), "cdp" guida
+// il browser.
 const runActiveWorker =
   WORKER_BACKEND === "codex-http"
     ? runWorkerCodexHttp
     : WORKER_BACKEND === "codex"
       ? runWorkerCodex
-      : runWorker;
+      : WORKER_BACKEND === "openai"
+        ? runWorkerOpenAi
+        : runWorker;
+
+// Il text-to-image passava sempre dal browser, anche con un altro backend
+// scelto: con "openai" la quota che si voleva evitare tornava dalla finestra.
+const runActiveGenerate =
+  WORKER_BACKEND === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
 
 export function enqueueJob(
   photoId: string,
@@ -501,11 +511,11 @@ async function processJob(job: JobRow) {
 
   try {
     setProgress(job.id, isGenerate ? "Genero…" : "Invio a ChatGPT…");
-    // Generation has no source image — always via the ChatGPT-web pipeline
-    // (skips upload). Editing honors the selected backend (cdp | codex).
+    // Generation has no source image (skips upload). Both paths honor the
+    // selected backend (cdp | codex | codex-http | openai).
     const refs = parseRefPaths(job.ref_paths);
     const result = isGenerate
-      ? await runWorkerGenerate({ prompt: job.prompt, output: outputPath, refs })
+      ? await runActiveGenerate({ prompt: job.prompt, output: outputPath, refs })
       : await runActiveWorker({
           image: editInput,
           prompt: job.prompt,
@@ -526,7 +536,7 @@ async function processJob(job: JobRow) {
         // (page eval) fails we hard-restart: kill + relaunch. Profile is
         // persistent, so after the first login this is unattended.
         let recovered = false;
-        if (WORKER_BACKEND !== "codex" && !(await checkChatgptBrowserAlive())) {
+        if (BACKEND_USES_BROWSER && !(await checkChatgptBrowserAlive())) {
           if (consecutiveBrowserRestarts >= MAX_BROWSER_RESTARTS) {
             // Repeated restarts aren't helping (login lost, Cloudflare wall,
             // crash loop). Back off long and stop hammering; needs a human.

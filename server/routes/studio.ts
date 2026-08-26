@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { existsSync } from "node:fs";
 import { db } from "../db.ts";
-import { WORKER_BACKEND } from "../config.ts";
+import { WORKER_BACKEND, BACKEND_USES_BROWSER } from "../config.ts";
 import {
   addProject,
   dirsFor,
@@ -81,7 +81,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
     };
   });
   const browserAlive =
-    WORKER_BACKEND === "codex" ? null : await checkChatgptBrowserAlive().catch(() => false);
+    BACKEND_USES_BROWSER ? await checkChatgptBrowserAlive().catch(() => false) : null;
   return c.json({
     projects,
     worker: {

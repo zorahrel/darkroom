@@ -78,7 +78,16 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
           const dentro = (inScena.get(s.id) ?? 0) > 0;
           return (
             <div key={s.id}
+                 draggable
+                 onDragStart={(e) => {
+                   // Il tipo e' nostro apposta: cosi' la timeline accetta solo
+                   // cio' che viene da qui, e non un file o un testo qualunque.
+                   e.dataTransfer.setData("text/darkroom-piano", s.id);
+                   e.dataTransfer.effectAllowed = "copy";
+                 }}
+                 title={`${s.id} — trascinalo su un taglio della timeline per metterlo li'`}
                  className={`flex gap-2 px-2 py-1.5 border-b border-neutral-900/70 hover:bg-neutral-900/50
+                             cursor-grab active:cursor-grabbing
                              ${s.kept ? "" : "opacity-45"}`}>
               <button onClick={() => apri(s.id)} className="shrink-0" title={dentro ? "vai al taglio" : "non è nel montaggio"}>
                 {tk ? (

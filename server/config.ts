@@ -97,8 +97,50 @@ export function resolveChromeBin(): string | null {
 }
 
 // --- Providers ------------------------------------------------------------
-/** Active edit/generate worker: "cdp" (ChatGPT-web, default, free) or "codex". */
+/** Active edit/generate worker: "cdp" (ChatGPT-web, default, free), "codex",
+ *  "codex-http" or "openai". */
 export const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
+
+/** Solo il backend "cdp" guida un browser. Gli altri non hanno una finestra da
+ *  sorvegliare, e chiederglielo faceva partire Chrome senza motivo: il guard
+ *  escludeva per nome il solo "codex", quindi "codex-http" e "openai" cadevano
+ *  nel ramo del browser. */
+export const BACKEND_USES_BROWSER = WORKER_BACKEND === "cdp";
+
+/** Modello e resa del backend OpenAI. `gpt-image-2` in `high` è il motivo per
+ *  cui questo backend esiste: è l'unico che rende leggibile il testo dentro
+ *  l'immagine. Si abbassa a `low` per le prove, dove costa ~20x di meno. */
+export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
+export const OPENAI_IMAGE_QUALITY = process.env.OPENAI_IMAGE_QUALITY ?? "high";
+export const OPENAI_IMAGE_SIZE = process.env.OPENAI_IMAGE_SIZE ?? "1024x1024";
+
+/** Chiave OpenAI dal Keychain, mai da un file in chiaro (stessa convenzione di
+ *  `scripts/imagerouter_check.ts`; il .env del progetto è world-readable).
+ *  OPENAI_API_KEY nell'ambiente vince, per CI e test.
+ *
+ *  Letta una volta sola: `security` costa ~50ms e un job loop la chiederebbe
+ *  a ogni generazione. `null` significa "cercata e non trovata". */
+let openaiKeyCache: string | null | undefined;
+export function openaiKey(): string | null {
+  if (openaiKeyCache !== undefined) return openaiKeyCache;
+  const fromEnv = process.env.OPENAI_API_KEY?.trim();
+  if (fromEnv) return (openaiKeyCache = fromEnv);
+  try {
+    const out = Bun.spawnSync([
+      "security",
+      "find-generic-password",
+      "-s",
+      "openai",
+      "-a",
+      "darkroom",
+      "-w",
+    ]);
+    const key = out.exitCode === 0 ? new TextDecoder().decode(out.stdout).trim() : "";
+    return (openaiKeyCache = key || null);
+  } catch {
+    return (openaiKeyCache = null);
+  }
+}
 
 /** Higgsfield is opt-in: enabled only when a token file exists or HIGGSFIELD_ENABLED=1. */
 export const HIGGSFIELD_ENABLED =

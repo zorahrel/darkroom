@@ -157,3 +157,27 @@ non era il clic, era che una modifica invisibile è una modifica che non si può
 - [x] Scelta: filtri `da giudicare N · tenute · scartate · annotate · in montaggio · tutte`
       e i conteggi in cima; il pannello distingue «mai giudicata» da «tenuta»; «scorda il
       voto» rimette una presa in coda
+
+## 14. La timeline si modifica (26/08)
+La regola era: il montaggio è derivato, quindi non si trascina. Restava vero il perché
+(zero doppioni e ρ ≥ 0.85 valgono *per costruzione*), ma la conclusione era sbagliata —
+si può trascinare, purché ogni gesto scriva una **forzatura dichiarata** invece di una
+modifica muta. Il piano resta derivato; quello che lo scavalca è scritto, visibile e
+reversibile.
+- [x] **trascinare un blocco sopra un altro**: i due si scambiano di posto. Un solo
+      scambio scritto in una volta (`POST /api/video/scambia`), così l'annulla rimette
+      entrambi o nessuno. Muovere «un po' più in là» non esiste: i tagli stanno su battute
+      misurate e ogni battuta ne regge uno
+- [x] **tirare il bordo destro**: quante battute dura, a passi di mezza battuta — fra una
+      e l'altra non c'è niente che il montaggio sappia rappresentare
+- [x] **trascinare un piano dalla libreria** su un taglio: lo inchioda lì
+- [x] la modifica **si vede subito**: le inchiodature si applicano al piano mostrato,
+      esatte perché non cambiano i tempi. La durata invece sposterebbe tutto ciò che
+      viene dopo, e fingere quel ricalcolo mostrerebbe un montaggio che non esiste: quella
+      si dichiara sul blocco con un'etichetta
+- [x] pila di annulla (`z`, e il bottone in barra dice cosa disfa): ogni modifica sa la
+      propria inversa, quindi l'annulla non ricostruisce uno stato — rifà la mossa al
+      contrario
+- [x] verificato: scambio → 2 pin sul disco e i blocchi scambiati a schermo → `z` → zero
+      pin e blocchi com'erano · bordo → durata dichiarata → `z` → tolta · libreria →
+      inchiodato e mostrato → `z` → tolto. 16 controlli, zero errori in console

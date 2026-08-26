@@ -279,6 +279,33 @@ export function marcatori(): { t: number; nota: string }[] {
     .sort((a, b) => a.t - b.t);
 }
 
+/**
+ * Scambiare due tagli: ognuno prende il posto dell'altro.
+ *
+ * È il gesto che sulla timeline si fa trascinando un blocco sopra un altro, e
+ * per come è fatto questo montaggio è anche l'unico movimento che ha senso: i
+ * tagli non stanno dove capita, stanno su battute misurate, e ogni battuta ne
+ * regge esattamente uno. Muovere un blocco "un po' più in là" non vorrebbe dire
+ * niente — prendere il posto di un altro sì.
+ *
+ * Scritto in una volta sola, così un annulla rimette entrambi o nessuno.
+ */
+export function scambia(barA: number, piano_A: string, barB: number, piano_B: string) {
+  const s = scelte();
+  s.pin![String(barA)] = piano_B;
+  s.pin![String(barB)] = piano_A;
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s.pin!;
+}
+
+/** Toglie l'inchiodatura da più battute in un colpo: è l'annulla di uno scambio. */
+export function sganciaPin(battute: number[]) {
+  const s = scelte();
+  for (const b of battute) delete s.pin![String(b)];
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s.pin!;
+}
+
 /** Force a block's length, in bars. */
 export function setDurata(bar: number, bars: number | null) {
   const s = scelte();

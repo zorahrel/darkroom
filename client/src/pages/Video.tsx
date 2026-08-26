@@ -202,6 +202,35 @@ export default function Video() {
   }, []);
   useEffect(() => { ricarica(); }, [ricarica]);
 
+  /**
+   * La pila dell'annulla.
+   *
+   * Ogni modifica alla timeline sa rifarsi al contrario, quindi l'annulla non è
+   * uno stato da ricostruire: è la mossa inversa, messa da parte quando la
+   * mossa si fa. Vale per scambi, durate e inchiodature — tutto ciò che finisce
+   * in `scelte.json`.
+   */
+  const [pila, setPila] = useState<{ cosa: string; disfa: () => Promise<unknown> }[]>([]);
+  const [rifai, setRifai] = useState<{ cosa: string; fa: () => Promise<unknown> }[]>([]);
+
+  const compi = useCallback(async (
+    cosa: string, fa: () => Promise<unknown>, disfa: () => Promise<unknown>,
+  ) => {
+    try {
+      await fa();
+      setPila((p) => [...p.slice(-49), { cosa, disfa }]);
+      setRifai([]);
+      ricarica();
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+  }, [ricarica]);
+
+  const annulla = useCallback(async () => {
+    const ultimo = pila[pila.length - 1];
+    if (!ultimo) return;
+    setPila((p) => p.slice(0, -1));
+    try { await ultimo.disfa(); ricarica(); } catch { /* niente */ }
+  }, [pila, ricarica]);
+
   /** La barra costa un minuto e mezzo di ffmpeg sul PC: il server la mette in
    *  cantiere e risponde subito, la pagina la ripesca finché non è pronta. */
   useEffect(() => {
@@ -309,8 +338,76 @@ export default function Video() {
     if (i >= 0) apriTaglio(i);
   }, [cuts, apriTaglio]);
 
-  const sel = scelto !== null ? cuts[scelto] ?? null : null;
-  const attivo = cuts[indiceTaglio(cuts, t)] ?? null;
+  /** Trascinato un blocco sopra un altro: si scambiano di posto. L'annulla
+   *  rimette le due battute come stavano, cioè sgancia i due pin. */
+  const scambia = useCallback((i: number, j: number) => {
+    const a = cuts[i], b = cuts[j];
+    if (!a || !b) return;
+    const primaA = forz?.pin.find((f) => f.battuta === a.bar)?.piano ?? null;
+    const primaB = forz?.pin.find((f) => f.battuta === b.bar)?.piano ?? null;
+    void compi(
+      `${a.shot} ⇄ ${b.shot}`,
+      () => api.videoScambia(a.bar, a.shot, b.bar, b.shot),
+      async () => {
+        if (primaA) await api.videoPin(a.bar, primaA); else await api.videoPin(a.bar, null);
+        if (primaB) await api.videoPin(b.bar, primaB); else await api.videoPin(b.bar, null);
+      },
+    );
+  }, [cuts, forz, compi]);
+
+  const cambiaDurata = useCallback((bar: number, battute: number) => {
+    const prima = forz?.durata.find((f) => f.battuta === bar)?.battute ?? null;
+    void compi(
+      `battuta ${bar}: ${battute} battute`,
+      () => api.videoDurata(bar, battute),
+      () => api.videoDurata(bar, prima),
+    );
+  }, [forz, compi]);
+
+  const posa = useCallback((i: number, piano: string) => {
+    const c = cuts[i];
+    if (!c) return;
+    const prima = forz?.pin.find((f) => f.battuta === c.bar)?.piano ?? null;
+    void compi(
+      `${piano} sulla battuta ${c.bar}`,
+      () => api.videoPin(c.bar, piano),
+      () => api.videoPin(c.bar, prima),
+    );
+  }, [cuts, forz, compi]);
+
+  /**
+   * Il piano come sarà dopo la ricostruzione.
+   *
+   * Le forzature vivono in `scelte.json` e il piano si rifà solo quando si
+   * ricostruisce: scambiati due blocchi, sul disco cambiavano due righe e a
+   * schermo non si muoveva niente. Un editor in cui il gesto non si vede non è
+   * un editor.
+   *
+   * Quello che si può mostrare esatto si mostra: un'inchiodatura sostituisce il
+   * piano su quella battuta, e basta — i tempi non cambiano. Una durata forzata
+   * invece sposterebbe tutto ciò che viene dopo, e fingere quel ricalcolo
+   * mostrerebbe un montaggio che non esiste: quella si dichiara e basta, con
+   * l'etichetta sul blocco.
+   */
+  const cutsMostrati = useMemo(() => {
+    if (!forz?.pin.length) return cuts;
+    const perBattuta = new Map(forz.pin.map((f) => [f.battuta, f.piano]));
+    const datiPiano = new Map(shots.map((sh) => [sh.id, sh]));
+    return cuts.map((c) => {
+      const nuovo = perBattuta.get(c.bar);
+      if (!nuovo || nuovo === c.shot) return c;
+      const d = datiPiano.get(nuovo);
+      return { ...c, shot: nuovo, origine: nuovo.replace(/_?\d$/, ""), durezzaPiano: d?.durezza ?? null };
+    });
+  }, [cuts, forz, shots]);
+
+  const durataForzata = useMemo(
+    () => new Map((forz?.durata ?? []).map((f) => [f.battuta, f.battute])),
+    [forz],
+  );
+
+  const sel = scelto !== null ? cutsMostrati[scelto] ?? null : null;
+  const attivo = cutsMostrati[indiceTaglio(cutsMostrati, t)] ?? null;
   const candidati = useMemo(
     () => (sel ? shots.filter((s) => s.kept && s.atto === sel.atto && s.id !== sel.shot) : []),
     [sel, shots],
@@ -340,11 +437,12 @@ export default function Video() {
       else if (k === "l") { e.preventDefault(); setCiclo((c) => !c); }
       else if (k === "m") { e.preventDefault(); v.pause(); setAppunto({ t: v.currentTime, testo: "" }); }
       else if (k === "?") { e.preventDefault(); setAiuto((a) => !a); }
+      else if (k === "z") { e.preventDefault(); void annulla(); }
       else if (k === "Escape") { setScelto(null); setAiuto(false); setAppunto(null); }
     };
     window.addEventListener("keydown", su);
     return () => window.removeEventListener("keydown", su);
-  }, [cuts, t, durata, vaiA, inOut, apriTaglio]);
+  }, [cuts, t, durata, vaiA, inOut, apriTaglio, annulla]);
 
   const lancia = async () => {
     try { await api.videoRicostruisci(); setRic(await api.videoRicostruzione()); }
@@ -362,6 +460,14 @@ export default function Video() {
         </span>
         <Stato barra={barra} onRifai={() => api.videoBarra(true).then(setBarra).catch(() => {})} />
         {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {!!pila.length && (
+          <button onClick={() => void annulla()}
+                  title={`annulla: ${pila[pila.length - 1]?.cosa}`}
+                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
+                             text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
+            ⌫ {pila[pila.length - 1]?.cosa}
+          </button>
+        )}
         {!!nForzature && (
           <button onClick={() => setVediForz((v) => !v)}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-sky-800 text-sky-300
@@ -498,12 +604,14 @@ export default function Video() {
       {/* ---- timeline ---- */}
       <div className="shrink-0 min-h-0" style={{ height: hTimeline }}>
         <Timeline
-          cuts={cuts} atti={atti} onda={onda} durata={durata} t={t}
+          cuts={cutsMostrati} atti={atti} onda={onda} durata={durata} t={t}
           poster={poster} scelto={scelto} inOut={inOut} setInOut={setInOut}
           gira={gira} vaiA={vaiA} marcatori={marcatori}
           togliMarcatore={(m) => { void api.videoMarcatore(m, null).then((r) => setMarcatori(r.marcatori)); }}
           apri={apriTaglio}
           inchiodate={new Set((forz?.pin ?? []).map((f) => f.battuta))}
+          onScambia={scambia} onDurata={cambiaDurata} onPosa={posa}
+          durataForzata={durataForzata}
         />
       </div>
 
@@ -559,7 +667,15 @@ export default function Video() {
               </div>
             ))}
 
-            {!!nForzature && (
+            {!!pila.length && (
+          <button onClick={() => void annulla()}
+                  title={`annulla: ${pila[pila.length - 1]?.cosa}`}
+                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
+                             text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
+            ⌫ {pila[pila.length - 1]?.cosa}
+          </button>
+        )}
+        {!!nForzature && (
               <div className="mt-3 text-[10.5px] text-neutral-400">
                 nessuna di queste è nel video finché non ricostruisci.
               </div>
@@ -577,7 +693,11 @@ export default function Video() {
               {[["spazio", "avvia e ferma"], ["← →", "un fotogramma"], ["⇧ ← →", "un secondo"],
                 ["[ ]", "taglio prima / dopo"], ["inizio · fine", "capo e coda"], ["f", "schermo intero"],
                 ["i · o", "inizio e fine del tratto"], ["l", "ripeti il tratto"],
-                ["m", "appunto sull'istante"], ["esc", "chiudi"],
+                ["m", "appunto sull'istante"], ["z", "annulla l'ultima modifica"],
+                ["trascina un blocco", "sopra un altro: si scambiano"],
+                ["tira il bordo destro", "quante battute dura"],
+                ["trascina dalla libreria", "mettilo su quel taglio"],
+                ["esc", "chiudi"],
                 ["⌥ rotellina", "zoom della timeline"], ["?", "questo elenco"]].map(([k, v]) => (
                 <div key={k} className="flex gap-3">
                   <span className="w-28 shrink-0 text-neutral-200">{k}</span>
@@ -587,6 +707,8 @@ export default function Video() {
             </div>
             <div className="mt-3 text-[10.5px] text-neutral-400">
               la maniglia sopra la timeline si trascina: la timeline cresce e le corsie con lei.
+              Ogni modifica alla timeline è una forzatura dichiarata: la trovi nell'elenco in
+              cima, e non è nel video finché non ricostruisci.
             </div>
           </div>
         </div>

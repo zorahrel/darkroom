@@ -433,6 +433,14 @@ export const api = {
     jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/scordagiudizio", {
       method: "POST", body: JSON.stringify({ shot }),
     }),
+  videoScambia: (barA: number, pianoA: string, barB: number, pianoB: string) =>
+    jsonFetch<{ pin: Record<string, string> }>("/api/video/scambia", {
+      method: "POST", body: JSON.stringify({ barA, pianoA, barB, pianoB }),
+    }),
+  videoSganciaPin: (battute: number[]) =>
+    jsonFetch<{ pin: Record<string, string> }>("/api/video/sganciapin", {
+      method: "POST", body: JSON.stringify({ battute }),
+    }),
   videoForzature: () => jsonFetch<VideoForzature>("/api/video/forzature"),
   videoMarcatori: () => jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatori"),
   videoMarcatore: (t: number, nota: string | null) =>

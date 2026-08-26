@@ -40,10 +40,18 @@ type Props = {
   togliMarcatore: (t: number) => void;
   /** Le battute inchiodate a mano: si vedono senza aprire l'ispettore. */
   inchiodate: Set<number>;
+  /** Trascinare un blocco sopra un altro: i due si scambiano di posto. */
+  onScambia: (i: number, j: number) => void;
+  /** Tirare il bordo destro di un blocco: quante battute dura. */
+  onDurata: (bar: number, battute: number) => void;
+  /** Un piano lasciato cadere sopra un taglio dalla libreria. */
+  onPosa: (i: number, piano: string) => void;
+  /** Le durate dichiarate ma non ancora ricostruite: battuta -> battute. */
+  durataForzata: Map<number, number>;
 };
 
 export default function Timeline(p: Props) {
-  const { cuts, atti, onda, durata, t, poster, scelto, inOut, apri, vaiA, gira, marcatori, togliMarcatore, inchiodate } = p;
+  const { cuts, atti, onda, durata, t, poster, scelto, inOut, apri, vaiA, gira, marcatori, togliMarcatore, inchiodate, onScambia, onDurata, onPosa, durataForzata } = p;
   const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
   const [sopra, setSopra] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -153,6 +161,88 @@ export default function Timeline(p: Props) {
     }
   }, [onda, larghezza, corsie.suono]);
 
+  /**
+   * Il trascinamento.
+   *
+   * Due gesti, perché due sono quelli che questo montaggio ammette: portare un
+   * blocco sul posto di un altro — i tagli stanno su battute misurate e ogni
+   * battuta ne regge uno, quindi "un po' più in là" non vorrebbe dire niente —
+   * e tirare il bordo destro per allungarlo. Tutt'e due scrivono una forzatura
+   * dichiarata, che si vede nell'elenco e si disfa con ⌘Z. Il piano resta
+   * derivato: quello che cambia è scritto, non nascosto.
+   */
+  const [trascino, setTrascino] = useState<
+    { tipo: "sposta"; da: number; a: number | null } |
+    { tipo: "allunga"; i: number; battute: number } | null
+  >(null);
+
+  /** Quante battute dura un taglio adesso: la distanza dalla battuta del taglio
+   *  dopo, o quella dichiarata dal piano per l'ultimo. */
+  const battuteDi = useCallback((i: number) => {
+    const c = cuts[i], d = cuts[i + 1];
+    if (!c) return 1;
+    if (d) return Math.round((d.bar - c.bar) * 2) / 2;
+    return Math.max(0.5, Math.round((c.dur / (cuts[1] ? (cuts[1].t - cuts[0]!.t) : c.dur)) * 2) / 2);
+  }, [cuts]);
+
+  const quale = useCallback((cx: number, box: DOMRect) => {
+    const t2 = (cx - box.left) / pps;
+    let r: number | null = null;
+    cuts.forEach((c, i) => { if (t2 >= c.t && t2 < c.t + c.dur) r = i; });
+    return r;
+  }, [cuts, pps]);
+
+  const iniziaSpostamento = (i: number) => (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const corsia = (e.currentTarget as HTMLElement).parentElement;
+    if (!corsia) return;
+    const box = corsia.getBoundingClientRect();
+    let mosso = false;
+    setTrascino({ tipo: "sposta", da: i, a: null });
+    const muovi = (ev: PointerEvent) => {
+      mosso = true;
+      setTrascino({ tipo: "sposta", da: i, a: quale(ev.clientX, box) });
+    };
+    const su = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", muovi);
+      window.removeEventListener("pointerup", su);
+      const a = quale(ev.clientX, box);
+      setTrascino(null);
+      // Senza movimento è un clic: apre il taglio invece di scambiarlo.
+      if (!mosso || a === null || a === i) { apri(i); return; }
+      onScambia(i, a);
+    };
+    window.addEventListener("pointermove", muovi);
+    window.addEventListener("pointerup", su);
+  };
+
+  const iniziaAllungamento = (i: number) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    const c = cuts[i];
+    if (!c) return;
+    const barraSec = c.dur / Math.max(0.5, battuteDi(i));   // secondi per battuta, qui
+    const x0 = e.clientX, b0 = battuteDi(i);
+    setTrascino({ tipo: "allunga", i, battute: b0 });
+    const muovi = (ev: PointerEvent) => {
+      const db = (ev.clientX - x0) / pps / barraSec;
+      // Mezza battuta è il passo del piano: fra una e l'altra non c'è niente
+      // che il montaggio sappia rappresentare.
+      const b = Math.max(0.5, Math.min(4, Math.round((b0 + db) * 2) / 2));
+      setTrascino({ tipo: "allunga", i, battute: b });
+    };
+    const su = () => {
+      window.removeEventListener("pointermove", muovi);
+      window.removeEventListener("pointerup", su);
+      setTrascino((t2) => {
+        if (t2?.tipo === "allunga" && t2.battute !== b0) onDurata(c.bar, t2.battute);
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", muovi);
+    window.addEventListener("pointerup", su);
+  };
+
   const B = "px-1.5 py-0.5 rounded-sm border border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600";
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -169,6 +259,14 @@ export default function Timeline(p: Props) {
           <button className={`${B} text-amber-400/80`} onClick={() => p.setInOut(null)}>
             {mmss(inOut[0])}–{mmss(inOut[1])} ×
           </button>
+        )}
+        {trascino?.tipo === "sposta" && trascino.a !== null && trascino.a !== trascino.da && (
+          <span className="text-sky-300">
+            {cuts[trascino.da]?.shot} ⇄ {cuts[trascino.a]?.shot}
+          </span>
+        )}
+        {trascino?.tipo === "allunga" && (
+          <span className="text-sky-300">{cuts[trascino.i]?.shot}: {trascino.battute} battute</span>
         )}
         <span className="ml-auto text-neutral-400 tabular-nums">
           {sopra !== null ? `${mmss(sopra)} · f${Math.round(sopra * FPS)}` : `${mmss(t)} · f${Math.round(t * FPS)}`}
@@ -258,18 +356,44 @@ export default function Timeline(p: Props) {
             </div>
 
             {/* tagli */}
-            <div style={{ height: corsie.tagli }} className="relative border-b border-neutral-900 bg-black/40">
-              {cuts.map((c, i) => (
-                <button key={i} onClick={() => apri(i)}
-                        title={`${c.shot} · ${mmss(c.t)} · ${c.dur.toFixed(2)}s · ${c.velocita.toFixed(2)}x`}
-                        className={`absolute bottom-0 border-r border-black/60 hover:brightness-150 ${
-                          scelto === i ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}`}
-                        style={{
-                          left: x(c.t), width: Math.max(1, x(c.dur)),
-                          height: `${18 + c.durezzaSuono * 82}%`,
-                          background: c.rovescio ? "#8a5a3a" : "#3f6076",
-                        }} />
-              ))}
+            <div style={{ height: corsie.tagli }}
+                 className="relative border-b border-neutral-900 bg-black/40"
+                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+                 onDrop={(e) => {
+                   e.preventDefault();
+                   const piano = e.dataTransfer.getData("text/darkroom-piano");
+                   const i = quale(e.clientX, e.currentTarget.getBoundingClientRect());
+                   if (piano && i !== null) onPosa(i, piano);
+                 }}>
+              {cuts.map((c, i) => {
+                const sposto = trascino?.tipo === "sposta" && trascino.da === i;
+                const bersaglio = trascino?.tipo === "sposta" && trascino.a === i && trascino.da !== i;
+                const largo = trascino?.tipo === "allunga" && trascino.i === i
+                  ? Math.max(1, x(c.dur * (trascino.battute / Math.max(0.5, battuteDi(i)))))
+                  : Math.max(1, x(c.dur));
+                return (
+                  <div key={i}
+                       onPointerDown={iniziaSpostamento(i)}
+                       title={`${c.shot} · ${mmss(c.t)} · ${c.dur.toFixed(2)}s · ${c.velocita.toFixed(2)}x
+trascina per scambiarlo · tira il bordo destro per la durata`}
+                       className={`absolute bottom-0 border-r border-black/60 cursor-grab active:cursor-grabbing
+                                   ${sposto ? "opacity-40" : "hover:brightness-150"}
+                                   ${bersaglio ? "outline outline-2 -outline-offset-2 outline-sky-400 z-20" : ""}
+                                   ${scelto === i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}`}
+                       style={{
+                         left: x(c.t), width: largo,
+                         height: `${18 + c.durezzaSuono * 82}%`,
+                         background: c.rovescio ? "#8a5a3a" : "#3f6076",
+                       }}>
+                    {/* La maniglia della durata. Larga sei pixel: piu' stretta
+                        e non si prende, piu' larga e si rubano i clic al blocco. */}
+                    <div onPointerDown={iniziaAllungamento(i)}
+                         title="quante battute dura"
+                         className="absolute inset-y-0 right-0 w-[6px] cursor-col-resize
+                                    hover:bg-sky-300/70 active:bg-sky-300" />
+                  </div>
+                );
+              })}
               {cuts.map((c, i) => c.durezzaPiano === null ? null : (
                 <div key={`p${i}`} className="absolute h-[2px] bg-[#c9a227]/80 pointer-events-none"
                      style={{ left: x(c.t), width: Math.max(1, x(c.dur)), bottom: `${18 + c.durezzaPiano * 82}%` }} />
@@ -280,6 +404,16 @@ export default function Timeline(p: Props) {
                   {c.shot}
                 </div>
               ))}
+              {/* La durata dichiarata non si puo' mostrare spostando i blocchi
+                  dopo — sarebbe un montaggio che non esiste — quindi si dice. */}
+              {cuts.map((c, i) => (durataForzata.has(c.bar) ? (
+                <div key={`dd${i}`} title={`durata dichiarata: ${durataForzata.get(c.bar)} battute`}
+                     className="absolute bottom-0 text-[8.5px] text-sky-200 bg-sky-900/80 px-1 rounded-sm
+                                pointer-events-none leading-tight"
+                     style={{ left: x(c.t) + 1 }}>
+                  →{durataForzata.get(c.bar)}
+                </div>
+              ) : null))}
               {/* Una battuta forzata a mano non e' piu' derivata: si vede da
                   qui, senza dover aprire il taglio per scoprirlo. */}
               {cuts.filter((c) => inchiodate.has(c.bar)).map((c, i) => (

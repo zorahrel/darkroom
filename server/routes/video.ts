@@ -3,7 +3,7 @@ import { serveFile } from "../http.ts";
 import {
   shots, cuts, assets, setScelta, clipPath, posterPath, assetPath,
   segnalaProblema, togliProblema, setRipresa, setPin, setDurata,
-  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio,
+  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio, scambia, sganciaPin,
 } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
 import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT } from "../comfy.ts";
@@ -87,6 +87,20 @@ videoRoutes.post("/api/video/scordagiudizio", async (c) => {
   if (!shot) return c.json({ error: "serve il piano" }, 400);
   annullaGiudizio(shot);
   return c.json({ ok: true, shots: shots() });
+});
+
+videoRoutes.post("/api/video/scambia", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const [ba, pa, bb, pb] = [Number(b.barA), String(b.pianoA ?? ""), Number(b.barB), String(b.pianoB ?? "")];
+  if (!Number.isFinite(ba) || !Number.isFinite(bb) || !pa || !pb) return c.json({ error: "scambio incompleto" }, 400);
+  if (ba === bb) return c.json({ error: "e' la stessa battuta" }, 400);
+  return c.json({ pin: scambia(ba, pa, bb, pb) });
+});
+
+videoRoutes.post("/api/video/sganciapin", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const bb = Array.isArray(b.battute) ? b.battute.map(Number).filter(Number.isFinite) : [];
+  return c.json({ pin: sganciaPin(bb) });
 });
 
 videoRoutes.get("/api/video/forzature", (c) => c.json(forzature()));
