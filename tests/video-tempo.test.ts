@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   indiceTaglio, altezzeCorsie, passoTacche,
   H_RIGHELLO, H_ATTI, MIN_SUONO, MIN_TAGLI, MIN_QUADRI,
+  timecode, navetta,
 } from "../client/src/pages/video/tempo.ts";
 
 const T = (...ts: number[]) => ts.map((t) => ({ t }));
@@ -88,5 +89,61 @@ describe("il righello si dirada da solo", () => {
     for (const pps of [1, 3, 12, 40, 120, 400, 2000]) {
       expect(passoTacche(pps) * pps).toBeGreaterThanOrEqual(58);
     }
+  });
+});
+
+describe("il tempo scritto come in un montaggio", () => {
+  test("ore, minuti, secondi e fotogramma", () => {
+    expect(timecode(0)).toBe("00:00:00:00");
+    expect(timecode(1 / 24)).toBe("00:00:00:01");
+    expect(timecode(125.375)).toBe("00:02:05:09");
+    expect(timecode(3661.5)).toBe("01:01:01:12");
+  });
+
+  test("il fotogramma non sfora mai: 23.999 quadri non esiste", () => {
+    for (let k = 0; k < 240; k++) {
+      const f = Number(timecode(k / 24).slice(-2));
+      expect(f).toBeLessThan(24);
+      expect(f).toBe(k % 24);
+    }
+  });
+
+  test("arrotonda al fotogramma piu' vicino, non taglia", () => {
+    // Il player non riporta mai un tempo esatto: `currentTime` e' un numero
+    // qualunque fra due quadri. Tagliando invece di arrotondare, il timecode
+    // resta indietro di un fotogramma per meta' del tempo — e un fotogramma e'
+    // esattamente l'unita' in cui si discute un taglio.
+    expect(timecode(2.0209)).toBe("00:00:02:01");   // 48.50 quadri -> 49
+    expect(timecode(2.0207)).toBe("00:00:02:00");   // 48.49 quadri -> 48
+    expect(timecode(0.9999)).toBe("00:00:01:00");   // 23.998 -> 24, cioe' il secondo dopo
+  });
+
+  test("un tempo negativo non produce numeri strani", () => {
+    expect(timecode(-5)).toBe("00:00:00:00");
+  });
+});
+
+describe("la navetta J K L", () => {
+  test("K ferma sempre", () => {
+    for (const v of [-8, -1, 0, 1, 4]) expect(navetta(v, "k")).toBe(0);
+  });
+
+  test("L accelera 1, 2, 4, 8 e si ferma li'", () => {
+    let v = 0;
+    const visti: number[] = [];
+    for (let i = 0; i < 5; i++) { v = navetta(v, "l"); visti.push(v); }
+    expect(visti).toEqual([1, 2, 4, 8, 8]);
+  });
+
+  test("J e' lo specchio di L", () => {
+    let v = 0;
+    const visti: number[] = [];
+    for (let i = 0; i < 5; i++) { v = navetta(v, "j"); visti.push(v); }
+    expect(visti).toEqual([-1, -2, -4, -8, -8]);
+  });
+
+  test("cambiare verso riparte da 1x, non dalla velocita' di prima", () => {
+    expect(navetta(8, "j")).toBe(-1);
+    expect(navetta(-4, "l")).toBe(1);
   });
 });

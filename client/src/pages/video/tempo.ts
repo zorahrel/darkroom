@@ -54,3 +54,30 @@ export function passoTacche(pxAlSecondo: number): number {
   for (const s of [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60]) if (s * pxAlSecondo >= 58) return s;
   return 60;
 }
+
+/**
+ * Il tempo come lo scrive un montaggio: `ore:minuti:secondi:fotogramma`.
+ *
+ * `2:05.4` va bene per dire dove sei a occhio, ma non per dire *quale
+ * fotogramma*: quattro decimi sono dieci quadri a 24, e un taglio si discute al
+ * quadro. Un editor scrive `00:02:05:09` perche' quel numero e' indirizzabile —
+ * si puo' scrivere in una nota e ritrovare esatto.
+ */
+export function timecode(s: number, fps = 24): string {
+  const tot = Math.max(0, Math.round(s * fps));
+  const f = tot % fps;
+  const sec = Math.floor(tot / fps);
+  const due = (n: number) => String(n).padStart(2, "0");
+  return `${due(Math.floor(sec / 3600))}:${due(Math.floor(sec / 60) % 60)}:${due(sec % 60)}:${due(f)}`;
+}
+
+/** Le velocita' della navetta J/K/L, come su qualunque banco di montaggio:
+ *  premere piu' volte accelera, K ferma, e indietro e' lo specchio di avanti. */
+export function navetta(attuale: number, tasto: "j" | "k" | "l"): number {
+  const scala = [1, 2, 4, 8];
+  if (tasto === "k") return 0;
+  const verso = tasto === "l" ? 1 : -1;
+  if (Math.sign(attuale) !== verso) return verso;                 // cambio di verso: riparti da 1x
+  const i = scala.indexOf(Math.abs(attuale));
+  return verso * (scala[Math.min(scala.length - 1, i + 1)] ?? 1);
+}
