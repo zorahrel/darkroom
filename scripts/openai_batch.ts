@@ -15,7 +15,8 @@
  * La chiave si legge dal Keychain, mai da un file in chiaro:
  *   security add-generic-password -s openai -a darkroom -w "<chiave>" -U
  */
-import { openaiKey, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE } from "../server/config.ts";
+import { openaiKey, openaiDailyCapUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE } from "../server/config.ts";
+import { registraChiamata, spesoOggi } from "../server/worker-openai.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -45,6 +46,22 @@ async function submit(file: string): Promise<void> {
     console.error(`nessun prompt in ${file} (una riga = un prompt, '#' per i commenti)`);
     process.exit(1);
   }
+  // Il tetto e il conteggio vivevano nel worker, ma il batch chiama l'API da
+  // solo: cinquanta prompt in high sono ~$5 che non comparivano da nessuna
+  // parte e che nessun limite fermava. Qui si stima PRIMA di accodare, perche'
+  // dopo il batch e' partito e si paga comunque.
+  const tokAttesi = OPENAI_IMAGE_QUALITY === "low" ? 200 : OPENAI_IMAGE_QUALITY === "medium" ? 1100 : 7000;
+  const stima = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokAttesi);
+  const cap = openaiDailyCapUsd();
+  if (cap > 0 && spesoOggi() + stima > cap) {
+    console.error(
+      `il batch costerebbe ~$${stima.toFixed(2)} e supererebbe il tetto giornaliero ` +
+        `($${spesoOggi().toFixed(2)} gia' spesi, limite $${cap.toFixed(2)}).\n` +
+        `Alza OPENAI_DAILY_CAP_USD, riduci i prompt, o usa OPENAI_IMAGE_QUALITY=low.`,
+    );
+    process.exit(1);
+  }
+
   const jsonl = prompts
     .map((prompt, i) =>
       JSON.stringify({
@@ -128,7 +145,11 @@ async function fetchOut(id: string, outdir: string): Promise<void> {
     const bytes = Buffer.from(b64, "base64");
     const path = join(outdir, `${r.custom_id}.png`);
     await Bun.write(path, bytes);
-    tokens += rb?.usage?.output_tokens ?? 0;
+    const tok = rb?.usage?.output_tokens ?? 0;
+    tokens += tok;
+    // Registrata alla raccolta, non alla sottomissione: qui i token sono quelli
+    // veri, non una stima. Lo sconto 0.5 e' la tariffa batch.
+    if (tok) registraChiamata(OPENAI_IMAGE_MODEL, tok, true, "batch", 0.5);
     saved++;
     console.log(`  ${r.custom_id}.png  ${Math.round(bytes.length / 1024)}KB`);
   }

@@ -69,12 +69,24 @@ export function registraChiamata(
   outputTokens: number,
   ok: boolean,
   origin = process.env.DARKROOM_CALL_ORIGIN ?? "worker",
+  /** Il batch paga meta': la tariffa e' una cosa, i token un'altra. Dimezzare
+   *  i token per ottenere il costo giusto falserebbe la colonna che dice
+   *  quanto ha prodotto il modello. */
+  sconto = 1,
 ): void {
   try {
     db().run(
       `INSERT INTO api_calls (provider, model, quality, output_tokens, cost_usd, ok, origin, created_at)
        VALUES ('openai', ?, ?, ?, ?, ?, ?, ?)`,
-      [model, OPENAI_IMAGE_QUALITY, outputTokens, costUsd(model, outputTokens), ok ? 1 : 0, origin, Date.now()],
+      [
+        model,
+        OPENAI_IMAGE_QUALITY,
+        outputTokens,
+        costUsd(model, outputTokens) * sconto,
+        ok ? 1 : 0,
+        origin,
+        Date.now(),
+      ],
     );
   } catch {
     // il conto e' importante, l'immagine di piu'

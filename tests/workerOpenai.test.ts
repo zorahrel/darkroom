@@ -337,3 +337,70 @@ describe("il tetto giornaliero morde prima di spendere", () => {
     }
   }, 30_000);
 });
+
+describe("il batch non e' una porta di servizio", () => {
+  // Il tetto e il conteggio vivevano nel worker, ma scripts/openai_batch.ts
+  // chiama l'API da solo: cinquanta prompt in high sono ~$5 che non
+  // comparivano da nessuna parte e che nessun limite fermava.
+  test("submit rifiuta quando il batch supererebbe il tetto", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevArgv = process.argv;
+    const prevCap = process.env.OPENAI_DAILY_CAP_USD;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevExit = process.exit;
+    process.env.OPENAI_API_KEY = "sk-test-batchcap";
+    process.env.OPENAI_DAILY_CAP_USD = "0.01";
+    let chiamate = 0;
+    let uscito = false;
+    globalThis.fetch = (async () => {
+      chiamate++;
+      return new Response(JSON.stringify({ id: "x" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    // process.exit(1) qui e' il comportamento voluto: si intercetta per poterlo
+    // osservare senza far morire il runner dei test.
+    process.exit = ((code?: number) => {
+      uscito = code === 1;
+      throw new Error("__exit__");
+    }) as never;
+    const file = "/tmp/darkroom-batch-cap.txt";
+    await Bun.write(file, "un prompt\naltro prompt\n");
+    process.argv = [prevArgv[0] as string, "x", "submit", file];
+    try {
+      const { db } = await import("../server/db.ts");
+      db().run(
+        `INSERT INTO api_calls (provider,model,quality,output_tokens,cost_usd,ok,origin,created_at)
+         VALUES ('openai','gpt-image-2','high',7024,0.2107,1,'test',?)`,
+        [Date.now()],
+      );
+      await import(`../scripts/openai_batch.ts?bcap=${Date.now()}${Math.random()}`).catch((e) => {
+        if (!String(e?.message).includes("__exit__")) throw e;
+      });
+      expect(uscito).toBe(true);
+      // Il punto: niente upload, niente batch creato, niente speso.
+      expect(chiamate).toBe(0);
+    } finally {
+      globalThis.fetch = prevFetch;
+      process.argv = prevArgv;
+      process.exit = prevExit;
+      if (prevCap === undefined) delete process.env.OPENAI_DAILY_CAP_USD;
+      else process.env.OPENAI_DAILY_CAP_USD = prevCap;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+    }
+  }, 30_000);
+
+  test("lo sconto batch dimezza il costo senza falsare i token", async () => {
+    const { db } = await import("../server/db.ts");
+    const mod = await import(`../server/worker-openai.ts?sconto=${Date.now()}${Math.random()}`);
+    mod.registraChiamata("gpt-image-2", 7024, true, "test-sconto", 0.5);
+    const r = db()
+      .query<{ output_tokens: number; cost_usd: number }, []>(
+        "SELECT output_tokens, cost_usd FROM api_calls WHERE origin='test-sconto' ORDER BY id DESC LIMIT 1",
+      )
+      .get();
+    // I token restano quelli veri: sono cio' che il modello ha prodotto.
+    expect(r!.output_tokens).toBe(7024);
+    // Il costo e' meta': quella e' la tariffa.
+    expect(r!.cost_usd).toBeCloseTo(0.1054, 4);
+  });
+});
