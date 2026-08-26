@@ -104,7 +104,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       db_path: d.DB_PATH,
       root_exists: existsSync(p.root),
       stats,
-      video: p.kind === "video" && existsSync(p.root) ? statsVideo(p.root) : null,
+      video: p.views.includes("video") && existsSync(p.root) ? statsVideo(p.root) : null,
       error,
     };
   });
@@ -128,6 +128,7 @@ studioRoutes.post("/api/studio/projects", async (c) => {
     name?: string;
     root?: string;
     kind?: "photo" | "storyboard" | "video";
+    views?: ("photo" | "storyboard" | "video")[];
     photos?: { path: string; mode?: "link" | "copy" };
   };
   try {
@@ -136,6 +137,7 @@ studioRoutes.post("/api/studio/projects", async (c) => {
       id: body.id,
       root: body.root,
       kind: body.kind,
+      views: body.views,
     });
     // Photos, if the user picked a folder in the same step. Runs inside the new
     // project's context so it lands in ITS database, not the active one's.
@@ -186,6 +188,7 @@ studioRoutes.patch("/api/studio/projects/:pid", async (c) => {
     name?: string;
     active?: boolean;
     kind?: "photo" | "storyboard" | "video";
+    views?: ("photo" | "storyboard" | "video")[];
   };
   const project = updateProject(pid, body);
   if (!project) return c.json({ error: "progetto non trovato" }, 404);

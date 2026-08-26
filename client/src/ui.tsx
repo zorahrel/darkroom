@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 
 /**
  * I pezzi di interfaccia dell'app.
@@ -424,5 +425,56 @@ export function Spunta({
       </span>
       {children && <span className={segnata ? "text-neutral-200" : "text-neutral-400"}>{children}</span>}
     </button>
+  );
+}
+
+/**
+ * Un menu di azioni dietro tre puntini.
+ *
+ * Le cose che si fanno di rado — e quelle che non si annullano — non devono
+ * stare ferme sullo schermo con l'aria di essere cliccabili per sbaglio. Il ✕
+ * per togliere un progetto era su ogni scheda, sempre, a un dito dal titolo:
+ * qui ci si arriva in due gesti e con la sua etichetta scritta per intero.
+ */
+export function Altro({
+  children, titolo = "Altre azioni", className = "", discreto = false,
+}: {
+  children: React.ReactNode;
+  titolo?: string;
+  className?: string;
+  /** Si vede solo passandoci sopra o arrivandoci col tasto di tabulazione —
+   *  ma **mai** mentre è aperto: un menu semitrasparente sotto il dito che si
+   *  sposta per scegliere una voce è un menu che non si può usare. */
+  discreto?: boolean;
+}) {
+  const [aperto, setAperto] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!aperto) return;
+    const fuori = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setAperto(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAperto(false); };
+    window.addEventListener("pointerdown", fuori);
+    window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("pointerdown", fuori); window.removeEventListener("keydown", esc); };
+  }, [aperto]);
+  const visibilita = !discreto || aperto
+    ? "opacity-100"
+    : "opacity-0 group-hover:opacity-100 focus-within:opacity-100";
+  return (
+    <div ref={box} className={`relative ${aperto ? "z-40" : "z-20"} transition-opacity ${visibilita} ${className}`}>
+      <button type="button" title={titolo} aria-haspopup="menu" aria-expanded={aperto}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAperto((a) => !a); }}
+              className={`px-1 py-0.5 rounded-sm leading-none transition-colors
+                          ${aperto ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
+        <MoreHorizontal className="w-4 h-4" aria-hidden />
+      </button>
+      {aperto && (
+        <div role="menu"
+             className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded border border-neutral-700
+                        bg-neutral-950 p-1 shadow-2xl space-y-0.5">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }

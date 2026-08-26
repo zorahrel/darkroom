@@ -27,15 +27,45 @@ export const REGISTRY_PATH =
 /** What a project is for. It decides which views the UI offers — the pipeline
  *  (generation, grade, quality checks) is the same for both. */
 export type ProjectKind = "photo" | "storyboard" | "video";
+export const TUTTE_LE_VISTE: ProjectKind[] = ["photo", "storyboard", "video"];
 
+/**
+ * Un progetto non è di un tipo solo.
+ *
+ * `kind` diceva "questo è un progetto foto" e da lì discendeva tutto: quali
+ * schede compaiono, cosa mostra la scheda nell'elenco, dove si atterra
+ * aprendolo. Ma un lavoro vero comincia con le foto di un sopralluogo, diventa
+ * uno storyboard e finisce in un montaggio — e con un tipo solo bisognava
+ * fare tre progetti sulla stessa cartella.
+ *
+ * Quindi: `views` è cosa il progetto sa fare, `kind` è da dove si entra. Il
+ * secondo resta perché "aprendo, dove atterro" è una domanda con una risposta
+ * sola, e perché tutto ciò che è stato scritto prima continua a leggersi.
+ */
 export type Project = {
   id: string;
   name: string;
   root: string;
+  /** La vista principale: quella su cui si atterra aprendo il progetto. */
   kind: ProjectKind;
+  /** Le viste accese. Contiene sempre `kind`. */
+  views: ProjectKind[];
   active: boolean;
   created_at: number;
 };
+
+/** Ripulisce un elenco di viste: solo quelle note, senza doppioni, e con
+ *  `principale` sempre dentro — una vista principale spenta sarebbe un
+ *  progetto che si apre su una pagina che non esiste. */
+export function normalizzaViste(viste: unknown, principale: ProjectKind): ProjectKind[] {
+  const dentro = new Set<ProjectKind>([principale]);
+  if (Array.isArray(viste)) {
+    for (const v of viste) {
+      if (TUTTE_LE_VISTE.includes(v as ProjectKind)) dentro.add(v as ProjectKind);
+    }
+  }
+  return TUTTE_LE_VISTE.filter((v) => dentro.has(v));
+}
 
 export type ProjectDirs = {
   ROOT: string;
@@ -59,6 +89,7 @@ function defaultProject(): Project {
     name: basename(cfg.ROOT) || DEFAULT_PROJECT_ID,
     root: cfg.ROOT,
     kind: "photo",
+    views: ["photo"],
     active: true,
     created_at: 0,
   };
@@ -97,6 +128,11 @@ function normalize(p: unknown): Project | null {
     root: resolve(o.root),
     // Projects written before this field existed are photo projects.
     kind: o.kind === "storyboard" || o.kind === "video" ? o.kind : "photo",
+    // Un progetto scritto prima che le viste esistessero ha solo la sua.
+    views: normalizzaViste(
+      o.views,
+      o.kind === "storyboard" || o.kind === "video" ? o.kind : "photo",
+    ),
     active: o.active !== false,
     created_at: typeof o.created_at === "number" ? o.created_at : 0,
   };
@@ -153,6 +189,7 @@ export function addProject(input: {
   id?: string;
   root?: string;
   kind?: ProjectKind;
+  views?: ProjectKind[];
   active?: boolean;
 }): Project {
   const name = String(input.name ?? "").trim();
@@ -185,11 +222,14 @@ export function addProject(input: {
     }
   }
 
+  const kind: ProjectKind =
+    input.kind === "storyboard" || input.kind === "video" ? input.kind : "photo";
   const project: Project = {
     id,
     name,
     root,
-    kind: input.kind === "storyboard" || input.kind === "video" ? input.kind : "photo",
+    kind,
+    views: normalizzaViste(input.views, kind),
     active: input.active !== false,
     created_at: Date.now(),
   };
@@ -207,6 +247,9 @@ export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "c
   if (patch.kind === "photo" || patch.kind === "storyboard" || patch.kind === "video") {
     p.kind = patch.kind;
   }
+  if (patch.views !== undefined) p.views = normalizzaViste(patch.views, p.kind);
+  // Cambiare la vista principale non deve mai lasciarla spenta.
+  p.views = normalizzaViste(p.views, p.kind);
   if (typeof patch.active === "boolean") p.active = patch.active;
   persist();
   return { ...p };

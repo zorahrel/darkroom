@@ -7,7 +7,9 @@ import {
   type StudioOverview,
   type StudioProject,
 } from "../api";
-import { Bott, Campo, Conferma, Interruttore, Targa, Testata } from "../ui";
+import { ArrowRight, type LucideIcon } from "lucide-react";
+import { Altro, Bott, Campo, Conferma, Interruttore, Targa, Testata } from "../ui";
+import { VISTE, vista } from "../viste";
 
 /**
  * L'elenco dei progetti: il banco di lavoro da cui si entra.
@@ -41,7 +43,7 @@ export default function StudioPage() {
   return (
     <div className="space-y-4">
       <Testata titolo="Studio"
-               sotto="Tutti i progetti su questa macchina. Quello col bordo verde è dove Darkroom si apre." />
+               sotto="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
 
       {err && (
         <div className="rounded border border-rose-900 bg-rose-950/40 text-rose-200 text-[12px] px-2.5 py-1.5">
@@ -65,6 +67,7 @@ export default function StudioPage() {
             predefinito={p.id === predefinito || (!predefinito && p === data.projects[0])}
             onApri={() => navigate(`/p/${p.id}`)}
             onGenera={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
+            onViste={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
             onTogli={async () => { await api.studioRemoveProject(p.id); refresh(); }}
           />
         ))}
@@ -77,17 +80,11 @@ export default function StudioPage() {
 
 // ---------------------------------------------------------------------------
 
-const TIPO: Record<ProjectKind, { targa: string; spiega: string }> = {
-  photo: { targa: "foto", spiega: "Una galleria da rifinire: griglia, versioni, colore, esportazione." },
-  storyboard: { targa: "storyboard", spiega: "Pannelli in sequenza da una scaletta, con durate e personaggi." },
-  video: { targa: "video", spiega: "Un montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza." },
-};
-
 const durataBreve = (s: number) =>
   s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}s`;
 
 function Scheda({
-  p, predefinito, onApri, onGenera, onTogli,
+  p, predefinito, onApri, onGenera, onViste, onTogli,
 }: {
   p: StudioProject;
   /** Aprendo Darkroom si entra qui. Non c'entra con `p.active`, che dice se il
@@ -96,11 +93,13 @@ function Scheda({
   predefinito: boolean;
   onApri: () => void;
   onGenera: (v: boolean) => void;
+  onViste: (v: ProjectKind[]) => void;
   onTogli: () => void;
 }) {
   const s = p.stats;
   const q = s?.queue ?? {};
-  const tipo = TIPO[p.kind] ?? TIPO.photo;
+  const principale = vista(p.kind);
+  const Icona = principale.icona;
 
   const numeri = p.video
     ? [["tagli", p.video.tagli], ["riprese", p.video.piani], ["durata", durataBreve(p.video.durata)]] as const
@@ -108,16 +107,32 @@ function Scheda({
       ? [["foto", s.photos], ["preferite", s.favorites], ["versioni", s.versions]] as const
       : null;
 
-  return (
-    <div className={`rounded-lg border bg-neutral-950/60 p-3 flex flex-col gap-2.5 ${
-      predefinito ? "border-emerald-800" : "border-neutral-800"}`}>
+  /** Accendere e spegnere una vista. La principale non si spegne: sarebbe un
+   *  progetto che si apre su una pagina che non c'è. */
+  const cambiaVista = (id: ProjectKind) => {
+    if (id === p.kind) return;
+    const dentro = new Set(p.views);
+    if (dentro.has(id)) dentro.delete(id); else dentro.add(id);
+    onViste([...dentro]);
+  };
 
-      {/* riga 1: chi è */}
-      <div className="flex items-start gap-2 min-w-0">
+  return (
+    // La scheda intera è il tasto per entrare: il rettangolo bianco su ogni
+    // riquadro gridava più forte del nome del progetto, e la cosa che si vuole
+    // cliccare è il progetto, non un bottone dentro il progetto.
+    <div className={`group relative rounded-lg border bg-neutral-950/60 p-3 flex flex-col gap-2.5
+                     transition-colors ${predefinito
+                       ? "border-emerald-800 hover:border-emerald-600"
+                       : "border-neutral-800 hover:border-neutral-600"}`}>
+      <button type="button" onClick={onApri} aria-label={`Apri ${p.name}`}
+              className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-1
+                         focus-visible:outline-offset-2 focus-visible:outline-neutral-300" />
+
+      <div className="relative z-20 flex items-start gap-2 min-w-0 pointer-events-none">
+        <Icona className="w-4 h-4 mt-[3px] shrink-0 text-neutral-400" aria-hidden />
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[14px] font-medium truncate">{p.name}</span>
-            <Targa titolo={tipo.spiega}>{tipo.targa}</Targa>
+            <span className="text-[14px] font-medium truncate group-hover:text-white">{p.name}</span>
             {predefinito && (
               <Targa tono="buono" titolo="Aprendo Darkroom, o andando su /, si entra in questo progetto.">
                 si apre qui
@@ -126,31 +141,35 @@ function Scheda({
           </div>
           <div className="text-[11px] text-neutral-400 truncate" title={p.root}>{p.root}</div>
         </div>
-        <Conferma taglia="s"
-                  titolo="Togli dall'elenco"
-                  domanda={`Tolgo «${p.name}» dall'elenco? I file restano dove sono.`}
-                  conferma="togli dall'elenco"
-                  onConferma={onTogli}>
-          ✕
-        </Conferma>
+        {/* Compare passandoci sopra, e resta se ci si arriva col tasto di
+            tabulazione: nascosto non vuol dire irraggiungibile. */}
+        <Altro discreto className="pointer-events-auto">
+          <VoceMenu onClick={onApri}>Apri il progetto</VoceMenu>
+          <VoceMenu onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</VoceMenu>
+          <div className="border-t border-neutral-800 my-1" />
+          <Conferma taglia="s" className="w-full justify-start"
+                    domanda={`Tolgo «${p.name}»? I file restano dove sono.`}
+                    conferma="togli" onConferma={onTogli}>
+            Togli dall'elenco
+          </Conferma>
+        </Altro>
       </div>
 
-      {/* riga 2: gli allarmi, se ce ne sono */}
       {!p.root_exists && (
-        <div className="text-[11px] text-amber-300 bg-amber-950/30 border border-amber-900/60 rounded px-2 py-1">
+        <div className="relative z-10 text-[11px] text-amber-300 bg-amber-950/30 border border-amber-900/60
+                        rounded px-2 py-1 pointer-events-none">
           La cartella non c'è più: {p.root}
         </div>
       )}
       {p.error && (
-        <div className="text-[11px] text-rose-200 bg-rose-950/30 border border-rose-900/60 rounded px-2 py-1 truncate"
-             title={p.error}>
+        <div className="relative z-10 text-[11px] text-rose-200 bg-rose-950/30 border border-rose-900/60
+                        rounded px-2 py-1 truncate pointer-events-none" title={p.error}>
           {p.error}
         </div>
       )}
 
-      {/* riga 3: a che punto sta */}
       {numeri && (
-        <div className="grid grid-cols-3 gap-1.5 text-center">
+        <div className="relative z-10 grid grid-cols-3 gap-1.5 text-center pointer-events-none">
           {numeri.map(([etichetta, v]) => (
             <div key={etichetta} className="rounded bg-neutral-900/60 border border-neutral-800 py-1">
               <div className="text-[15px] font-semibold tabular-nums leading-tight">{v}</div>
@@ -160,9 +179,37 @@ function Scheda({
         </div>
       )}
 
-      {/* riga 4: la coda. Altezza fissa: c'è solo su alcune schede, e senza,
-          i bottoni «Apri» della stessa fila finivano a tre pixel di scarto. */}
-      <div className="flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]">
+      {/* Che cosa sa fare questo progetto. Si accendono e si spengono da qui:
+          un lavoro comincia con delle foto e finisce in un montaggio, e non
+          deve diventare due progetti sulla stessa cartella. */}
+      <div className="relative z-10 flex flex-wrap items-center gap-1"
+           title="Le viste di questo progetto: accendile e spegnile da qui.">
+        {VISTE.map((v) => {
+          const accesa = p.views.includes(v.id);
+          const fissa = v.id === p.kind;
+          const I = v.icona;
+          return (
+            <button key={v.id} type="button" disabled={fissa}
+                    onClick={(e) => { e.stopPropagation(); cambiaVista(v.id); }}
+                    title={fissa
+                      ? `${v.spiega} È la vista principale: si apre qui, quindi non si spegne.`
+                      : accesa ? `${v.spiega} Clicca per spegnerla.` : `${v.spiega} Clicca per accenderla.`}
+                    className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-[2px] text-[10.5px]
+                                transition-colors ${
+                      !accesa ? "border-dashed border-neutral-700 text-neutral-400 hover:border-solid hover:border-neutral-500 hover:text-neutral-200"
+                      : fissa ? "border-neutral-500 bg-neutral-800 text-neutral-100 cursor-default"
+                      : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-neutral-500"}`}>
+              <I className="w-3 h-3" aria-hidden />
+              {v.nome}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Altezza fissa: questa riga c'è solo su alcune schede, e senza, i piedi
+          delle schede della stessa fila finivano a tre pixel di scarto. */}
+      <div className="relative z-10 flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]
+                      pointer-events-none">
         {(q.running ?? 0) > 0 && <Targa tono="info">{q.running} in corso</Targa>}
         {(q.pending ?? 0) > 0 && <Targa>{q.pending} in coda</Targa>}
         {(q.failed ?? 0) > 0 && (
@@ -175,20 +222,33 @@ function Scheda({
         </span>
       </div>
 
-      {/* riga 5: cosa ci fai */}
-      <div className="flex items-center gap-2">
-        <Bott peso="primario" taglia="m" onClick={onApri} className="flex-1">Apri</Bott>
-        <Interruttore acceso={p.active} onCambia={onGenera}
-                      acceso_testo="genera" spento_testo="fermo"
-                      titolo={p.active
-                        ? "Il generatore prende i lavori di questo progetto. Clicca per fermarlo."
-                        : "I lavori di questo progetto restano in coda. Clicca per farli partire."} />
+      <div className="relative z-10 flex items-center justify-between gap-2 border-t border-neutral-900 pt-2">
+        <span onClick={(e) => e.stopPropagation()} className="contents">
+          <Interruttore acceso={p.active} onCambia={onGenera}
+                        acceso_testo="generazione automatica" spento_testo="generazione in pausa"
+                        titolo={p.active
+                          ? "Il generatore prende i lavori di questo progetto appena si liberano. Spegnendola restano in coda, senza perdersi."
+                          : "I lavori di questo progetto restano in coda: il generatore non li tocca finché non riaccendi."} />
+        </span>
+        <span className="text-[11px] text-neutral-400 group-hover:text-neutral-100 transition-colors
+                         inline-flex items-center gap-1 pointer-events-none">
+          apri <ArrowRight className="w-3 h-3" aria-hidden />
+        </span>
       </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
+function VoceMenu({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button type="button" role="menuitem"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="w-full text-left px-2 py-1 rounded-sm text-[11px] text-neutral-300
+                       hover:bg-neutral-800 hover:text-neutral-100">
+      {children}
+    </button>
+  );
+}
 
 function Nuovo({ onFatto }: { onFatto: () => void }) {
   const [aperto, setAperto] = useState(false);
@@ -233,9 +293,9 @@ function Nuovo({ onFatto }: { onFatto: () => void }) {
 
       <Riga etichetta="Che cosa ci fai">
         <div className="grid grid-cols-3 gap-1.5">
-          {(Object.keys(TIPO) as ProjectKind[]).map((k) => (
-            <Sceltona key={k} scelto={tipo === k} onClick={() => setTipo(k)}
-                      titolo={TIPO[k].targa} nota={TIPO[k].spiega} />
+          {VISTE.map((v) => (
+            <Sceltona key={v.id} scelto={tipo === v.id} onClick={() => setTipo(v.id)}
+                      icona={v.icona} titolo={v.nome} nota={v.spiega} />
           ))}
         </div>
       </Riga>
@@ -281,14 +341,17 @@ function Nuovo({ onFatto }: { onFatto: () => void }) {
   );
 }
 
-function Sceltona({ scelto, onClick, titolo, nota }: {
-  scelto: boolean; onClick: () => void; titolo: string; nota: string;
+function Sceltona({ scelto, onClick, titolo, nota, icona: I }: {
+  scelto: boolean; onClick: () => void; titolo: string; nota: string; icona?: LucideIcon;
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={scelto}
             className={`text-left p-2 rounded border transition-colors ${
               scelto ? "border-emerald-700 bg-emerald-950/30" : "border-neutral-800 hover:border-neutral-600"}`}>
-      <div className="text-[12px] text-neutral-100">{titolo}</div>
+      <div className="text-[12px] text-neutral-100 flex items-center gap-1.5">
+        {I && <I className="w-3.5 h-3.5 text-neutral-400" aria-hidden />}
+        {titolo}
+      </div>
       <div className="text-[11px] text-neutral-400 leading-snug mt-0.5">{nota}</div>
     </button>
   );

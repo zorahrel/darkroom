@@ -2,9 +2,23 @@
 /**
  * Darkroom MCP server.
  *
- * A thin stdio MCP wrapper over the local Darkroom REST API, so an MCP client
- * (e.g. Claude) can browse galleries, queue edits/generations, and manage
- * favorites. The Darkroom backend must be running (default http://localhost:3535).
+ * Un involucro stdio sopra l'API locale di Darkroom, cosi' un client MCP —
+ * Claude oggi, l'IA interna domani — puo' fare quello che si fa a mano
+ * dall'interfaccia: sfogliare le gallerie, mettere in coda le generazioni,
+ * giudicare le riprese di un montaggio, ricostruire il video e leggere la
+ * barra dei controlli.
+ *
+ * Due cose che qui contano piu' che altrove.
+ *
+ * **Il progetto.** Ogni strumento accetta `project`. Senza, si lavora su
+ * quello predefinito — comodo in una sessione sola, sbagliato appena i
+ * progetti sono quattro e non si sa su quale si e' finiti. Chi automatizza
+ * dovrebbe passarlo sempre.
+ *
+ * **La porta.** Il valore scritto qui e' l'ultima spiaggia: il server vero
+ * gira dove dice il suo servizio launchd, ed e' li' che si guarda. `3535` era
+ * scritto a mano e il server ascoltava sulla 3737 — l'MCP non ha mai risposto
+ * a nessuno.
  */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -13,16 +27,24 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const API = (process.env.DARKROOM_API ?? "http://localhost:3535").replace(/\/$/, "");
+const API = (process.env.DARKROOM_API ?? "http://localhost:3737").replace(/\/$/, "");
 
 async function call(
   method: string,
   path: string,
   body?: unknown,
+  project?: string,
 ): Promise<unknown> {
+  const headers: Record<string, string> = {};
+  if (body) headers["content-type"] = "application/json";
+  // Il progetto viaggia in un'intestazione, non nel percorso: cosi' ogni
+  // strumento resta una riga e non c'e' da ricordarsi di appendere `?project=`
+  // in venti posti diversi (dimenticarlo in uno vuol dire scrivere nel
+  // progetto sbagliato, in silenzio).
+  if (project) headers["x-darkroom-project"] = project;
   const res = await fetch(`${API}${path}`, {
     method,
-    headers: body ? { "content-type": "application/json" } : undefined,
+    headers: Object.keys(headers).length ? headers : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -45,7 +67,19 @@ type Tool = {
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (args: Record<string, any>) => Promise<unknown>;
+  /** Uno strumento che non ha senso limitare a un progetto (l'elenco, la
+   *  salute del backend) non si porta dietro il campo. */
+  globale?: boolean;
 };
+
+/** Il campo `project`, aggiunto a ogni strumento che non e' globale. */
+const CAMPO_PROGETTO = {
+  project: {
+    type: "string",
+    description:
+      "Id del progetto su cui lavorare (da list_projects). Senza, si usa quello predefinito.",
+  },
+} as const;
 
 const tools: Tool[] = [
   {
@@ -59,7 +93,7 @@ const tools: Tool[] = [
       },
     },
     handler: (a) =>
-      call("GET", `/api/photos?filter=${encodeURIComponent(a.filter ?? "all")}`),
+      call("GET", `/api/photos?filter=${encodeURIComponent(a.filter ?? "all")}`, undefined, a.project),
   },
   {
     name: "get_photo",
@@ -70,7 +104,7 @@ const tools: Tool[] = [
       properties: { id: { type: "string" } },
       required: ["id"],
     },
-    handler: (a) => call("GET", `/api/photos/${encodeURIComponent(a.id)}`),
+    handler: (a) => call("GET", `/api/photos/${encodeURIComponent(a.id)}`, undefined, a.project),
   },
   {
     name: "edit_photo",
@@ -88,9 +122,9 @@ const tools: Tool[] = [
       if (typeof a.prompt === "string" && a.prompt.trim()) {
         await call("PUT", `/api/photos/${encodeURIComponent(a.id)}/prompt`, {
           prompt: a.prompt,
-        });
+        }, a.project);
       }
-      return call("POST", `/api/photos/${encodeURIComponent(a.id)}/generate`);
+      return call("POST", `/api/photos/${encodeURIComponent(a.id)}/generate`, undefined, a.project);
     },
   },
   {
@@ -109,19 +143,19 @@ const tools: Tool[] = [
       call("POST", "/api/generate-new", {
         prompt: a.prompt,
         count: a.count ?? 1,
-      }),
+      }, a.project),
   },
   {
     name: "generate_missing",
     description: "Queue an edit for every photo that has zero versions yet.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("POST", "/api/generate-missing"),
+    handler: (a) => call("POST", "/api/generate-missing", undefined, a.project),
   },
   {
     name: "list_jobs",
     description: "Snapshot of the job queue (pending/running/done/failed).",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("GET", "/api/jobs"),
+    handler: (a) => call("GET", "/api/jobs", undefined, a.project),
   },
   {
     name: "set_favorite",
@@ -138,7 +172,7 @@ const tools: Tool[] = [
     handler: (a) =>
       call("PUT", `/api/photos/${encodeURIComponent(a.id)}/favorite`, {
         version_id: a.version_id ?? null,
-      }),
+      }, a.project),
   },
   {
     name: "set_global_prompt",
@@ -149,13 +183,13 @@ const tools: Tool[] = [
       required: ["prompt"],
     },
     handler: (a) =>
-      call("PUT", "/api/settings/global-prompt", { prompt: a.prompt }),
+      call("PUT", "/api/settings/global-prompt", { prompt: a.prompt }, a.project),
   },
   {
     name: "export_favorites",
     description: "Copy every favorite version into the final/ export folder.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("POST", "/api/export-favorites"),
+    handler: (a) => call("POST", "/api/export-favorites", undefined, a.project),
   },
   // ---- Storyboard ---------------------------------------------------------
   // Enough to drive a board end-to-end from chat: describe the shots, keep the
@@ -165,7 +199,7 @@ const tools: Tool[] = [
     description:
       "The active project's storyboard: panels in order (with duration, scene label and pinned characters), the cast, and the board settings.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("GET", "/api/storyboard"),
+    handler: (a) => call("GET", "/api/storyboard", undefined, a.project),
   },
   {
     name: "create_panels",
@@ -195,7 +229,7 @@ const tools: Tool[] = [
       },
       required: ["beats"],
     },
-    handler: (a) => call("POST", "/api/storyboard/panels", { beats: a.beats }),
+    handler: (a) => call("POST", "/api/storyboard/panels", { beats: a.beats }, a.project),
   },
   {
     name: "set_sequence",
@@ -208,7 +242,7 @@ const tools: Tool[] = [
       },
       required: ["ids"],
     },
-    handler: (a) => call("PUT", "/api/storyboard/sequence", { ids: a.ids }),
+    handler: (a) => call("PUT", "/api/storyboard/sequence", { ids: a.ids }, a.project),
   },
   {
     name: "update_panel",
@@ -226,14 +260,14 @@ const tools: Tool[] = [
     },
     handler: (a) => {
       const { id, ...patch } = a;
-      return call("PATCH", `/api/storyboard/panels/${encodeURIComponent(id)}`, patch);
+      return call("PATCH", `/api/storyboard/panels/${encodeURIComponent(id)}`, patch, a.project);
     },
   },
   {
     name: "list_characters",
     description: "The storyboard's cast: id, name, description and reference photo.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("GET", "/api/storyboard/characters"),
+    handler: (a) => call("GET", "/api/storyboard/characters", undefined, a.project),
   },
   {
     name: "set_character",
@@ -249,14 +283,14 @@ const tools: Tool[] = [
       },
       required: ["name"],
     },
-    handler: (a) => call("POST", "/api/storyboard/characters", a),
+    handler: (a) => call("POST", "/api/storyboard/characters", a, a.project),
   },
   {
     name: "export_storyboard",
     description:
       "Write the board to Storyboarder's native format (.storyboarder + images/) under the project's final/ folder, ready to open in Storyboarder. Returns the file path.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("POST", "/api/storyboard/export"),
+    handler: (a) => call("POST", "/api/storyboard/export", undefined, a.project),
   },
   // ---- Quality control ----------------------------------------------------
   // The gate reports; it never changes a favorite or deletes a render.
@@ -279,21 +313,21 @@ const tools: Tool[] = [
     handler: (a) =>
       call("POST", `/api/verify/photos/${encodeURIComponent(a.id)}`, {
         only: a.only,
-      }),
+      }, a.project),
   },
   {
     name: "verification_summary",
     description:
       "Project-wide quality picture: how many renders were checked, what gets flagged and how often, and the hit rate over time (is the prompt tuning working?).",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("GET", "/api/verify/summary"),
+    handler: (a) => call("GET", "/api/verify/summary", undefined, a.project),
   },
   {
     name: "list_failure_modes",
     description:
       "The catalogue of known failure modes: what each one checks, whether it gates, and the clause it adds to the prompt.",
     inputSchema: { type: "object", properties: {} },
-    handler: () => call("GET", "/api/verify/modes"),
+    handler: (a) => call("GET", "/api/verify/modes", undefined, a.project),
   },
   {
     name: "add_failure_mode",
@@ -316,21 +350,204 @@ const tools: Tool[] = [
       },
       required: ["code"],
     },
-    handler: (a) => call("POST", "/api/verify/modes", a),
+    handler: (a) => call("POST", "/api/verify/modes", a, a.project),
   },
+  // ---- progetti ----------------------------------------------------------
+  // Senza questi, un client MCP lavorava alla cieca sul progetto predefinito:
+  // non poteva sapere quali esistessero ne' sceglierne uno.
+  {
+    name: "list_projects",
+    description:
+      "Every project on this machine: id, name, folder, which views are on, whether the generator works on it, and its headline numbers (photos/favorites/versions, or cuts/shots/duration for a video project). Start here: the `id` is what every other tool's `project` argument takes.",
+    inputSchema: { type: "object", properties: {} },
+    globale: true,
+    handler: () => call("GET", "/api/studio/projects"),
+  },
+  {
+    name: "add_project",
+    description:
+      "Create a project. `kind` is the view you land on (photo | storyboard | video); `views` is everything it can do — a project can be photo AND video. `photos.path` indexes a folder right away (mode 'link' leaves the files where they are).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        kind: { type: "string", description: "photo | storyboard | video (default photo)" },
+        views: { type: "array", items: { type: "string" }, description: "Views to switch on" },
+        root: { type: "string", description: "Existing folder; omitted, Darkroom makes one" },
+        photos: {
+          type: "object",
+          properties: { path: { type: "string" }, mode: { type: "string", description: "link | copy" } },
+        },
+      },
+      required: ["name"],
+    },
+    globale: true,
+    handler: (a) => call("POST", "/api/studio/projects", a),
+  },
+  {
+    name: "update_project",
+    description:
+      "Change a project: rename it, switch views on/off (`views`), move the landing view (`kind`), or stop the generator from picking up its jobs (`active: false` — queued work stays queued, nothing is lost).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        name: { type: "string" },
+        kind: { type: "string" },
+        views: { type: "array", items: { type: "string" } },
+        active: { type: "boolean" },
+      },
+      required: ["id"],
+    },
+    globale: true,
+    handler: (a) => {
+      const { id, ...patch } = a;
+      return call("PATCH", `/api/studio/projects/${encodeURIComponent(id)}`, patch);
+    },
+  },
+
+  // ---- montaggio video ----------------------------------------------------
+  // Il lato video non esisteva qui: un client MCP vedeva solo le foto, mentre
+  // meta' del lavoro (giudicare le riprese, forzare un taglio, ricostruire) si
+  // poteva fare solo a mano.
+  {
+    name: "video_shots",
+    description:
+      "Every shot of a video project: its measured hardness, which act it belongs to, whether it is in the cut, and whether you already judged it. This is what a judging pass reads.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("GET", "/api/video/shots", undefined, a.project),
+  },
+  {
+    name: "video_cuts",
+    description:
+      "The montage as it stands: every cut with its bar, time, duration, shot, speed, and the two hardness numbers (sound vs picture) the choice was derived from. Plus BPM, total duration and the acts.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("GET", "/api/video/cuts", undefined, a.project),
+  },
+  {
+    name: "video_judge",
+    description:
+      "Keep or discard a shot. Discarding takes it out of the montage at the next rebuild — the plan is derived, so nothing else has to be adjusted by hand. Say WHY in `perche`: it is what makes a discard reviewable later.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shot: { type: "string" },
+        kept: { type: "boolean" },
+        perche: { type: "string", description: "Why, in your own words" },
+        ...CAMPO_PROGETTO,
+      },
+      required: ["shot", "kept"],
+    },
+    handler: (a) =>
+      call("POST", "/api/video/pick", { shot: a.shot, kept: a.kept, perche: a.perche }, a.project),
+  },
+  {
+    name: "video_pin",
+    description:
+      "Force a specific shot onto a bar, overriding the derived choice. `shot: null` releases it. Declared, not hidden: it shows in the UI among 'your choices' and is undoable.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bar: { type: "number" },
+        shot: { type: ["string", "null"] },
+        ...CAMPO_PROGETTO,
+      },
+      required: ["bar"],
+    },
+    handler: (a) => call("POST", "/api/video/pin", { bar: a.bar, shot: a.shot ?? null }, a.project),
+  },
+  {
+    name: "video_duration",
+    description:
+      "Force how many bars a cut lasts (half-bar steps). `battute: null` gives it back to the derived plan.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bar: { type: "number" },
+        battute: { type: ["number", "null"] },
+        ...CAMPO_PROGETTO,
+      },
+      required: ["bar"],
+    },
+    handler: (a) =>
+      call("POST", "/api/video/durata", { bar: a.bar, battute: a.battute ?? null }, a.project),
+  },
+  {
+    name: "video_forcings",
+    description:
+      "Everything decided by hand on this montage — pinned bars, forced durations, discarded shots — i.e. exactly what overrides the measurements. Read it before rebuilding.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("GET", "/api/video/forzature", undefined, a.project),
+  },
+  {
+    name: "video_rebuild",
+    description:
+      "Rebuild the video with the current choices. Heavy work: it runs on the PC with the 3090, about twelve minutes. Returns immediately — follow it with video_rebuild_status.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("POST", "/api/video/ricostruisci", undefined, a.project),
+  },
+  {
+    name: "video_rebuild_status",
+    description: "Whether a rebuild is running, its log so far, and its exit code when it ends.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("GET", "/api/video/ricostruzione", undefined, a.project),
+  },
+  {
+    name: "video_check",
+    description:
+      "Run the checks on the built video and return each one with its measured value: cuts on measured beats, no duplicate shots, the correlation between sound hardness and picture hardness (must be at least 0.85), and the rest. This is the bar — it is the same measurement the UI shows, not a second implementation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        force: { type: "boolean", description: "Re-measure instead of using the cached result" },
+        ...CAMPO_PROGETTO,
+      },
+    },
+    handler: (a) => call("GET", `/api/video/barra${a.force ? "?force=1" : ""}`, undefined, a.project),
+  },
+  {
+    name: "video_generate",
+    description:
+      "Generate a new shot on the 3090 through ComfyUI. Defaults are the ones that actually fit in the card's memory (640x1152, 61 frames, 20 steps, tiled): asking for more has produced an hour of nothing and zero frames.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        piano: { type: "string", description: "Name of the shot to create" },
+        prompt: { type: "string" },
+        width: { type: "number" },
+        height: { type: "number" },
+        length: { type: "number", description: "Frames" },
+        steps: { type: "number" },
+        ...CAMPO_PROGETTO,
+      },
+      required: ["piano", "prompt"],
+    },
+    handler: (a) => {
+      const { project, ...corpo } = a;
+      return call("POST", "/api/video/genera", corpo, project);
+    },
+  },
+  {
+    name: "video_generations",
+    description: "The shot generations: running, done and failed, with their logs.",
+    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    handler: (a) => call("GET", "/api/video/generazioni", undefined, a.project),
+  },
+
   {
     name: "status",
     description:
-      "Backend health + ChatGPT browser status. Use launch=true to start the dedicated Chrome if it is offline.",
+      "Backend health + ChatGPT browser status. Use launch=true to start the dedicated Chrome if it is offline. The generator is shared by every project, so this one has no `project`.",
     inputSchema: {
       type: "object",
       properties: {
         launch: { type: "boolean", description: "Launch the browser if offline" },
       },
     },
+    globale: true,
     handler: async (a) => {
-      if (a.launch) return call("POST", "/api/browser/launch");
-      return call("GET", "/api/health");
+      if (a.launch) return call("POST", "/api/browser/launch", undefined, a.project);
+      return call("GET", "/api/health", undefined, a.project);
     },
   },
 ];
@@ -341,10 +558,17 @@ const server = new Server(
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: tools.map(({ name, description, inputSchema }) => ({
+  tools: tools.map(({ name, description, inputSchema, globale }) => ({
     name,
     description,
-    inputSchema,
+    // Aggiunto qui una volta sola: scriverlo in venti schemi vuol dire
+    // scordarselo in uno, e quello scrive nel progetto sbagliato in silenzio.
+    inputSchema: globale
+      ? inputSchema
+      : {
+          ...inputSchema,
+          properties: { ...(inputSchema as any).properties, ...CAMPO_PROGETTO },
+        },
   })),
 }));
 

@@ -205,7 +205,10 @@ export type StudioProject = {
   id: string;
   name: string;
   root: string;
+  /** La vista su cui si atterra aprendo il progetto. */
   kind: ProjectKind;
+  /** Le viste accese: un progetto può essere foto E storyboard E video. */
+  views: ProjectKind[];
   active: boolean;
   created_at: number;
   db_path: string;

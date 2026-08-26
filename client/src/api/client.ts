@@ -209,6 +209,7 @@ export const api = {
   studioAddProject: (input: {
     name: string;
     kind?: ProjectKind;
+    views?: ProjectKind[];
     root?: string;
     photos?: { path: string; mode?: "link" | "copy" };
   }) =>
@@ -222,7 +223,7 @@ export const api = {
       `/api/studio/projects/${encodeURIComponent(pid)}`,
       { method: "DELETE" },
     ),
-  studioPatchProject: (pid: string, patch: { name?: string; active?: boolean; kind?: ProjectKind }) =>
+  studioPatchProject: (pid: string, patch: { name?: string; active?: boolean; kind?: ProjectKind; views?: ProjectKind[] }) =>
     jsonFetch<{ project: StudioProject }>(
       `/api/studio/projects/${encodeURIComponent(pid)}`,
       { method: "PATCH", body: JSON.stringify(patch) },

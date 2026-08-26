@@ -23,6 +23,8 @@ export type OutletCtx = {
 };
 import JobsPanel from "./components/JobsPanel";
 import { Bott, Targa } from "./ui";
+import type { LucideIcon } from "lucide-react";
+import { VISTE, vista } from "./viste";
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -140,10 +142,10 @@ export default function App() {
    * quindi la sua pagina d'ingresso lo sa anche lei.
    */
   useEffect(() => {
-    if (!pid || activeProject?.kind !== "video") return;
+    if (!pid || !activeProject || activeProject.kind === "photo") return;
     if (location.pathname.replace(/\/+$/, "") !== `/p/${pid}`) return;
-    navigate(`/p/${pid}/video`, { replace: true });
-  }, [pid, activeProject?.kind, location.pathname, navigate]);
+    navigate(vista(activeProject.kind).rotta(pid), { replace: true });
+  }, [pid, activeProject, location.pathname, navigate]);
 
   /**
    * L'altezza della testata, misurata e messa in una variabile CSS.
@@ -198,61 +200,67 @@ export default function App() {
             />
           </div>
 
-          {/* Views of the active project. Storyboard shows for a storyboard
-              project — or for any project that already has panels, because a
-              view is never hidden from data that exists. */}
-          {pid && (
-            <nav className="flex items-center gap-0.5 text-sm rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
-              {activeProject?.kind === "video" ? (
-                <>
-                  <ViewTab to={`/p/${pid}/video`} current={location.pathname.endsWith("/video")}>
-                    Montaggio
-                  </ViewTab>
-                  <ViewTab to={`/p/${pid}/video/scelta`} current={location.pathname.includes("/video/scelta")}>
-                    Scelta
-                  </ViewTab>
-                </>
-              ) : (
-                <ViewTab
-                  to={`/p/${pid}`}
-                  current={
-                    location.pathname.startsWith("/p/") &&
-                    !location.pathname.includes("/orphans") &&
-                    !location.pathname.includes("/storyboard") &&
-                    !location.pathname.includes("/albero")
-                  }
-                >
-                  Griglia
-                </ViewTab>
-              )}
-              {(activeProject?.kind === "storyboard" ||
-                (activeProject?.stats?.panels ?? 0) > 0) && (
-                <ViewTab
-                  to={`/p/${pid}/storyboard`}
-                  current={location.pathname.includes("/storyboard")}
-                >
-                  Storyboard
-                </ViewTab>
-              )}
-              {activeProject?.kind !== "video" && (
+          {/* Le viste del progetto.
+              Prima discendevano dal tipo — un progetto "foto" non poteva
+              mostrare il montaggio — mentre un lavoro vero comincia con le foto
+              di un sopralluogo e finisce in un video. Adesso compaiono le viste
+              accese, piu' quelle di cui esistono gia' i dati: una vista non si
+              nasconde mai davanti a roba che c'e'. */}
+          {pid && activeProject && (
+            <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
+              {VISTE.filter((v) =>
+                activeProject.views.includes(v.id) ||
+                (v.id === "storyboard" && (activeProject.stats?.panels ?? 0) > 0) ||
+                (v.id === "video" && !!activeProject.video?.tagli),
+              ).flatMap((v) => {
+                const I = v.icona;
+                if (v.id === "video") {
+                  return [
+                    <ViewTab key="video" to={`/p/${pid}/video`} icona={I}
+                             current={location.pathname.endsWith("/video")}>
+                      Montaggio
+                    </ViewTab>,
+                    <ViewTab key="scelta" to={`/p/${pid}/video/scelta`}
+                             current={location.pathname.includes("/video/scelta")}>
+                      Scelta
+                    </ViewTab>,
+                  ];
+                }
+                if (v.id === "storyboard") {
+                  return [
+                    <ViewTab key="sb" to={`/p/${pid}/storyboard`} icona={I}
+                             current={location.pathname.includes("/storyboard")}>
+                      Storyboard
+                    </ViewTab>,
+                  ];
+                }
+                return [
+                  <ViewTab key="foto" to={`/p/${pid}`} icona={I}
+                           current={
+                             location.pathname.startsWith("/p/") &&
+                             !location.pathname.includes("/orphans") &&
+                             !location.pathname.includes("/storyboard") &&
+                             !location.pathname.includes("/albero") &&
+                             !location.pathname.includes("/riferimenti") &&
+                             !location.pathname.includes("/video")
+                           }>
+                    Griglia
+                  </ViewTab>,
+                ];
+              })}
+              {activeProject.views.includes("photo") && (
                 <>
                   <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
                     Albero
                   </ViewTab>
-                  <ViewTab
-                    to={`/p/${pid}/riferimenti`}
-                    current={location.pathname.includes("/riferimenti")}
-                  >
+                  <ViewTab to={`/p/${pid}/riferimenti`} current={location.pathname.includes("/riferimenti")}>
                     Riferimenti
                   </ViewTab>
                 </>
               )}
               {orphanCount > 0 && (
-                <ViewTab
-                  to={`/p/${pid}/orphans`}
-                  current={location.pathname.includes("/orphans")}
-                >
-                  Orphan <span className="ml-1 text-amber-400">{orphanCount}</span>
+                <ViewTab to={`/p/${pid}/orphans`} current={location.pathname.includes("/orphans")}>
+                  Orfane <span className="ml-1 text-amber-400">{orphanCount}</span>
                 </ViewTab>
               )}
             </nav>
@@ -482,22 +490,28 @@ function ViewTab({
   to,
   current,
   children,
+  icona: I,
 }: {
   to: string;
   current: boolean;
   children: React.ReactNode;
+  /** L'icona sta sulla prima scheda di una famiglia: "Montaggio" e "Scelta"
+   *  sono la stessa vista in due momenti, e due icone uguali di fila non
+   *  aiutano a distinguerle. */
+  icona?: LucideIcon;
 }) {
   return (
     <Link
       to={to}
       aria-current={current ? "page" : undefined}
       className={
-        "px-3 py-1 rounded-md text-sm transition-colors " +
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[13px] transition-colors " +
         (current
-          ? "bg-neutral-800 text-white"
-          : "text-neutral-400 hover:text-white")
+          ? "bg-neutral-800 text-neutral-100"
+          : "text-neutral-400 hover:text-neutral-100")
       }
     >
+      {I && <I className="w-3.5 h-3.5" aria-hidden />}
       {children}
     </Link>
   );
