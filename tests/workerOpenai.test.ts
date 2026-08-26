@@ -142,3 +142,40 @@ describe("il backend parla davvero con OpenAI", () => {
     }
   }, 60_000);
 });
+
+describe("il batch chiede davvero quello che dice di chiedere", () => {
+  // "ovviamente batch high" e' una direttiva sulla configurazione, e il posto
+  // dove puo' rompersi in silenzio e' il JSONL: un default sbagliato li' dentro
+  // produce cinquanta immagini in low senza che nessuno se ne accorga finche'
+  // non le guarda.
+  test("submit scrive model e quality nel JSONL", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevArgv = process.argv;
+    let jsonl = "";
+    globalThis.fetch = (async (u: unknown, o: { body?: unknown }) => {
+      const url = String(u);
+      if (url.endsWith("/files")) {
+        jsonl = await ((o.body as FormData).get("file") as File).text();
+        return new Response(JSON.stringify({ id: "file-fake" }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ id: "batch-fake" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const promptFile = "/tmp/darkroom-batch-spec.txt";
+    await Bun.write(promptFile, "# commento\nuna insegna\n\nun gatto\n");
+    process.argv = [prevArgv[0] as string, "x", "submit", promptFile];
+    try {
+      await import(`../scripts/openai_batch.ts?spec=${Date.now()}${Math.random()}`);
+      const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+      // Commento e riga vuota non diventano immagini pagate.
+      expect(lines).toHaveLength(2);
+      for (const l of lines) {
+        expect(l.url).toBe("/v1/images/generations");
+        expect(l.body.model).toBe("gpt-image-2");
+        expect(l.body.quality).toBe("high");
+      }
+    } finally {
+      globalThis.fetch = prevFetch;
+      process.argv = prevArgv;
+    }
+  }, 30_000);
+});

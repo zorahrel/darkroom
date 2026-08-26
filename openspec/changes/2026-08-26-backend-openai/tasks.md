@@ -109,4 +109,21 @@ la prova che una richiesta parta davvero verso OpenAI quando il backend e'
 - [x] 8.3 Provato che morde: endpoint cambiato in `api.SBAGLIATO.com` -> 1 fail;
       ripristinato -> 10 pass.
 
-Barra finale: `tsc` 0 · **378 test, 376 pass + 2 skip opt-in, 0 fail, 7.9s**.
+## 9. Il server acceso, e il JSONL che parte davvero
+
+Mancavano le due prove piu' vicine all'uso reale: che Darkroom **si avvii** col
+backend nuovo, e che `submit` chieda davvero `high` (era la direttiva).
+
+- [x] 9.1 Boot con `WORKER_BACKEND=openai` su root e porta di scarto: il server
+      parte, `/api/studio/projects` riporta `backend: openai` e
+      `browser_alive: null` — non tocca Chrome
+- [x] 9.2 Controprova con `cdp`: `browser_alive: true`, il browser lo controlla
+      eccome. Il predicato di OAI-02 e' provato sul server vivo, non sul sorgente.
+- [x] 9.3 Il JSONL del batch contiene `"model":"gpt-image-2"` e
+      `"quality":"high"` su ogni riga; commenti e righe vuote non diventano
+      immagini pagate
+- [x] 9.4 Morde: `quality` forzata a `"low"` -> 1 fail; ripristinata -> 11 pass
+- [x] 9.5 Il runner lock ha retto: l'istanza reale su :3737 non e' stata
+      disturbata (il secondo processo ha rifiutato di aprire una seconda coda)
+
+Barra finale: `tsc` 0 · **379 test, 377 pass + 2 skip opt-in, 0 fail, 9.0s**.
