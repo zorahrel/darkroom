@@ -11,7 +11,8 @@ import Timeline from "./video/Timeline";
 import Ispettore from "./video/Ispettore";
 import Libreria from "./video/Libreria";
 import Maniglia from "./video/Maniglia";
-import { indiceTaglio } from "./video/tempo";
+import { Bott, Campo, Scegli } from "./video/ui";
+import { indiceTaglio, navetta, timecode } from "./video/tempo";
 
 /**
  * L'editor di un progetto video.
@@ -41,39 +42,93 @@ function leggi(chiave: string, difetto: number, min: number): number {
   return Number.isFinite(v) && v >= min ? v : difetto;
 }
 
-/** Il verdetto della barra, in una riga; il dettaglio si apre. */
+/**
+ * Cosa controlla ognuna delle verifiche.
+ *
+ * `check.py` stampa la misura — "rho = 0.914", "quadri nuovi al secondo: 15.0" —
+ * e la misura e' il punto: e' cio' che si puo' discutere. Ma da sola non dice
+ * *cosa* si stia misurando, e chi apre la pagina non deve andarselo a cercare
+ * nel sorgente. Qui c'e' la frase; il numero resta quello che dice il Python.
+ */
+const COSA_CONTROLLA: Record<string, string> = {
+  "1": "ogni taglio cade su un battito della canzone",
+  "2": "nessuna ripresa viene rallentata più di quanto regga",
+  "3": "le luci dei piani sono confrontabili fra loro",
+  "4": "il video dura quanto il montaggio dice",
+  "5": "l'immagine si muove davvero, non è fatta di fermi",
+  "5b": "la grana della pellicola è viva",
+  "6": "dove il suono è più duro, l'immagine è più dura",
+};
+
+/**
+ * Lo stato del video, in una riga che si capisce da sola.
+ *
+ * Diceva "verde", che e' il colore del semaforo di chi ha scritto il controllo:
+ * fuori da quella testa non vuol dire niente. Adesso dice quante verifiche
+ * passano su quante, e aperto dice cosa verifica ognuna.
+ */
 function Stato({ barra, onRifai }: { barra: VideoBarra | null; onRifai: () => void }) {
   const [aperta, setAperta] = useState(false);
+  const righe = barra?.righe ?? [];
+  const cadute = barra?.fallite.length ?? 0;
   const esito = barra?.esito ?? "sconosciuto";
-  const colore = barra?.calcolo ? "text-neutral-400"
-    : esito === "verde" ? "text-emerald-400"
-    : esito === "rosso" ? "text-rose-400" : "text-neutral-400";
-  const pallino = barra?.calcolo ? "bg-neutral-600 animate-pulse"
-    : esito === "verde" ? "bg-emerald-500" : esito === "rosso" ? "bg-rose-500" : "bg-neutral-700";
+
+  const [testo, colore, pallino] =
+    barra?.calcolo ? ["controllo il video…", "text-neutral-400", "bg-neutral-500 animate-pulse"]
+    : esito === "verde" ? [`il video passa tutti i ${righe.length} controlli`, "text-emerald-300", "bg-emerald-500"]
+    : esito === "rosso" ? [`${cadute} ${cadute === 1 ? "controllo non passa" : "controlli non passano"}`, "text-rose-300", "bg-rose-500"]
+    : ["video mai controllato", "text-neutral-400", "bg-neutral-600"];
 
   return (
     <div className="relative">
-      <button onClick={() => setAperta((a) => !a)} className={`flex items-center gap-1.5 text-[11px] ${colore}`}>
+      <button onClick={() => setAperta((a) => !a)}
+              title="cosa è stato verificato sul video costruito"
+              className={`flex items-center gap-1.5 text-[10.5px] ${colore} hover:brightness-125`}>
         <span className={`w-1.5 h-1.5 rounded-full ${pallino}`} />
-        {barra?.calcolo ? "misuro…" : esito}
-        {!!barra?.fallite.length && <span className="text-rose-400">· {barra.fallite.length} cadute</span>}
+        {testo}
         <span className="text-neutral-400">{aperta ? "▴" : "▾"}</span>
       </button>
       {aperta && (
-        <div className="absolute z-40 mt-1 w-[640px] max-w-[86vw] bg-neutral-950 border border-neutral-800
-                        rounded-sm p-2.5 shadow-xl">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className={`text-[11px] ${colore}`}>{esito}</span>
-            <button onClick={onRifai} className="text-[10px] text-neutral-400 hover:text-neutral-300">rimisura</button>
+        <div className="absolute z-40 mt-1 w-[720px] max-w-[88vw] bg-neutral-950 border border-neutral-700
+                        rounded-sm p-3 shadow-2xl">
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-[12px] text-neutral-100">controlli sul video costruito</span>
+            <span className="text-[10.5px] text-neutral-400">
+              girano su <span className="text-neutral-300">LUNGOMARE.mp4</span>, non sul piano
+            </span>
+            <button onClick={onRifai} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">
+              ricontrolla
+            </button>
+            <button onClick={() => setAperta(false)} className="text-[10.5px] text-neutral-400 hover:text-neutral-100">
+              chiudi
+            </button>
           </div>
-          {barra?.righe.map((r) => (
-            <div key={r.n} className="flex gap-2 text-[11px] leading-relaxed">
-              <span className={r.ok === false ? "text-rose-400" : "text-emerald-500/80"}>{r.ok === false ? "✕" : "✓"}</span>
-              <span className="text-neutral-400">{r.testo}</span>
+
+          {righe.map((r) => (
+            <div key={r.n} className="flex gap-2 py-1 border-t border-neutral-900 text-[11px] items-baseline">
+              <span className={`shrink-0 ${r.ok === false ? "text-rose-400" : "text-emerald-400"}`}>
+                {r.ok === false ? "✕" : "✓"}
+              </span>
+              <div className="min-w-0">
+                <div className="text-neutral-200">{COSA_CONTROLLA[r.n] ?? `controllo ${r.n}`}</div>
+                <div className="text-neutral-400 leading-snug">{r.testo}</div>
+              </div>
             </div>
           ))}
-          {barra?.fallite.map((f, i) => <div key={i} className="text-[11px] text-rose-400">— {f}</div>)}
-          {!barra?.righe.length && <div className="text-[11px] text-neutral-400">non ancora misurata</div>}
+          {barra?.fallite.map((f, i) => (
+            <div key={i} className="text-[11px] text-rose-300 pt-1">non passa: {f}</div>
+          ))}
+          {!righe.length && !barra?.calcolo && (
+            <div className="text-[11px] text-neutral-400">
+              nessun controllo ancora: si misurano sul video costruito, quindi servono un
+              montaggio e una ricostruzione.
+            </div>
+          )}
+          {barra?.calcolo && (
+            <div className="text-[11px] text-neutral-400">
+              sto rileggendo il video sul PC — un minuto e mezzo.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -104,11 +159,15 @@ function Trasporto({ v, t, durata, cuts, vaiA }: {
       <button className={`${B} w-8`} title="spazio" onClick={() => (gira ? v?.pause() : v?.play())}>{gira ? "❚❚" : "▶"}</button>
       <button className={B} title="un fotogramma avanti  →" onClick={() => vaiA(t + 1 / FPS)}>|▶</button>
       <button className={B} title="taglio dopo  ]" onClick={() => vaiA(cuts[Math.min(cuts.length - 1, i + 1)]?.t ?? durata)}>⏭</button>
-      <span className="ml-1 tabular-nums text-neutral-400">{mmss(t)} / {mmss(durata)} · f{Math.round(t * FPS)}</span>
-      <select value={vel} onChange={(e) => setVel(Number(e.target.value))}
-              className="ml-1 bg-neutral-950 border border-neutral-800 rounded-sm px-1 py-0.5 text-neutral-400">
-        {[0.25, 0.5, 1, 1.5, 2].map((x) => <option key={x} value={x}>{x}x</option>)}
-      </select>
+      <span className="ml-1.5 tabular-nums text-neutral-100 text-[11.5px] tracking-tight">{timecode(t)}</span>
+      <span className="tabular-nums text-neutral-400">/ {timecode(durata)}</span>
+      <div className="ml-1">
+        <Scegli
+          valore={String(vel)} larghezza={62} titolo="velocità di riproduzione"
+          voci={[0.25, 0.5, 1, 1.5, 2].map((x) => ({ v: String(x), testo: `${x}x` }))}
+          onCambia={(v) => setVel(Number(v))}
+        />
+      </div>
     </div>
   );
 }
@@ -128,6 +187,11 @@ export default function Video() {
   const [barra, setBarra] = useState<VideoBarra | null>(null);
   const [ric, setRic] = useState<VideoRicostruzione | null>(null);
   const [scelto, setScelto] = useState<number | null>(null);
+  /** Piu' tagli insieme. Serve a fare in un gesto solo quello che altrimenti si
+   *  fa venti volte: scartare le riprese di un atto che non funziona, dare la
+   *  stessa durata a una serie, guardare da vicino un pezzo. */
+  const [selezione, setSelezione] = useState<Set<number>>(new Set());
+  const [inquadra, setInquadra] = useState<{ da: number; a: number; n: number } | null>(null);
   const [onda, setOnda] = useState<VideoOnda | null>(null);
   const [marcatori, setMarcatori] = useState<VideoMarcatore[]>([]);
   const [forz, setForz] = useState<VideoForzature | null>(null);
@@ -141,6 +205,9 @@ export default function Video() {
   const [aiuto, setAiuto] = useState(false);
   const [vediForz, setVediForz] = useState(false);
   const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
+  /** La velocità della navetta: 0 ferma, negativa all'indietro. All'indietro il
+   *  browser non sa andare da solo, quindi la testina la muoviamo noi. */
+  const [spola, setSpola] = useState(0);
   const video = useRef<HTMLVideoElement | null>(null);
 
   /** L'editor vuole tutta la larghezza: il limite a 1280 px è giusto per una
@@ -210,15 +277,16 @@ export default function Video() {
    * mossa si fa. Vale per scambi, durate e inchiodature — tutto ciò che finisce
    * in `scelte.json`.
    */
-  const [pila, setPila] = useState<{ cosa: string; disfa: () => Promise<unknown> }[]>([]);
-  const [rifai, setRifai] = useState<{ cosa: string; fa: () => Promise<unknown> }[]>([]);
+  type Mossa = { cosa: string; fa: () => Promise<unknown>; disfa: () => Promise<unknown> };
+  const [pila, setPila] = useState<Mossa[]>([]);
+  const [rifai, setRifai] = useState<Mossa[]>([]);
 
   const compi = useCallback(async (
     cosa: string, fa: () => Promise<unknown>, disfa: () => Promise<unknown>,
   ) => {
     try {
       await fa();
-      setPila((p) => [...p.slice(-49), { cosa, disfa }]);
+      setPila((p) => [...p.slice(-49), { cosa, fa, disfa }]);
       setRifai([]);
       ricarica();
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
@@ -228,8 +296,18 @@ export default function Video() {
     const ultimo = pila[pila.length - 1];
     if (!ultimo) return;
     setPila((p) => p.slice(0, -1));
+    setRifai((r) => [...r.slice(-49), ultimo]);
     try { await ultimo.disfa(); ricarica(); } catch { /* niente */ }
   }, [pila, ricarica]);
+
+  /** Annullato per sbaglio: la mossa non si perde, torna al suo posto. */
+  const rifaiUltimo = useCallback(async () => {
+    const m = rifai[rifai.length - 1];
+    if (!m) return;
+    setRifai((r) => r.slice(0, -1));
+    setPila((p) => [...p.slice(-49), m]);
+    try { await m.fa(); ricarica(); } catch { /* niente */ }
+  }, [rifai, ricarica]);
 
   /** La barra costa un minuto e mezzo di ffmpeg sul PC: il server la mette in
    *  cantiere e risponde subito, la pagina la ripesca finché non è pronta. */
@@ -273,6 +351,28 @@ export default function Video() {
     }, 1200);
     return () => clearInterval(h);
   }, [ric?.attiva, ricarica]);
+
+  /**
+   * J K L, la navetta del banco di montaggio.
+   *
+   * Avanti la fa il player cambiando velocità. Indietro no: `playbackRate`
+   * negativo non lo sa fare nessun browser, quindi la testina la spostiamo noi
+   * a ogni quadro. Sono due strade diverse per un gesto solo, e chi lo usa non
+   * deve accorgersene.
+   */
+  useEffect(() => {
+    if (!vEl) return;
+    if (spola === 0) { vEl.playbackRate = 1; return; }
+    if (spola > 0) { vEl.playbackRate = spola; void vEl.play().catch(() => {}); return; }
+    vEl.pause();
+    const h = setInterval(() => {
+      const nuovo = Math.max(0, vEl.currentTime + (spola / FPS));
+      vEl.currentTime = nuovo;
+      setT(nuovo);
+      if (nuovo <= 0) setSpola(0);
+    }, 1000 / FPS);
+    return () => clearInterval(h);
+  }, [vEl, spola]);
 
   useEffect(() => {
     if (!vEl) return;
@@ -327,10 +427,24 @@ export default function Video() {
     if (parti) void v.play().catch(() => {});
   }, [durata]);
 
-  const apriTaglio = useCallback((i: number) => {
+  const apriTaglio = useCallback((i: number, mod?: { estendi?: boolean; aggiungi?: boolean }) => {
+    if (mod?.estendi || mod?.aggiungi) {
+      setSelezione((s0) => {
+        const n = new Set(s0);
+        if (mod.estendi && scelto !== null) {
+          for (let k = Math.min(scelto, i); k <= Math.max(scelto, i); k++) n.add(k);
+        } else if (n.has(i)) n.delete(i);
+        else n.add(i);
+        if (scelto !== null) n.add(scelto);
+        return n;
+      });
+      setScelto(i);
+      return;
+    }
+    setSelezione(new Set());
     setScelto(i);
     vaiA((cuts[i]?.t ?? 0) + 0.02, true);
-  }, [cuts, vaiA]);
+  }, [cuts, vaiA, scelto]);
 
   /** Dalla libreria al montaggio: se quel piano è in scena, ci si va. */
   const apriPiano = useCallback((id: string) => {
@@ -406,6 +520,48 @@ export default function Video() {
     [forz],
   );
 
+  /** I tagli selezionati, in ordine di tempo. */
+  const molti = useMemo(
+    () => [...selezione].filter((i) => cutsMostrati[i]).sort((a, b) => a - b),
+    [selezione, cutsMostrati],
+  );
+
+  /** Il tratto che la selezione copre, da un capo all'altro. */
+  const tratto = useMemo((): [number, number] | null => {
+    if (!molti.length) return null;
+    const a = cutsMostrati[molti[0]!]!, b = cutsMostrati[molti[molti.length - 1]!]!;
+    return [a.t, b.t + b.dur];
+  }, [molti, cutsMostrati]);
+
+  /** Le riprese distinte sotto la selezione: due battute possono mostrare lo
+   *  stesso piano, e scartarlo due volte non vuol dire niente. */
+  const pianiSelezionati = useMemo(
+    () => [...new Set(molti.map((i) => cutsMostrati[i]!.shot))],
+    [molti, cutsMostrati],
+  );
+
+  const scartaSelezione = useCallback(() => {
+    const piani = pianiSelezionati;
+    if (!piani.length) return;
+    void compi(
+      piani.length === 1 ? `scarta ${piani[0]}` : `scarta ${piani.length} riprese`,
+      async () => { for (const sh of piani) await api.videoPick(sh, false, "scartato dalla timeline"); },
+      async () => { for (const sh of piani) await api.videoScordaGiudizio(sh); },
+    );
+    setSelezione(new Set());
+  }, [pianiSelezionati, compi]);
+
+  const durataSelezione = useCallback((battute: number) => {
+    const barre = molti.map((i) => cutsMostrati[i]!.bar);
+    if (!barre.length) return;
+    const prima = new Map(barre.map((b) => [b, forz?.durata.find((f) => f.battuta === b)?.battute ?? null]));
+    void compi(
+      `${barre.length} tagli: ${battute} battute`,
+      async () => { for (const b of barre) await api.videoDurata(b, battute); },
+      async () => { for (const b of barre) await api.videoDurata(b, prima.get(b) ?? null); },
+    );
+  }, [molti, cutsMostrati, forz, compi]);
+
   const sel = scelto !== null ? cutsMostrati[scelto] ?? null : null;
   const attivo = cutsMostrati[indiceTaglio(cutsMostrati, t)] ?? null;
   const candidati = useMemo(
@@ -424,9 +580,9 @@ export default function Video() {
       const i = indiceTaglio(cuts, t);
       const passo = e.shiftKey ? 1 : 1 / FPS;
       const k = e.key;
-      if (k === " ") { e.preventDefault(); v.paused ? void v.play() : v.pause(); }
-      else if (k === "ArrowLeft") { e.preventDefault(); vaiA(t - passo); }
-      else if (k === "ArrowRight") { e.preventDefault(); vaiA(t + passo); }
+      if (k === " ") { e.preventDefault(); setSpola(0); v.paused ? void v.play() : v.pause(); }
+      else if (k === "ArrowLeft") { e.preventDefault(); setSpola(0); vaiA(t - passo); }
+      else if (k === "ArrowRight") { e.preventDefault(); setSpola(0); vaiA(t + passo); }
       else if (k === "[") { e.preventDefault(); apriTaglio(Math.max(0, i - 1)); }
       else if (k === "]") { e.preventDefault(); apriTaglio(Math.min(cuts.length - 1, i + 1)); }
       else if (k === "Home") { e.preventDefault(); vaiA(0); }
@@ -434,15 +590,33 @@ export default function Video() {
       else if (k === "f") { e.preventDefault(); void v.requestFullscreen?.().catch(() => {}); }
       else if (k === "i") { e.preventDefault(); setInOut([t, inOut?.[1] ?? durata]); }
       else if (k === "o") { e.preventDefault(); setInOut([inOut?.[0] ?? 0, t]); }
-      else if (k === "l") { e.preventDefault(); setCiclo((c) => !c); }
+      else if (k === "r") { e.preventDefault(); setCiclo((c) => !c); }
       else if (k === "m") { e.preventDefault(); v.pause(); setAppunto({ t: v.currentTime, testo: "" }); }
       else if (k === "?") { e.preventDefault(); setAiuto((a) => !a); }
       else if (k === "z") { e.preventDefault(); void annulla(); }
-      else if (k === "Escape") { setScelto(null); setAiuto(false); setAppunto(null); }
+      else if (k === "Z") { e.preventDefault(); void rifaiUltimo(); }
+      else if (k === "F") {
+        e.preventDefault();
+        const r = inOut ?? tratto ?? (attivo ? [attivo.t, attivo.t + attivo.dur] as [number, number] : null);
+        if (r) setInquadra({ da: r[0], a: r[1], n: Date.now() });
+      }
+      else if (k === "a") {
+        // Tutto l'atto in cui sta la testina: e' l'unita' con cui questo
+        // montaggio ragiona, e sceglierla a mano vuol dire venti scatti.
+        e.preventDefault();
+        const at = cuts[i]?.atto;
+        if (at) setSelezione(new Set(cuts.map((c, n) => (c.atto === at ? n : -1)).filter((n) => n >= 0)));
+      }
+      else if (k === "Backspace" || k === "Delete") {
+        if (selezione.size) { e.preventDefault(); scartaSelezione(); }
+      }
+      else if (k === "j" || k === "l") { e.preventDefault(); setSpola((v2) => navetta(v2, k)); }
+      else if (k === "k") { e.preventDefault(); setSpola(0); v.pause(); }
+      else if (k === "Escape") { setScelto(null); setSelezione(new Set()); setAiuto(false); setAppunto(null); }
     };
     window.addEventListener("keydown", su);
     return () => window.removeEventListener("keydown", su);
-  }, [cuts, t, durata, vaiA, inOut, apriTaglio, annulla]);
+  }, [cuts, t, durata, vaiA, inOut, apriTaglio, annulla, rifaiUltimo, tratto, attivo, selezione, scartaSelezione]);
 
   const lancia = async () => {
     try { await api.videoRicostruisci(); setRic(await api.videoRicostruzione()); }
@@ -460,6 +634,19 @@ export default function Video() {
         </span>
         <Stato barra={barra} onRifai={() => api.videoBarra(true).then(setBarra).catch(() => {})} />
         {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {spola !== 0 && (
+          <span className="text-[10.5px] text-sky-300 tabular-nums">
+            {spola > 0 ? "▶▶" : "◀◀"} {Math.abs(spola)}x
+          </span>
+        )}
+        {!!rifai.length && (
+          <button onClick={() => void rifaiUltimo()}
+                  title={`rifai: ${rifai[rifai.length - 1]?.cosa}`}
+                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
+                             text-neutral-300 hover:border-neutral-500 hover:text-neutral-100">
+            rifai
+          </button>
+        )}
         {!!pila.length && (
           <button onClick={() => void annulla()}
                   title={`annulla: ${pila[pila.length - 1]?.cosa}`}
@@ -470,9 +657,11 @@ export default function Video() {
         )}
         {!!nForzature && (
           <button onClick={() => setVediForz((v) => !v)}
+                  title="cose che hai deciso tu, che scavalcano il montaggio calcolato"
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-sky-800 text-sky-300
                              hover:bg-sky-950/50">
-            {nForzature} {nForzature === 1 ? "forzatura" : "forzature"} a mano
+            {nForzature} {nForzature === 1 ? "tua scelta" : "tue scelte"}
+            {ric?.attiva ? "" : " · da ricostruire"}
           </button>
         )}
         {!!sospese.length && (
@@ -531,20 +720,18 @@ export default function Video() {
               <div className="text-[10px] text-amber-400/80 tabular-nums mb-1">
                 appunto a {mmss(appunto.t)} — f{Math.round(appunto.t * FPS)}
               </div>
-              <input
-                autoFocus value={appunto.testo}
-                onChange={(e) => setAppunto({ ...appunto, testo: e.target.value })}
-                onKeyDown={async (e) => {
-                  e.stopPropagation();
-                  if (e.key === "Escape") setAppunto(null);
-                  if (e.key === "Enter" && appunto.testo.trim()) {
-                    const r = await api.videoMarcatore(appunto.t, appunto.testo.trim()).catch(() => null);
-                    if (r) setMarcatori(r.marcatori);
-                    setAppunto(null);
-                  }
+              <Campo
+                autoFuoco valore={appunto.testo}
+                onCambia={(v) => setAppunto({ ...appunto, testo: v })}
+                onEsc={() => setAppunto(null)}
+                onInvio={async () => {
+                  if (!appunto.testo.trim()) return;
+                  const r = await api.videoMarcatore(appunto.t, appunto.testo.trim()).catch(() => null);
+                  if (r) setMarcatori(r.marcatori);
+                  setAppunto(null);
                 }}
-                placeholder="cosa non va — invio per segnarlo, esc per lasciar perdere"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-sm px-2 py-1 text-[11.5px] text-neutral-200"
+                segnaposto="cosa non va — invio per segnarlo, esc per lasciar perdere"
+                className="w-full text-[11.5px]"
               />
             </div>
           )}
@@ -554,7 +741,55 @@ export default function Video() {
                   calcola={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
                   onCambia={setWDx} onFine={salva(CHIAVE_DX)} />
         <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
-          {sel ? (
+          {molti.length > 1 ? (
+            <div className="p-2.5 space-y-2.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[12px] text-neutral-100">{molti.length} tagli scelti</span>
+                <button onClick={() => setSelezione(new Set())}
+                        className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">
+                  lascia
+                </button>
+              </div>
+              {tratto && (
+                <div className="text-[11px] text-neutral-400">
+                  da {timecode(tratto[0])} a {timecode(tratto[1])} · {(tratto[1] - tratto[0]).toFixed(1)}s ·{" "}
+                  {pianiSelezionati.length} {pianiSelezionati.length === 1 ? "ripresa" : "riprese"}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {tratto && (
+                  <Bott onClick={() => setInquadra({ da: tratto[0], a: tratto[1], n: Date.now() })}>
+                    guarda da vicino
+                  </Bott>
+                )}
+                {tratto && <Bott onClick={() => setInOut(tratto)}>segna il tratto</Bott>}
+                <Bott peso="pericolo" onClick={scartaSelezione}>
+                  scarta {pianiSelezionati.length === 1 ? "la ripresa" : `le ${pianiSelezionati.length} riprese`}
+                </Bott>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10.5px] text-neutral-400">durata di tutti:</span>
+                {[0.5, 1, 2, 4].map((b) => (
+                  <Bott key={b} onClick={() => durataSelezione(b)}>{b}</Bott>
+                ))}
+                <span className="text-[10.5px] text-neutral-400">battute</span>
+              </div>
+              <div className="border-t border-neutral-900 pt-2 space-y-0.5">
+                {molti.map((i) => {
+                  const c = cutsMostrati[i]!;
+                  return (
+                    <button key={i} onClick={() => apriTaglio(i)}
+                            className="flex w-full items-baseline gap-1.5 text-[10.5px] text-left
+                                       hover:bg-neutral-900 rounded-sm px-1 py-0.5">
+                      <span className="text-neutral-400 tabular-nums w-11 shrink-0">{mmss(c.t)}</span>
+                      <span className="text-neutral-100 truncate">{c.shot}</span>
+                      <span className="ml-auto text-neutral-400 tabular-nums shrink-0">{c.dur.toFixed(2)}s</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : sel ? (
             <Ispettore sel={sel} shots={shots} candidati={candidati} chiudi={() => setScelto(null)}
                        onForzato={leggiForzature} />
           ) : (
@@ -605,7 +840,8 @@ export default function Video() {
       <div className="shrink-0 min-h-0" style={{ height: hTimeline }}>
         <Timeline
           cuts={cutsMostrati} atti={atti} onda={onda} durata={durata} t={t}
-          poster={poster} scelto={scelto} inOut={inOut} setInOut={setInOut}
+          poster={poster} scelto={scelto} selezione={selezione} inquadra={inquadra}
+          inOut={inOut} setInOut={setInOut}
           gira={gira} vaiA={vaiA} marcatori={marcatori}
           togliMarcatore={(m) => { void api.videoMarcatore(m, null).then((r) => setMarcatori(r.marcatori)); }}
           apri={apriTaglio}
@@ -622,21 +858,31 @@ export default function Video() {
         <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setVediForz(false)}>
           <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 w-[560px] max-w-[92vw]"
                onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-[12px] text-neutral-100">forzature a mano</span>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-[12px] text-neutral-100">le tue scelte</span>
               <span className="text-[10.5px] text-neutral-400">
-                tutto il resto del montaggio è derivato dalle misure
+                scavalcano il montaggio calcolato
               </span>
               <button onClick={() => setVediForz(false)} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">chiudi</button>
             </div>
 
-            {!nForzature && <div className="text-[11px] text-neutral-400">niente: il piano è tutto derivato.</div>}
+            <p className="text-[11px] text-neutral-400 leading-relaxed mb-2">
+              Il montaggio si calcola dalle misure: dove cadono i tagli, quale ripresa su
+              quale battuta, quanto dura ognuna. Qui sotto c'è quello che hai deciso tu al
+              posto del calcolo — e finché non ricostruisci, nel video non c'è.
+            </p>
+
+            {!nForzature && (
+              <div className="text-[11px] text-neutral-400">
+                Non hai ancora scavalcato niente: il montaggio è tutto calcolato.
+              </div>
+            )}
 
             {forz?.pin.map((f) => (
               <div key={`p${f.battuta}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
-                <span className="text-sky-300 w-24 shrink-0">inchiodato</span>
+                <span className="text-sky-300 w-28 shrink-0">ripresa scelta</span>
                 <span className="text-neutral-100">{f.piano}</span>
-                <span className="text-neutral-400">alla battuta {f.battuta}</span>
+                <span className="text-neutral-400">sulla battuta {f.battuta}</span>
                 <button onClick={async () => { await api.videoPin(f.battuta, null); leggiForzature(); }}
                         className="ml-auto px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
                   togli
@@ -645,8 +891,10 @@ export default function Video() {
             ))}
             {forz?.durata.map((f) => (
               <div key={`d${f.battuta}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
-                <span className="text-sky-300 w-24 shrink-0">durata</span>
-                <span className="text-neutral-400">battuta {f.battuta}: {f.battute} battute</span>
+                <span className="text-sky-300 w-28 shrink-0">durata cambiata</span>
+                <span className="text-neutral-400">
+                  battuta {f.battuta}: {f.battute} {f.battute === 1 ? "battuta" : "battute"}
+                </span>
                 <button onClick={async () => { await api.videoDurata(f.battuta, null); leggiForzature(); }}
                         className="ml-auto px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
                   togli
@@ -655,7 +903,7 @@ export default function Video() {
             ))}
             {forz?.scartatiAMano.map((f) => (
               <div key={`s${f.piano}`} className="flex items-center gap-2 py-1 border-t border-neutral-900 text-[11px]">
-                <span className="text-rose-300 w-24 shrink-0">scartato</span>
+                <span className="text-rose-300 w-28 shrink-0">ripresa scartata</span>
                 <span className="text-neutral-100">{f.piano}</span>
                 <span className="text-neutral-400 truncate">{f.motivo}</span>
                 <button onClick={async () => {
@@ -667,7 +915,15 @@ export default function Video() {
               </div>
             ))}
 
-            {!!pila.length && (
+            {!!rifai.length && (
+          <button onClick={() => void rifaiUltimo()}
+                  title={`rifai: ${rifai[rifai.length - 1]?.cosa}`}
+                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
+                             text-neutral-300 hover:border-neutral-500 hover:text-neutral-100">
+            rifai
+          </button>
+        )}
+        {!!pila.length && (
           <button onClick={() => void annulla()}
                   title={`annulla: ${pila[pila.length - 1]?.cosa}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
@@ -676,8 +932,12 @@ export default function Video() {
           </button>
         )}
         {!!nForzature && (
-              <div className="mt-3 text-[10.5px] text-neutral-400">
-                nessuna di queste è nel video finché non ricostruisci.
+              <div className="mt-3 flex items-center gap-2">
+                <Bott peso="primario" onClick={() => { setVediForz(false); void lancia(); }}
+                      disabilitato={!!ric?.attiva}>
+                  ricostruisci il video con queste scelte
+                </Bott>
+                <span className="text-[10.5px] text-neutral-400">circa dodici minuti, sul PC</span>
               </div>
             )}
           </div>
@@ -692,8 +952,12 @@ export default function Video() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-[11.5px]">
               {[["spazio", "avvia e ferma"], ["← →", "un fotogramma"], ["⇧ ← →", "un secondo"],
                 ["[ ]", "taglio prima / dopo"], ["inizio · fine", "capo e coda"], ["f", "schermo intero"],
-                ["i · o", "inizio e fine del tratto"], ["l", "ripeti il tratto"],
+                ["i · o", "inizio e fine del tratto"], ["r", "ripeti il tratto"],
                 ["m", "appunto sull'istante"], ["z", "annulla l'ultima modifica"],
+                ["⇧Z", "rifai quello che hai annullato"], ["⇧F", "guarda da vicino il tratto"],
+                ["a", "scegli tutto l'atto"], ["⌫", "scarta le riprese scelte"],
+                ["⇧clic", "estendi la scelta"], ["⌘clic", "aggiungi un taglio alla scelta"],
+                ["j · k · l", "navetta indietro · ferma · avanti (premi più volte)"],
                 ["trascina un blocco", "sopra un altro: si scambiano"],
                 ["tira il bordo destro", "quante battute dura"],
                 ["trascina dalla libreria", "mettilo su quel taglio"],

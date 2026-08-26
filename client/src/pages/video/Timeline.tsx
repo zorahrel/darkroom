@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pq, type VideoAtto, type VideoCut, type VideoMarcatore, type VideoOnda } from "../../api";
-import { altezzeCorsie, passoTacche, H_RIGHELLO, H_ATTI } from "./tempo";
+import { altezzeCorsie, passoTacche, timecode, H_RIGHELLO, H_ATTI } from "./tempo";
 
 /**
  * La linea del tempo.
@@ -31,9 +31,13 @@ type Props = {
   t: number;
   poster: Map<string, string>;
   scelto: number | null;
+  /** I tagli selezionati insieme: ⇧clic estende, ⌘clic aggiunge. */
+  selezione: Set<number>;
+  /** Inquadra un tratto: cambia insieme zoom e scorrimento. */
+  inquadra: { da: number; a: number; n: number } | null;
   inOut: [number, number] | null;
   setInOut: (v: [number, number] | null) => void;
-  apri: (i: number) => void;
+  apri: (i: number, mod?: { estendi?: boolean; aggiungi?: boolean }) => void;
   vaiA: (s: number, parti?: boolean) => void;
   gira: boolean;
   marcatori: VideoMarcatore[];
@@ -51,7 +55,7 @@ type Props = {
 };
 
 export default function Timeline(p: Props) {
-  const { cuts, atti, onda, durata, t, poster, scelto, inOut, apri, vaiA, gira, marcatori, togliMarcatore, inchiodate, onScambia, onDurata, onPosa, durataForzata } = p;
+  const { cuts, atti, onda, durata, t, poster, scelto, selezione, inquadra, inOut, apri, vaiA, gira, marcatori, togliMarcatore, inchiodate, onScambia, onDurata, onPosa, durataForzata } = p;
   const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
   const [sopra, setSopra] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -62,6 +66,9 @@ export default function Timeline(p: Props) {
    *  qualche pixel a ogni cambio di carattere, e la corsia in fondo resta
    *  tagliata. */
   const [altezza, setAltezza] = useState(220);
+  /** Dove sta la finestra sul brano. Si legge scorrendo, non si indovina: e'
+   *  cio' che la mappa d'insieme disegna come rettangolo. */
+  const [scorrimento, setScorrimento] = useState(0);
 
   useEffect(() => {
     const el = scroller.current, c = corpo.current;
@@ -112,6 +119,34 @@ export default function Timeline(p: Props) {
       return nz;
     });
   };
+
+  /**
+   * Inquadrare un tratto.
+   *
+   * Zoom e scorrimento non sono due gesti separati quando si vuole guardare da
+   * vicino un pezzo preciso: si sceglie il fattore che fa entrare il tratto
+   * nella finestra e ci si porta sopra. Lo zoom qui non e' a scatti di potenza
+   * — ci si ferma dove serve, non al gradino piu' vicino.
+   */
+  const fit = useCallback((da: number, a: number) => {
+    const el = scroller.current;
+    if (!el || !durata || a <= da) return;
+    const w = el.clientWidth;
+    const b = w / durata;
+    const z = Math.max(0, Math.min(8, Math.log2((w * 0.92) / (a - da) / b)));
+    setZoom(z);
+    requestAnimationFrame(() => {
+      const e2 = scroller.current;
+      if (!e2) return;
+      const p2 = z === 0 ? b : b * Math.pow(2, z);
+      e2.scrollLeft = Math.max(0, (da + (a - da) / 2) * p2 - e2.clientWidth / 2);
+    });
+  }, [durata]);
+
+  useEffect(() => {
+    if (inquadra) fit(inquadra.da, inquadra.a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inquadra?.n]);
 
   const posizione = (e: { clientX: number; currentTarget: EventTarget | null }) => {
     const el = e.currentTarget as HTMLElement;
@@ -197,19 +232,24 @@ export default function Timeline(p: Props) {
     const corsia = (e.currentTarget as HTMLElement).parentElement;
     if (!corsia) return;
     const box = corsia.getBoundingClientRect();
+    const x0 = e.clientX;
+    // Una soglia, perché un dito che preme non sta mai fermo: senza, un clic
+    // che scivola di un pixel diventava uno scambio, e il montaggio cambiava
+    // per un tremolio. Sotto i sei pixel resta un clic.
+    const SOGLIA = 6;
     let mosso = false;
-    setTrascino({ tipo: "sposta", da: i, a: null });
     const muovi = (ev: PointerEvent) => {
+      if (!mosso && Math.abs(ev.clientX - x0) < SOGLIA) return;
       mosso = true;
       setTrascino({ tipo: "sposta", da: i, a: quale(ev.clientX, box) });
     };
     const su = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", muovi);
       window.removeEventListener("pointerup", su);
-      const a = quale(ev.clientX, box);
       setTrascino(null);
-      // Senza movimento è un clic: apre il taglio invece di scambiarlo.
-      if (!mosso || a === null || a === i) { apri(i); return; }
+      if (!mosso) { apri(i, { estendi: ev.shiftKey, aggiungi: ev.metaKey || ev.ctrlKey }); return; }
+      const a = quale(ev.clientX, box);
+      if (a === null || a === i) return;
       onScambia(i, a);
     };
     window.addEventListener("pointermove", muovi);
@@ -223,8 +263,11 @@ export default function Timeline(p: Props) {
     if (!c) return;
     const barraSec = c.dur / Math.max(0.5, battuteDi(i));   // secondi per battuta, qui
     const x0 = e.clientX, b0 = battuteDi(i);
-    setTrascino({ tipo: "allunga", i, battute: b0 });
+    let mosso = false;
     const muovi = (ev: PointerEvent) => {
+      // Stessa soglia della maniglia di spostamento, stessa ragione.
+      if (!mosso && Math.abs(ev.clientX - x0) < 6) return;
+      mosso = true;
       const db = (ev.clientX - x0) / pps / barraSec;
       // Mezza battuta è il passo del piano: fra una e l'altra non c'è niente
       // che il montaggio sappia rappresentare.
@@ -235,10 +278,31 @@ export default function Timeline(p: Props) {
       window.removeEventListener("pointermove", muovi);
       window.removeEventListener("pointerup", su);
       setTrascino((t2) => {
-        if (t2?.tipo === "allunga" && t2.battute !== b0) onDurata(c.bar, t2.battute);
+        if (mosso && t2?.tipo === "allunga" && t2.battute !== b0) onDurata(c.bar, t2.battute);
         return null;
       });
     };
+    window.addEventListener("pointermove", muovi);
+    window.addEventListener("pointerup", su);
+  };
+
+  /** Il tratto di brano che sta nella finestra adesso. */
+  const finestra = useMemo(
+    () => ({ da: scorrimento / pps, a: (scorrimento + larghezzaVista) / pps }),
+    [scorrimento, larghezzaVista, pps],
+  );
+
+  const portaVista = (e: React.PointerEvent) => {
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const vai = (cx: number) => {
+      const el = scroller.current;
+      if (!el || !durata) return;
+      const sec = Math.max(0, Math.min(durata, ((cx - box.left) / box.width) * durata));
+      el.scrollLeft = Math.max(0, sec * pps - el.clientWidth / 2);
+    };
+    vai(e.clientX);
+    const muovi = (ev: PointerEvent) => vai(ev.clientX);
+    const su = () => { window.removeEventListener("pointermove", muovi); window.removeEventListener("pointerup", su); };
     window.addEventListener("pointermove", muovi);
     window.addEventListener("pointerup", su);
   };
@@ -251,14 +315,19 @@ export default function Timeline(p: Props) {
         <button className={B} onClick={() => setZoom(0)}>tutto</button>
         <button className={B} onClick={() => zooma(-1)}>−</button>
         <button className={B} onClick={() => zooma(+1)}>+</button>
-        <span className="text-neutral-400 tabular-nums w-9">{zoom === 0 ? "fit" : `${Math.pow(2, zoom)}x`}</span>
+        <span className="text-neutral-400 tabular-nums w-11">{zoom === 0 ? "tutto" : `${Math.pow(2, zoom).toFixed(Math.pow(2, zoom) < 10 ? 1 : 0)}x`}</span>
         <span className="w-px h-3 bg-neutral-800 mx-0.5" />
         <button className={B} title="segna l'inizio del tratto  i" onClick={() => p.setInOut([t, inOut?.[1] ?? durata])}>in</button>
         <button className={B} title="segna la fine  o" onClick={() => p.setInOut([inOut?.[0] ?? 0, t])}>out</button>
         {inOut && (
-          <button className={`${B} text-amber-400/80`} onClick={() => p.setInOut(null)}>
-            {mmss(inOut[0])}–{mmss(inOut[1])} ×
-          </button>
+          <>
+            <button className={`${B} text-amber-400/80`} title="inquadra il tratto  ⇧F"
+                    onClick={() => fit(inOut[0], inOut[1])}>
+              {mmss(inOut[0])}–{mmss(inOut[1])}
+            </button>
+            <button className={`${B} text-amber-400/80`} title="togli il tratto"
+                    onClick={() => p.setInOut(null)}>×</button>
+          </>
         )}
         {trascino?.tipo === "sposta" && trascino.a !== null && trascino.a !== trascino.da && (
           <span className="text-sky-300">
@@ -269,10 +338,53 @@ export default function Timeline(p: Props) {
           <span className="text-sky-300">{cuts[trascino.i]?.shot}: {trascino.battute} battute</span>
         )}
         <span className="ml-auto text-neutral-400 tabular-nums">
-          {sopra !== null ? `${mmss(sopra)} · f${Math.round(sopra * FPS)}` : `${mmss(t)} · f${Math.round(t * FPS)}`}
+          <span className="text-neutral-100">{timecode(sopra ?? t)}</span>
+          {sopra !== null && <span className="text-neutral-400"> (sotto il dito)</span>}
         </span>
       </div>
 
+
+      {/* La mappa d'insieme.
+          Da vicino la finestra vede pochi secondi su due minuti e mezzo: senza
+          una vista intera non si sa piu' dove si e' ne' quanto manca, e ci si
+          muove a tentoni con la barra di scorrimento. Il rettangolo chiaro e'
+          la finestra: si trascina, e la timeline la segue. */}
+      {zoom > 0 && (
+        <div className="flex shrink-0 border-b border-neutral-900">
+          <div className="shrink-0 w-[68px] border-r border-neutral-900 px-1.5
+                          text-[9px] text-neutral-400 leading-[18px] select-none">
+            tutto
+          </div>
+          <div data-mappa title="tutto il brano: il rettangolo chiaro e' la finestra, trascinalo"
+               className="relative flex-1 min-w-0 h-[18px] bg-black/60 cursor-pointer select-none"
+               onPointerDown={portaVista}>
+            {atti.map((a, i) => (
+              <div key={`a${i}`} className="absolute inset-y-0 border-r border-neutral-800 pointer-events-none"
+                   style={{ left: `${(a.t0 / durata) * 100}%`, width: `${((a.t1 - a.t0) / durata) * 100}%` }} />
+            ))}
+            {cuts.map((c, i) => (
+              <div key={i} className="absolute bottom-0 pointer-events-none"
+                   style={{
+                     left: `${(c.t / durata) * 100}%`,
+                     width: `${Math.max(0.12, (c.dur / durata) * 100)}%`,
+                     height: `${25 + c.durezzaSuono * 75}%`,
+                     background: selezione.has(i) ? "#e8974a" : c.rovescio ? "#8a5a3a" : "#3f6076",
+                   }} />
+            ))}
+            {marcatori.map((m) => (
+              <div key={m.t} className="absolute top-0 w-[3px] h-[3px] bg-amber-400 -ml-[1px] pointer-events-none"
+                   style={{ left: `${(m.t / durata) * 100}%` }} />
+            ))}
+            <div className="absolute inset-y-0 w-px bg-orange-400 pointer-events-none z-10"
+                 style={{ left: `${(t / durata) * 100}%` }} />
+            <div className="absolute inset-y-0 border border-neutral-300/70 bg-neutral-100/10 pointer-events-none"
+                 style={{
+                   left: `${(finestra.da / durata) * 100}%`,
+                   width: `${Math.max(0.6, ((finestra.a - finestra.da) / durata) * 100)}%`,
+                 }} />
+          </div>
+        </div>
+      )}
       <div ref={corpo} className="flex flex-1 min-h-0 overflow-y-auto">
         {/* La colonna dei nomi resta ferma: a 128x sotto passa un secondo di
             brano, e senza il nome la corsia e' una riga di grigio. */}
@@ -295,6 +407,7 @@ export default function Timeline(p: Props) {
         <div
           ref={scroller}
           className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden"
+          onScroll={(e) => setScorrimento((e.currentTarget as HTMLElement).scrollLeft)}
           onWheel={(e) => {
             if (!e.altKey) return;
             e.preventDefault();
@@ -331,9 +444,22 @@ export default function Timeline(p: Props) {
                 <button key={i} onClick={() => vaiA(a.t0, true)}
                         title={`atto ${a.nome} · batt ${a.da}–${a.a}`}
                         className="absolute inset-y-0 border-r border-black/70 bg-neutral-900/80
-                                   text-[9px] text-neutral-400 hover:text-neutral-100 truncate px-1 leading-4"
+                                   text-[9px] text-neutral-400 hover:text-neutral-100 overflow-hidden
+                                   text-left leading-4"
                         style={{ left: x(a.t0), width: Math.max(2, x(a.t1 - a.t0)) }}>
-                  {a.nome}
+                  {/* Da vicino un atto e' largo quanto dieci schermi: il nome
+                      scritto al suo inizio e' fuori vista quasi sempre, e la
+                      corsia sembra vuota. Il nome scorre con la finestra e si
+                      ferma al bordo dell'atto. */}
+                  <span className="inline-block px-1 whitespace-nowrap"
+                        style={{
+                          transform: `translateX(${Math.max(
+                            0,
+                            Math.min(scorrimento - x(a.t0), x(a.t1 - a.t0) - 46),
+                          )}px)`,
+                        }}>
+                    {a.nome}
+                  </span>
                 </button>
               ))}
             </div>
@@ -379,7 +505,8 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                        className={`absolute bottom-0 border-r border-black/60 cursor-grab active:cursor-grabbing
                                    ${sposto ? "opacity-40" : "hover:brightness-150"}
                                    ${bersaglio ? "outline outline-2 -outline-offset-2 outline-sky-400 z-20" : ""}
-                                   ${scelto === i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}`}
+                                   ${scelto === i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}
+                                   ${selezione.has(i) && scelto !== i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10" : ""}`}
                        style={{
                          left: x(c.t), width: largo,
                          height: `${18 + c.durezzaSuono * 82}%`,
@@ -399,9 +526,11 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                      style={{ left: x(c.t), width: Math.max(1, x(c.dur)), bottom: `${18 + c.durezzaPiano * 82}%` }} />
               ))}
               {pps > 34 && cuts.map((c, i) => (
-                <div key={`n${i}`} className="absolute top-0 text-[9px] text-neutral-200/85 px-1 pointer-events-none truncate"
+                <div key={`n${i}`} className="absolute top-0 px-1 pointer-events-none truncate leading-[13px]"
                      style={{ left: x(c.t), width: Math.max(1, x(c.dur)) }}>
-                  {c.shot}
+                  {/* Il blocco arriva fin quassu' quando il suono e' duro: senza
+                      un fondo, il nome sparisce proprio sui tagli che contano. */}
+                  <span className="text-[9px] text-neutral-100 bg-black/65 rounded-sm px-1">{c.shot}</span>
                 </div>
               ))}
               {/* La durata dichiarata non si puo' mostrare spostando i blocchi
@@ -428,9 +557,13 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
               {cuts.map((c, i) => {
                 const src = poster.get(c.shot);
                 return (
-                  <button key={i} onClick={() => apri(i)} title={`${c.shot} · ${mmss(c.t)}`}
+                  <button key={i}
+                          onClick={(e) => apri(i, { estendi: e.shiftKey, aggiungi: e.metaKey || e.ctrlKey })}
+                          title={`${c.shot} · ${mmss(c.t)}`}
                           className={`absolute inset-y-0 border-r border-black/70 bg-cover bg-center ${
-                            scelto === i ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : "opacity-80 hover:opacity-100"}`}
+                            scelto === i ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10"
+                            : selezione.has(i) ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10"
+                            : "opacity-80 hover:opacity-100"}`}
                           style={{
                             left: x(c.t), width: Math.max(1, x(c.dur)),
                             backgroundImage: src ? `url(${pq(src)})` : undefined,
@@ -449,6 +582,27 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                 <div className="absolute top-0 bottom-0 border-x border-amber-500/70 pointer-events-none"
                      style={{ left: x(inOut[0]), width: Math.max(1, x(inOut[1] - inOut[0])) }} />
               </>
+            )}
+
+            {/* Dove va a finire il gesto.
+                Un blocco che si allunga si ferma sulla mezza battuta piu'
+                vicina: se il punto d'arrivo non si vede, si tira alla cieca e
+                si scopre dov'e' andato solo lasciando. */}
+            {trascino?.tipo === "allunga" && cuts[trascino.i] && (
+              <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
+                   style={{
+                     left: x(cuts[trascino.i]!.t)
+                       + x(cuts[trascino.i]!.dur * (trascino.battute / Math.max(0.5, battuteDi(trascino.i)))),
+                   }}>
+                <div className="absolute top-0 left-1 text-[9px] text-sky-200 bg-sky-950/90 px-1 rounded-sm leading-4
+                                whitespace-nowrap">
+                  {trascino.battute} {trascino.battute === 1 ? "battuta" : "battute"}
+                </div>
+              </div>
+            )}
+            {trascino?.tipo === "sposta" && trascino.a !== null && cuts[trascino.a] && (
+              <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
+                   style={{ left: x(cuts[trascino.a]!.t) }} />
             )}
 
             {/* dove passa il dito, prima di premere */}
