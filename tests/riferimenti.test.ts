@@ -181,6 +181,23 @@ describe("una reference si carica da dentro Darkroom", () => {
     expect(refs.some((x) => x.file.endsWith("fuga.png"))).toBe(true);
   });
 
+  test("un nome piu' lungo del filesystem viene accorciato, non fa esplodere", async () => {
+    // 300 caratteri: oltre i 255 byte che i filesystem accettano. Prima la
+    // scrittura falliva con ENAMETOOLONG e la rotta moriva invece di
+    // rispondere.
+    const r = await carica("a".repeat(300) + ".png", PNG);
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as { file: string };
+    expect(body.file.length).toBeLessThanOrEqual(200);
+    expect(body.file.endsWith(".png")).toBe(true);
+  });
+
+  test("un doppio suffisso non aggira il controllo sul formato", async () => {
+    // "x.png.exe" ha .png nel nome ma l'estensione vera e' .exe.
+    const r = await carica("x.png.exe", PNG, "image/png");
+    expect(r.status).toBe(400);
+  });
+
   test("un nome già preso non sovrascrive la reference esistente", async () => {
     // Sovrascrivere cambierebbe il significato del lineage delle varianti già
     // generate con quel file, senza dirlo a nessuno.

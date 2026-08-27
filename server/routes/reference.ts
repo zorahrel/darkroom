@@ -155,7 +155,14 @@ referenceRoutes.post("/api/references", async (c) => {
       .replace(/[^A-Za-z0-9._-]/g, "_")
       .replace(/\.{2,}/g, ".")
       .replace(/^[._-]+/, "") || "reference.png";
-  const ext = pulito.split(".").pop()?.toLowerCase() ?? "";
+  // I filesystem si fermano a 255 byte per nome: oltre, la scrittura esplode
+  // con ENAMETOOLONG invece di rifiutare educatamente. Si accorcia la parte
+  // davanti e si tiene l'estensione, che e' quella che conta.
+  const troppo_lungo = Buffer.byteLength(pulito) > 200;
+  const nome_ok = troppo_lungo
+    ? `${pulito.slice(0, 180)}.${pulito.split(".").pop()}`
+    : pulito;
+  const ext = nome_ok.split(".").pop()?.toLowerCase() ?? "";
   if (!ESTENSIONI.has(ext)) {
     return c.json({ error: `formato non ammesso (.${ext}): servono png, jpg o webp` }, 400);
   }
@@ -169,15 +176,15 @@ referenceRoutes.post("/api/references", async (c) => {
   // Un nome gia' preso non si sovrascrive: la reference vecchia potrebbe essere
   // quella con cui sono state generate delle varianti, e sostituirla
   // cambierebbe il significato del loro lineage senza dirlo a nessuno.
-  let nome = pulito;
+  let nome = nome_ok;
   if (existsSync(join(dir, nome))) {
-    const base = pulito.slice(0, -(ext.length + 1));
+    const base = nome_ok.slice(0, -(ext.length + 1));
     let i = 2;
     while (existsSync(join(dir, `${base}-${i}.${ext}`))) i++;
     nome = `${base}-${i}.${ext}`;
   }
   writeFileSync(join(dir, nome), Buffer.from(await file.arrayBuffer()));
-  return c.json({ file: nome, rinominato: nome !== pulito });
+  return c.json({ file: nome, rinominato: nome !== nome_ok || troppo_lungo });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>
