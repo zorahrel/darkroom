@@ -138,7 +138,26 @@ function Durezza({ shot, valore, misurata, aMano, moto, dettaglio, onCambia }: {
   onCambia: (v: number | null) => void;
 }) {
   const [tocco, setTocco] = useState<number | null>(null);
-  useEffect(() => setTocco(null), [shot]);
+
+  /**
+   * Si salva UNA volta, quando il cursore si ferma.
+   *
+   * Salvando a ogni scatto le scritture si sorpassano fra loro: dodici colpi di
+   * freccia da 0.60 partono come dodici POST, e sul server resta l'ultima che
+   * ARRIVA, non l'ultima che parte. Misurato: il cursore diceva 0.48, dopo la
+   * ricarica tornava 0.53. Con l'attesa parte una scrittura sola, quella
+   * giusta, e non c'e' nessuna corsa da vincere.
+   */
+  const attesa = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const salva = (v: number) => {
+    if (attesa.current) clearTimeout(attesa.current);
+    attesa.current = setTimeout(() => { attesa.current = null; onCambia(v); }, 300);
+  };
+  useEffect(() => () => { if (attesa.current) clearTimeout(attesa.current); }, []);
+  useEffect(() => {
+    if (attesa.current) { clearTimeout(attesa.current); attesa.current = null; }
+    setTocco(null);
+  }, [shot]);
   const mostrato = tocco ?? valore;
 
   if (mostrato === null) {
@@ -166,9 +185,7 @@ function Durezza({ shot, valore, misurata, aMano, moto, dettaglio, onCambia }: {
       </div>
       <input
         type="range" min={0} max={1} step={0.01} value={mostrato}
-        onChange={(e) => setTocco(Number(e.currentTarget.value))}
-        onPointerUp={() => { if (tocco !== null) onCambia(tocco); }}
-        onKeyUp={() => { if (tocco !== null) onCambia(tocco); }}
+        onChange={(e) => { const v = Number(e.currentTarget.value); setTocco(v); salva(v); }}
         className="dr-hue w-full mt-1"
       />
       <div className="flex justify-between text-[9.5px] text-neutral-400">
@@ -563,10 +580,22 @@ export default function VideoScelta() {
     try { setShots((await api.videoProblema(scena.pezzi[0]!.id, t)).shots); } catch { /* niente */ }
   }, [testo, scena]);
 
-  // Tastiera: le mani restano ferme e si giudica a raffica. Il campo nota e'
-  // l'unico posto dove i tasti tornano a essere lettere.
+  // Tastiera: le mani restano ferme e si giudica a raffica.
+  //
+  // DOVE si sta scrivendo o si sta muovendo un cursore, pero', i tasti tornano
+  // a essere tasti. Senza questa guardia il difetto non e' estetico: il cursore
+  // della durezza non si muoveva affatto (la freccia sinistra apriva "scarta" e
+  // faceva preventDefault), e portare il cursore dentro la descrizione con le
+  // frecce SCARTAVA la ripresa che si stava descrivendo. Trovato provando il
+  // cursore da fuori, non leggendo il codice.
+  const suUnCampo = (t: EventTarget | null) => {
+    const el = t as HTMLElement | null;
+    if (!el || !el.tagName) return false;
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable;
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (suUnCampo(e.target)) return;
       if (nota !== null) {
         if (e.key === "Escape") { setNota(null); setTesto(""); }
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void annota();
