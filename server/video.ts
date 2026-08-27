@@ -86,7 +86,11 @@ export type Cut = {
   origine: string;
 };
 
-export type Atto = { da: number; a: number; nome: string; t0: number; t1: number };
+/** `perche` e' la riga di storia che l'atto racconta — «lei cammina», «i piedi
+ *  lasciano il fondo». La scrive `pianifica.py` in atti.json: senza, in Scelta
+ *  si legge "atto cammino" e basta, che a chi giudica una ripresa non dice
+ *  niente. Puo' mancare sui progetti generati prima del 27/08/2026. */
+export type Atto = { da: number; a: number; nome: string; t0: number; t1: number; perche?: string };
 
 const readJson = <T,>(p: string, fallback: T): T => {
   try {
@@ -194,6 +198,39 @@ export function setScelta(shot: string, kept: boolean, perche?: string) {
     s.scartati[shot] = perche?.trim() || "scartato a mano";
     delete s.tenuti[shot];
   }
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s;
+}
+
+
+/**
+ * La durezza decisa a mano, che vince su quella misurata.
+ *
+ * La misura mette in fila le riprese per movimento, contrasto e luce, e
+ * sbaglia quando la forza di un'immagine non sta li' dentro: una figura ferma
+ * che riempie il quadro picchia piu' di un'onda lontana che si agita. Finora
+ * l'unico rimedio era scartare la ripresa — cioe' buttarla invece di
+ * rimetterla al posto giusto.
+ *
+ * `null` toglie la forzatura e restituisce la parola alla misura.
+ */
+export function setDurezzaAMano(shot: string, valore: number | null) {
+  const s = scelte() as Scelte & { durezze?: Record<string, number> };
+  s.durezze ??= {};
+  if (valore === null) delete s.durezze[shot];
+  else s.durezze[shot] = Math.min(1, Math.max(0, Math.round(valore * 100) / 100));
+  writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
+  return s;
+}
+
+/** La riga che dice cosa si vede, scritta a mano. Vince sul ritaglio del
+ *  prompt, che e' solo un ritaglio. Stringa vuota = torna quello automatico. */
+export function setDescrizione(shot: string, testo: string) {
+  const s = scelte() as Scelte & { descrizioni?: Record<string, string> };
+  s.descrizioni ??= {};
+  const t = testo.trim();
+  if (!t) delete s.descrizioni[shot];
+  else s.descrizioni[shot] = t.slice(0, 240);
   writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
   return s;
 }
@@ -420,6 +457,48 @@ function sospetto(
   return motivi.length ? motivi.join(" · ") : null;
 }
 
+/**
+ * Una riga che dice cosa si vede, ricavata dal prompt.
+ *
+ * I prompt di un progetto sono quasi tutti uguali: pellicola, notte, alto
+ * contrasto, la stessa donna nello stesso cappotto. Cambia una frase sola —
+ * l'inquadratura — ed e' l'unica che serve a capire una ripresa in mezzo
+ * secondo. Quindi non si riassume: si tolgono le frasi che hanno TUTTE, e
+ * resta quella che ha solo questa.
+ *
+ * La soglia e' un quarto del progetto: una frase che compare in una ripresa su
+ * quattro descrive lo stile, non la scena.
+ */
+function descrizioni(prompts: Record<string, any>): Record<string, string> {
+  const frasi = (t: string) =>
+    String(t ?? "")
+      .split(/(?<=[.!?])\s+/)
+      .map((f) => f.trim())
+      .filter((f) => f.length > 12);
+
+  const quante = new Map<string, number>();
+  const perId = new Map<string, string[]>();
+  for (const [id, v] of Object.entries(prompts)) {
+    const fs = frasi(v?.prompt);
+    if (!fs.length) continue;
+    perId.set(id, fs);
+    for (const f of new Set(fs)) quante.set(f, (quante.get(f) ?? 0) + 1);
+  }
+  const comune = Math.max(2, Math.ceil(perId.size / 4));
+
+  const out: Record<string, string> = {};
+  for (const [id, fs] of perId) {
+    const proprie = fs.filter((f) => (quante.get(f) ?? 0) < comune);
+    // Se sono tutte in comune la ripresa non ha niente di suo da dire, e
+    // scrivere il boilerplate sarebbe peggio che non scrivere niente.
+    if (!proprie.length) continue;
+    let t = proprie.slice(0, 2).join(" ");
+    if (t.length > 180) t = `${t.slice(0, 177)}…`;
+    out[id] = t;
+  }
+  return out;
+}
+
 export function shots(): Shot[] {
   const prompts = readJson<Record<string, any>>(at("prompts.json"), {});
   const dz = readJson<any>(at("durezza.json"), { piani: {} });
@@ -430,6 +509,9 @@ export function shots(): Shot[] {
   const as = atti();
   const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
   const arte = artefatti();
+  const descr = descrizioni(prompts);
+  const aManoDur = ((sc as any).durezze ?? {}) as Record<string, number>;
+  const aMano = ((sc as any).descrizioni ?? {}) as Record<string, string>;
   const scartati = sc.scartati;
   const tenuti = ((sc as any).tenuti ?? {}) as Record<string, number>;
   const problemi = sc.problemi ?? {};
@@ -438,12 +520,23 @@ export function shots(): Shot[] {
   const inScena: Record<string, number> = {};
   const primaVolta: Record<string, number> = {};
   const attoDelPiano: Record<string, string> = {};
+  /** OGNI volta che la ripresa entra, non solo la prima. Un totale di secondi
+   *  non dice se sono un blocco unico o tre lampi sparsi nel brano, e sono due
+   *  cose diverse da giudicare: una ripresa mediocre che passa tre volte pesa
+   *  piu' di una bella che passa una volta sola. */
+  const apparizioni: Record<string, { t: number; dur: number; atto: string | null }[]> = {};
   for (const seg of plan.segments ?? []) {
     const [b0, b1] = seg.bars;
-    inScena[seg.shot] = (inScena[seg.shot] ?? 0) + (t(b1) - t(b0));
+    const dur = t(b1) - t(b0);
+    inScena[seg.shot] = (inScena[seg.shot] ?? 0) + dur;
     if (primaVolta[seg.shot] === undefined) primaVolta[seg.shot] = t(b0);
     const a = attoDi(b0, as);
     if (a && !attoDelPiano[seg.shot]) attoDelPiano[seg.shot] = a;
+    (apparizioni[seg.shot] ??= []).push({
+      t: Math.round(t(b0) * 10) / 10,
+      dur: Math.round(dur * 10) / 10,
+      atto: a ?? null,
+    });
   }
 
   const srcDir = at("src");
@@ -500,8 +593,13 @@ export function shots(): Shot[] {
       return {
         id,
         prompt: prompts[id]?.prompt ?? prompts[`${id}_b`]?.prompt ?? "",
+        // Quella scritta a mano vince: e' un giudizio, l'altra e' un ritaglio.
+        descrizione: aMano[id] ?? descr[id] ?? descr[`${id}_b`] ?? null,
+        descrizioneAMano: aMano[id] !== undefined,
         takes,
-        durezza: m.durezza ?? null,
+        durezza: aManoDur[id] ?? m.durezza ?? null,
+        durezzaMisurata: m.durezza ?? null,
+        durezzaAMano: aManoDur[id] ?? null,
         moto: m.moto ?? null,
         dettaglio: m.dettaglio ?? null,
         inScena: Math.round((inScena[id] ?? 0) * 10) / 10,
@@ -514,6 +612,7 @@ export function shots(): Shot[] {
         origine: origine(id),
         atto: attoDelPiano[id] ?? null,
         minuto: primaVolta[id] ?? null,
+        apparizioni: apparizioni[id] ?? [],
         // Scartato a mano vs escluso dal pianificatore sono due cose diverse:
         // la prima si annulla da qui, la seconda ha una ragione scritta.
         escluso: id in scartati ? null : (esclusi.esclusi?.[id] ?? null),

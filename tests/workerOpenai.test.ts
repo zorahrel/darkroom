@@ -446,6 +446,85 @@ describe("la strada cara non deve essere quella comoda", () => {
     }
   }, 30_000);
 
+  test("una prova in low passa anche dopo una giornata di high", async () => {
+    // IL BUG: il freno confrontava il TOTALE DEL GIORNO con la soglia, quindi
+    // dopo $2.81 di generazioni rifiutava anche una prova da mezzo centesimo —
+    // che e' esattamente il modo giusto di lavorare. Ora pesa il costo della
+    // chiamata che sta per partire.
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevBudget = process.env.OPENAI_SYNC_BUDGET_USD;
+    const prevQ = process.env.OPENAI_IMAGE_QUALITY;
+    process.env.OPENAI_API_KEY = "sk-test-low";
+    process.env.OPENAI_SYNC_BUDGET_USD = "0.5";
+    process.env.OPENAI_IMAGE_QUALITY = "low";
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: png }], usage: { output_tokens: 196 } }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    try {
+      const { db } = await import("../server/db.ts");
+      // Una giornata gia' spesa, ben oltre la soglia del sincrono.
+      db().run(
+        `INSERT INTO api_calls (provider,model,quality,output_tokens,cost_usd,ok,origin,created_at)
+         VALUES ('openai','gpt-image-2','high',93000,2.81,1,'test-low',?)`,
+        [Date.now()],
+      );
+      const mod = await import(`../server/worker-openai.ts?low=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-low.png" });
+      expect(r.status).toBe("ok");
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevBudget === undefined) delete process.env.OPENAI_SYNC_BUDGET_USD;
+      else process.env.OPENAI_SYNC_BUDGET_USD = prevBudget;
+      if (prevQ === undefined) delete process.env.OPENAI_IMAGE_QUALITY;
+      else process.env.OPENAI_IMAGE_QUALITY = prevQ;
+    }
+  }, 30_000);
+
+  test("con delle reference non manda al batch, che non le accetta", async () => {
+    // Il batch non supporta /edits: consigliarlo a chi sta usando una
+    // reference e' mandarlo in un vicolo cieco. Deve suggerire `low`.
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevBudget = process.env.OPENAI_SYNC_BUDGET_USD;
+    const prevQ = process.env.OPENAI_IMAGE_QUALITY;
+    process.env.OPENAI_API_KEY = "sk-test-refs";
+    process.env.OPENAI_SYNC_BUDGET_USD = "0.01";
+    process.env.OPENAI_IMAGE_QUALITY = "high";
+    let chiamate = 0;
+    globalThis.fetch = (async () => {
+      chiamate++;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync("/tmp/darkroom-src-test.png", Buffer.from("x"));
+    try {
+      const mod = await import(`../server/worker-openai.ts?refs=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAi({
+        image: "/tmp/darkroom-src-test.png",
+        prompt: "x",
+        output: "/tmp/darkroom-refs.png",
+      });
+      expect(r.status).toBe("error");
+      expect(r.error).not.toContain("openai_batch.ts");
+      expect(r.error).toContain("low");
+      expect(chiamate).toBe(0);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevBudget === undefined) delete process.env.OPENAI_SYNC_BUDGET_USD;
+      else process.env.OPENAI_SYNC_BUDGET_USD = prevBudget;
+      if (prevQ === undefined) delete process.env.OPENAI_IMAGE_QUALITY;
+      else process.env.OPENAI_IMAGE_QUALITY = prevQ;
+    }
+  }, 30_000);
+
   test("a soglia zero il freno non c'e'", async () => {
     const prevFetch = globalThis.fetch;
     const prevKey = process.env.OPENAI_API_KEY;

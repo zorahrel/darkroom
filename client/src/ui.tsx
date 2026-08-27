@@ -133,6 +133,49 @@ export function Conferma({
 }
 
 /** Un'etichetta di stato. Non si clicca e non deve sembrare che si possa. */
+/**
+ * La scorciatoia da tastiera, stampata DENTRO il tasto che esegue.
+ *
+ * Prima stava in una legenda a fianco («← scarta · → tieni · ↑ annota»). Una
+ * legenda si legge una volta e poi diventa arredamento: sta sempre nello stesso
+ * posto, non cambia mai, e l'occhio smette di vederla proprio quando servirebbe
+ * — cioe' al momento di esitare su un tasto. Sul tasto invece la si guarda ogni
+ * volta che ci si guarda il tasto, e chi la impara smette da solo di usarlo.
+ */
+export function Scorciatoia({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd
+      className="px-1 py-px rounded-[3px] border border-current/30 bg-current/10
+                 text-[9.5px] leading-none font-medium opacity-70 tabular-nums"
+    >
+      {children}
+    </kbd>
+  );
+}
+
+/** Un tasto d'azione con la sua scorciatoia stampata sopra. */
+export function TastoGiudizio({
+  onClick,
+  tasto,
+  className = "",
+  children,
+}: {
+  onClick: () => void;
+  tasto: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-sm border text-[13px] inline-flex items-center gap-2 ${className}`}
+    >
+      {children}
+      <Scorciatoia>{tasto}</Scorciatoia>
+    </button>
+  );
+}
+
 export function Targa({
   children, tono = "neutro", titolo, className = "",
 }: {

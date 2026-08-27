@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, genUrl, refUrl } from "../api";
+import { useStatoVista, leggiBool, leggiUnoDi, leggiNumero } from "../statoVista";
+import { VERDETTI, type Verdetto, filtraAlbero, conteggiaVerdetti } from "../alberoFiltro";
 
 // Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
 // configurazione.
@@ -38,6 +40,15 @@ type Node = {
 const CYCLE = [null, "tieni", "forse", "scarta"] as const;
 const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
 
+/** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
+const VERDETTO_LABEL: Record<Verdetto, string> = {
+  tutte: "tutte",
+  tieni: "tenute",
+  forse: "forse",
+  scarta: "scartate",
+  "da-vedere": "da vedere",
+};
+
 /** Le ricette hanno una chiave tecnica e un nome leggibile. La chiave resta nel
  *  dato (e' quella che si passa al generatore); qui si mostra il nome, e una
  *  ricetta sconosciuta mostra la propria chiave invece di sparire. */
@@ -62,9 +73,27 @@ export default function AlberoPage() {
    * Sempre opzionale: acceso di default coprirebbe le varianti proprio mentre
    * le si sfoglia, che e' l'uso normale di questa pagina.
    */
-  const [overlay, setOverlay] = useState(false);
-  const [opacita, setOpacita] = useState(0.5);
-  const [modo, setModo] = useState<"sopra" | "differenza">("sopra");
+  const [overlay, setOverlay] = useStatoVista("rif", false, {
+    leggi: leggiBool,
+    memoria: "darkroom.albero.rif",
+  });
+  const [opacita, setOpacita] = useStatoVista("op", 0.5, {
+    leggi: leggiNumero(0, 1),
+    memoria: "darkroom.albero.op",
+  });
+  const [modo, setModo] = useStatoVista<"sopra" | "differenza">("modo", "sopra", {
+    leggi: leggiUnoDi(["sopra", "differenza"] as const),
+    memoria: "darkroom.albero.modo",
+  });
+  /**
+   * Il filtro per giudizio. Nell'URL e non solo in memoria: dopo aver segnato
+   * trenta varianti, "mostrami solo le tenute" e' cio' che si stava guardando,
+   * e ricaricare la pagina non deve riportare tutto in mezzo.
+   */
+  const [verdetto, setVerdetto] = useStatoVista<Verdetto>("giudizio", "tutte", {
+    leggi: leggiUnoDi(VERDETTI),
+    memoria: "darkroom.albero.giudizio",
+  });
   /**
    * Distanza dalla reference, per id di variante. Calcolata a richiesta e non
    * al caricamento: e' una misura che apre un processo per immagine, e su una
@@ -106,6 +135,16 @@ export default function AlberoPage() {
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
   const tenute = all.filter((v) => v.verdict === "tieni");
+  /** Quante varianti per giudizio: un filtro che porta a una pagina vuota va
+   *  saputo PRIMA di cliccarlo, non dopo. */
+  const conteggi = useMemo(() => conteggiaVerdetti(all), [all]);
+
+  /**
+   * L'albero filtrato. Si potano i gruppi rimasti vuoti e poi le radici rimaste
+   * senza gruppi: una sorgente con l'intestazione e nessuna variante sotto
+   * sembra un caricamento a meta', non un filtro che ha funzionato.
+   */
+  const visibili = useMemo(() => filtraAlbero(nodes, verdetto), [nodes, verdetto]);
   // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
   // senza riferimenti sarebbero un interruttore che non accende niente.
   const haRiferimenti = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
@@ -142,23 +181,57 @@ export default function AlberoPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      {haRiferimenti && (
-        <div className="flex items-center gap-3 flex-wrap text-xs border border-neutral-800 bg-neutral-900/50 px-3 py-2">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={overlay}
-              onChange={(e) => setOverlay(e.target.checked)}
-              className="accent-amber-500"
-            />
-            <span className="font-mono uppercase tracking-wide text-[10px] text-amber-500">
-              riferimento al passaggio del mouse
-            </span>
-          </label>
-          {overlay && (
-            <>
-              <label className="flex items-center gap-2">
-                <span className="text-neutral-400">opacità</span>
+      {/* Una barra sola, compatta. Prima i controlli del riferimento
+          occupavano una riga alta con etichette per esteso e una frase di
+          spiegazione sempre accesa: tanto spazio verticale rubato alle
+          varianti, che sono il motivo per cui si apre questa pagina. Ora e'
+          una striscia sottile, e le spiegazioni stanno nei `title`. */}
+      <div className="sticky top-14 z-30 flex items-center gap-2 flex-wrap text-[11px] border border-neutral-800 bg-neutral-950/95 backdrop-blur px-2 py-1">
+        {/* I filtri per giudizio: stessa forma dei filtri della griglia
+            (pastiglie con il conteggio), perche' e' la stessa domanda. */}
+        <div className="flex items-center gap-1 shrink-0">
+          {VERDETTI.map((k) => {
+            const n = conteggi[k];
+            const attivo = verdetto === k;
+            return (
+              <button
+                key={k}
+                onClick={() => setVerdetto(k)}
+                disabled={n === 0 && k !== "tutte"}
+                title={`${VERDETTO_LABEL[k]}: ${n}`}
+                className={
+                  "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
+                  (attivo
+                    ? "border-amber-500 text-amber-500"
+                    : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+                }
+              >
+                {VERDETTO_LABEL[k]}
+                <span className="ml-1 opacity-60 tabular-nums">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {haRiferimenti && (
+          <>
+            <span className="w-px h-4 bg-neutral-800" />
+            <label
+              className="flex items-center gap-1.5 cursor-pointer select-none"
+              title="Passando il mouse su una variante, il riferimento le compare sopra in trasparenza"
+            >
+              <input
+                type="checkbox"
+                checked={overlay}
+                onChange={(e) => setOverlay(e.target.checked)}
+                className="accent-amber-500 w-3 h-3"
+              />
+              <span className="font-mono uppercase tracking-wide text-[10px] text-amber-500">
+                riferimento
+              </span>
+            </label>
+            {overlay && (
+              <span className="flex items-center gap-1.5 shrink-0">
                 <input
                   type="range"
                   min={0}
@@ -166,39 +239,48 @@ export default function AlberoPage() {
                   step={0.05}
                   value={opacita}
                   onChange={(e) => setOpacita(Number(e.target.value))}
-                  className="w-28 accent-amber-500"
+                  title={`Opacita' del riferimento: ${Math.round(opacita * 100)}%`}
+                  className="w-20 shrink-0 accent-amber-500"
                 />
-                <span className="font-mono text-neutral-400 w-8">{Math.round(opacita * 100)}%</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="text-neutral-400">modo</span>
+                <span className="font-mono text-neutral-500 tabular-nums w-7">
+                  {Math.round(opacita * 100)}%
+                </span>
                 <select
                   value={modo}
                   onChange={(e) => setModo(e.target.value as "sopra" | "differenza")}
-                  className="bg-neutral-950 border border-neutral-700 px-1.5 py-0.5"
+                  title={
+                    modo === "differenza"
+                      ? "Le zone che combaciano restano nere"
+                      : "Il riferimento in trasparenza sopra la variante"
+                  }
+                  className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 text-[10px]"
                 >
                   <option value="sopra">sopra</option>
                   <option value="differenza">differenza</option>
                 </select>
-              </label>
-              <span className="text-neutral-500">
-                {modo === "differenza"
-                  ? "passa sopra una variante: le zone che combaciano restano nere"
-                  : "passa sopra una variante per vedere il riferimento in trasparenza"}
               </span>
-            </>
-          )}
-          <button
-            onClick={misura}
-            disabled={misurando}
-            title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Più basso è più somiglia."
-            className="ml-auto px-2 py-0.5 border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
-          >
-            {misurando ? "misuro…" : "misura lo scarto"}
+            )}
+            <button
+              onClick={misura}
+              disabled={misurando}
+              title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Piu' basso e' piu' somiglia."
+              className="ml-auto px-1.5 py-0.5 border border-neutral-800 text-neutral-400 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
+            >
+              {misurando ? "misuro…" : "misura scarto"}
+            </button>
+          </>
+        )}
+      </div>
+
+      {visibili.length === 0 && (
+        <div className="py-16 text-center text-neutral-500 text-sm">
+          Nessuna variante {VERDETTO_LABEL[verdetto]}.{" "}
+          <button onClick={() => setVerdetto("tutte")} className="text-amber-500 hover:underline">
+            mostra tutte
           </button>
         </div>
       )}
-      {nodes.map((n, i) => (
+      {visibili.map((n, i) => (
         <section
           key={(n.photos ?? [n.photo]).join("|")}
           className="grid grid-cols-[168px_1fr] gap-5 py-5 border-b border-neutral-800 items-start"

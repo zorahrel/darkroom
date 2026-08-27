@@ -3,7 +3,7 @@ import { serveFile } from "../http.ts";
 import {
   shots, cuts, assets, setScelta, clipPath, posterPath, assetPath,
   segnalaProblema, togliProblema, setRipresa, setPin, setDurata,
-  barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio, scambia, sganciaPin, provino } from "../video.ts";
+  setDurezzaAMano, setDescrizione, barra, ricostruisci, statoRicostruzione, onda, setMarcatore, marcatori, forzature, annullaGiudizio, scambia, sganciaPin, provino } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
 import { accodaVideoJob, listaVideoJob, annullaVideoJob, PARAMETRI_DEFAULT, type ParametriComfy } from "../comfy.ts";
 
@@ -34,6 +34,20 @@ videoRoutes.post("/api/video/pick", async (c) => {
   if (!body.shot) return c.json({ error: "shot mancante" }, 400);
   const s = setScelta(body.shot, body.kept !== false, body.perche);
   return c.json({ ok: true, scartati: s.scartati, shots: shots() });
+});
+
+videoRoutes.post("/api/video/durezza", async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { shot?: string; valore?: number | null };
+  if (!b.shot) return c.json({ error: "shot mancante" }, 400);
+  setDurezzaAMano(b.shot, typeof b.valore === "number" ? b.valore : null);
+  return c.json({ ok: true, shots: shots() });
+});
+
+videoRoutes.post("/api/video/descrizione", async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { shot?: string; testo?: string };
+  if (!b.shot) return c.json({ error: "shot mancante" }, 400);
+  setDescrizione(b.shot, String(b.testo ?? ""));
+  return c.json({ ok: true, shots: shots() });
 });
 
 videoRoutes.post("/api/video/problema", async (c) => {

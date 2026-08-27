@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { accessSync, constants } from "node:fs";
 import { origine } from "../server/video.ts";
 import { workflow } from "../server/comfy.ts";
 
@@ -58,7 +58,20 @@ describe("origine", () => {
  */
 const PIANIFICA = `${process.env.HOME}/Music/Music/Songs/progetto_video/pianifica.py`;
 
-describe.if(existsSync(PIANIFICA))("origine, la stessa in Python", () => {
+/** Leggibile, non solo esistente.
+ *
+ *  Il guardiano diceva `existsSync`, e il 27/08/2026 e' capitato il caso che
+ *  separa le due cose: il file c'era ma il processo aveva perso il permesso di
+ *  aprirlo (EPERM su tutta la cartella del progetto). Il test partiva e moriva
+ *  dentro Python su un errore che non c'entra niente con cio' che verifica.
+ *  Per quello che questi test vogliono sapere — "il progetto video e' a
+ *  disposizione su questa macchina?" — un file che non si puo' leggere e un
+ *  file che non c'e' sono la stessa cosa. */
+const leggibile = (p: string) => {
+  try { accessSync(p, constants.R_OK); return true; } catch { return false; }
+};
+
+describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
   test("le due implementazioni concordano su tutti i casi", () => {
     const nomi = CASI.map(([k]) => k);
     // Il modulo si importa senza eseguire main() (che sta sotto __main__), e
@@ -91,7 +104,7 @@ describe.if(existsSync(PIANIFICA))("origine, la stessa in Python", () => {
  */
 const GEN = `${process.env.HOME}/Music/Music/Songs/progetto_video/gen.py`;
 
-describe.if(existsSync(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
+describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
   const casi = [
     { nome: "senza tasselli", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
     { nome: "a tasselli, i default di oggi", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },

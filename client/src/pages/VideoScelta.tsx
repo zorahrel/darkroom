@@ -1,8 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { api, pq, type VideoShot, type VideoJob } from "../api";
+import { api, pq, type VideoShot, type VideoJob, type VideoAtto, type VideoCut } from "../api";
 import { Area, Numero, Scegli } from "./video/ui";
+import { Scorciatoia, TastoGiudizio } from "../ui";
+
 import type { OutletCtx } from "../App";
+
+/** Larghezza della clip nella modalita' Scelta, in pixel. Si trascina, e resta
+ *  fra una sessione e l'altra: chi giudica a raffica non vuole ritrovarsi la
+ *  misura di default ogni volta che riapre.
+ *
+ *  `null` non vuol dire "nessuna misura": vuol dire QUANTO CI STA — la clip
+ *  prende tutta l'altezza disponibile e si ferma dove finisce. E' il valore di
+ *  partenza perche' una misura fissa (erano 300px) lascia mezza colonna vuota
+ *  su uno schermo grande e sborda su uno piccolo, cioe' sbaglia sempre da
+ *  qualche parte. Un numero c'e' solo dopo che qualcuno ha trascinato. */
+const CHIAVE_LARGH = "darkroom.scelta.larghezzaClip";
 
 /**
  * Giudicare le scene, una alla volta.
@@ -36,6 +49,9 @@ type Scena = {
   annotata: boolean;
   /** Perché guardarla per prima. Non è un verdetto: è un ordine di lettura. */
   sospetto: string | null;
+  /** Ogni volta che entra nel montaggio. Un totale di secondi non dice se sono
+   *  un blocco solo o tre lampi sparsi, e da giudicare sono due cose diverse. */
+  apparizioni: { t: number; dur: number; atto: string | null }[];
 };
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -64,6 +80,7 @@ function raggruppa(shots: VideoShot[]): Scena[] {
         annotata: pezzi.some((p) => p.problemi.length > 0),
         // Il sospetto della presa e' quello del primo pezzo che ne ha uno.
         sospetto: pezzi.find((p) => p.sospetto)?.sospetto ?? null,
+        apparizioni: pezzi.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
       };
     })
     .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
@@ -100,6 +117,187 @@ function Provino({ shot, take, onVaiA }: {
       <div className="text-[10px] text-neutral-400 mt-0.5">
         dodici istanti della clip — clicca dove qualcosa non torna
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * La durezza: quanto l'immagine picchia, messa in fila con tutte le altre.
+ *
+ * Il cursore serve perche' la misura sbaglia in un modo preciso: guarda
+ * movimento, contrasto e luce, e la forza di un'immagine non sempre sta li'
+ * dentro. Una figura ferma che riempie il quadro picchia piu' di un'onda
+ * lontana che si agita. Senza cursore l'unico rimedio era scartare la ripresa,
+ * cioe' buttarla invece di rimetterla al posto giusto.
+ */
+function Durezza({ shot, valore, misurata, aMano, moto, dettaglio, onCambia }: {
+  shot: string;
+  valore: number | null; misurata: number | null; aMano: number | null;
+  moto: number | null; dettaglio: number | null;
+  onCambia: (v: number | null) => void;
+}) {
+  const [tocco, setTocco] = useState<number | null>(null);
+  useEffect(() => setTocco(null), [shot]);
+  const mostrato = tocco ?? valore;
+
+  if (mostrato === null) {
+    return (
+      <div className="mt-3 text-[11px] text-neutral-400">
+        Mai misurata: il montaggio non la può scegliere. La misura <code>misura.sh</code>.
+      </div>
+    );
+  }
+  const etichetta = mostrato >= 0.8 ? "picchia forte" : mostrato >= 0.55 ? "dura"
+                  : mostrato >= 0.3 ? "media" : mostrato >= 0.12 ? "molle" : "quasi ferma";
+  return (
+    <div className="mt-3">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-[11px] text-neutral-400">durezza</span>
+        <span className="text-[13px] text-neutral-100 tabular-nums">{mostrato.toFixed(2)}</span>
+        <span className="text-[11px] text-neutral-200">{etichetta}</span>
+        {aMano !== null && (
+          <button onClick={() => onCambia(null)}
+                  className="text-[10px] px-1.5 py-0.5 rounded-sm border border-amber-700/70
+                             text-amber-200/90 hover:bg-amber-950/40">
+            a mano — rimetti {misurata?.toFixed(2) ?? "la misura"}
+          </button>
+        )}
+      </div>
+      <input
+        type="range" min={0} max={1} step={0.01} value={mostrato}
+        onChange={(e) => setTocco(Number(e.currentTarget.value))}
+        onPointerUp={() => { if (tocco !== null) onCambia(tocco); }}
+        onKeyUp={() => { if (tocco !== null) onCambia(tocco); }}
+        className="dr-hue w-full mt-1"
+      />
+      <div className="flex justify-between text-[9.5px] text-neutral-400">
+        <span>ferma</span><span>picchia</span>
+      </div>
+      <p className="mt-1 text-[10.5px] text-neutral-400 leading-snug">
+        Decide <b>dove</b> cade nel brano, non se è bella: dura sui colpi, molle sui respiri.
+        {(moto !== null || dettaglio !== null) && (
+          <span className="tabular-nums">
+            {" "}Da movimento {moto?.toFixed(1) ?? "—"} · dettaglio{" "}
+            {dettaglio !== null ? `${Math.round(dettaglio * 100)}%` : "—"}.
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Cosa si vede, in una riga.
+ *
+ * Quella automatica e' il prompt meno le frasi che hanno tutte le riprese:
+ * resta l'inquadratura, che e' l'unica parte che distingue questa dalle altre
+ * trecento. Si puo' riscrivere, e allora vince la tua — perche' un ritaglio
+ * dice cosa e' stato CHIESTO, e dopo aver guardato la clip si sa cosa e'
+ * VENUTO, che non e' la stessa cosa.
+ */
+function Descrizione({ shot, testo, aMano, onSalva }: {
+  shot: string; testo: string | null; aMano: boolean; onSalva: (t: string) => void;
+}) {
+  const [modifica, setModifica] = useState(false);
+  const [bozza, setBozza] = useState("");
+  useEffect(() => { setModifica(false); setBozza(""); }, [shot]);
+
+  if (modifica) {
+    return (
+      <div className="mt-1.5">
+        <textarea
+          autoFocus value={bozza} onChange={(e) => setBozza(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); setModifica(false); }
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault(); onSalva(bozza); setModifica(false);
+            }
+          }}
+          placeholder="cosa si vede, in una riga"
+          className="w-full h-14 bg-neutral-900 border border-neutral-700 rounded-sm px-2 py-1
+                     text-[12px] outline-none focus:border-neutral-500"
+        />
+        <div className="flex gap-2 text-[11px] mt-1">
+          <button onClick={() => { onSalva(bozza); setModifica(false); }}
+                  className="px-2 py-0.5 rounded-sm border border-neutral-600 text-neutral-200
+                             inline-flex items-center gap-1.5">
+            salva <Scorciatoia>⌘↵</Scorciatoia>
+          </button>
+          <button onClick={() => setModifica(false)}
+                  className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400
+                             inline-flex items-center gap-1.5">
+            lascia stare <Scorciatoia>esc</Scorciatoia>
+          </button>
+          {aMano && (
+            <button onClick={() => { onSalva(""); setModifica(false); }}
+                    className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400">
+              torna a quella del prompt
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1.5 flex items-start gap-2">
+      <p className={`text-[12.5px] leading-snug ${testo ? "text-neutral-200" : "text-neutral-400 italic"}`}>
+        {testo ?? "nessuna descrizione"}
+      </p>
+      <button
+        onClick={() => { setBozza(aMano ? (testo ?? "") : ""); setModifica(true); }}
+        title="scrivi cosa si vede"
+        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-sm border border-neutral-800
+                   text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+      >
+        ✎
+      </button>
+    </div>
+  );
+}
+
+/** Se la ripresa sta bene dov'e' finita. E' il metro che alla durezza manca:
+ *  0.95 e' tanto se li' il brano respira, giusto se li' picchia. Soglia 0.20,
+ *  che e' dove lo scarto comincia a vedersi guardando. */
+function Combacia({ suono, piano }: { suono: number | null; piano: number | null }) {
+  if (suono === null || piano === null) return null;
+  const d = piano - suono;
+  if (Math.abs(d) <= 0.2) {
+    return <span className="text-[10.5px] text-emerald-400/80" title={`brano ${suono.toFixed(2)}`}>combacia</span>;
+  }
+  return (
+    <span className={`text-[10.5px] ${d > 0 ? "text-amber-400/90" : "text-sky-400/80"}`}
+          title={`brano ${suono.toFixed(2)} · ripresa ${piano.toFixed(2)}`}>
+      {d > 0 ? "più dura del brano" : "più molle del brano"} ({d > 0 ? "+" : ""}{d.toFixed(2)})
+    </span>
+  );
+}
+
+/** Lo stato come selezione fra tre, non come frase. Si vede dov'e' messo e si
+ *  sposta da qui: prima "scorda il voto" era un tastino in coda a una riga di
+ *  testo, e cambiare idea voleva dire cercarlo. */
+function Stato({ valore, onCambia }: {
+  valore: "tenuta" | "scartata" | null;
+  onCambia: (v: "tenuta" | "scartata" | null) => void;
+}) {
+  const voci: { v: "scartata" | null | "tenuta"; testo: string; attivo: string }[] = [
+    { v: "scartata", testo: "scartata", attivo: "bg-rose-950/60 border-rose-700 text-rose-200" },
+    { v: null, testo: "da vedere", attivo: "bg-neutral-800 border-neutral-600 text-neutral-100" },
+    { v: "tenuta", testo: "tenuta", attivo: "bg-emerald-950/60 border-emerald-700 text-emerald-200" },
+  ];
+  return (
+    <div className="inline-flex rounded-sm overflow-hidden border border-neutral-800">
+      {voci.map((o) => (
+        <button
+          key={String(o.v)}
+          onClick={() => onCambia(o.v)}
+          aria-pressed={valore === o.v}
+          className={`px-2 py-0.5 text-[11px] border-r last:border-r-0 border-neutral-800 transition-colors ${
+            valore === o.v ? o.attivo : "text-neutral-400 hover:text-neutral-200"}`}
+        >
+          {o.testo}
+        </button>
+      ))}
     </div>
   );
 }
@@ -149,15 +347,129 @@ export default function VideoScelta() {
   }, []);
   const video = useRef<HTMLVideoElement>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
+  const area = useRef<HTMLDivElement | null>(null);
+  const osservatore = useRef<ResizeObserver | null>(null);
+  const pannello = useRef<HTMLDivElement>(null);
+  const trascino = useRef<{ x0: number; w0: number } | null>(null);
+
+  /** Quanto e' larga la clip, in pixel. La sceglie chi guarda, trascinando. */
+  const [larghezzaVoluta, setLarghezzaVoluta] = useState<number | null>(() => {
+    const g = localStorage.getItem(CHIAVE_LARGH);
+    const n = Number(g);
+    return g !== null && Number.isFinite(n) && n >= 160 ? n : null;
+  });
+  useEffect(() => {
+    try {
+      if (larghezzaVoluta === null) localStorage.removeItem(CHIAVE_LARGH);
+      else localStorage.setItem(CHIAVE_LARGH, String(larghezzaVoluta));
+    } catch { /* niente */ }
+  }, [larghezzaVoluta]);
+
+  /** Il rapporto VERO del fotogramma, letto dal file quando parte.
+   *  Non si suppone 9:16: le anteprime stanno fra 0.550 e 0.556, e supporlo
+   *  vuol dire deformare la figura fino al 2% proprio mentre la si giudica. */
+  const [rapporto, setRapporto] = useState(9 / 16);
+
+  /** L'altezza si misura sull'AREA DEL VIDEO, non sul pannello: sotto la clip
+   *  c'e' la fila degli spezzoni, e misurare il pannello intero regalerebbe
+   *  alla clip un'altezza che non ha — cioe' la farebbe sbordare esattamente
+   *  sulle prese in due pezzi. */
+  const [hArea, setHArea] = useState(0);
+  const [wPannello, setWPannello] = useState(0);
+
+  /**
+   * L'osservatore si aggancia con un ref-callback, NON con un effetto.
+   *
+   * Con `useLayoutEffect(..., [])` c'era un difetto vero e silenzioso: l'area
+   * del video vive dentro il ramo `{!scena ? ... : ...}`, quindi al primo
+   * render — quando le riprese non sono ancora arrivate dal server — il
+   * riferimento e' nullo, l'effetto esce subito e non viene mai rieseguito.
+   * Risultato: `hArea` restava 0, il limite d'altezza spariva del tutto
+   * (`hArea || Infinity`) e trascinando la clip cresceva fino a finire sotto
+   * la finestra. Un ref-callback viene invece chiamato ogni volta che il nodo
+   * entra o esce dal DOM, che e' proprio la cosa da seguire.
+   */
+  const agganciaArea = useCallback((el: HTMLDivElement | null) => {
+    osservatore.current?.disconnect();
+    area.current = el;
+    if (!el) return;
+    const misura = () => {
+      setHArea(el.clientHeight);
+      const riga = pannello.current;
+      if (riga) setWPannello(riga.clientWidth);
+    };
+    misura();
+    const ro = new ResizeObserver(misura);
+    ro.observe(el);
+    if (pannello.current) ro.observe(pannello.current);
+    osservatore.current = ro;
+  }, []);
+
+  /** Quanto spazio resta al pannello di destra, come minimo. Sotto questa
+   *  soglia il prompt e il provino diventano illeggibili, e allargare la clip
+   *  fino a schiacciarli non e' una scelta che valga la pena poter fare. */
+  const MIN_DESTRA = 320;
+
+  /**
+   * Si fissa l'ALTEZZA, non la larghezza, e la larghezza resta `auto`.
+   *
+   * Sembra un dettaglio ed e' la differenza fra "non sborda" e "sborda del
+   * 2%". Fissando la larghezza, l'altezza esce da una divisione per
+   * `rapporto` — e `rapporto` e' una stima finche' il file non ha caricato i
+   * metadati: parte da 9/16 (0.5625) mentre le anteprime vere stanno a 0.550.
+   * Basta quel 2% e la clip finisce sotto il bordo e viene tagliata, che e'
+   * esattamente cio' che si vedeva.
+   *
+   * Fissando l'altezza il vincolo diventa esatto: `hArea` e' misurato, non
+   * stimato, e la clip non puo' essere piu' alta dello spazio che ha. Il
+   * `rapporto` resta usato solo per tradurre la larghezza VOLUTA in
+   * un'altezza: se e' un po' sbagliato la clip esce leggermente piu' stretta
+   * o piu' larga di quanto chiesto — cosa che non si nota — invece di
+   * sbordare, che si nota subito.
+   *
+   * E la larghezza `auto` la deduce il fotogramma dal suo rapporto vero:
+   * niente deformazione e niente bande, perche' non c'e' nessun riquadro con
+   * una forma decisa da noi da riempire.
+   */
+  const altezzaClip = Math.max(
+    120,
+    Math.min(
+      ...[
+        hArea || Infinity,                                    // non piu' alta dell'area
+        larghezzaVoluta === null ? Infinity : larghezzaVoluta / rapporto, // se e' stata chiesta
+        wPannello ? (wPannello - MIN_DESTRA) / rapporto : Infinity, // lascia vivere la colonna destra
+      ],
+    ),
+  );
 
   useEffect(() => {
     api.videoShots().then((r) => setShots(r.shots)).catch(() => {});
   }, []);
 
   const scene = useMemo(() => raggruppa(shots), [shots]);
+  /** Gli atti col loro `perche`. Vengono dal piano, non dedotti dalle riprese:
+   *  e' li' che sta la riga di storia. */
+  const [attiPieni, setAttiPieni] = useState<VideoAtto[]>([]);
+  /** I tagli servono per una cosa sola qui: dire quanto e' duro il BRANO nel
+   *  punto in cui la ripresa cade. Senza, la durezza della ripresa e' un
+   *  numero senza metro — 0.95 e' tanto o poco? Dipende da cosa chiede il
+   *  brano li', ed e' esattamente l'aggancio su cui il montaggio e' costruito. */
+  const [tagli, setTagli] = useState<VideoCut[]>([]);
+  useEffect(() => {
+    api.videoCuts().then((r) => { setAttiPieni(r.atti ?? []); setTagli(r.cuts ?? []); }).catch(() => {});
+  }, []);
+  /** La durezza del suono al secondo `t`, dal taglio che ci cade sopra. */
+  const suonoA = useCallback(
+    (t: number) => tagli.find((c) => Math.abs(c.t - t) < 0.25)?.durezzaSuono ?? null,
+    [tagli],
+  );
   const atti = useMemo(
     () => [...new Set(scene.map((s) => s.atto).filter(Boolean))] as string[],
     [scene],
+  );
+  const spiegaAtto = useCallback(
+    (n: string | null) => (n ? attiPieni.find((a) => a.nome === n)?.perche ?? null : null),
+    [attiPieni],
   );
 
   const coda = useMemo(
@@ -280,32 +592,39 @@ export default function VideoScelta() {
 
   return (
     <div ref={guscio} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: hGuscio }}>
-      <div className="shrink-0 h-[24px] flex items-center gap-2.5 px-1 border-b border-neutral-900">
+      {/* Altezza AUTO e non 24px fissi: su tablet dentro 24px non ci sta
+          niente e la barra si sfascia. Va a capo in modo pulito, e il gruppo
+          dei filtri scorre di lato invece di spingere fuori il resto. */}
+      <div className="shrink-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-1
+                      border-b border-neutral-900">
         <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">SCELTA</span>
         <Link to={`/p/${pid}/video`} className="text-[11px] text-neutral-400 hover:text-neutral-200">
           ← montaggio
         </Link>
         <span className="text-[10.5px] text-neutral-400 tabular-nums">
-          {coda.length} in coda · su {scene.length} prese:
-          <span className="text-emerald-300"> {tenute} tenute</span> ·
-          <span className="text-rose-300"> {scartate} scartate</span> ·
+          {coda.length} in coda · su {scene.length}:
+          <span className="text-emerald-300"> {tenute}</span> ·
+          <span className="text-rose-300"> {scartate}</span> ·
           <span className="text-neutral-100"> {daGiudicare} mai viste</span>
         </span>
         {ultimo && (
           <span className={`text-[10.5px] flex items-center gap-1.5 ${ultimo.kept ? "text-emerald-300" : "text-rose-300"}`}>
             {ultimo.kept ? "tenuta" : "scartata"} <span className="text-neutral-100">{ultimo.nome}</span>
             <button onClick={() => void disfaUltimo()}
-                    className="px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400 hover:text-neutral-100">
-              annulla · z
+                    className="px-1.5 py-0.5 rounded-sm border border-neutral-700 text-neutral-400
+                               hover:text-neutral-100 inline-flex items-center gap-1.5">
+              annulla
+              <Scorciatoia>z</Scorciatoia>
             </button>
           </span>
         )}
-        <div className="ml-auto flex gap-1.5 items-center">
+        <div className="ml-auto flex gap-1.5 items-center overflow-x-auto max-w-full
+                        [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {(["da giudicare", "sospette", "tenute", "scartate", "annotate", "in montaggio", "tutte"] as const).map((k) => (
           <button
             key={k}
             onClick={() => { setFiltro(k); setI(0); }}
-            className={`text-[10px] px-1.5 py-0.5 rounded-sm border ${
+            className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-sm border ${
               filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400"
             }`}
           >
@@ -318,25 +637,109 @@ export default function VideoScelta() {
         </div>
       </div>
 
+      {/* La mappa di TUTTE le prese, una tacca ciascuna, nell'ordine in cui
+          cadono nel montaggio.
+          I numeri in testa dicono QUANTE sono tenute e quante scartate; questa
+          dice QUALI, e sono due domande diverse. Serve soprattutto a vedere i
+          buchi — un tratto di grigio e' un pezzo di brano su cui non ha ancora
+          guardato nessuno, e con il filtro "da giudicare" quel tratto e'
+          invisibile perche' li' dentro c'e' solo cio' che manca, mai dove
+          manca. */}
+      {scene.length > 0 && (
+        <div className="shrink-0 flex items-center gap-2 px-1 py-1 border-b border-neutral-900">
+          {/* `overflow-hidden` e tacche senza larghezza minima, e non e' una
+              rifinitura: con `min-w-[2px]` 274 tacche chiedono 820px, che su un
+              tablet non ci sono. La riga sbordava dalla sua scatola e i numeri
+              della legenda finivano stampati SOPRA le tacche (visto a 834px).
+              Senza pavimento le tacche si stringono e la mappa resta intera e
+              in proporzione a ogni larghezza — che e' cio' per cui esiste. */}
+          <div className="flex-1 min-w-0 flex gap-px h-3.5 overflow-hidden">
+            {scene.map((s) => {
+              const colore =
+                s.giudizio === "tenuta" ? "bg-emerald-500/70 hover:bg-emerald-400"
+                : s.giudizio === "scartata" ? "bg-rose-500/60 hover:bg-rose-400"
+                : s.sospetto ? "bg-amber-500/50 hover:bg-amber-400"
+                : "bg-neutral-700/70 hover:bg-neutral-500";
+              const suo = scena?.origine === s.origine;
+              return (
+                <button
+                  key={s.origine}
+                  title={`${s.origine} — ${s.giudizio ?? "mai giudicata"}${
+                    s.minuto !== null ? ` · ${mmss(s.minuto)}` : " · non in montaggio"}`}
+                  onClick={() => {
+                    // Saltare a una presa che il filtro corrente nasconde non
+                    // puo' fallire in silenzio: si allarga il filtro e ci si
+                    // va. Il contrario — un clic che non fa niente — e' il modo
+                    // piu' rapido per far credere che la mappa sia decorativa.
+                    const dove = coda.findIndex((c) => c.origine === s.origine);
+                    if (dove >= 0) setI(dove);
+                    else { setFiltro("tutte"); setAtto(""); setI(scene.indexOf(s)); }
+                  }}
+                  className={`flex-1 min-w-0 rounded-[1px] transition-colors ${colore} ${
+                    suo ? "ring-1 ring-neutral-100 ring-inset" : ""}`}
+                />
+              );
+            })}
+          </div>
+          <span className="shrink-0 text-[10px] text-neutral-400 tabular-nums flex items-center gap-2">
+            <span className="flex items-center gap-1"><i className="w-2 h-2 rounded-[1px] bg-emerald-500/70" />{tenute}</span>
+            <span className="flex items-center gap-1"><i className="w-2 h-2 rounded-[1px] bg-rose-500/60" />{scartate}</span>
+            <span className="flex items-center gap-1"><i className="w-2 h-2 rounded-[1px] bg-amber-500/50" />{sospette}</span>
+            <span className="flex items-center gap-1"><i className="w-2 h-2 rounded-[1px] bg-neutral-700/70" />{daGiudicare}</span>
+          </span>
+        </div>
+      )}
+
       {!scena || !corrente ? (
         <div className="flex-1 min-h-0 grid place-items-center text-neutral-400 text-sm">
           {shots.length ? "niente da giudicare con questi filtri" : "nessuna ripresa nel progetto"}
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex gap-3 pt-2 pb-1">
-          <div className="shrink-0 flex flex-col">
-            {/* La clip prende l'altezza che lo schermo ha. A 340px un verticale
-                9:16 sta in 190 di larghezza: a quella misura un difetto si vede
-                solo se e' enorme, e sono proprio i piccoli quelli che passano
-                due volte prima che qualcuno se ne accorga. */}
-            <video
-              ref={video}
-              key={corrente.id}
-              src={pq(corrente.takes[0]?.clip ?? "")}
-              poster={pq(corrente.takes[0]?.poster ?? "")}
-              autoPlay muted loop playsInline
-              className="flex-1 min-h-0 aspect-[9/16] bg-black border border-neutral-800 rounded-sm object-cover"
-            />
+        <div ref={pannello} className="flex-1 min-h-0 flex flex-col md:flex-row gap-1 pt-2 pb-1">
+          <div className="shrink-0 flex flex-col min-w-0">
+            {/* Il fotogramma non sta MAI dentro un riquadro con una forma
+                decisa da noi, e i due difetti visti oggi spiegano perche':
+
+                - `aspect-[9/16]` lo deformava. Le anteprime non sono tutte
+                  9:16 — misurate, stanno fra 360x648 (0.556) e 360x654
+                  (0.550) — e qui si giudica proprio la forma della figura:
+                  una donna piu' magra del 2% e' esattamente l'errore che non
+                  ci si puo' permettere;
+                - `object-contain` dentro un riquadro largo metteva le bande
+                  nere, perche' in una colonna flex `align-items` vale
+                  `stretch` e il video veniva allargato a tutta la colonna.
+
+                Quindi: nessun `object-fit`, larghezza esplicita, altezza
+                `auto`. La larghezza la decide il ridimensionatore, ma viene
+                tosata a `altezza * rapporto` — cosi' il fotogramma non puo'
+                ne' deformarsi ne' sbordare, e non resta mai avanzo da
+                riempire di nero.
+
+                Il `max-h-full` sul video NON e' ridondante rispetto alla
+                tosatura: e' la stessa cosa detta al browser invece che a un
+                calcolo mio. Se la mia misura arriva tardi — al primo
+                fotogramma, mentre la finestra si ridimensiona, o se il
+                rapporto non e' ancora stato letto — la tosatura sbaglia per un
+                istante e il video sborda. Il `max-h-full` no, e per un
+                elemento sostituito con larghezza data e altezza `auto` il
+                browser ricalcola ANCHE la larghezza, quindi il rapporto resta
+                giusto. Due difese contro lo stesso sbordamento, e quella che
+                non dipende da me e' l'ultima parola. */}
+            <div ref={agganciaArea} className="flex-1 min-h-0 grid place-items-center overflow-hidden">
+              <video
+                ref={video}
+                key={corrente.id}
+                src={pq(corrente.takes[0]?.clip ?? "")}
+                poster={pq(corrente.takes[0]?.poster ?? "")}
+                autoPlay muted loop playsInline
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget;
+                  if (v.videoWidth && v.videoHeight) setRapporto(v.videoWidth / v.videoHeight);
+                }}
+                style={{ height: altezzaClip, width: "auto" }}
+                className="max-h-full max-w-full bg-black border border-neutral-800 rounded-sm"
+              />
+            </div>
             {scena.pezzi.length > 1 && (
               <div className="mt-2 flex gap-1.5">
                 {scena.pezzi.map((p, k) => (
@@ -357,57 +760,150 @@ export default function VideoScelta() {
             )}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="text-[15px] text-neutral-200">{scena.origine}</div>
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
-              <dt className="text-neutral-400">atto</dt>
-              <dd>{scena.atto ?? <span className="text-neutral-400">— non in montaggio</span>}</dd>
-              <dt className="text-neutral-400">in scena</dt>
-              <dd>{scena.minuto === null ? "—" : `${scena.inScena.toFixed(1)}s a ${mmss(scena.minuto)}`}</dd>
-              {corrente.sospetto && (
-              <>
-                <dt className="text-amber-500/80">da guardare</dt>
-                <dd className="text-amber-200/90">
-                  {corrente.sospetto}
-                  <span className="block text-[10.5px] text-neutral-400 leading-snug">
-                    I numeri dicono che potrebbe essere inutilizzabile. Non è un verdetto: fra le
-                    tenute ce ne sono di volutamente immobili, e questa regola ne sbaglia una su
-                    cinque. Serve solo a metterle davanti.
-                  </span>
-                </dd>
-              </>
+          {/* Il ridimensionatore. Non e' un vezzo: la stessa passata di
+              giudizio vuole due larghezze diverse — larga per vedere se la
+              figura si disfa, stretta quando si sta leggendo il prompt o si
+              guarda il provino. Trascinare costa meno che rimpicciolire la
+              finestra. La misura resta fra una sessione e l'altra. */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            title="trascina per stringere o allargare · doppio clic: quanto ci sta"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              // Si parte dalla larghezza VISIBILE, non da quella voluta: finche'
+              // nessuno ha trascinato la voluta e' `null`, e il trascinamento
+              // deve continuare da dove la clip sta adesso, non da un numero.
+              trascino.current = { x0: e.clientX, w0: larghezzaVoluta ?? altezzaClip * rapporto };
+            }}
+            onPointerMove={(e) => {
+              const t = trascino.current;
+              if (!t) return;
+              setLarghezzaVoluta(Math.max(160, Math.min(1200, t.w0 + (e.clientX - t.x0))));
+            }}
+            onPointerUp={(e) => {
+              trascino.current = null;
+              (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            }}
+            onDoubleClick={() => setLarghezzaVoluta(null)}
+            className="hidden md:grid shrink-0 w-2 -mx-0.5 cursor-col-resize group place-items-center
+                       touch-none select-none"
+          >
+            <div className="w-px h-16 rounded bg-neutral-800 group-hover:bg-neutral-500
+                            group-active:bg-neutral-400 transition-colors" />
+          </div>
+
+          <div className="flex-1 min-w-0 overflow-y-auto">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <div className="text-[15px] text-neutral-200">{scena.origine}</div>
+              {/* Lo stato e' una SCELTA fra tre, non una frase da leggere: si
+                  vede dov'e' messo adesso e si sposta da qui senza tornare in
+                  fondo ai tasti. */}
+              <Stato
+                valore={scena.giudizio}
+                onCambia={async (v) => {
+                  if (v === null) {
+                    for (const pz of scena.pezzi) setShots((await api.videoScordaGiudizio(pz.id)).shots);
+                  } else if (v === "tenuta") await giudica(true);
+                  else setNota("scarto");
+                }}
+              />
+              {scena.giudizio && scena.giudicataIl && (
+                <span className="text-[10.5px] text-neutral-400">
+                  {new Date(scena.giudicataIl).toLocaleString("it-IT",
+                    { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+
+            {/* Cosa si vede, in una riga. E' la prima cosa che serve e non
+                c'era: si aveva il nome, i numeri e il prompt intero, cioe'
+                tutto tranne la risposta a "che roba e' questa". */}
+            <Descrizione
+              shot={corrente.id}
+              testo={corrente.descrizione}
+              aMano={corrente.descrizioneAMano}
+              onSalva={async (t) => setShots((await api.videoDescrizione(corrente.id, t)).shots)}
+            />
+
+            {scena.giudizio === "scartata" && corrente.perche && (
+              <div className="mt-1 text-[11.5px] text-rose-300/90">scartata — {corrente.perche}</div>
             )}
-            <dt className="text-neutral-400">durezza</dt>
-              <dd className="tabular-nums">{corrente.durezza?.toFixed(2) ?? "—"}</dd>
-              <dt className="text-neutral-400">stato</dt>
-              <dd>
-                {scena.giudizio === "tenuta"
-                  ? <span className="text-emerald-300">
-                      tenuta{scena.giudicataIl
-                        ? ` il ${new Date(scena.giudicataIl).toLocaleString("it-IT",
-                            { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
-                        : ""}
-                    </span>
-                  : scena.giudizio === "scartata"
-                  ? <span className="text-rose-300">scartata — {corrente.perche}</span>
-                  : <span className="text-neutral-400">
-                      mai giudicata{scena.kept ? " · sta nel montaggio perché tenere è il valore di partenza" : ""}
-                    </span>}
-                {scena.giudizio && (
-                  <button
-                    onClick={async () => {
-                      for (const pz of scena.pezzi) setShots((await api.videoScordaGiudizio(pz.id)).shots);
-                    }}
-                    className="ml-2 px-1.5 py-0.5 rounded-sm border border-neutral-700 text-[10px]
-                               text-neutral-400 hover:text-neutral-100">
-                    scorda il voto
-                  </button>
-                )}
-                {corrente.escluso && (
-                  <span className="text-amber-500/80"> · esclusa dal piano: {corrente.escluso}</span>
-                )}
-              </dd>
-            </dl>
+            {!scena.giudizio && scena.kept && (
+              <div className="mt-1 text-[11px] text-neutral-400">
+                È nel montaggio senza che nessuno l'abbia guardata: tenere è il valore di partenza.
+              </div>
+            )}
+            {corrente.escluso && (
+              <div className="mt-1 text-[11px] text-amber-500/80">
+                esclusa dal piano: {corrente.escluso}
+              </div>
+            )}
+
+            {corrente.sospetto && (
+              <div className="mt-3 border-l-2 border-amber-500/50 pl-2">
+                <div className="text-[11px] text-amber-500/80">da guardare per prima</div>
+                <div className="text-[12px] text-amber-200/90">{corrente.sospetto}</div>
+                <div className="text-[10.5px] text-neutral-400 leading-snug mt-0.5">
+                  Su materiale nuovo sbaglia 4 volte su 5: è un avviso, non un verdetto.
+                </div>
+                {/* Fra "tieni" e "scarta" manca la terza cosa che si vuole fare
+                    davvero quando una ripresa e' segnalata: aggiustarla. Il
+                    pannello del prompt c'era gia' ma stava chiuso in fondo alla
+                    colonna, quindi la strada era: leggo il problema, scorro,
+                    apro, cerco il prompt. Da qui e' un tasto. */}
+                <button
+                  onClick={() => { setPromptMod(corrente.prompt ?? ""); setRigen(true); }}
+                  className="mt-1.5 px-2 py-0.5 rounded-sm border border-amber-700/70 text-amber-200/90
+                             text-[11px] hover:bg-amber-950/40"
+                >
+                  ✎ correggi il prompt e rigenera
+                </button>
+              </div>
+            )}
+
+            <Durezza
+              shot={corrente.id}
+              valore={corrente.durezza}
+              misurata={corrente.durezzaMisurata}
+              aMano={corrente.durezzaAMano}
+              moto={corrente.moto}
+              dettaglio={corrente.dettaglio}
+              onCambia={async (v) => setShots((await api.videoDurezza(corrente.id, v)).shots)}
+            />
+
+            {/* «in scena 6.6s a 1:10» nascondeva la cosa piu' utile: quante
+                volte entra. Una ripresa mediocre che passa tre volte pesa piu'
+                di una bella che passa una volta sola, e il totale non lo dice. */}
+            <div className="mt-3">
+              <div className="text-[11px] text-neutral-400">
+                {scena.apparizioni.length === 0
+                  ? "non è nel montaggio"
+                  : scena.apparizioni.length === 1
+                  ? "entra una volta"
+                  : `entra ${scena.apparizioni.length} volte · ${scena.inScena.toFixed(1)}s in tutto`}
+              </div>
+              {scena.apparizioni.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {scena.apparizioni.map((ap, k) => (
+                    <li key={k} className="text-[12px] flex flex-wrap items-baseline gap-x-2">
+                      <span className="tabular-nums text-neutral-200">{mmss(ap.t)}</span>
+                      <span className="tabular-nums text-neutral-400">{ap.dur.toFixed(1)}s</span>
+                      {ap.atto && (
+                        <>
+                          <span className="text-neutral-200">{ap.atto}</span>
+                          {spiegaAtto(ap.atto) && (
+                            <span className="text-[11px] text-neutral-400">— {spiegaAtto(ap.atto)}</span>
+                          )}
+                        </>
+                      )}
+                      <Combacia suono={suonoA(ap.t)} piano={corrente.durezza} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
             {corrente.problemi.length > 0 && (
               <ul className="mt-3 space-y-1">
@@ -494,7 +990,8 @@ export default function VideoScelta() {
                 />
                 <div className="mt-1 flex gap-2 text-[11px]">
                   <button
-                    className="px-2 py-0.5 rounded-sm border border-neutral-600 text-neutral-200"
+                    className="px-2 py-0.5 rounded-sm border border-neutral-600 text-neutral-200
+                               inline-flex items-center gap-1.5"
                     onClick={async () => {
                       const t = testo;
                       if (nota === "scarto") { setNota(null); setTesto(""); await giudica(false, t); }
@@ -502,40 +999,43 @@ export default function VideoScelta() {
                     }}
                   >
                     {nota === "scarto" ? "scarta" : "annota"}
+                    <Scorciatoia>⌘↵</Scorciatoia>
                   </button>
-                  <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400"
+                  <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400
+                                     inline-flex items-center gap-1.5"
                           onClick={() => { setNota(null); setTesto(""); }}>
                     lascia stare
+                    <Scorciatoia>esc</Scorciatoia>
                   </button>
-                  <span className="self-center text-neutral-400">⌘↵ conferma · esc annulla</span>
                 </div>
               </div>
             ) : (
-              <div className="mt-4 flex gap-2 items-center">
-                <button
-                  onClick={() => setNota("scarto")}
-                  className="px-4 py-1.5 rounded-sm border border-rose-800 text-rose-300 text-[13px]
-                             hover:bg-rose-950/50"
-                >
+              /* La scorciatoia sta SUL tasto, non in una legenda a fianco:
+                 una legenda si legge una volta e poi diventa arredamento,
+                 mentre il tasto lo si guarda ogni volta che si esita. Il
+                 tasto la insegna, e chi la impara smette di usarlo. */
+              <div className="mt-4 flex gap-2 items-center flex-wrap">
+                <TastoGiudizio onClick={() => setNota("scarto")} tasto="←"
+                  className="border-rose-800 text-rose-300 hover:bg-rose-950/50">
                   ✕ scarta
-                </button>
-                <button
-                  onClick={() => void giudica(true)}
-                  className="px-4 py-1.5 rounded-sm border border-emerald-800 text-emerald-300 text-[13px]
-                             hover:bg-emerald-950/50"
-                >
+                </TastoGiudizio>
+                <TastoGiudizio onClick={() => void giudica(true)} tasto="→"
+                  className="border-emerald-800 text-emerald-300 hover:bg-emerald-950/50">
                   ♥ tieni
-                </button>
-                <button
-                  onClick={() => setNota("nota")}
-                  className="px-4 py-1.5 rounded-sm border border-neutral-800 text-neutral-400 text-[13px]
-                             hover:border-neutral-600"
-                >
+                </TastoGiudizio>
+                <TastoGiudizio onClick={() => setNota("nota")} tasto="↑"
+                  className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ✎ annota
-                </button>
-                <span className="text-[11px] text-neutral-400 ml-2">
-                  ← scarta · → tieni · ↑ annota · ↓ salta · spazio rivedi
-                </span>
+                </TastoGiudizio>
+                <TastoGiudizio onClick={() => avanti()} tasto="↓"
+                  className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
+                  ↷ salta
+                </TastoGiudizio>
+                <TastoGiudizio onClick={() => { const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }}
+                  tasto="spazio"
+                  className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
+                  ↻ rivedi
+                </TastoGiudizio>
               </div>
             )}
 

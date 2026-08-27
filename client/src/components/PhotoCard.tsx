@@ -173,7 +173,11 @@ export default function PhotoCard({
       : jobStatus === "pending"
         ? "ring-1 ring-blue-400/60"
         : jobStatus === "failed"
-          ? "ring-2 ring-red-500"
+          // Sottile e smorzato, non `ring-2 ring-red-500`: un fallimento e' da
+          // sapere, non da inseguire. Alla stessa intensita' di un elemento
+          // SELEZIONATO, dodici celle fallite gridavano piu' forte dell'unica
+          // cella su cui si stava lavorando.
+          ? "ring-1 ring-red-500/50"
           : "";
 
   return (
@@ -298,17 +302,29 @@ export default function PhotoCard({
         </span>
       </div>
 
-      {/* Un errore è UNA riga, non un velo su tutta la foto: la generazione
-          fallita è quasi sempre un inciampo del browser, e nel frattempo la
-          foto resta l'unica cosa da guardare per decidere se tenerla. Coprirla
-          con un triangolo grande quanto lei rende illeggibile la griglia
-          proprio quando gli errori sono tanti. */}
+      {/* Un errore è un PUNTINO in basso, non un cartello rosso in mezzo.
+
+          Era una pastiglia rossa piena, centrata sul bordo alto: il punto di
+          massima attenzione della cella, addosso al viso, e con una dozzina di
+          fallimenti la griglia diventava una fila di cartelli rossi in cui le
+          foto sparivano. Ma il fallimento è quasi sempre un inciampo del
+          generatore, e intanto la foto resta l'unica cosa da guardare per
+          decidere se tenerla: deve restare visibile.
+
+          Sta in basso a sinistra, dalla parte opposta al conteggio delle
+          versioni, così le due informazioni non si accavallano. Il colore basta
+          a trovarlo scorrendo; la parola compare al passaggio del mouse, che è
+          quando si vuole davvero sapere cos'è. Il bordo rosso della cella
+          (`ringClass`) dice già che qualcosa è andato storto. */}
       {jobStatus === "failed" && (
         <span
           title="L'ultima generazione è fallita"
-          className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded bg-red-600/95 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+          className="pointer-events-none absolute left-1 bottom-1 z-20 flex items-center gap-1
+                     rounded bg-black/70 px-1 py-px text-[9px] font-medium text-red-300/90
+                     opacity-70 group-hover:opacity-100 transition-opacity"
         >
-          errore
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+          <span className="hidden group-hover:inline uppercase tracking-wide">errore</span>
         </span>
       )}
 

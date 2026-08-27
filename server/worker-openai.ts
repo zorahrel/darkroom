@@ -43,32 +43,62 @@ export function spesoOggi(): number {
   }
 }
 
+/** Token di output osservati per una 1024², per qualita'.
+ *
+ *  MISURATI, non presi dalla tabella dei docs: una `high` 1024² ne consuma
+ *  7024 dove i docs ne prevedevano 4160, e una `low` 196 dove ne prevedevano
+ *  272. Servono per sapere quanto costa una chiamata PRIMA di farla. */
+const TOKEN_ATTESI: Record<string, number> = { low: 200, medium: 1600, high: 7100 };
+
+/** Quanto costera' la prossima chiamata, in dollari. Una stima per eccesso:
+ *  un freno che sottostima non frena. */
+export function costoAtteso(
+  model: string = OPENAI_IMAGE_MODEL,
+  quality: string = OPENAI_IMAGE_QUALITY,
+): number {
+  return costUsd(model, TOKEN_ATTESI[quality] ?? TOKEN_ATTESI.high!);
+}
+
 /** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
  *  l'errore da mostrare, o null se si puo' procedere. */
-function oltreIlTetto(): string | null {
-  // Prima del tetto giornaliero c'e' una soglia piu' bassa: oltre quella, una
-  // richiesta sincrona e' quasi sempre una comodita' che costa il doppio.
-  // Le prove singole restano libere; una passata lunga va accodata.
+function oltreIlTetto(opzioni: { conRefs?: boolean } = {}): string | null {
+  // La soglia del sincrono guarda quanto costa QUESTA chiamata, non quanto si
+  // e' speso finora.
+  //
+  // Prima confrontava il totale del giorno con la soglia, e da li' in poi
+  // bloccava tutto: il 27/08 si e' rifiutata una prova in `low` da mezzo
+  // centesimo perche' nella giornata c'erano $2.81 di generazioni `high`. Una
+  // prova economica e' esattamente il modo giusto di lavorare, ed era l'unica
+  // cosa che il freno riusciva a fermare. Il tetto giornaliero, sotto, resta
+  // il freno sul totale: quello e' il suo mestiere.
   const budget = openaiSyncBudgetUsd();
-  if (budget > 0) {
-    const speso = spesoOggi();
-    if (speso >= budget) {
-      return (
-        `spesi $${speso.toFixed(2)} oggi in richieste singole (soglia $${budget.toFixed(2)}). ` +
-        `Il batch costa META': bun run scripts/openai_batch.ts submit <file-prompt>. ` +
-        `Per forzare il sincrono: OPENAI_SYNC_BUDGET_USD=0`
-      );
-    }
+  const costo = costoAtteso();
+  if (budget > 0 && costo > budget) {
+    // Il batch NON accetta /edits, che e' l'unico endpoint che prende delle
+    // reference: mandare li' chi sta usando una reference e' un vicolo cieco.
+    const strada = opzioni.conRefs
+      ? `Con delle reference il batch non e' una strada (non supporta /edits): ` +
+        `prova prima in OPENAI_IMAGE_QUALITY=low (~$${costoAtteso(OPENAI_IMAGE_MODEL, "low").toFixed(3)}), ` +
+        `oppure alza OPENAI_SYNC_BUDGET_USD.`
+      : `Il batch costa META': bun run scripts/openai_batch.ts submit <file-prompt>. ` +
+        `Per forzare il sincrono: OPENAI_SYNC_BUDGET_USD=0`;
+    return (
+      `questa chiamata costa ~$${costo.toFixed(2)} (${OPENAI_IMAGE_QUALITY}), ` +
+      `sopra la soglia del sincrono ($${budget.toFixed(2)}). ${strada}`
+    );
   }
   // Letto qui e non all'import: un tetto che si puo' alzare solo riavviando il
   // server e' un tetto che si aggira riavviando il server.
   const cap = openaiDailyCapUsd();
   if (!(cap > 0)) return null;
   const speso = spesoOggi();
-  if (speso < cap) return null;
+  // Anche il tetto guarda avanti: fermarsi DOPO averlo superato significa
+  // superarlo sempre di una chiamata.
+  if (speso + costo <= cap) return null;
   return (
     `tetto giornaliero raggiunto: $${speso.toFixed(2)} spesi nelle ultime 24h ` +
-    `(limite $${cap.toFixed(2)}). Alza OPENAI_DAILY_CAP_USD o aspetta.`
+    `piu' ~$${costo.toFixed(2)} di questa chiamata (limite $${cap.toFixed(2)}). ` +
+    `Alza OPENAI_DAILY_CAP_USD o aspetta.`
   );
 }
 
@@ -205,10 +235,10 @@ export async function runWorkerOpenAiGenerate(input: {
         'nessuna chiave OpenAI. Salvala nel Keychain:\n  security add-generic-password -s openai -a darkroom -w "<chiave>" -U',
     };
   }
-  const oltre = oltreIlTetto();
+  const refs = (input.refs ?? []).filter((p) => existsSync(p));
+  const oltre = oltreIlTetto({ conRefs: refs.length > 0 });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
-  const refs = (input.refs ?? []).filter((p) => existsSync(p));
 
   // Con reference si passa da /edits, che è l'unico endpoint che le accetta.
   if (refs.length > 0) return runEdits(key, refs, input.prompt, input.output, startedAt);
@@ -244,7 +274,9 @@ export async function runWorkerOpenAi(input: {
   if (!existsSync(input.image)) {
     return { status: "error", error: `source image not found: ${input.image}` };
   }
-  const oltre = oltreIlTetto();
+  // Un edit passa SEMPRE da /edits, che il batch non supporta: mandare qui
+  // qualcuno al batch sarebbe un vicolo cieco anche senza reference.
+  const oltre = oltreIlTetto({ conRefs: true });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];

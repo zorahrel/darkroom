@@ -269,10 +269,12 @@ export default function App() {
               )}
             </nav>
           )}
-          {/* Everything below breaks onto its own full-width row on mobile
-              (rather than interleaving with the breadcrumb/nav row above) so a
-              phone gets at most two header rows instead of three or four. */}
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:ml-auto">
+          {/* Questo gruppo prende una riga sua finche' non c'e' spazio VERO.
+              Era `sm:` (640px), cioe' da tablet in su tornava sulla stessa riga
+              della navigazione: e li' non ci sta, quindi si spezzava a meta' in
+              un modo storto. A `lg:` (1024px) o si sta comodi su una riga, o si
+              hanno due righe pulite. */}
+          <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto">
             {/* La gerarchia della barra: gli allarmi per primi perché
                 cambiano cosa puoi fare, poi gli interruttori della finestra,
                 poi i lavori, e in fondo l'unica azione piena — che esiste solo

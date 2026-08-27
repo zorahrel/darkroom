@@ -512,7 +512,13 @@ export type VideoShot = {
   id: string;
   prompt: string;
   takes: VideoTake[];
+  /** Quella che conta: la forzatura a mano se c'è, altrimenti la misurata. */
   durezza: number | null;
+  durezzaMisurata: number | null;
+  durezzaAMano: number | null;
+  /** Una riga su cosa si vede. Scritta a mano, o ritagliata dal prompt. */
+  descrizione: string | null;
+  descrizioneAMano: boolean;
   moto: number | null;
   dettaglio: number | null;
   inScena: number;
@@ -528,6 +534,8 @@ export type VideoShot = {
   atto: string | null;
   /** Secondo del film in cui compare la prima volta, null se non e' in montaggio. */
   minuto: number | null;
+  /** OGNI volta che entra nel montaggio, in ordine. Vuoto se non e' montata. */
+  apparizioni: { t: number; dur: number; atto: string | null }[];
   /** Perche' il pianificatore l'ha escluso, quando non e' stato scartato a mano. */
   escluso: string | null;
 };
@@ -537,7 +545,7 @@ export type VideoCut = {
   velocita: number; rovescio: boolean;
   atto: string | null; origine: string;
 };
-export type VideoAtto = { da: number; a: number; nome: string; t0: number; t1: number };
+export type VideoAtto = { da: number; a: number; nome: string; t0: number; t1: number; perche?: string };
 export type VideoSospesa = { battuta: number; garanzia: string };
 export type VideoAssets = { anteprima: string | null; reel: string | null; master: string | null };
 export type BarraRiga = { n: string; testo: string; ok: boolean | null };
