@@ -10,7 +10,7 @@
 // viene dichiarata fallita invece di salvare una frase generica che poi
 // sembrerebbe una ricetta vera.
 import { Hono } from "hono";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
 import { refsDir } from "../project.ts";
@@ -125,6 +125,59 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
     mancanti,
     from_reference: path.split("/").pop() ?? path,
   });
+});
+
+/** Estensioni ammesse: sono quelle che i backend di generazione accettano come
+ *  allegato. Un .heic o un .tiff finirebbe in cartella e poi fallirebbe al
+ *  momento della generazione, cioe' nel punto piu' costoso. */
+const ESTENSIONI = new Set(["png", "jpg", "jpeg", "webp"]);
+/** 20 MB: sopra, l'upload di un file per sbaglio (un video, un RAW) riempie il
+ *  disco senza che nessuno se ne accorga. */
+const MAX_BYTES = 20 * 1024 * 1024;
+
+/** Carica un'immagine di riferimento nel progetto.
+ *
+ *  Senza questa rotta un file entrava in `data/refs` solo copiandocelo a mano
+ *  dal Finder: la galleria mostrava i riferimenti ma non c'era modo di
+ *  aggiungerne uno da dentro Darkroom. */
+referenceRoutes.post("/api/references", async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("file");
+  if (!(file instanceof File)) return c.json({ error: "nessun file" }, 400);
+
+  // Il nome arriva dal client e non e' un percorso: si tiene solo l'ultimo
+  // segmento e si ammette un alfabeto ristretto. Sostituire le sole barre
+  // lasciava "../../fuga.png" come "_.._fuga.png": innocuo per il filesystem,
+  // ma e' un nome che porta in giro l'intento di chi l'ha mandato.
+  const ultimo = (file.name || "reference.png").split(/[/\\]/).pop() ?? "reference.png";
+  const pulito =
+    ultimo
+      .replace(/[^A-Za-z0-9._-]/g, "_")
+      .replace(/\.{2,}/g, ".")
+      .replace(/^[._-]+/, "") || "reference.png";
+  const ext = pulito.split(".").pop()?.toLowerCase() ?? "";
+  if (!ESTENSIONI.has(ext)) {
+    return c.json({ error: `formato non ammesso (.${ext}): servono png, jpg o webp` }, 400);
+  }
+  if (file.size === 0) return c.json({ error: "file vuoto" }, 400);
+  if (file.size > MAX_BYTES) {
+    return c.json({ error: `troppo grande (${Math.round(file.size / 1024 / 1024)} MB, massimo 20)` }, 400);
+  }
+
+  const dir = refsDir();
+  mkdirSync(dir, { recursive: true });
+  // Un nome gia' preso non si sovrascrive: la reference vecchia potrebbe essere
+  // quella con cui sono state generate delle varianti, e sostituirla
+  // cambierebbe il significato del loro lineage senza dirlo a nessuno.
+  let nome = pulito;
+  if (existsSync(join(dir, nome))) {
+    const base = pulito.slice(0, -(ext.length + 1));
+    let i = 2;
+    while (existsSync(join(dir, `${base}-${i}.${ext}`))) i++;
+    nome = `${base}-${i}.${ext}`;
+  }
+  writeFileSync(join(dir, nome), Buffer.from(await file.arrayBuffer()));
+  return c.json({ file: nome, rinominato: nome !== pulito });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>

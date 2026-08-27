@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { jsonFetch, refUrl } from "../api";
+import { jsonFetch, refUrl, pq } from "../api";
 
 // Dal riferimento alla ricetta (REF-02).
 //
@@ -19,6 +19,7 @@ export default function RiferimentiPage() {
   const [stato, setStato] = useState<{ tipo: "attesa" | "errore" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [refs, setRefs] = useState<Reference[]>([]);
+  const [sopra, setSopra] = useState(false);
 
   const carica = useCallback(async () => {
     const r = await jsonFetch<{ recipes: Recipe[] }>("/api/recipes");
@@ -33,6 +34,35 @@ export default function RiferimentiPage() {
   useEffect(() => {
     carica();
   }, [carica]);
+
+  /** Carica i file scelti, uno per volta: un errore sul terzo non deve far
+   *  perdere i primi due, e dirlo su quale e' fallito serve piu' di un
+   *  "caricamento fallito" collettivo. */
+  async function carica_file(files: FileList | File[]) {
+    const lista = [...files];
+    if (lista.length === 0) return;
+    setStato({ tipo: "attesa", msg: `Carico ${lista.length} file…` });
+    const errori: string[] = [];
+    for (const f of lista) {
+      const fd = new FormData();
+      fd.append("file", f);
+      try {
+        const r = await fetch(pq("/api/references"), { method: "POST", body: fd });
+        if (!r.ok) {
+          const b = (await r.json().catch(() => ({}))) as { error?: string };
+          errori.push(`${f.name}: ${b.error ?? r.status}`);
+        }
+      } catch (e) {
+        errori.push(`${f.name}: ${String(e)}`);
+      }
+    }
+    await carica();
+    setStato(
+      errori.length === 0
+        ? { tipo: "ok", msg: `Caricati ${lista.length} riferimenti.` }
+        : { tipo: "errore", msg: errori.join(" · ") },
+    );
+  }
 
   async function estrai() {
     setStato({ tipo: "attesa", msg: "Leggo il riferimento…" });
@@ -85,14 +115,48 @@ export default function RiferimentiPage() {
         </p>
       </div>
 
-      {refs.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-baseline gap-2">
+      {/* La zona di rilascio c'e' anche a cartella vuota: e' proprio quando non
+          c'e' niente che serve sapere come metterci qualcosa. */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setSopra(true);
+        }}
+        onDragLeave={() => setSopra(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setSopra(false);
+          if (e.dataTransfer.files.length) carica_file(e.dataTransfer.files);
+        }}
+        className={
+          "space-y-2 border border-dashed p-3 transition-colors " +
+          (sopra ? "border-amber-500 bg-amber-950/20" : "border-neutral-800")
+        }
+      >
+          <div className="flex items-baseline gap-2 flex-wrap">
             <h3 className="font-mono text-[10px] uppercase tracking-widest text-amber-500">
               riferimenti del progetto
             </h3>
             <span className="font-mono text-[11px] text-neutral-500">{refs.length}</span>
+            <label className="ml-auto text-[11px] text-neutral-400 hover:text-amber-500 cursor-pointer">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) carica_file(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              scegli un file
+            </label>
           </div>
+          {refs.length === 0 && (
+            <p className="text-xs text-neutral-500 py-4 text-center">
+              Trascina qui un'immagine di stile, oppure scegli un file.
+            </p>
+          )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {refs.map((r) => (
               <figure key={r.file} className="m-0 border border-neutral-800 bg-neutral-900">
@@ -125,8 +189,7 @@ export default function RiferimentiPage() {
               </figure>
             ))}
           </div>
-        </div>
-      )}
+      </div>
 
       <div className="flex gap-2">
         <input

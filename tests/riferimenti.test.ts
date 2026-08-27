@@ -125,11 +125,15 @@ describe("dalla galleria si estrae senza ricostruire il percorso", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: "stile.png" }),
     });
-    // Il file esiste: qualunque sia l'esito dell'estrazione (il modello di
-    // visione può non essere installato), NON deve essere "immagine non trovata".
+    // Il file esiste: qualunque sia l'esito dell'estrazione, NON deve essere
+    // "immagine non trovata".
     const body = (await r.json()) as { error?: string };
     expect(body.error ?? "").not.toBe("immagine non trovata");
-  });
+    // Timeout generoso: questa rotta interroga il modello di visione, che gira
+    // fuori dal processo. Con i 5s di default la suite falliva a intermittenza
+    // -- un test rosso che non dice niente sul codice insegna a ignorare il
+    // rosso, che e' peggio del test mancante.
+  }, 60_000);
 
   test("un nome che non esiste resta un errore", async () => {
     const r = await app.request("/api/reference/extract", {
@@ -138,5 +142,56 @@ describe("dalla galleria si estrae senza ricostruire il percorso", () => {
       body: JSON.stringify({ path: "non-esiste-affatto.png" }),
     });
     expect(r.status).toBe(400);
+  });
+});
+
+describe("una reference si carica da dentro Darkroom", () => {
+  // Prima un file entrava in data/refs solo copiandocelo dal Finder: la
+  // galleria mostrava i riferimenti ma non c'era modo di aggiungerne uno.
+  async function carica(nome: string, bytes: Buffer, tipo = "image/png") {
+    const fd = new FormData();
+    fd.append("file", new File([bytes], nome, { type: tipo }));
+    return app.request("/api/references", { method: "POST", body: fd });
+  }
+
+  test("un png caricato compare nell'elenco", async () => {
+    const r = await carica("nuovo.png", PNG);
+    expect(r.status).toBe(200);
+    expect((await elenco()).some((x) => x.file === "nuovo.png")).toBe(true);
+  });
+
+  test("un formato non ammesso viene rifiutato", async () => {
+    const r = await carica("appunti.txt", Buffer.from("ciao"), "text/plain");
+    expect(r.status).toBe(400);
+    // E non deve restare niente sul disco.
+    expect((await elenco()).some((x) => x.file === "appunti.txt")).toBe(false);
+  });
+
+  test("un file vuoto viene rifiutato", async () => {
+    const r = await carica("vuoto.png", Buffer.alloc(0));
+    expect(r.status).toBe(400);
+  });
+
+  test("un nome con separatori non esce dalla cartella", async () => {
+    const r = await carica("../../fuga.png", PNG);
+    expect(r.status).toBe(200);
+    const refs = await elenco();
+    // Il file c'e', ma col nome bonificato: nessuna risalita di directory.
+    expect(refs.some((x) => x.file.includes("/") || x.file.includes(".."))).toBe(false);
+    expect(refs.some((x) => x.file.endsWith("fuga.png"))).toBe(true);
+  });
+
+  test("un nome già preso non sovrascrive la reference esistente", async () => {
+    // Sovrascrivere cambierebbe il significato del lineage delle varianti già
+    // generate con quel file, senza dirlo a nessuno.
+    await carica("stile.png", PNG);
+    variante(1, ["stile.png"]);
+    const r = await carica("stile.png", PNG);
+    const body = (await r.json()) as { file: string; rinominato: boolean };
+    expect(body.rinominato).toBe(true);
+    expect(body.file).toBe("stile-2.png");
+    // L'originale conserva il suo conteggio.
+    const orig = (await elenco()).find((x) => x.file === "stile.png");
+    expect(orig!.usata_in).toBe(1);
   });
 });
