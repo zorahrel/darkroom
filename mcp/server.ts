@@ -29,6 +29,26 @@ import {
 
 const API = (process.env.DARKROOM_API ?? "http://localhost:3737").replace(/\/$/, "");
 
+/**
+ * Una scrittura risponde con una RICEVUTA, non con lo stato del progetto.
+ *
+ * Le rotte che scrivono restituiscono anche `shots` (64 riprese con dentro
+ * descrittori, giudizi e problemi) perche' la UI se ne serve per aggiornarsi
+ * senza un secondo giro. Passarlo cosi' com'e' a chi chiama via MCP vuol dire
+ * rispondere a «ho tenuto questa ripresa» con 247.000 caratteri: misurato il
+ * 27/08/2026 su video_judge, che per questo era inusabile proprio dal posto
+ * per cui esiste. Chi vuole l'elenco chiama video_shots.
+ */
+export function ricevuta(d: unknown): unknown {
+  if (!d || typeof d !== "object") return d;
+  const o = { ...(d as Record<string, unknown>) };
+  for (const grosso of ["shots", "cuts", "pictures", "segments"]) {
+    const v = o[grosso];
+    if (Array.isArray(v)) o[grosso] = `${v.length} voci — chiedile con video_shots/video_cuts`;
+  }
+  return o;
+}
+
 async function call(
   method: string,
   path: string,
@@ -59,7 +79,7 @@ async function call(
       `${method} ${path} → ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`,
     );
   }
-  return data;
+  return method === "POST" ? ricevuta(data) : data;
 }
 
 type Tool = {
@@ -488,9 +508,40 @@ const tools: Tool[] = [
   },
   {
     name: "video_rebuild_status",
-    description: "Whether a rebuild is running, its log so far, and its exit code when it ends.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
-    handler: (a) => call("GET", "/api/video/ricostruzione", undefined, a.project),
+    description:
+      "Whether a rebuild is running, how far along it is, the TAIL of its log, and its exit code when it ends. The log is cut to the last `righe` lines (20 by default) because the whole thing is 60.000 characters and a rebuild is checked many times: ask for more only when something went wrong.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        righe: {
+          type: "number",
+          description: "How many trailing log lines to return (default 20, 0 for the whole log)",
+        },
+        ...CAMPO_PROGETTO,
+      },
+    },
+    handler: async (a) => {
+      const d = (await call("GET", "/api/video/ricostruzione", undefined, a.project)) as {
+        attiva?: boolean; log?: string; uscita?: number | null; iniziata?: number | null;
+      };
+      const righe = typeof a.righe === "number" ? a.righe : 20;
+      const log = (d.log ?? "").replace(/\r/g, "");
+      // Quante riprese sono state montate sulle 64: la riga della fonderia e'
+      // "  nome  159 frame ->  52 quadri", una per ripresa. E' l'unica cosa che
+      // si vuole davvero sapere mentre gira, e nella coda del log non si vede
+      // perche' la coda dice solo dove sta adesso, non quanta strada ha fatto.
+      const fatte = (log.match(/^ {2}\S+ +\d+ frame -> +\d+ quadri/gm) ?? []).length;
+      const attese = (log.match(/^ {2}\S+ +\d+ frame sorgente$/gm) ?? []).length;
+      const tutte = log.split("\n");
+      return {
+        attiva: d.attiva,
+        uscita: d.uscita ?? null,
+        avanzamento: attese ? `${fatte}/${attese} riprese montate` : null,
+        minuti: d.iniziata ? +((Date.now() - d.iniziata) / 60000).toFixed(1) : null,
+        log: righe > 0 ? tutte.slice(-righe).join("\n") : log,
+        log_troncato: righe > 0 && tutte.length > righe ? `${tutte.length - righe} righe prima` : null,
+      };
+    },
   },
   {
     name: "video_check",
