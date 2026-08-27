@@ -65,6 +65,13 @@ export default function AlberoPage() {
   const [overlay, setOverlay] = useState(false);
   const [opacita, setOpacita] = useState(0.5);
   const [modo, setModo] = useState<"sopra" | "differenza">("sopra");
+  /**
+   * Distanza dalla reference, per id di variante. Calcolata a richiesta e non
+   * al caricamento: e' una misura che apre un processo per immagine, e su una
+   * pagina con centinaia di varianti la si pagherebbe tutta per guardarne tre.
+   */
+  const [scarti, setScarti] = useState<Record<number, number | null>>({});
+  const [misurando, setMisurando] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
 
@@ -102,6 +109,25 @@ export default function AlberoPage() {
   // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
   // senza riferimenti sarebbero un interruttore che non accende niente.
   const haRiferimenti = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
+
+  /** Misura le varianti che hanno una reference. In sequenza: sono processi
+   *  python, e lanciarne trenta insieme mette in ginocchio la macchina su cui
+   *  sta girando anche la generazione. */
+  async function misura() {
+    setMisurando(true);
+    const daFare = nodes.flatMap((n) =>
+      n.groups.flatMap((g) => ((g.refs?.length ?? 0) > 0 ? g.variants.map((v) => v.id) : [])),
+    );
+    for (const id of daFare) {
+      try {
+        const r = await jsonFetch<{ scarto: { distanza: number } | null }>(`/api/versions/${id}/scarto`);
+        setScarti((s) => ({ ...s, [id]: r.scarto?.distanza ?? null }));
+      } catch {
+        setScarti((s) => ({ ...s, [id]: null }));
+      }
+    }
+    setMisurando(false);
+  }
 
   if (loading) return <div className="py-20 text-center text-neutral-400">Carico l'albero…</div>;
   if (nodes.length === 0)
@@ -155,6 +181,14 @@ export default function AlberoPage() {
               </span>
             </>
           )}
+          <button
+            onClick={misura}
+            disabled={misurando}
+            title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Più basso è più somiglia."
+            className="ml-auto px-2 py-0.5 border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
+          >
+            {misurando ? "misuro…" : "misura lo scarto"}
+          </button>
         </div>
       )}
       {nodes.map((n, i) => (
@@ -251,6 +285,7 @@ export default function AlberoPage() {
                       key={v.id}
                       photo={n.photo}
                       v={v}
+                      scarto={scarti[v.id]}
                       rif={overlay ? (g.refs?.[0] ?? null) : null}
                       opacita={opacita}
                       modo={modo}
@@ -322,6 +357,7 @@ export default function AlberoPage() {
 function Leaf({
   photo,
   v,
+  scarto,
   rif,
   opacita,
   modo,
@@ -331,6 +367,8 @@ function Leaf({
 }: {
   photo: string;
   v: Variant;
+  /** Distanza dalla reference: undefined = non misurata, null = non misurabile. */
+  scarto?: number | null;
   /** Riferimento da sovrapporre, o null quando la sovrapposizione e' spenta. */
   rif?: string | null;
   opacita?: number;
@@ -383,6 +421,32 @@ function Leaf({
               (modo === "differenza" ? " mix-blend-difference" : "")
             }
           />
+        )}
+        {/* Lo scarto sta sull'immagine perche' e' di QUESTA variante: in una
+            colonna a parte si perderebbe il collegamento fra il numero e cio'
+            che descrive. Verde sotto 0.5 (praticamente uguale alla reference),
+            ambra fino a 1.5, rosso sopra: sono le soglie che separano le
+            calibrazioni riuscite da quelle andate a vuoto su profilo. */}
+        {scarto !== undefined && (
+          <span
+            title={
+              scarto === null
+                ? "questa variante non ha una reference con cui confrontarsi"
+                : `distanza dalla reference: ${scarto.toFixed(2)} (0 = identica)`
+            }
+            className={
+              "absolute top-1 right-1 px-1.5 py-0.5 font-mono text-[10px] border bg-neutral-950/85 " +
+              (scarto === null
+                ? "border-neutral-700 text-neutral-500"
+                : scarto < 0.5
+                  ? "border-emerald-700 text-emerald-300"
+                  : scarto < 1.5
+                    ? "border-amber-700 text-amber-300"
+                    : "border-rose-800 text-rose-300")
+            }
+          >
+            {scarto === null ? "—" : scarto.toFixed(2)}
+          </span>
         )}
         {/* Il glifo e' decorazione: se intercettasse il click, l'ingrandimento
             non si aprirebbe e si giudicherebbe senza aver guardato da vicino. */}

@@ -212,3 +212,69 @@ describe("una reference si carica da dentro Darkroom", () => {
     expect(orig!.usata_in).toBe(1);
   });
 });
+
+describe("quanto una variante si discosta dalla reference", () => {
+  // La misura esisteva come script ma restava fuori dalla pagina dove si
+  // guardano le varianti: la domanda "mi sto avvicinando?" si poteva porre solo
+  // da terminale, e le calibrazioni sono andate avanti tre giri su un'ipotesi
+  // sbagliata proprio per quello.
+  function versione(n: number, refs: string[], imagePath: string): number {
+    const r = db().run(
+      `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
+       VALUES ('p',?,?,'x',NULL,?,'openai','generated',?)`,
+      [n, imagePath, JSON.stringify({ recipe: "r", refset: "rs", sources: ["p.png"], refs }), Date.now()],
+    );
+    return Number(r.lastInsertRowid);
+  }
+
+  test("una variante senza reference lo dichiara invece di inventare un numero", async () => {
+    const id = versione(1, [], join(refsDir(), "qualsiasi.png"));
+    metti("qualsiasi.png");
+    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
+      reference: string | null;
+      scarto: unknown;
+    };
+    // È il caso che è costato 12 generazioni su profilo: nessun bersaglio.
+    expect(r.reference).toBeNull();
+    expect(r.scarto).toBeNull();
+  });
+
+  test("una reference sparita non fa passare la misura per riuscita", async () => {
+    const id = versione(2, ["mai-esistita.png"], join(refsDir(), "x.png"));
+    metti("x.png");
+    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
+      reference: string;
+      scarto: unknown;
+      error?: string;
+    };
+    expect(r.reference).toBe("mai-esistita.png");
+    expect(r.scarto).toBeNull();
+    // Il messaggio deve dire CHE COSA manca: senza il controllo esplicito
+    // l'errore arriva comunque, ma come sputo di uno stack python che non
+    // spiega niente a chi legge la pagina.
+    expect(r.error).toBe("reference mancante");
+  });
+
+  test("una versione inesistente è un 404, non un errore di misura", async () => {
+    const r = await app.request("/api/versions/999999/scarto");
+    expect(r.status).toBe(404);
+  });
+
+  test("un id non numerico viene rifiutato", async () => {
+    const r = await app.request("/api/versions/pippo/scarto");
+    expect(r.status).toBe(400);
+  });
+
+  test("misurare un'immagine contro se stessa dà distanza zero", async () => {
+    // Il controllo che la misura sia una misura: se una cosa non dista da sé
+    // stessa, la scala ha un punto fisso e i numeri sopra vogliono dire qualcosa.
+    metti("uguale.png");
+    const p = join(refsDir(), "uguale.png");
+    const id = versione(3, ["uguale.png"], p);
+    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
+      scarto: { distanza: number } | null;
+    };
+    expect(r.scarto).not.toBeNull();
+    expect(r.scarto!.distanza).toBe(0);
+  }, 30_000);
+});

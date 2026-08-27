@@ -9,7 +9,12 @@
 // vanno letti come tali. Con 162 varianti in sei configurazioni, distinguerle
 // ha richiesto query SQL a mano — il buco che questa vista chiude.
 import { Hono } from "hono";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { db } from "../db.ts";
+import { REPO_ROOT } from "../config.ts";
+import { refsDir } from "../project.ts";
 
 export const lineageRoutes = new Hono();
 
@@ -158,6 +163,60 @@ lineageRoutes.get("/api/lineage", (c) => {
   }
 
   return c.json({ photos: out });
+});
+
+/** Quanto una variante somiglia alla reference con cui e' stata generata.
+ *
+ *  Serviva un terminale per saperlo. La misura esisteva gia' come script, ma
+ *  restava fuori dalla pagina dove si guardano le varianti, quindi la domanda
+ *  "mi sto avvicinando?" si poteva porre solo altrove — e le calibrazioni di
+ *  ieri sono andate avanti tre giri su un'ipotesi sbagliata proprio per quello.
+ *
+ *  La reference si legge dal lineage della versione: non la si passa da fuori,
+ *  altrimenti si potrebbe confrontare una variante con un'immagine che non
+ *  c'entra e leggere un numero che sembra un giudizio. */
+lineageRoutes.get("/api/versions/:id/scarto", (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);
+
+  const v = db()
+    .query<{ image_path: string; lineage: string | null; config: string | null }, [number]>(
+      "SELECT image_path, lineage, config FROM versions WHERE id = ?",
+    )
+    .get(id);
+  if (!v) return c.json({ error: "versione non trovata" }, 404);
+  if (!existsSync(v.image_path)) return c.json({ error: "immagine mancante" }, 404);
+
+  const leggi = (raw: string | null): string[] => {
+    if (!raw) return [];
+    try {
+      const r = (JSON.parse(raw) as { refs?: unknown }).refs;
+      return Array.isArray(r) ? r.map((x) => String(x)) : [];
+    } catch {
+      return [];
+    }
+  };
+  const nome = (leggi(v.lineage)[0] ?? leggi(v.config)[0] ?? "").split("/").pop() ?? "";
+  // Nessuna reference non e' un errore: e' l'informazione che questa variante
+  // non aveva un bersaglio, ed e' esattamente il caso che è costato 12
+  // generazioni su profilo.
+  if (!nome) return c.json({ reference: null, scarto: null });
+
+  const refPath = join(refsDir(), nome);
+  if (!existsSync(refPath)) return c.json({ reference: nome, scarto: null, error: "reference mancante" });
+
+  const r = spawnSync("python3", [join(REPO_ROOT, "scripts", "ref_match.py"), v.image_path, refPath], {
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  if (r.status !== 0) {
+    return c.json({ reference: nome, scarto: null, error: (r.stderr || "misura fallita").slice(0, 200) });
+  }
+  try {
+    return c.json({ reference: nome, scarto: JSON.parse(r.stdout) });
+  } catch {
+    return c.json({ reference: nome, scarto: null, error: "risposta illeggibile" });
+  }
 });
 
 /** Giudizio e nota su una variante. Il giudizio sta sulla VERSIONE, non sulla
