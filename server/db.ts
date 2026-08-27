@@ -870,6 +870,31 @@ export function percorsoFuoriConvenzione(
   );
 }
 
+/**
+ * Quando e' nata una versione, in millisecondi.
+ *
+ * La convenzione del progetto e' `Date.now()`, cioe' MILLISECONDI, e vale per
+ * ogni tabella. Le versioni registrate a mano da uno script il 27/08 usavano
+ * `Math.floor(Date.now()/1000)` — secondi — e il risultato e' stato un ordine
+ * cronologico che metteva le tre piu' recenti in fondo: un numero mille volte
+ * piu' piccolo di tutti gli altri sembra vecchio di cinquant'anni.
+ *
+ * Non si e' rotto niente e nessuno se ne e' accorto finche' l'albero non ha
+ * iniziato a ordinare per data. Da qui in poi si chiama questa, invece di
+ * scrivere l'espressione a mano ogni volta.
+ */
+export function adesso(): number {
+  return Date.now();
+}
+
+/** Un istante e' in secondi invece che in millisecondi? Serve per accorgersi
+ *  dei dati gia' scritti male, che nessun controllo futuro puo' prevenire. */
+export function istanteSospetto(t: number): boolean {
+  // 100000000000 ms = marzo 1973; nessun dato vero sta sotto, mentre QUALSIASI
+  // timestamp in secondi di questo secolo ci sta abbondantemente sotto.
+  return t > 0 && t < 100_000_000_000;
+}
+
 export function nextVersionNumber(photoId: string): number {
   const row = db()
     .query<{ n: number }, [string]>(

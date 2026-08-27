@@ -23,6 +23,7 @@ type VersionRow = {
   photo_id: string;
   version_number: number;
   image_path: string;
+  prompt_used: string;
   config: string | null;
   lineage: string | null;
   verdict: string | null;
@@ -83,7 +84,7 @@ lineageRoutes.get("/api/lineage", (c) => {
 
   const versions = db()
     .query<VersionRow, []>(
-      `SELECT id, photo_id, version_number, image_path, config, lineage, verdict, note, created_at
+      `SELECT id, photo_id, version_number, image_path, prompt_used, config, lineage, verdict, note, created_at
          FROM versions WHERE source = 'generated'
         ORDER BY photo_id, version_number`,
     )
@@ -137,6 +138,16 @@ lineageRoutes.get("/api/lineage", (c) => {
       note: v.note,
       favorite: favOf.get(v.photo_id) === v.id,
       created_at: v.created_at,
+      /** Il prompt ESATTO con cui e' stata generata. Stava solo nel database:
+       *  per sapere perche' due varianti differiscono bisognava aprire sqlite,
+       *  che e' il motivo per cui si ri-generava alla cieca invece di leggere
+       *  cosa era gia' stato chiesto. */
+      prompt: v.prompt_used,
+      /** I nomi dei file di ingresso, come sono stati registrati. `sources`
+       *  sul gruppo viene tradotto in id-foto per le miniature e perde i nomi
+       *  che non si risolvono; qui restano quelli veri. */
+      file_sorgenti: cfg.sources,
+      file_refs: cfg.refs,
       // Il file c'e' davvero?
       //
       // Il 27/08 due cover erano registrate con un percorso fuori convenzione:
@@ -148,9 +159,26 @@ lineageRoutes.get("/api/lineage", (c) => {
     });
   }
 
-  const out = [...roots.values()].map((r) => {
+  /** Quando e' nata la variante piu' recente di ogni radice. Serve a mettere
+   *  in cima il lavoro di adesso: l'ordine per id-foto e' stabile ma arbitrario,
+   *  e con 189 radici la generazione appena fatta finiva a meta' pagina. */
+  const piuRecente = (r: Root) =>
+    Math.max(
+      0,
+      ...[...r.groups.values()].flatMap((g) =>
+        g.variants.map((v) => (v as { created_at: number }).created_at),
+      ),
+    );
+
+  const out = [...roots.values()]
+    .sort((a, b) => piuRecente(b) - piuRecente(a))
+    .map((r) => {
     for (const g of r.groups.values()) {
       g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
+      // Anche dentro il gruppo: l'ultima prova per prima.
+      g.variants.sort(
+        (x, y) => (y as { created_at: number }).created_at - (x as { created_at: number }).created_at,
+      );
     }
     return {
       // `photo` resta la prima dell'insieme: e' cio' che il client usa per la
@@ -159,7 +187,13 @@ lineageRoutes.get("/api/lineage", (c) => {
       photos: r.photos,
       variants: r.variants,
       recipes: r.recipes.size,
-      groups: [...r.groups.values()],
+      // I gruppi ordinati per la loro variante piu' recente, non per ordine di
+      // inserimento: una ricetta ripresa oggi deve stare sopra a una di ieri.
+      groups: [...r.groups.values()].sort(
+        (a, b) =>
+          Math.max(...b.variants.map((v) => (v as { created_at: number }).created_at)) -
+          Math.max(...a.variants.map((v) => (v as { created_at: number }).created_at)),
+      ),
     };
   });
 

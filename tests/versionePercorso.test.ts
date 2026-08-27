@@ -85,3 +85,26 @@ describe("il controllo sulla convenzione", () => {
     });
   });
 });
+
+describe("gli istanti si scrivono in millisecondi", () => {
+  test("adesso() e' in millisecondi, come Date.now()", async () => {
+    const { adesso } = await import("../server/db.ts");
+    const t = adesso();
+    // Un valore in secondi sarebbe ~1.7e9, uno in millisecondi ~1.7e12.
+    expect(t).toBeGreaterThan(1_000_000_000_000);
+    expect(Math.abs(t - Date.now())).toBeLessThan(1000);
+  });
+
+  test("riconosce un istante scritto in secondi", async () => {
+    // IL BUG: tre versioni registrate a mano con Date.now()/1000 finivano in
+    // fondo all'ordine cronologico, sembrando vecchie di decenni.
+    const { istanteSospetto } = await import("../server/db.ts");
+    expect(istanteSospetto(1787854707)).toBe(true); // v31, come era scritta
+    expect(istanteSospetto(1787854707000)).toBe(false); // come deve essere
+  });
+
+  test("zero non e' sospetto: e' assente, non sbagliato", async () => {
+    const { istanteSospetto } = await import("../server/db.ts");
+    expect(istanteSospetto(0)).toBe(false);
+  });
+});

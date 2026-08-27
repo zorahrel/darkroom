@@ -18,6 +18,12 @@ type Variant = {
   verdict: string | null;
   note: string | null;
   favorite: boolean;
+  /** Il prompt esatto con cui e' nata. Prima stava solo nel database: per
+   *  capire perche' due varianti differiscono bisognava aprire sqlite. */
+  prompt?: string;
+  /** I nomi veri dei file di ingresso, non gli id tradotti per le miniature. */
+  file_sorgenti?: string[];
+  file_refs?: string[];
   /** Il file non c'e' sul disco. Una variante cosi' mostrava un rettangolo
    *  vuoto senza spiegazione: sembrava una miniatura ancora da caricare. */
   manca?: boolean;
@@ -457,6 +463,9 @@ function Leaf({
   onZoom: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  /** Il pannello con prompt e file di ingresso. Chiuso di default: e' testo
+   *  lungo, e in una griglia di miniature sposterebbe tutto il resto. */
+  const [dettagli, setDettagli] = useState(false);
   const [text, setText] = useState(v.note ?? "");
   useEffect(() => setText(v.note ?? ""), [v.note]);
 
@@ -582,7 +591,15 @@ function Leaf({
         <span className="text-neutral-400">v{String(v.version_number).padStart(2, "0")}</span>
         {v.favorite && <span className="text-amber-500" title="preferita">★</span>}
         <button
-          className={"ml-auto px-1 " + (v.note ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
+          className={"ml-auto px-1 " + (dettagli ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
+          onClick={() => setDettagli((d) => !d)}
+          aria-expanded={dettagli}
+          title="Prompt esatto e file di ingresso: cosa e' stato chiesto davvero"
+        >
+          ⓘ
+        </button>
+        <button
+          className={"px-1 " + (v.note ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           title="nota"
@@ -597,6 +614,54 @@ function Leaf({
           {GLYPH[v.verdict ?? ""]}
         </button>
       </figcaption>
+      {/* Il prompt ESATTO e i file veri.
+          Stavano solo nel database: per sapere perche' due varianti
+          differiscono bisognava aprire sqlite, ed e' il motivo per cui si
+          ri-generava alla cieca invece di leggere cosa era gia' stato chiesto.
+          Il testo e' selezionabile perche' il gesto utile e' copiarlo e
+          cambiarne un pezzo. */}
+      {dettagli && (
+        <div className="px-2 pb-2 space-y-1.5 border-t border-neutral-800 pt-1.5">
+          {(v.file_sorgenti?.length ?? 0) > 0 && (
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
+                sorgenti
+              </span>
+              <ul className="mt-0.5 space-y-px">
+                {v.file_sorgenti!.map((f) => (
+                  <li key={f} className="font-mono text-[10px] text-neutral-300 break-all">
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {(v.file_refs?.length ?? 0) > 0 && (
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
+                riferimenti
+              </span>
+              <ul className="mt-0.5 space-y-px">
+                {v.file_refs!.map((f) => (
+                  <li key={f} className="font-mono text-[10px] text-neutral-300 break-all">
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {v.prompt && (
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
+                prompt
+              </span>
+              <p className="mt-0.5 text-[11px] leading-snug text-neutral-300 whitespace-pre-wrap select-text max-h-40 overflow-y-auto">
+                {v.prompt}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       {open && (
         <div className="px-2 pb-2">
           <textarea
