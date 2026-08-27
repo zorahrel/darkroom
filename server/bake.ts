@@ -7,6 +7,7 @@ import {
   effectiveGrade,
   getDefaultConfig,
   nextVersionNumber,
+  versionFileName,
   type PhotoRow,
   type GradeStep,
 } from "./db.ts";
@@ -274,7 +275,7 @@ export async function bakePhoto(photoId: string): Promise<BakeResult> {
   const versionNumber = nextVersionNumber(photo.id);
   const photoGenDir = join(genDir(), photo.id);
   mkdirSync(photoGenDir, { recursive: true });
-  const finalPath = join(photoGenDir, `v${String(versionNumber).padStart(2, "0")}.png`);
+  const finalPath = join(photoGenDir, versionFileName(versionNumber));
   copyFileSync(working, finalPath);
 
   const ins = db().run(

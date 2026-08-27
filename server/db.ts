@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { currentProjectId, dirsFor } from "./project.ts";
+import { dirname, join } from "node:path";
+import { currentProjectId, dirsFor, genDir } from "./project.ts";
 
 // Paths are centralized in config.ts (env-driven). Re-exported here so existing
 // imports from "./db.ts" keep working. These bind to the ENV/default project;
@@ -823,6 +823,51 @@ export function renamePreset(id: number, name: string): void {
 
 export function deletePreset(id: number): void {
   db().run("DELETE FROM presets WHERE id = ?", [id]);
+}
+
+/**
+ * Il nome del file di una versione. UNA regola sola, in un posto solo.
+ *
+ * Era ricostruita a mano in tre punti (`jobs.ts`, `bake.ts`, e a mano negli
+ * script), e il client la ricostruisce a sua volta in `thumbGenUrl` per
+ * chiedere la miniatura. Finche' tutti scrivono la stessa stringa va bene; il
+ * 27/08 due cover sono state registrate come
+ * `generations/cover-scena-gel-high.png` invece di `generations/1/v30.png`, e
+ * il risultato e' stato il peggiore possibile: la riga nel database c'era,
+ * l'API la restituiva, l'albero mostrava la variante, e al posto della foto
+ * arrivava un 500. Un dato "presente ma invisibile" non si nota finche'
+ * qualcuno non va a cercare proprio quella.
+ */
+export function versionFileName(versionNumber: number): string {
+  return `v${String(versionNumber).padStart(2, "0")}.png`;
+}
+
+/** Dove DEVE stare il file di una versione: `<gen>/<photo_id>/vNN.png`. */
+export function versionPath(photoId: string, versionNumber: number): string {
+  return join(genDir(), photoId, versionFileName(versionNumber));
+}
+
+/**
+ * Controlla che un percorso rispetti la convenzione, e spiega perche' no.
+ *
+ * Non blocca la scrittura di proposito: le versioni importate da fuori
+ * (`source='imported'`) vivono legittimamente altrove, e un progetto vecchio
+ * puo' avere percorsi storici che nessuno vuole rompere adesso. Serve a
+ * chiamare il problema per nome nel punto in cui nasce, invece di scoprirlo
+ * settimane dopo da una miniatura che non carica.
+ */
+export function percorsoFuoriConvenzione(
+  photoId: string,
+  versionNumber: number,
+  imagePath: string,
+): string | null {
+  const atteso = versionPath(photoId, versionNumber);
+  if (imagePath === atteso) return null;
+  return (
+    `la versione ${versionNumber} di "${photoId}" punta a ${imagePath} ` +
+    `invece di ${atteso}: la miniatura verra' cercata all'indirizzo giusto e ` +
+    `rispondera' 500, con la variante visibile nell'albero e l'immagine no`
+  );
 }
 
 export function nextVersionNumber(photoId: string): number {

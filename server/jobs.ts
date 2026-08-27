@@ -1,4 +1,6 @@
-import { db, nextVersionNumber } from "./db.ts";
+import { db, nextVersionNumber,
+  versionFileName,
+} from "./db.ts";
 import type { JobRow, VersionRow } from "./db.ts";
 import { genDir, listProjects, withProject } from "./project.ts";
 import { mkdirSync, existsSync, statSync } from "node:fs";
@@ -457,10 +459,7 @@ async function processJob(job: JobRow) {
   const versionNumber = nextVersionNumber(photo.id);
   const photoGenDir = join(genDir(), photo.id);
   if (!existsSync(photoGenDir)) mkdirSync(photoGenDir, { recursive: true });
-  const outputPath = join(
-    photoGenDir,
-    `v${String(versionNumber).padStart(2, "0")}.png`,
-  );
+  const outputPath = join(photoGenDir, versionFileName(versionNumber));
 
   // Higgsfield provider: own pipeline (MCP), no CDP/rate-limit logic.
   if (job.provider === "higgsfield") {

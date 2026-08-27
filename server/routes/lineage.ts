@@ -137,6 +137,14 @@ lineageRoutes.get("/api/lineage", (c) => {
       note: v.note,
       favorite: favOf.get(v.photo_id) === v.id,
       created_at: v.created_at,
+      // Il file c'e' davvero?
+      //
+      // Il 27/08 due cover erano registrate con un percorso fuori convenzione:
+      // la riga c'era, l'API la restituiva, la variante compariva nell'albero,
+      // e al suo posto arrivava un rettangolo vuoto perche' la miniatura
+      // rispondeva 500. Una variante senza file non e' una variante: dirlo qui
+      // costa uno stat e trasforma un guasto muto in un'etichetta.
+      manca: !existsSync(v.image_path),
     });
   }
 

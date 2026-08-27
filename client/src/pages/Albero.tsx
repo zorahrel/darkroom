@@ -18,6 +18,9 @@ type Variant = {
   verdict: string | null;
   note: string | null;
   favorite: boolean;
+  /** Il file non c'e' sul disco. Una variante cosi' mostrava un rettangolo
+   *  vuoto senza spiegazione: sembrava una miniatura ancora da caricare. */
+  manca?: boolean;
 };
 type Group = {
   recipe: string;
@@ -509,6 +512,21 @@ function Leaf({
               (modo === "differenza" ? "mix-blend-difference" : "")
             }
           />
+        )}
+        {/* Un file che non c'e' va DETTO. Senza etichetta la cella restava un
+            rettangolo grigio identico a una miniatura ancora da caricare: si
+            aspetta, si ricarica la pagina, e solo dopo un po' viene il dubbio
+            che il problema non sia la rete. Con due cover su ventitre e'
+            costato mezz'ora prima che qualcuno andasse a guardare il DB. */}
+        {v.manca && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-neutral-950/90 text-center px-2">
+            <span className="font-mono text-[10px] uppercase tracking-wide text-red-400">
+              file mancante
+            </span>
+            <span className="text-[9px] leading-tight text-neutral-500">
+              registrata ma non sul disco
+            </span>
+          </div>
         )}
         {/* Lo scarto sta sull'immagine perche' e' di QUESTA variante: in una
             colonna a parte si perderebbe il collegamento fra il numero e cio'
