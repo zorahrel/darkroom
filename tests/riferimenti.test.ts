@@ -278,3 +278,61 @@ describe("quanto una variante si discosta dalla reference", () => {
     expect(r.scarto!.distanza).toBe(0);
   }, 30_000);
 });
+
+describe("la distanza si comporta come una distanza", () => {
+  // Un numero che sale ordina; un numero che a volte scende quando le cose
+  // peggiorano non ordina niente, e sarebbe peggio di nessun numero perche'
+  // sembra un giudizio.
+  const py = (a: string, b: string) => {
+    const r = Bun.spawnSync(["python3", "scripts/ref_match.py", a, b], { cwd: process.cwd() });
+    return JSON.parse(new TextDecoder().decode(r.stdout)) as {
+      distanza: number;
+      saturo: boolean;
+    };
+  };
+
+  test("degradare progressivamente non fa MAI scendere la distanza", async () => {
+    const src = join(refsDir(), "base.png");
+    metti("base.png");
+    // Si degrada la reference contro se stessa: ogni passo e' piu' lontano.
+    const passi = [1.0, 0.85, 0.7, 0.55];
+    const fatti: string[] = [];
+    for (const f of passi) {
+      const out = `/tmp/darkroom-degrado-${f}.png`;
+      const r = Bun.spawnSync([
+        "python3",
+        "-c",
+        `from PIL import Image, ImageEnhance; ImageEnhance.Contrast(Image.open(${JSON.stringify(src)}).convert("RGB")).enhance(${f}).save(${JSON.stringify(out)})`,
+      ]);
+      expect(r.exitCode).toBe(0);
+      fatti.push(out);
+    }
+    let prec = -1;
+    for (const f of fatti) {
+      const d = py(f, src).distanza;
+      expect(d).toBeGreaterThanOrEqual(prec);
+      prec = d;
+    }
+  }, 60_000);
+
+  test("un'immagine dista zero da se stessa", () => {
+    metti("identica.png");
+    const p = join(refsDir(), "identica.png");
+    expect(py(p, p).distanza).toBe(0);
+  }, 30_000);
+
+  test("quando la sagoma sparisce nel fondo, la misura lo dichiara", async () => {
+    const src = join(refsDir(), "sat.png");
+    metti("sat.png");
+    const out = "/tmp/darkroom-saturo.png";
+    Bun.spawnSync([
+      "python3",
+      "-c",
+      `from PIL import Image, ImageEnhance; ImageEnhance.Contrast(Image.open(${JSON.stringify(src)}).convert("RGB")).enhance(0.3).save(${JSON.stringify(out)})`,
+    ]);
+    const r = py(out, src);
+    // Oltre questa soglia la distanza e' un limite inferiore, non il valore
+    // esatto: senza il flag due degradi diversi leggerebbero uguale.
+    expect(r.saturo).toBe(true);
+  }, 30_000);
+});

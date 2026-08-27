@@ -120,8 +120,15 @@ export default function AlberoPage() {
     );
     for (const id of daFare) {
       try {
-        const r = await jsonFetch<{ scarto: { distanza: number } | null }>(`/api/versions/${id}/scarto`);
-        setScarti((s) => ({ ...s, [id]: r.scarto?.distanza ?? null }));
+        const r = await jsonFetch<{ scarto: { distanza: number; saturo?: boolean } | null }>(
+          `/api/versions/${id}/scarto`,
+        );
+        // Oltre la saturazione la distanza e' un limite inferiore: si mostra
+        // col "≥" invece di far credere che sia il valore esatto.
+        setScarti((s) => ({
+          ...s,
+          [id]: r.scarto ? (r.scarto.saturo ? -r.scarto.distanza : r.scarto.distanza) : null,
+        }));
       } catch {
         setScarti((s) => ({ ...s, [id]: null }));
       }
@@ -432,20 +439,24 @@ function Leaf({
             title={
               scarto === null
                 ? "questa variante non ha una reference con cui confrontarsi"
-                : `distanza dalla reference: ${scarto.toFixed(2)} (0 = identica)`
+                : scarto < 0
+                  ? `distanza dalla reference: almeno ${(-scarto).toFixed(2)}. La sagoma non si distingue dal fondo, quindi la misura non separa piu' i casi peggiori.`
+                  : `distanza dalla reference: ${scarto.toFixed(2)} (0 = identica)`
             }
             className={
               "absolute top-1 right-1 px-1.5 py-0.5 font-mono text-[10px] border bg-neutral-950/85 " +
               (scarto === null
                 ? "border-neutral-700 text-neutral-500"
-                : scarto < 0.5
+                : scarto < 0
+                  ? "border-rose-800 text-rose-300"
+                  : scarto < 0.5
                   ? "border-emerald-700 text-emerald-300"
                   : scarto < 1.5
                     ? "border-amber-700 text-amber-300"
                     : "border-rose-800 text-rose-300")
             }
           >
-            {scarto === null ? "—" : scarto.toFixed(2)}
+            {scarto === null ? "—" : scarto < 0 ? `≥${(-scarto).toFixed(2)}` : scarto.toFixed(2)}
           </span>
         )}
         {/* Il glifo e' decorazione: se intercettasse il click, l'ingrandimento

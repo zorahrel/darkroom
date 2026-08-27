@@ -45,11 +45,17 @@ def _misura(path: str) -> dict:
     fondo_chiaro = float(np.mean(bordo > 225) * 100)
     area = float(soggetto.mean())
 
+    # Quando l'immagine intera cade sotto la soglia non c'e' piu' una sagoma da
+    # misurare: e' tutta "soggetto". Le misure restano coerenti ma smettono di
+    # distinguere fra un degrado e uno peggiore, quindi si dichiara invece di
+    # restituire numeri che sembrano ancora discriminare.
+    saturo = bool(area > 0.98 or area < 0.02)
+
     righe = np.where(soggetto.mean(axis=1) > 0.05)[0]
     if len(righe) < BANDE:
         # Nessuna sagoma leggibile: un rapporto calcolato su quattro pixel
         # sarebbe un numero, non una misura.
-        return {"fondo": round(fondo_chiaro, 1), "area": round(area, 3), "luce": None}
+        return {"fondo": round(fondo_chiaro, 1), "area": round(area, 3), "luce": None, "saturo": saturo}
 
     box = a[righe[0] : righe[-1] + 1]
     maschera = soggetto[righe[0] : righe[-1] + 1]
@@ -65,13 +71,18 @@ def _misura(path: str) -> dict:
         if pixel.size:
             oriz.append(pixel.mean())
     if len(vert) < 2 or len(oriz) < 2:
-        return {"fondo": round(fondo_chiaro, 1), "area": round(area, 3), "luce": None}
+        return {"fondo": round(fondo_chiaro, 1), "area": round(area, 3), "luce": None, "saturo": saturo}
 
     ampiezza_h = max(oriz) - min(oriz)
     # Un'orizzontale perfettamente piatta darebbe divisione per zero: si limita
     # in basso invece di restituire infinito, che in pagina non direbbe niente.
     luce = (max(vert) - min(vert)) / max(ampiezza_h, 1.0)
-    return {"fondo": round(fondo_chiaro, 1), "area": round(area, 3), "luce": round(luce, 1)}
+    return {
+        "fondo": round(fondo_chiaro, 1),
+        "area": round(area, 3),
+        "luce": round(luce, 1),
+        "saturo": saturo,
+    }
 
 
 def confronta(variante: str, reference: str) -> dict:
@@ -88,7 +99,16 @@ def confronta(variante: str, reference: str) -> dict:
     distanza = scarti["fondo"] / 50 + scarti["area"] * 3
     if scarti["luce"] is not None:
         distanza += scarti["luce"] / 2
-    return {"variante": v, "reference": r, "scarti": scarti, "distanza": round(distanza, 2)}
+    return {
+        "variante": v,
+        "reference": r,
+        "scarti": scarti,
+        "distanza": round(distanza, 2),
+        # Oltre la saturazione la distanza e' un limite inferiore: la variante
+        # e' almeno cosi' lontana, forse di piu'. Dirlo evita di leggere come
+        # "uguali" due immagini che la metrica non sa piu' separare.
+        "saturo": bool(v.get("saturo") or r.get("saturo")),
+    }
 
 
 if __name__ == "__main__":
