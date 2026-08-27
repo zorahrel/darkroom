@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { jsonFetch } from "../api";
+import { jsonFetch, refUrl } from "../api";
 
 // Dal riferimento alla ricetta (REF-02).
 //
@@ -9,6 +9,7 @@ import { jsonFetch } from "../api";
 // arriva in un campo modificabile e si salva solo con un gesto esplicito.
 
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
+type Reference = { file: string; bytes: number; modified_at: number; usata_in: number };
 
 export default function RiferimentiPage() {
   const [path, setPath] = useState("");
@@ -17,10 +18,17 @@ export default function RiferimentiPage() {
   const [origine, setOrigine] = useState<string | null>(null);
   const [stato, setStato] = useState<{ tipo: "attesa" | "errore" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [refs, setRefs] = useState<Reference[]>([]);
 
   const carica = useCallback(async () => {
     const r = await jsonFetch<{ recipes: Recipe[] }>("/api/recipes");
     setRecipes(r.recipes);
+    // Le reference del progetto: senza questa lista la pagina chiedeva di
+    // incollare un percorso per un file che era gia' li' dentro.
+    const q = await jsonFetch<{ references: Reference[] }>("/api/references").catch(() => ({
+      references: [],
+    }));
+    setRefs(q.references);
   }, []);
   useEffect(() => {
     carica();
@@ -76,6 +84,49 @@ export default function RiferimentiPage() {
           pelle, trattamento. Il testo è una proposta da correggere, non un risultato.
         </p>
       </div>
+
+      {refs.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-baseline gap-2">
+            <h3 className="font-mono text-[10px] uppercase tracking-widest text-amber-500">
+              riferimenti del progetto
+            </h3>
+            <span className="font-mono text-[11px] text-neutral-500">{refs.length}</span>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+            {refs.map((r) => (
+              <figure key={r.file} className="m-0 border border-neutral-800 bg-neutral-900">
+                <img
+                  src={refUrl(r.file)}
+                  alt={r.file}
+                  loading="lazy"
+                  title="Usa questo riferimento"
+                  onClick={() => setPath(r.file)}
+                  className="w-full aspect-square object-cover bg-neutral-950 cursor-pointer"
+                />
+                <figcaption className="px-2 py-1.5 space-y-0.5">
+                  <div className="text-[11px] truncate text-neutral-300" title={r.file}>
+                    {r.file}
+                  </div>
+                  {/* Una reference a zero non e' un dettaglio: e' una passata
+                      intera andata nella direzione sbagliata senza che nessuno
+                      lo vedesse. Su profilo e' successo 12 volte su 12. */}
+                  <div
+                    className={
+                      "font-mono text-[10px] " +
+                      (r.usata_in === 0 ? "text-amber-500" : "text-neutral-500")
+                    }
+                  >
+                    {r.usata_in === 0
+                      ? "mai usata"
+                      : `usata in ${r.usata_in} ${r.usata_in === 1 ? "variante" : "varianti"}`}
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <input

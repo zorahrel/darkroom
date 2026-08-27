@@ -10,10 +10,63 @@
 // viene dichiarata fallita invece di salvare una frase generica che poi
 // sembrerebbe una ricetta vera.
 import { Hono } from "hono";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { db } from "../db.ts";
+import { refsDir } from "../project.ts";
 
 export const referenceRoutes = new Hono();
+
+/** I riferimenti del progetto, con quante varianti li hanno davvero usati.
+ *
+ *  Il conteggio non e' un ornamento: e' il difetto che questa vista esiste per
+ *  rendere visibile. Su `profilo` una reference e' rimasta inutilizzata su
+ *  12 generazioni su 12 mentre il refset continuava a promettere "+ stile", e
+ *  non c'era nessun posto dove quel numero si potesse leggere. Una reference a
+ *  zero non e' un dettaglio: e' una passata intera andata nella direzione
+ *  sbagliata. */
+referenceRoutes.get("/api/references", (c) => {
+  const dir = refsDir();
+  const files = existsSync(dir)
+    ? readdirSync(dir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
+    : [];
+
+  // Si contano le VERSIONI, non i job: un job fallito non ha prodotto niente da
+  // guardare, e contarlo direbbe "usata" di una reference che non ha ancora
+  // mostrato nessun risultato.
+  const usi = new Map<string, number>();
+  for (const row of db()
+    .query<{ lineage: string | null; config: string | null }, []>(
+      "SELECT lineage, config FROM versions WHERE source='generated'",
+    )
+    .all()) {
+    const letti = new Set<string>();
+    for (const raw of [row.lineage, row.config]) {
+      if (!raw) continue;
+      try {
+        const refs = (JSON.parse(raw) as { refs?: unknown }).refs;
+        if (Array.isArray(refs)) for (const r of refs) letti.add(String(r).split("/").pop() ?? String(r));
+      } catch {
+        // una riga illeggibile non deve far sparire l'elenco
+      }
+    }
+    for (const f of letti) usi.set(f, (usi.get(f) ?? 0) + 1);
+  }
+
+  const references = files.map((f) => {
+    const st = statSync(join(dir, f));
+    return {
+      file: f,
+      bytes: st.size,
+      modified_at: st.mtimeMs,
+      /** Quante varianti sono nate con questa reference allegata. */
+      usata_in: usi.get(f) ?? 0,
+    };
+  });
+  // Le mai usate in cima: sono quelle su cui c'e' una decisione da prendere.
+  references.sort((a, b) => a.usata_in - b.usata_in || a.file.localeCompare(b.file));
+  return c.json({ references });
+});
 
 const ASPETTI: { chiave: string; domanda: string }[] = [
   { chiave: "luce", domanda: "Describe only the lighting: direction, hardness, key-to-fill ratio, where the shadows fall." },
@@ -39,7 +92,14 @@ async function chiedi(immagine: string, domanda: string): Promise<string | null>
 /** Estrae la descrizione riusabile di un'immagine di riferimento. */
 referenceRoutes.post("/api/reference/extract", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { path?: unknown };
-  const path = typeof body.path === "string" ? body.path : "";
+  const richiesto = typeof body.path === "string" ? body.path.trim() : "";
+  // Un nome nudo si risolve dentro i riferimenti del progetto: la galleria
+  // manda il file, non il percorso, e chiedere all'utente di ricostruirlo a
+  // mano sarebbe chiedergli di sapere dove Darkroom tiene le sue cose.
+  const path =
+    richiesto && !richiesto.includes("/") && existsSync(join(refsDir(), richiesto))
+      ? join(refsDir(), richiesto)
+      : richiesto;
   if (!path || !existsSync(path)) return c.json({ error: "immagine non trovata" }, 400);
 
   const parti: string[] = [];
