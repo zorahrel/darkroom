@@ -395,9 +395,24 @@ export function provino(shot: string, take: string, quanti = 12): string | null 
  * cinque tentativi e un VLM per fotogramma, tutti falliti. Sta in
  * `SELEZIONE.md` del progetto, coi numeri.)
  */
-function sospetto(m: Record<string, number | undefined>): string | null {
+/** Le toppe bianche piatte che il generatore incolla nel nero, misurate da
+ *  `artefatti.py` e lasciate in `artefatti.json`. Non si misurano qui perche'
+ *  costano un ffmpeg per clip: farlo alla richiesta vorrebbe dire far aspettare
+ *  chi apre la griglia. Il file e' assente finche' nessuno ha scansionato, e in
+ *  quel caso questa riga semplicemente non compare. */
+function artefatti(): Record<string, { sporchi: number; visti: number; dev: number }> {
+  return readJson(at("artefatti.json"), {});
+}
+
+function sospetto(
+  m: Record<string, number | undefined>,
+  art?: { sporchi: number; visti: number },
+): string | null {
   const moto = m.moto, contrasto = m.contrasto, nero = m.nero, luce = m.luce;
   const motivi: string[] = [];
+  // Per primo, perche' e' l'unico che dice "e' rotta" invece di "e' fiacca".
+  if (art && art.sporchi > 0)
+    motivi.push(`macchie bianche in ${art.sporchi} fotogrammi su ${art.visti}`);
   if (typeof moto === "number" && moto < 2.5) motivi.push(`si muove poco (${moto.toFixed(1)})`);
   if (typeof contrasto === "number" && contrasto < 38) motivi.push(`poco contrasto (${Math.round(contrasto)})`);
   if (typeof nero === "number" && nero > 0.9) motivi.push(`quasi tutta nera (${Math.round(nero * 100)}%)`);
@@ -414,6 +429,7 @@ export function shots(): Shot[] {
   const sc = scelte();
   const as = atti();
   const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
+  const arte = artefatti();
   const scartati = sc.scartati;
   const tenuti = ((sc as any).tenuti ?? {}) as Record<string, number>;
   const problemi = sc.problemi ?? {};
@@ -474,7 +490,13 @@ export function shots(): Shot[] {
           kept: !(riprFuori[id] ?? []).includes(tk),
         }));
       const m = dz.piani?.[id] ?? {};
-      const sos = sospetto(m);
+      // La chiave in artefatti.json e' "<piano>__<ripresa>": basta che UNA
+      // ripresa sia sporca perche' il piano meriti un'occhiata.
+      const art = (["a", "b", "c"]
+        .map((tk) => arte[`${id}__${tk}`])
+        .filter(Boolean) as { sporchi: number; visti: number; dev: number }[])
+        .sort((x, y) => y.sporchi - x.sporchi)[0];
+      const sos = sospetto(m, art);
       return {
         id,
         prompt: prompts[id]?.prompt ?? prompts[`${id}_b`]?.prompt ?? "",
