@@ -152,7 +152,7 @@ export default function AlberoPage() {
               className="accent-amber-500"
             />
             <span className="font-mono uppercase tracking-wide text-[10px] text-amber-500">
-              sovrapponi il riferimento
+              riferimento al passaggio del mouse
             </span>
           </label>
           {overlay && (
@@ -183,8 +183,8 @@ export default function AlberoPage() {
               </label>
               <span className="text-neutral-500">
                 {modo === "differenza"
-                  ? "le zone che combaciano restano nere"
-                  : "il riferimento in trasparenza sopra la variante"}
+                  ? "passa sopra una variante: le zone che combaciano restano nere"
+                  : "passa sopra una variante per vedere il riferimento in trasparenza"}
               </span>
             </>
           )}
@@ -392,6 +392,7 @@ function Leaf({
 
   const ring = v.verdict === "tieni" || v.verdict === "forse";
   const cross = v.verdict === "scarta";
+  const [hover, setHover] = useState(false);
 
   return (
     <figure
@@ -405,7 +406,11 @@ function Leaf({
         (v.verdict === "scarta" ? " opacity-50" : "")
       }
     >
-      <div className="relative aspect-[4/5] bg-neutral-950 overflow-hidden">
+      <div
+        className="relative aspect-[4/5] bg-neutral-950 overflow-hidden"
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
         <img
           src={thumbGenUrl(photo, v.version_number, 500)}
           alt={`variante ${v.version_number}`}
@@ -422,10 +427,19 @@ function Leaf({
             src={refUrl(rif)}
             alt=""
             aria-hidden="true"
-            style={{ opacity: opacita ?? 0.5 }}
+            // A scomparsa: il riferimento serve per il confronto, non per
+            // guardarlo. Fisso sopra copriva la variante proprio mentre la si
+            // sfogliava, e per vedere cosa c'era sotto bisognava spegnere
+            // l'interruttore e riaccenderlo. Ora basta togliere il mouse.
+            //
+            // L'opacita' e' inline e non una classe: Tailwind genera le utility
+            // a build time leggendo il sorgente, quindi `opacity-[var(--op)]`
+            // compilava senza errori e non produceva nessuna regola -- la
+            // classe c'era nel DOM e non faceva niente.
+            style={{ opacity: hover ? (opacita ?? 0.5) : 0, transition: "opacity 150ms" }}
             className={
-              "absolute inset-0 w-full h-full object-cover pointer-events-none" +
-              (modo === "differenza" ? " mix-blend-difference" : "")
+              "absolute inset-0 w-full h-full object-cover pointer-events-none " +
+              (modo === "differenza" ? "mix-blend-difference" : "")
             }
           />
         )}
