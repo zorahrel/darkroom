@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, refUrl, pq } from "../api";
+import { Pastiglie } from "../ui";
+import { useStatoVista, leggiUnoDi } from "../statoVista";
 
 // Dal riferimento alla ricetta (REF-02).
 //
@@ -20,6 +22,34 @@ export default function RiferimentiPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [refs, setRefs] = useState<Reference[]>([]);
   const [sopra, setSopra] = useState(false);
+  /** Quali reference mostrare. «mai usate» e' il filtro che conta: una
+   *  reference a zero e' una passata intera andata nella direzione sbagliata
+   *  senza che nessuno lo vedesse (su profilo e' successo 12 volte su 12), e
+   *  con dodici miniature in griglia l'ambra da sola non basta a trovarle. */
+  const [filtro, setFiltro] = useStatoVista<"tutte" | "usate" | "mai">("mostra", "tutte", {
+    leggi: leggiUnoDi(["tutte", "usate", "mai"] as const),
+    memoria: "darkroom.refs.mostra",
+  });
+
+  const conteggi = useMemo(
+    () => ({
+      tutte: refs.length,
+      usate: refs.filter((r) => r.usata_in > 0).length,
+      mai: refs.filter((r) => r.usata_in === 0).length,
+    }),
+    [refs],
+  );
+  /** Le mai usate in cima anche dentro il filtro «tutte»: sono quelle su cui
+   *  c'e' qualcosa da decidere. */
+  const visibili = useMemo(() => {
+    const scelte =
+      filtro === "usate"
+        ? refs.filter((r) => r.usata_in > 0)
+        : filtro === "mai"
+          ? refs.filter((r) => r.usata_in === 0)
+          : refs;
+    return [...scelte].sort((a, b) => (a.usata_in === 0 ? 0 : 1) - (b.usata_in === 0 ? 0 : 1));
+  }, [refs, filtro]);
 
   const carica = useCallback(async () => {
     const r = await jsonFetch<{ recipes: Recipe[] }>("/api/recipes");
@@ -137,7 +167,17 @@ export default function RiferimentiPage() {
             <h3 className="font-mono text-[10px] uppercase tracking-widest text-amber-500">
               riferimenti del progetto
             </h3>
-            <span className="font-mono text-[11px] text-neutral-500">{refs.length}</span>
+            <Pastiglie
+              voci={[
+                { id: "tutte" as const, nome: "tutte" },
+                { id: "usate" as const, nome: "usate" },
+                { id: "mai" as const, nome: "mai usate" },
+              ]}
+              scelta={filtro}
+              onScegli={setFiltro}
+              conteggi={conteggi}
+              neutra="tutte"
+            />
             <label className="ml-auto text-[11px] text-neutral-400 hover:text-amber-500 cursor-pointer">
               <input
                 type="file"
@@ -152,13 +192,22 @@ export default function RiferimentiPage() {
               scegli un file
             </label>
           </div>
-          {refs.length === 0 && (
+          {refs.length === 0 ? (
             <p className="text-xs text-neutral-500 py-4 text-center">
               Trascina qui un'immagine di stile, oppure scegli un file.
             </p>
-          )}
+          ) : visibili.length === 0 ? (
+            /* Cartella piena ma filtro a vuoto: dirlo, invece di mostrare lo
+               stesso messaggio del caso «non c'e' niente». */
+            <p className="text-xs text-neutral-500 py-4 text-center">
+              Nessuna reference in questo gruppo.{" "}
+              <button onClick={() => setFiltro("tutte")} className="text-amber-500 hover:underline">
+                mostra tutte
+              </button>
+            </p>
+          ) : null}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-            {refs.map((r) => (
+            {visibili.map((r) => (
               <figure key={r.file} className="m-0 border border-neutral-800 bg-neutral-900">
                 <img
                   src={refUrl(r.file)}

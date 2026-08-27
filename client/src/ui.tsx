@@ -529,3 +529,59 @@ export function Altro({
     </div>
   );
 }
+
+/**
+ * Le pastiglie di filtro con il conteggio.
+ *
+ * Nate nella griglia, ricopiate a mano nell'albero, e in procinto di esserlo
+ * una terza volta nei riferimenti: tre copie della stessa cosa divergono al
+ * primo ritocco, ed e' cosi' che una sezione si ritrova con i filtri di ieri.
+ *
+ * Il conteggio non e' decorazione: un filtro che porta a una pagina vuota va
+ * saputo PRIMA di cliccarlo. Per la stessa ragione una voce a zero si disabilita
+ * invece di sparire — sparire sposterebbe le altre sotto il dito proprio mentre
+ * si sta per premere.
+ */
+export function Pastiglie<T extends string>({
+  voci,
+  scelta,
+  onScegli,
+  conteggi,
+  /** La voce che non filtra: resta sempre premibile anche a zero, perche' e'
+   *  la via d'uscita da un filtro che non mostra niente. */
+  neutra,
+  className = "",
+}: {
+  voci: readonly { id: T; nome: string }[];
+  scelta: T;
+  onScegli: (v: T) => void;
+  conteggi: Record<string, number>;
+  neutra?: T;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-1 shrink-0 ${className}`}>
+      {voci.map((v) => {
+        const n = conteggi[v.id] ?? 0;
+        const attiva = scelta === v.id;
+        return (
+          <button
+            key={v.id}
+            onClick={() => onScegli(v.id)}
+            disabled={n === 0 && v.id !== neutra}
+            title={`${v.nome}: ${n}`}
+            className={
+              "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
+              (attiva
+                ? "border-amber-500 text-amber-500"
+                : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+            }
+          >
+            {v.nome}
+            <span className="ml-1 opacity-60 tabular-nums">{n}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

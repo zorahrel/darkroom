@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, genUrl, refUrl } from "../api";
 import { useStatoVista, leggiBool, leggiUnoDi, leggiNumero } from "../statoVista";
+import { Pastiglie } from "../ui";
 import { VERDETTI, type Verdetto, filtraAlbero, conteggiaVerdetti } from "../alberoFiltro";
 
 // Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
@@ -189,29 +190,13 @@ export default function AlberoPage() {
       <div className="sticky top-14 z-30 flex items-center gap-2 flex-wrap text-[11px] border border-neutral-800 bg-neutral-950/95 backdrop-blur px-2 py-1">
         {/* I filtri per giudizio: stessa forma dei filtri della griglia
             (pastiglie con il conteggio), perche' e' la stessa domanda. */}
-        <div className="flex items-center gap-1 shrink-0">
-          {VERDETTI.map((k) => {
-            const n = conteggi[k];
-            const attivo = verdetto === k;
-            return (
-              <button
-                key={k}
-                onClick={() => setVerdetto(k)}
-                disabled={n === 0 && k !== "tutte"}
-                title={`${VERDETTO_LABEL[k]}: ${n}`}
-                className={
-                  "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
-                  (attivo
-                    ? "border-amber-500 text-amber-500"
-                    : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
-                }
-              >
-                {VERDETTO_LABEL[k]}
-                <span className="ml-1 opacity-60 tabular-nums">{n}</span>
-              </button>
-            );
-          })}
-        </div>
+        <Pastiglie
+          voci={VERDETTI.map((k) => ({ id: k, nome: VERDETTO_LABEL[k] }))}
+          scelta={verdetto}
+          onScegli={setVerdetto}
+          conteggi={conteggi}
+          neutra="tutte"
+        />
 
         {haRiferimenti && (
           <>
