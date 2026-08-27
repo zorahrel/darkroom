@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Scegli } from "../ui";
-import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
+import { useStatoVista, leggiUnoDi, leggiNumero } from "../statoVista";
 import {
   api,
   currentProject,
@@ -153,18 +154,18 @@ export default function GridPage({
   bust?: number;
   reloadKey?: number;
 } = {}) {
-  // URL is the source of truth for filter/group/zoom, so state survives reload
-  // and is shareable. localStorage stays as a fallback default when the URL is bare.
-  const [searchParams, setSearchParams] = useSearchParams();
+  // L'URL e' la sorgente di verita' per filtro/raggruppamento/zoom, cosi' lo
+  // stato sopravvive al ricaricamento e un link mostra a un altro la stessa
+  // cosa. La meccanica sta in `useStatoVista`, condivisa con l'albero: era
+  // scritta a mano qui e da nessun'altra parte, ed e' il motivo per cui
+  // l'albero perdeva i suoi filtri a ogni visita.
   const [photos, setPhotos] = useState<PhotoListItem[] | null>(null);
-  const [filter, setFilter] = useState<Filter>(() => {
-    const f = searchParams.get("filter");
-    return FILTERS.some((x) => x.id === f) ? (f as Filter) : "all";
+  const [filter, setFilter] = useStatoVista<Filter>("filter", "all", {
+    leggi: leggiUnoDi(FILTERS.map((f) => f.id) as Filter[]),
   });
-  const [groupMode, setGroupMode] = useState<GroupMode>(() => {
-    const g =
-      searchParams.get("group") ?? localStorage.getItem("darkroom.grid.group");
-    return g === "day" || g === "none" || g === "scene" || g === "post" ? g : "scene";
+  const [groupMode, setGroupMode] = useStatoVista<GroupMode>("group", "scene", {
+    leggi: leggiUnoDi(["day", "none", "scene", "post"] as const),
+    memoria: "darkroom.grid.group",
   });
   // Collections = posts/caroselli. Loaded once and refreshed after every edit,
   // so the "Post" grouping and the bulk assign bar always agree.
@@ -217,10 +218,9 @@ export default function GridPage({
   const [runData, setRunData] = useState<
     { item: PhotoListItem; v: number }[] | null
   >(null);
-  const [zoom, setZoom] = useState<number>(() => {
-    const z = searchParams.get("zoom") ?? localStorage.getItem("darkroom.grid.zoom");
-    const n = Number(z);
-    return n >= 80 && n <= 400 ? n : 180;
+  const [zoom, setZoom] = useStatoVista("zoom", 180, {
+    leggi: leggiNumero(80, 400),
+    memoria: "darkroom.grid.zoom",
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
   const { pid } = useParams<{ pid: string }>();
@@ -255,16 +255,6 @@ export default function GridPage({
     }
     return m;
   }, [jobs]);
-
-  // Keep the URL in sync with filter/group/zoom (non-default values only).
-  useEffect(() => {
-    const next = new URLSearchParams();
-    if (filter !== "all") next.set("filter", filter);
-    if (groupMode !== "scene") next.set("group", groupMode);
-    if (zoom !== 180) next.set("zoom", String(zoom));
-    setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, groupMode, zoom]);
 
   useEffect(() => {
     api.listPhotos(filter).then((r) => setPhotos(r.photos));
@@ -982,7 +972,6 @@ export default function GridPage({
                     key={g.id}
                     onClick={() => {
                       setGroupMode(g.id);
-                      localStorage.setItem("darkroom.grid.group", g.id);
                       setOpenFilterMenu(null);
                     }}
                     className={
@@ -1066,9 +1055,7 @@ export default function GridPage({
         <div className="flex h-7 shrink-0 items-center rounded border border-neutral-800">
           <button
             onClick={() => {
-              const v = Math.max(100, zoom - 40);
-              setZoom(v);
-              localStorage.setItem("darkroom.grid.zoom", String(v));
+              setZoom(Math.max(100, zoom - 40));
             }}
             disabled={zoom <= 100}
             title="Foto più piccole"
@@ -1081,9 +1068,7 @@ export default function GridPage({
           </span>
           <button
             onClick={() => {
-              const v = Math.min(400, zoom + 40);
-              setZoom(v);
-              localStorage.setItem("darkroom.grid.zoom", String(v));
+              setZoom(Math.min(400, zoom + 40));
             }}
             disabled={zoom >= 400}
             title="Foto più grandi"

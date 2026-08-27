@@ -19,6 +19,45 @@ import { useSearchParams } from "react-router-dom";
  * piena di `?overlay=0&modo=sopra` quando e' tutto come appena aperto e' rumore
  * che nasconde i parametri che contano davvero.
  */
+
+/**
+ * Coda di scrittura condivisa fra tutti gli usi dell'hook.
+ *
+ * `null` come valore significa «togli questa chiave»: e' cio' che serve per non
+ * lasciare i valori di default nell'URL.
+ */
+const inSospeso = new Map<string, string | null>();
+let flushProgrammato = false;
+
+function accoda(
+  chiave: string,
+  valore: string | null,
+  applica: (fn: (prev: URLSearchParams) => URLSearchParams, opt: { replace: boolean }) => void,
+) {
+  inSospeso.set(chiave, valore);
+  if (flushProgrammato) return;
+  flushProgrammato = true;
+  // Un microtask, non un timer: si applica alla fine di questo giro di
+  // rendering, prima che il browser dipinga, cosi' l'URL non "lampeggia".
+  queueMicrotask(() => {
+    flushProgrammato = false;
+    if (inSospeso.size === 0) return;
+    const modifiche = [...inSospeso.entries()];
+    inSospeso.clear();
+    applica(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of modifiche) {
+          if (v === null) next.delete(k);
+          else next.set(k, v);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  });
+}
+
 export function useStatoVista<T extends string | number | boolean>(
   chiave: string,
   predefinito: T,
@@ -52,22 +91,24 @@ export function useStatoVista<T extends string | number | boolean>(
     return predefinito;
   });
 
-  // `setSearchParams` cambia identita' a ogni resa: dentro l'effetto si usa la
-  // versione piu' fresca via ref, altrimenti l'effetto rigira all'infinito.
+  // Le scritture di piu' hook nello stesso istante vanno RIUNITE prima di
+  // toccare l'URL.
+  //
+  // Ognuno scriveva per conto suo con l'aggiornamento funzionale, che sembra
+  // sicuro e non lo e': React Router propaga la nuova location in modo
+  // asincrono, quindi due hook che si svegliano nello stesso ciclo ricevono
+  // entrambi lo STESSO `prev` e il secondo cancella la modifica del primo.
+  // Osservato: aprendo `?zoom=180&group=scene`, tutti e due i valori sono
+  // quelli di default e vanno tolti, ma ne spariva uno solo.
+  //
+  // Qui le modifiche si accumulano in una coda condivisa e si applicano in una
+  // volta sola alla fine del giro.
   const setParams = useRef(setSearchParams);
   setParams.current = setSearchParams;
 
   useEffect(() => {
     if (memoria) localStorage.setItem(memoria, String(valore));
-    setParams.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (valore === predefinito) next.delete(chiave);
-        else next.set(chiave, String(valore));
-        return next;
-      },
-      { replace: true },
-    );
+    accoda(chiave, valore === predefinito ? null : String(valore), setParams.current);
     // `predefinito` e `chiave` sono costanti per chi chiama.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valore]);

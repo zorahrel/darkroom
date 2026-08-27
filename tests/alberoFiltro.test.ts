@@ -116,3 +116,51 @@ describe("conteggi sulle pastiglie", () => {
     expect(c["da-vedere"]).toBe(1);
   });
 });
+
+describe("la coda di scrittura sull'URL", () => {
+  // Riproduce, senza React, il meccanismo di `statoVista`: due valori che
+  // tornano al default nello stesso giro di rendering.
+  //
+  // LA REGRESSIONE: ogni hook chiamava `setSearchParams` per conto suo con
+  // l'aggiornamento funzionale. Sembra sicuro, ma React Router propaga la nuova
+  // location in modo asincrono: due hook svegliati nello stesso ciclo ricevono
+  // lo STESSO `prev`, e il secondo sovrascrive il primo. Aprendo
+  // `?zoom=180&group=scene` (entrambi default) ne spariva uno solo.
+  function simula(
+    modifiche: [string, string | null][],
+    partenza: string,
+    unite: boolean,
+  ): string {
+    let url = new URLSearchParams(partenza);
+    if (unite) {
+      const next = new URLSearchParams(url);
+      for (const [k, v] of modifiche) v === null ? next.delete(k) : next.set(k, v);
+      url = next;
+    } else {
+      // Ognuno parte dalla stessa istantanea: e' il bug.
+      const istantanea = new URLSearchParams(url);
+      for (const [k, v] of modifiche) {
+        const next = new URLSearchParams(istantanea);
+        v === null ? next.delete(k) : next.set(k, v);
+        url = next;
+      }
+    }
+    return url.toString();
+  }
+
+  test("due default insieme svuotano l'URL", () => {
+    expect(simula([["zoom", null], ["group", null]], "zoom=180&group=scene", true)).toBe("");
+  });
+
+  test("senza riunirle ne sopravvive una: e' il bug che si sta prevenendo", () => {
+    expect(simula([["zoom", null], ["group", null]], "zoom=180&group=scene", false)).toBe("zoom=180");
+  });
+
+  test("scritture e cancellazioni insieme non si annullano a vicenda", () => {
+    expect(simula([["zoom", "340"], ["group", null]], "zoom=180&group=scene", true)).toBe("zoom=340");
+  });
+
+  test("le chiavi di altri (la rotta, la ricerca) non vengono toccate", () => {
+    expect(simula([["zoom", null]], "zoom=180&q=tokyo", true)).toBe("q=tokyo");
+  });
+});
