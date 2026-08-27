@@ -285,6 +285,9 @@ describe("il tetto giornaliero morde prima di spendere", () => {
     const prevCap = process.env.OPENAI_DAILY_CAP_USD;
     process.env.OPENAI_API_KEY = "sk-test-tetto";
     process.env.OPENAI_DAILY_CAP_USD = "0.01"; // gia' superato dalle righe sotto
+    // Si spegne la soglia sincrona: qui si misura il TETTO, e con entrambi
+    // attivi scatterebbe l'altro e il test direbbe di un freno diverso.
+    process.env.OPENAI_SYNC_BUDGET_USD = "0";
     let chiamate = 0;
     globalThis.fetch = (async () => {
       chiamate++;
@@ -318,6 +321,7 @@ describe("il tetto giornaliero morde prima di spendere", () => {
     const prevCap = process.env.OPENAI_DAILY_CAP_USD;
     process.env.OPENAI_API_KEY = "sk-test-tetto2";
     process.env.OPENAI_DAILY_CAP_USD = "999";
+    process.env.OPENAI_SYNC_BUDGET_USD = "0";
     const png =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
     globalThis.fetch = (async () =>
@@ -403,4 +407,67 @@ describe("il batch non e' una porta di servizio", () => {
     // Il costo e' meta': quella e' la tariffa.
     expect(r!.cost_usd).toBeCloseTo(0.1054, 4);
   });
+});
+
+describe("la strada cara non deve essere quella comoda", () => {
+  // Il batch costa meta' ed esisteva da giorni, ma 25 chiamate su 25 sono state
+  // fatte in sincrono: $2.81 dove bastavano $1.40. Non mancava un'opzione,
+  // mancava un attrito sulla strada sbagliata.
+  test("oltre la soglia il sincrono rimanda al batch senza chiamare l'API", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevBudget = process.env.OPENAI_SYNC_BUDGET_USD;
+    process.env.OPENAI_API_KEY = "sk-test-budget";
+    process.env.OPENAI_SYNC_BUDGET_USD = "0.01";
+    let chiamate = 0;
+    globalThis.fetch = (async () => {
+      chiamate++;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    try {
+      const { db } = await import("../server/db.ts");
+      db().run(
+        `INSERT INTO api_calls (provider,model,quality,output_tokens,cost_usd,ok,origin,created_at)
+         VALUES ('openai','gpt-image-2','high',7024,0.2107,1,'test-budget',?)`,
+        [Date.now()],
+      );
+      const mod = await import(`../server/worker-openai.ts?bud=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-budget.png" });
+      expect(r.status).toBe("error");
+      // Il messaggio deve dire COSA fare, non solo che è vietato.
+      expect(r.error).toContain("openai_batch.ts");
+      expect(chiamate).toBe(0);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevBudget === undefined) delete process.env.OPENAI_SYNC_BUDGET_USD;
+      else process.env.OPENAI_SYNC_BUDGET_USD = prevBudget;
+    }
+  }, 30_000);
+
+  test("a soglia zero il freno non c'e'", async () => {
+    const prevFetch = globalThis.fetch;
+    const prevKey = process.env.OPENAI_API_KEY;
+    const prevBudget = process.env.OPENAI_SYNC_BUDGET_USD;
+    process.env.OPENAI_API_KEY = "sk-test-budget0";
+    process.env.OPENAI_SYNC_BUDGET_USD = "0";
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: png }], usage: { output_tokens: 196 } }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    try {
+      const mod = await import(`../server/worker-openai.ts?bud0=${Date.now()}${Math.random()}`);
+      const r = await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-budget0.png" });
+      expect(r.status).toBe("ok");
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevKey;
+      if (prevBudget === undefined) delete process.env.OPENAI_SYNC_BUDGET_USD;
+      else process.env.OPENAI_SYNC_BUDGET_USD = prevBudget;
+    }
+  }, 30_000);
 });

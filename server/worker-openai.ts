@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
-import { openaiDailyCapUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
+import { openaiDailyCapUsd, openaiSyncBudgetUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
 import { db } from "./db.ts";
 
 /**
@@ -46,6 +46,20 @@ export function spesoOggi(): number {
 /** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
  *  l'errore da mostrare, o null se si puo' procedere. */
 function oltreIlTetto(): string | null {
+  // Prima del tetto giornaliero c'e' una soglia piu' bassa: oltre quella, una
+  // richiesta sincrona e' quasi sempre una comodita' che costa il doppio.
+  // Le prove singole restano libere; una passata lunga va accodata.
+  const budget = openaiSyncBudgetUsd();
+  if (budget > 0) {
+    const speso = spesoOggi();
+    if (speso >= budget) {
+      return (
+        `spesi $${speso.toFixed(2)} oggi in richieste singole (soglia $${budget.toFixed(2)}). ` +
+        `Il batch costa META': bun run scripts/openai_batch.ts submit <file-prompt>. ` +
+        `Per forzare il sincrono: OPENAI_SYNC_BUDGET_USD=0`
+      );
+    }
+  }
   // Letto qui e non all'import: un tetto che si puo' alzare solo riavviando il
   // server e' un tetto che si aggira riavviando il server.
   const cap = openaiDailyCapUsd();
@@ -88,8 +102,14 @@ export function registraChiamata(
         Date.now(),
       ],
     );
-  } catch {
-    // il conto e' importante, l'immagine di piu'
+  } catch (e) {
+    // L'immagine conta piu' del conto, quindi non si fallisce. Ma il silenzio
+    // era peggio: uno script lanciato fuori da un progetto non trovava il DB e
+    // quattro generazioni pagate non comparivano da nessuna parte, mentre la
+    // barra continuava a mostrare il totale di prima come se fosse aggiornato.
+    console.warn(
+      `[openai] chiamata NON registrata ($${costUsd(model, outputTokens).toFixed(4)}): ${String(e).slice(0, 120)}`,
+    );
   }
 }
 

@@ -129,6 +129,17 @@ export function openaiDailyCapUsd(): number {
   return Number(process.env.OPENAI_DAILY_CAP_USD ?? "5");
 }
 
+/** Sopra questa spesa in una sessione, il worker sincrono si rifiuta di
+ *  generare e rimanda al batch, che costa meta'.
+ *
+ *  Il batch esisteva gia' e nessuno lo usava: 25 chiamate su 25 fatte in
+ *  sincrono, $2.81 dove sarebbero bastati $1.40. Non serviva un'altra opzione,
+ *  serviva che la strada cara smettesse di essere quella comoda. Zero disattiva
+ *  il freno. */
+export function openaiSyncBudgetUsd(): number {
+  return Number(process.env.OPENAI_SYNC_BUDGET_USD ?? "0.5");
+}
+
 /** Chiave OpenAI dal Keychain, mai da un file in chiaro (stessa convenzione di
  *  `scripts/imagerouter_check.ts`; il .env del progetto è world-readable).
  *  OPENAI_API_KEY nell'ambiente vince, per CI e test.
