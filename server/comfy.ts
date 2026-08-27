@@ -106,7 +106,11 @@ export function accodaVideoJob(piano: string, prompt: string, take = "a", params
   return r;
 }
 
-export function listaVideoJob(limit = 50): VideoJob[] {
+/** Il listato dei job.
+ *  Era tagliato a 50 e con una coda lunga le generazioni piu' vecchie ancora in
+ *  attesa sparivano dalla vista: dieci job "spariti" che in realta' erano finiti
+ *  da un pezzo, e nessun modo di accorgersene dall'interfaccia. */
+export function listaVideoJob(limit = 300): VideoJob[] {
   return getDb().query(`SELECT * FROM video_jobs ORDER BY id DESC LIMIT ?`).all(limit) as VideoJob[];
 }
 
