@@ -276,6 +276,132 @@ function Descrizione({ shot, testo, aMano, onSalva }: {
 /** Se la ripresa sta bene dov'e' finita. E' il metro che alla durezza manca:
  *  0.95 e' tanto se li' il brano respira, giusto se li' picchia. Soglia 0.20,
  *  che e' dove lo scarto comincia a vedersi guardando. */
+/**
+ * Il trasporto della clip.
+ *
+ * Prima c'era `autoPlay muted loop` e basta: la clip girava e non si poteva
+ * fare niente. Ma qui non si guarda una clip, la si ESAMINA — «si sfalda a
+ * fine giro», «la mano sparisce a meta'» — e per dirlo bisogna poterla
+ * fermare sul fotogramma in cui succede. Un giudizio dato al volo su un ciclo
+ * che scorre e' un'impressione, non un'osservazione.
+ *
+ * Il passo di un fotogramma si ricava da `fotogrammi / durata`, non da un 24
+ * scritto qui: la durata la dice il file e i fotogrammi li dice il server, e
+ * una costante sarebbe muta proprio sulle riprese generate a lunghezza
+ * diversa (2.5s contro 3.4s).
+ */
+function Trasporto({ video, fotogrammi }: {
+  video: React.RefObject<HTMLVideoElement | null>;
+  fotogrammi: number | null;
+}) {
+  const [tempo, setTempo] = useState(0);
+  const [durata, setDurata] = useState(0);
+  const [gira, setGira] = useState(true);
+  const [velocita, setVelocita] = useState(1);
+  const [ciclo, setCiclo] = useState(true);
+
+  // I listener si riagganciano a ogni cambio di clip: `key` sul <video> lo fa
+  // ricreare, quindi un effetto agganciato una volta sola parlerebbe a un nodo
+  // che non e' piu' nel documento.
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    const t = () => setTempo(v.currentTime);
+    const d = () => setDurata(Number.isFinite(v.duration) ? v.duration : 0);
+    const p = () => setGira(true);
+    const f = () => setGira(false);
+    v.addEventListener("timeupdate", t);
+    v.addEventListener("durationchange", d);
+    v.addEventListener("loadedmetadata", d);
+    v.addEventListener("play", p);
+    v.addEventListener("pause", f);
+    d(); t(); setGira(!v.paused);
+    return () => {
+      v.removeEventListener("timeupdate", t);
+      v.removeEventListener("durationchange", d);
+      v.removeEventListener("loadedmetadata", d);
+      v.removeEventListener("play", p);
+      v.removeEventListener("pause", f);
+    };
+  });
+
+  useEffect(() => { if (video.current) video.current.playbackRate = velocita; }, [velocita, video]);
+  useEffect(() => { if (video.current) video.current.loop = ciclo; }, [ciclo, video]);
+
+  const passo = fotogrammi && durata ? durata / fotogrammi : 1 / 24;
+  const vaiA = (t: number) => {
+    const v = video.current;
+    if (!v || !durata) return;
+    v.currentTime = Math.min(durata - 1e-3, Math.max(0, t));
+    setTempo(v.currentTime);
+  };
+  const scatto = (n: number) => { video.current?.pause(); vaiA((video.current?.currentTime ?? 0) + n * passo); };
+  const avviaFerma = () => {
+    const v = video.current;
+    if (!v) return;
+    if (v.paused) void v.play(); else v.pause();
+  };
+
+  // Le frecce giudicano, quindi il fotogramma si sposta con `,` e `.` — gli
+  // stessi tasti di ogni programma di montaggio — e `k` ferma e riparte.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable)) return;
+      if (e.key === ",") { e.preventDefault(); scatto(-1); }
+      else if (e.key === ".") { e.preventDefault(); scatto(1); }
+      else if (e.key === "k") { e.preventDefault(); avviaFerma(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // Tosato all'ultimo fotogramma: a clip finita `tempo` vale esattamente la
+  // durata, e la divisione dava "f82/81" — un fotogramma che non esiste.
+  const n = passo > 0 && fotogrammi
+    ? Math.min(fotogrammi, Math.floor(tempo / passo) + 1)
+    : passo > 0 ? Math.floor(tempo / passo) + 1 : 0;
+  return (
+    <div className="mt-1.5 flex items-center gap-2 text-[10.5px] text-neutral-400">
+      <button onClick={avviaFerma} title="ferma o riparti (k)"
+              className="w-6 h-6 shrink-0 grid place-items-center rounded-sm border border-neutral-800
+                         hover:border-neutral-600 text-neutral-200 text-[11px]">
+        {gira ? "❚❚" : "▶"}
+      </button>
+      <button onClick={() => scatto(-1)} title="un fotogramma indietro (,)"
+              className="px-1 h-6 shrink-0 rounded-sm border border-neutral-800 hover:border-neutral-600">◀|</button>
+      <button onClick={() => scatto(1)} title="un fotogramma avanti (.)"
+              className="px-1 h-6 shrink-0 rounded-sm border border-neutral-800 hover:border-neutral-600">|▶</button>
+      <input
+        type="range" min={0} max={Math.max(durata, 0.001)} step={passo} value={tempo}
+        onChange={(e) => { video.current?.pause(); vaiA(Number(e.currentTarget.value)); }}
+        className="dr-hue flex-1 min-w-0"
+        aria-label="posizione nella clip"
+      />
+      <span className="shrink-0 tabular-nums text-neutral-300">
+        {tempo.toFixed(2)}<span className="text-neutral-500">/{durata.toFixed(2)}s</span>
+      </span>
+      {fotogrammi ? (
+        <span className="shrink-0 tabular-nums text-neutral-500">f{n}/{fotogrammi}</span>
+      ) : null}
+      <span className="shrink-0 flex gap-px">
+        {[0.25, 0.5, 1].map((x) => (
+          <button key={x} onClick={() => setVelocita(x)}
+                  className={`px-1 h-6 rounded-sm border tabular-nums ${
+                    velocita === x ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
+            {x}×
+          </button>
+        ))}
+      </span>
+      <button onClick={() => setCiclo((c) => !c)} title="ripeti da capo"
+              className={`px-1 h-6 shrink-0 rounded-sm border ${
+                ciclo ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
+        ↻
+      </button>
+    </div>
+  );
+}
+
 function Combacia({ suono, piano }: { suono: number | null; piano: number | null }) {
   if (suono === null || piano === null) return null;
   const d = piano - suono;
@@ -765,10 +891,12 @@ export default function VideoScelta() {
                   const v = e.currentTarget;
                   if (v.videoWidth && v.videoHeight) setRapporto(v.videoWidth / v.videoHeight);
                 }}
+                onClick={(e) => { const v = e.currentTarget; if (v.paused) void v.play(); else v.pause(); }}
                 style={{ height: altezzaClip, width: "auto" }}
-                className="max-h-full max-w-full bg-black border border-neutral-800 rounded-sm"
+                className="max-h-full max-w-full bg-black border border-neutral-800 rounded-sm cursor-pointer"
               />
             </div>
+            <Trasporto video={video} fotogrammi={corrente.takes[0]?.frames ?? null} />
             {scena.pezzi.length > 1 && (
               <div className="mt-2 flex gap-1.5">
                 {scena.pezzi.map((p, k) => (
