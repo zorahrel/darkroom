@@ -295,6 +295,15 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "jobs", "lineage")) {
     d.run("ALTER TABLE jobs ADD COLUMN lineage TEXT");
   }
+  // Con quale canale lavorare QUESTO job: cdp, codex, codex-http, openai.
+  //
+  // Era una scelta solo globale, letta all'avvio del processo: per generare con
+  // un backend diverso bisognava riavviare il servizio, e il riavvio cambia il
+  // comportamento di ogni progetto invece che della singola generazione.
+  // NULL = usa quello di sistema, che resta il default.
+  if (!hasColumn(d, "jobs", "backend")) {
+    d.run("ALTER TABLE jobs ADD COLUMN backend TEXT");
+  }
   // Acknowledged-by-user flag: hides a failed job from the alert list (kept in
   // the per-photo generation log until retention prunes it).
   if (!hasColumn(d, "jobs", "seen")) {
@@ -574,6 +583,10 @@ export type JobRow = {
   /** Da dove nasce la versione che questo job produrra': ricetta, insieme di
    *  sorgenti, reference. Viene copiato sulla versione a fine lavorazione. */
   lineage: string | null;
+  /** Canale di questo job: cdp, codex, codex-http, openai. NULL = quello di
+   *  sistema. Esiste perche' cambiare canale per una generazione non debba
+   *  costare il riavvio di un servizio che serve tutti i progetti. */
+  backend: string | null;
   progress: string | null;
   seen: number;
   attempts: number;

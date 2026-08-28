@@ -21,19 +21,42 @@ const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
 // coerenza fra le varianti), "openai" chiama l'Images API a pagamento (per le
 // passate lunghe, dove la quota di un account interattivo finisce), "cdp" guida
 // il browser.
-const runActiveWorker =
-  WORKER_BACKEND === "codex-http"
+/**
+ * Quale canale usa QUESTO job.
+ *
+ * Era una costante calcolata all'import: il canale si fissava all'avvio del
+ * processo, quindi per generare con un backend diverso bisognava riavviare il
+ * servizio — e riavviarlo cambia il comportamento di ogni progetto, non solo di
+ * quello su cui si sta lavorando. Una scelta che riguarda una singola
+ * generazione non deve costare un riavvio globale.
+ *
+ * Ora si risolve quando il job parte, e il job puo' portarsi il proprio
+ * canale: `null` significa "usa quello di sistema", che resta il default.
+ */
+export type Backend = "cdp" | "codex" | "codex-http" | "openai";
+
+export function backendDi(job?: { backend?: string | null }): Backend {
+  const scelto = (job?.backend ?? WORKER_BACKEND).toLowerCase();
+  return scelto === "codex-http" || scelto === "codex" || scelto === "openai"
+    ? (scelto as Backend)
+    : "cdp";
+}
+
+function workerPer(b: Backend) {
+  return b === "codex-http"
     ? runWorkerCodexHttp
-    : WORKER_BACKEND === "codex"
+    : b === "codex"
       ? runWorkerCodex
-      : WORKER_BACKEND === "openai"
+      : b === "openai"
         ? runWorkerOpenAi
         : runWorker;
+}
 
 // Il text-to-image passava sempre dal browser, anche con un altro backend
 // scelto: con "openai" la quota che si voleva evitare tornava dalla finestra.
-const runActiveGenerate =
-  WORKER_BACKEND === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
+function generatePer(b: Backend) {
+  return b === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
+}
 
 export function enqueueJob(
   photoId: string,
@@ -50,12 +73,14 @@ export function enqueueJob(
    *  varianti anche quando la generazione passa dalla coda invece che da uno
    *  script scritto a mano. */
   lineage: string | null = null,
+  /** Canale per questo job. `null` = quello di sistema. */
+  backend: string | null = null,
 ): JobRow {
   const now = Date.now();
   const result = db().run(
-    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, lineage, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, lineage, now],
+    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, lineage, backend, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, lineage, backend, now],
   );
   const id = Number(result.lastInsertRowid);
   return db()
@@ -518,9 +543,13 @@ async function processJob(job: JobRow) {
     // Generation has no source image (skips upload). Both paths honor the
     // selected backend (cdp | codex | codex-http | openai).
     const refs = parseRefPaths(job.ref_paths);
+    // Risolto ORA, non all'avvio del processo: il job puo' portarsi il proprio
+    // canale, e cambiarlo per una generazione non deve costare il riavvio di un
+    // servizio che serve tutti i progetti.
+    const backend = backendDi(job);
     const result = isGenerate
-      ? await runActiveGenerate({ prompt: job.prompt, output: outputPath, refs })
-      : await runActiveWorker({
+      ? await generatePer(backend)({ prompt: job.prompt, output: outputPath, refs })
+      : await workerPer(backend)({
           image: editInput,
           prompt: job.prompt,
           output: outputPath,
@@ -540,7 +569,10 @@ async function processJob(job: JobRow) {
         // (page eval) fails we hard-restart: kill + relaunch. Profile is
         // persistent, so after the first login this is unattended.
         let recovered = false;
-        if (BACKEND_USES_BROWSER && !(await checkChatgptBrowserAlive())) {
+        // Solo il canale di QUESTO job decide se c'e' un browser da resuscitare:
+        // la costante globale faceva riavviare Chrome anche per un job che
+        // parlava all'API e non aveva mai aperto una finestra.
+        if (backend === "cdp" && !(await checkChatgptBrowserAlive())) {
           if (consecutiveBrowserRestarts >= MAX_BROWSER_RESTARTS) {
             // Repeated restarts aren't helping (login lost, Cloudflare wall,
             // crash loop). Back off long and stop hammering; needs a human.
@@ -678,7 +710,10 @@ async function processJob(job: JobRow) {
     // quando ha generato l'Images API rendeva impossibile sapere quanto e'
     // costato un progetto. `credits` resta NULL per i backend a quota, dove
     // uno zero direbbe "gratis" invece di "non misurabile".
-    const provider = WORKER_BACKEND === "openai" ? "openai" : "chatgpt";
+    // Il canale di QUESTO job, non quello di sistema: con un backend per-job
+    // la costante globale avrebbe registrato 'chatgpt' su una versione uscita
+    // dall'API, e il costo del progetto sarebbe tornato illeggibile.
+    const provider = backendDi(job) === "openai" ? "openai" : "chatgpt";
     const costo = result.status === "ok" ? (result.cost_usd ?? null) : null;
     const versionInsert = db().run(
       `INSERT INTO versions

@@ -156,3 +156,53 @@ describe("il lineage viaggia dal job alla versione", () => {
     });
   });
 });
+
+describe("il canale si sceglie per job, non per processo", () => {
+  // Era una costante calcolata all'import: per generare con un backend diverso
+  // bisognava riavviare il servizio, e il riavvio cambia il comportamento di
+  // OGNI progetto invece che della singola generazione.
+  test("senza indicazione si usa quello di sistema", async () => {
+    const { backendDi } = await import("../server/jobs.ts");
+    expect(backendDi({ backend: null })).toBe("cdp"); // default di WORKER_BACKEND
+    expect(backendDi(undefined)).toBe("cdp");
+  });
+
+  test("il job puo' portarsi il proprio canale", async () => {
+    const { backendDi } = await import("../server/jobs.ts");
+    expect(backendDi({ backend: "openai" })).toBe("openai");
+    expect(backendDi({ backend: "codex-http" })).toBe("codex-http");
+    expect(backendDi({ backend: "codex" })).toBe("codex");
+  });
+
+  test("un canale sconosciuto non rompe la coda: si torna al browser", async () => {
+    // Un valore storto in una colonna di testo non deve far fallire il job.
+    const { backendDi } = await import("../server/jobs.ts");
+    expect(backendDi({ backend: "banana" })).toBe("cdp");
+    expect(backendDi({ backend: "" })).toBe("cdp");
+  });
+
+  test("il canale e' insensibile alle maiuscole", async () => {
+    const { backendDi } = await import("../server/jobs.ts");
+    expect(backendDi({ backend: "OpenAI" })).toBe("openai");
+  });
+
+  test("enqueueJob conserva il canale scelto", async () => {
+    const { withProject } = await import("../server/project.ts");
+    const { initSchema, db } = await import("../server/db.ts");
+    const { enqueueJob } = await import("../server/jobs.ts");
+    withProject("backend-test", () => {
+      initSchema();
+      // Id unico: i test condividono il database e riusare 'p1' violerebbe la
+      // chiave primaria.
+      db().run(
+        "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('p3','/tmp/x.png','.png',?,?)",
+        [Date.now(), Date.now()],
+      );
+      const job = enqueueJob("p3", "prompt", null, "chatgpt", null, "edit", null, null, null, "openai");
+      const riletto = db()
+        .query<{ backend: string | null }, [number]>("SELECT backend FROM jobs WHERE id = ?")
+        .get(job.id);
+      expect(riletto?.backend).toBe("openai");
+    });
+  });
+});
