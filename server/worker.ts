@@ -24,6 +24,12 @@ export type WorkerResult =
        *  codex) non lo sanno e lo lasciano assente: 0 direbbe "gratis", che e'
        *  una risposta diversa da "non misurabile". */
       cost_usd?: number;
+      /** Come e' stata prodotta davvero: modello, resa, token consumati.
+       *  Senza, la versione salvata dichiara "openai" e basta, e due varianti
+       *  uscite da `low` e da `high` sembrano lo stesso esperimento. */
+      model?: string;
+      quality?: string;
+      output_tokens?: number;
     }
   | { status: "error"; error: string; duration_s?: number };
 

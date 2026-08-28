@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { jsonFetch, thumbGenUrl, thumbRawUrl, genUrl, refUrl } from "../api";
+import { jsonFetch, thumbGenUrl, thumbRawUrl, thumbRefUrl, genUrl, refUrl } from "../api";
 import { useStatoVista, leggiBool, leggiUnoDi, leggiNumero } from "../statoVista";
 import { Pastiglie } from "../ui";
 import { VERDETTI, type Verdetto, filtraAlbero, conteggiaVerdetti } from "../alberoFiltro";
@@ -24,6 +24,20 @@ type Variant = {
   /** I nomi veri dei file di ingresso, non gli id tradotti per le miniature. */
   file_sorgenti?: string[];
   file_refs?: string[];
+  /** Gli id-foto delle sorgenti, paralleli a `file_sorgenti`. Servono per la
+   *  miniatura: il client non puo' ricavarli dal nome, "1.PNG" -> "1" funziona
+   *  per caso e su un'estensione inattesa darebbe un'immagine rotta. */
+  id_sorgenti?: (string | null)[];
+  /** Il motore che l'ha prodotta: cdp, codex-http, openai. */
+  backend?: string | null;
+  /** Modello e resa: lo stesso modello in `low` e in `high` sono due
+   *  esperimenti diversi, e senza questo dato sembrano lo stesso. */
+  model?: string | null;
+  quality?: string | null;
+  /** Costo stimato in dollari. */
+  costo_usd?: number | null;
+  /** Quando e' nata, in millisecondi. */
+  created_at?: number;
   /** Il file non c'e' sul disco. Una variante cosi' mostrava un rettangolo
    *  vuoto senza spiegazione: sembrava una miniatura ancora da caricare. */
   manca?: boolean;
@@ -48,6 +62,179 @@ type Node = {
 };
 
 const CYCLE = [null, "tieni", "forse", "scarta"] as const;
+
+/**
+ * Una riga del pannello dettagli: le immagini di ingresso, non i loro nomi.
+ *
+ * Un elenco di nomi non dice QUALE foto e': "1.PNG" e "ChatGPT Image Aug
+ * 15..." sono etichette, e per sapere cosa e' entrato in una generazione
+ * bisognava andarle a cercare a mano nella cartella.
+ *
+ * Esiste anche per dire il VUOTO: una sezione che non compare si legge come un
+ * guasto, una che dice "nessuno" si legge come un fatto — e sono due cose
+ * diverse quando si cerca di capire perche' due varianti sono uscite diverse.
+ */
+function Voce({
+  titolo,
+  valori,
+  vuoto,
+  ids,
+  anteprima,
+  onZoom,
+}: {
+  titolo: string;
+  valori?: string[];
+  vuoto: string;
+  /** Id-foto paralleli a `valori`, quando la miniatura si chiede per id. */
+  ids?: (string | null)[];
+  /** Come costruire la miniatura, quando si chiede per nome di file. */
+  anteprima?: (f: string) => string;
+  /** Ingrandimento: una miniatura da 64px serve a riconoscere un'immagine gia'
+   *  nota, non a giudicarla. Senza, per vedere cosa era davvero entrato nella
+   *  generazione bisognava aprire il file dal Finder. */
+  onZoom?: (grande: string, didascalia: string) => void;
+}) {
+  return (
+    <div>
+      <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">{titolo}</span>
+      {(valori?.length ?? 0) > 0 ? (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {valori!.map((f, i) => {
+            const src = ids?.[i] ? thumbRawUrl(ids[i]!, 120) : anteprima?.(f);
+            // A schermo intero si vuole l'originale, non la miniatura ingrandita.
+            const grande = ids?.[i] ? thumbRawUrl(ids[i]!, 1600) : refUrl(f);
+            return (
+              <figure key={f} className="m-0 w-16">
+                {src && (
+                  <img
+                    src={src}
+                    alt={f}
+                    title={`${f} — clic per ingrandire`}
+                    loading="lazy"
+                    onClick={onZoom ? () => onZoom(grande, f) : undefined}
+                    className={
+                      "w-16 h-16 object-cover border border-neutral-700 bg-neutral-950 " +
+                      (onZoom ? "cursor-zoom-in hover:border-amber-500" : "")
+                    }
+                  />
+                )}
+                <figcaption
+                  className="mt-0.5 font-mono text-[9px] leading-tight text-neutral-400 truncate"
+                  title={f}
+                >
+                  {f}
+                </figcaption>
+              </figure>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-0.5 font-mono text-[10px] text-neutral-500 italic">{vuoto}</p>
+      )}
+    </div>
+  );
+}
+
+/** Modello, resa e motore in una riga sola. Sono la differenza fra due
+ *  varianti che dichiarano la stessa ricetta e non si somigliano. */
+function Come({ v }: { v: Variant }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">motore</span>
+      <span className="font-mono text-[10px] text-neutral-300">{v.backend ?? "non registrato"}</span>
+      <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">modello</span>
+      <span className="font-mono text-[10px] text-neutral-300">
+        {v.model ? `${v.model}${v.quality ? ` · ${v.quality}` : ""}` : "non registrato"}
+      </span>
+      {typeof v.costo_usd === "number" && (
+        <>
+          <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">costo</span>
+          <span
+            className="font-mono text-[10px] text-neutral-300 tabular-nums"
+            title="Stima: la chiamata pagata piu' vicina nel tempo a questa versione. Si paga la chiamata, non la versione, quindi l'aggancio e' per prossimita'."
+          >
+            ~${v.costo_usd.toFixed(3)}
+          </span>
+        </>
+      )}
+      {v.created_at ? (
+        <span className="font-mono text-[10px] text-neutral-500">
+          {new Date(v.created_at).toLocaleString("it-IT", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * La ricetta del gruppo: ingressi, motore e prompt, sempre a schermo.
+ *
+ * Il prompt e' lungo e in una colonna stretta diventa una colonna di parole
+ * singole, quindi qui sta su tutta la riga. Resta comunque limitato in altezza:
+ * mille caratteri di prompt spingerebbero le varianti sotto la piega, e le
+ * varianti sono cio' che si e' venuti a guardare.
+ */
+function Ricetta({
+  v,
+  onZoom,
+}: {
+  v?: Variant;
+  onZoom?: (grande: string, didascalia: string) => void;
+}) {
+  if (!v) return null;
+  return (
+    // Due colonne con ruoli diversi: a sinistra CON COSA (motore, modello,
+    // costo, e le immagini di ingresso), a destra COSA E' STATO CHIESTO.
+    //
+    // La colonna di sinistra ha una larghezza sua: le miniature sono 64px e i
+    // dati tecnici sono corti, quindi allargarla non aggiunge niente. Il prompt
+    // invece e' l'unica cosa lunga qui dentro e si prende tutto il resto.
+    //
+    // `items-stretch` piu' `h-full` sul prompt e' cio' che lo fa arrivare in
+    // fondo alla riga: senza, la sua altezza era fissa (`max-h-28`) e restava
+    // un buco sotto quando la colonna di sinistra era piu' alta. Ora il testo
+    // riempie l'altezza disponibile e scorre solo se eccede, quindi la riga non
+    // si allunga per i prompt lunghi.
+    <div className="flex flex-wrap items-stretch gap-x-5 gap-y-2 border-l-2 border-neutral-800 pl-3">
+      <div className="flex shrink-0 flex-col gap-2">
+        <Come v={v} />
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <Voce
+            titolo="sorgenti"
+            valori={v.file_sorgenti}
+            ids={v.id_sorgenti}
+            vuoto="nessuna registrata"
+            onZoom={onZoom}
+          />
+          <Voce
+            titolo="riferimenti"
+            valori={v.file_refs}
+            anteprima={(f) => thumbRefUrl(f, 120)}
+            vuoto="nessuno: generata senza reference"
+            onZoom={onZoom}
+          />
+        </div>
+      </div>
+      {/* `min-w-[16rem]` e' la soglia sotto cui il prompt torna una colonna di
+          parole singole: sotto quella, `flex-wrap` lo manda a capo da solo. */}
+      <div className="flex min-w-[16rem] flex-1 flex-col">
+        <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">prompt</span>
+        {v.prompt ? (
+          <p className="mt-0.5 min-h-0 flex-1 select-text overflow-y-auto whitespace-pre-wrap text-[11px] leading-snug text-neutral-300">
+            {v.prompt}
+          </p>
+        ) : (
+          <p className="mt-0.5 text-[11px] italic text-neutral-500">non registrato</p>
+        )}
+      </div>
+    </div>
+  );
+}
 const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
 
 /** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
@@ -326,20 +513,36 @@ export default function AlberoPage() {
                     (gi === n.groups.length - 1 ? "h-3" : "bottom-0")
                   }
                 />
-                <div className="flex items-baseline gap-2.5 flex-wrap mb-2">
-                  <span className="font-semibold text-sm">{RECIPE_LABEL[g.recipe] ?? g.recipe}</span>
-                  <span
-                    className="font-mono text-[10px] tracking-wide uppercase text-amber-500 border border-neutral-700 px-1.5"
-                    title="set di riferimenti"
-                  >
-                    {g.refset}
-                  </span>
-                  {g.preamble && (
-                    <span className="font-mono text-[10px] text-neutral-400">{g.preamble}</span>
-                  )}
-                  <span className="ml-auto font-mono text-[11px] text-neutral-400">
-                    {g.variants.length}
-                  </span>
+                {/* Che cosa e' stato chiesto, SEMPRE a schermo.
+
+                    Stava dentro un pannello a scomparsa sulla singola card:
+                    una colonna da 160px dove il prompt usciva alto e strettissimo
+                    e le miniature non ci stavano. Ma quei dati sono identici per
+                    tutte le varianti del gruppo — sono cio' che DEFINISCE il
+                    gruppo — quindi ripeterli per card era anche sbagliato oltre
+                    che illeggibile.
+
+                    Qui c'e' tutta la larghezza della riga, e non serve aprire
+                    niente: la domanda "cosa ho chiesto" viene prima di guardare
+                    i risultati, non dopo. */}
+                <div className="mb-2">
+                  <div className="flex items-baseline gap-2.5 flex-wrap">
+                    <span className="font-semibold text-sm">
+                      {RECIPE_LABEL[g.recipe] ?? g.recipe}
+                    </span>
+                    <span
+                      className="font-mono text-[10px] tracking-wide uppercase text-amber-500 border border-neutral-700 px-1.5"
+                      title="set di riferimenti, come e' stato etichettato al lancio"
+                    >
+                      {g.refset}
+                    </span>
+                    {g.preamble && (
+                      <span className="font-mono text-[10px] text-neutral-400">{g.preamble}</span>
+                    )}
+                    <span className="ml-auto font-mono text-[11px] text-neutral-400">
+                      {g.variants.length}
+                    </span>
+                  </div>
                 </div>
                 {/* La striscia serviva quando la colonna a sinistra mostrava una
                     foto sola: ora la radice e' gia' l'insieme, quindi si ripete
@@ -362,30 +565,66 @@ export default function AlberoPage() {
                     ))}
                   </div>
                 )}
-                <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
-                  {g.variants.map((v) => (
-                    <Leaf
-                      key={v.id}
-                      photo={n.photo}
-                      v={v}
-                      scarto={scarti[v.id]}
-                      rif={overlay ? (g.refs?.[0] ?? null) : null}
-                      opacita={opacita}
-                      modo={modo}
-                      onVote={() => {
-                        const cur = (v.verdict ?? null) as (typeof CYCLE)[number];
-                        const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length] ?? null;
-                        patch(v, { verdict: next });
-                      }}
-                      onNote={(text) => patch(v, { note: text })}
-                      onZoom={() =>
-                        setZoom({
-                          src: genUrl(n.photo, v.version_number),
-                          cap: `${n.photo} · v${String(v.version_number).padStart(2, "0")} · ${RECIPE_LABEL[g.recipe] ?? g.recipe} · ${g.refset}`,
-                        })
-                      }
+                {/* I RISULTATI a sinistra, la ricetta a destra.
+
+                    Sopra le varianti, la ricetta le spingeva sotto la piega: si
+                    apriva l'albero per guardare cosa era uscito e si trovava un
+                    muro di testo. Ma nasconderla dietro un pannello era peggio,
+                    perche' dentro una card da 160px il prompt diventa una
+                    colonna di parole singole.
+
+                    Di fianco: le immagini restano il primo oggetto a sinistra,
+                    dove l'occhio comincia, e il "perche' sono cosi'" e' li'
+                    accanto senza aprire niente. La colonna della ricetta non si
+                    restringe sotto le 18rem, altrimenti il prompt torna
+                    illeggibile; sotto i 1024px vanno una sopra l'altra. */}
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  {/* Le colonne sono LARGHE 160px, non "almeno 160px".
+
+                      Con `minmax(160px,1fr)` e `flex-1` la griglia si allargava
+                      a tutta la riga anche per UNA sola variante: la card
+                      restava a sinistra, seguiva un buco, e la ricetta finiva
+                      contro il bordo destro a 1200px dalla foto che descrive.
+                      Accostare due cose che si spiegano a vicenda e' l'unico
+                      motivo per cui stanno sulla stessa riga.
+
+                      A larghezza fissa la griglia occupa quanto le serve e la
+                      ricetta le sta subito accanto; `shrink` la lascia comunque
+                      cedere spazio quando le varianti sono tante. */}
+                  <div className="min-w-0 grid gap-3 [grid-template-columns:repeat(auto-fill,160px)]">
+                    {g.variants.map((v) => (
+                      <Leaf
+                        key={v.id}
+                        photo={n.photo}
+                        v={v}
+                        scarto={scarti[v.id]}
+                        rif={overlay ? (g.refs?.[0] ?? null) : null}
+                        opacita={opacita}
+                        modo={modo}
+                        onVote={() => {
+                          const cur = (v.verdict ?? null) as (typeof CYCLE)[number];
+                          const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length] ?? null;
+                          patch(v, { verdict: next });
+                        }}
+                        onNote={(text) => patch(v, { note: text })}
+                        onZoom={() =>
+                          setZoom({
+                            src: genUrl(n.photo, v.version_number),
+                            cap: `${n.photo} · v${String(v.version_number).padStart(2, "0")} · ${RECIPE_LABEL[g.recipe] ?? g.recipe} · ${g.refset}`,
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                  {/* Prende lo spazio che avanza invece di fermarsi a 288px:
+                      su uno schermo largo restava mezza riga bianca a destra
+                      mentre il prompt si leggeva in una colonna stretta. */}
+                  <div className="min-w-0 lg:flex-1">
+                    <Ricetta
+                      v={g.variants[0]}
+                      onZoom={(src, cap) => setZoom({ src, cap })}
                     />
-                  ))}
+                  </div>
                 </div>
               </div>
             ))}
@@ -463,9 +702,6 @@ function Leaf({
   onZoom: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  /** Il pannello con prompt e file di ingresso. Chiuso di default: e' testo
-   *  lungo, e in una griglia di miniature sposterebbe tutto il resto. */
-  const [dettagli, setDettagli] = useState(false);
   const [text, setText] = useState(v.note ?? "");
   useEffect(() => setText(v.note ?? ""), [v.note]);
 
@@ -587,32 +823,74 @@ function Leaf({
           {cross && <path d="M18 20 L102 100 M102 22 L20 98" />}
         </svg>
       </div>
-      <figcaption className="flex items-center gap-2 px-2 py-1.5 border-t border-neutral-800 font-mono text-[11px]">
-        <span className="text-neutral-400">v{String(v.version_number).padStart(2, "0")}</span>
-        {v.favorite && <span className="text-amber-500" title="preferita">★</span>}
-        <button
-          className={"ml-auto px-1 " + (dettagli ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
-          onClick={() => setDettagli((d) => !d)}
-          aria-expanded={dettagli}
-          title="Prompt esatto e file di ingresso: cosa e' stato chiesto davvero"
-        >
-          ⓘ
-        </button>
-        <button
-          className={"px-1 " + (v.note ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          title="nota"
-        >
-          ✎
-        </button>
-        <button
-          className={"px-1 " + (v.verdict ? "text-amber-500" : "text-neutral-400 hover:text-amber-500")}
-          onClick={onVote}
-          title="tieni / forse / scarta"
-        >
-          {GLYPH[v.verdict ?? ""]}
-        </button>
+      {/* I comandi con la loro PAROLA, non solo il glifo.
+
+          Erano tre simboli da 11px affiancati (ⓘ ✎ ○): per sapere cosa
+          facessero bisognava passarci sopra e aspettare il tooltip, uno per
+          uno. Un'icona che va spiegata ogni volta non risparmia spazio, sposta
+          il costo su chi guarda — e qui il gesto piu' frequente e' proprio
+          giudicare, che era il glifo piu' oscuro dei tre.
+
+          La riga sopra dice cosa E' la variante (numero, resa, costo), quella
+          sotto cosa ci si puo' FARE: due domande diverse, due righe. */}
+      <figcaption className="border-t border-neutral-800 px-2 py-1.5 font-mono text-[11px]">
+        <div className="flex items-center gap-2">
+          <span className="text-neutral-400">v{String(v.version_number).padStart(2, "0")}</span>
+          {v.favorite && (
+            <span className="text-amber-500" title="preferita">
+              ★
+            </span>
+          )}
+          {v.quality && (
+            <span
+              className="text-[9px] uppercase tracking-wide text-neutral-500"
+              title={`${v.model ?? "modello non registrato"}, resa ${v.quality}`}
+            >
+              {v.quality}
+            </span>
+          )}
+          {typeof v.costo_usd === "number" && (
+            <span
+              className="ml-auto text-[10px] tabular-nums text-neutral-500"
+              title="Costo stimato: la chiamata pagata piu' vicina nel tempo. Si paga la chiamata, non la versione."
+            >
+              ~${v.costo_usd.toFixed(3)}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 flex items-center gap-1">
+          <button
+            className={
+              "flex-1 border px-1 py-1 text-[10px] " +
+              (v.note
+                ? "border-amber-500 text-amber-500"
+                : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+            }
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            title={v.note ? `nota: ${v.note}` : "aggiungi una nota"}
+          >
+            nota{v.note ? " •" : ""}
+          </button>
+          <button
+            className={
+              "flex-1 border px-1 py-1 text-[10px] " +
+              (v.verdict
+                ? "border-amber-500 text-amber-500"
+                : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+            }
+            onClick={onVote}
+            title="Clic per cambiare: da giudicare → tieni → forse → scarta"
+          >
+            {v.verdict === "tieni"
+              ? "● tieni"
+              : v.verdict === "forse"
+                ? "? forse"
+                : v.verdict === "scarta"
+                  ? "✕ scarta"
+                  : "giudica"}
+          </button>
+        </div>
       </figcaption>
       {/* Il prompt ESATTO e i file veri.
           Stavano solo nel database: per sapere perche' due varianti
@@ -620,48 +898,6 @@ function Leaf({
           ri-generava alla cieca invece di leggere cosa era gia' stato chiesto.
           Il testo e' selezionabile perche' il gesto utile e' copiarlo e
           cambiarne un pezzo. */}
-      {dettagli && (
-        <div className="px-2 pb-2 space-y-1.5 border-t border-neutral-800 pt-1.5">
-          {(v.file_sorgenti?.length ?? 0) > 0 && (
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
-                sorgenti
-              </span>
-              <ul className="mt-0.5 space-y-px">
-                {v.file_sorgenti!.map((f) => (
-                  <li key={f} className="font-mono text-[10px] text-neutral-300 break-all">
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {(v.file_refs?.length ?? 0) > 0 && (
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
-                riferimenti
-              </span>
-              <ul className="mt-0.5 space-y-px">
-                {v.file_refs!.map((f) => (
-                  <li key={f} className="font-mono text-[10px] text-neutral-300 break-all">
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {v.prompt && (
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">
-                prompt
-              </span>
-              <p className="mt-0.5 text-[11px] leading-snug text-neutral-300 whitespace-pre-wrap select-text max-h-40 overflow-y-auto">
-                {v.prompt}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
       {open && (
         <div className="px-2 pb-2">
           <textarea

@@ -24,6 +24,8 @@ type VersionRow = {
   version_number: number;
   image_path: string;
   prompt_used: string;
+  provider: string | null;
+  provider_params: string | null;
   config: string | null;
   lineage: string | null;
   verdict: string | null;
@@ -35,6 +37,7 @@ type VersionRow = {
  *  storico che lineage non ce l'ha, da config. Cio' che non e' registrato
  *  resta dichiarato come non registrato: inventarlo sarebbe peggio del vuoto. */
 function configOf(v: VersionRow): {
+  backend: string | null;
   recipe: string;
   refset: string;
   preamble: string | null;
@@ -60,7 +63,13 @@ function configOf(v: VersionRow): {
   const sources = Array.isArray(rawSources) ? rawSources.map(String) : [];
   const rawRefs = (lin.refs ?? cfg.refs) as unknown;
   const refs = Array.isArray(rawRefs) ? rawRefs.map(String) : [];
+  // Con quale motore e' stata prodotta. Cambia il risultato piu' di mezza
+  // ricetta (cdp, codex-http e openai rendono la pelle in modo diverso) ed era
+  // registrato ma invisibile: restava l'unica differenza non spiegabile fra
+  // due varianti che dichiaravano la stessa configurazione.
+  const backend = (lin.backend ?? cfg.backend) as string | undefined;
   return {
+    backend: backend ?? null,
     recipe: String(lin.recipe ?? cfg.recipe ?? "senza ricetta"),
     refset: String(lin.refset ?? cfg.refset ?? "origine non registrata"),
     preamble: (lin.preamble as string | undefined) ?? null,
@@ -69,7 +78,44 @@ function configOf(v: VersionRow): {
   };
 }
 
+/**
+ * Quanto e' costata ogni versione, in dollari.
+ *
+ * Il costo vive in `api_calls` (si paga la CHIAMATA, non la versione) e non ha
+ * una chiave verso `versions`. L'aggancio e' per vicinanza nel tempo: una
+ * chiamata riuscita entro un minuto dalla versione e' quella che l'ha prodotta.
+ * Non e' esatto per costruzione, quindi il client lo mostra come stima.
+ */
+function costiPerVersione(): Map<number, { usd: number; model: string; quality: string | null }> {
+  const out = new Map<number, { usd: number; model: string; quality: string | null }>();
+  try {
+    const chiamate = db()
+      .query<{ cost_usd: number; model: string; quality: string | null; created_at: number }, []>(
+        "SELECT cost_usd, model, quality, created_at FROM api_calls WHERE ok = 1 ORDER BY created_at",
+      )
+      .all();
+    const versioni = db()
+      .query<{ id: number; created_at: number }, []>(
+        "SELECT id, created_at FROM versions WHERE source = 'generated'",
+      )
+      .all();
+    for (const v of versioni) {
+      let best: (typeof chiamate)[number] | null = null;
+      let dist = 60_000; // un minuto: oltre, non e' la stessa generazione
+      for (const ch of chiamate) {
+        const d = Math.abs(ch.created_at - v.created_at);
+        if (d < dist) { dist = d; best = ch; }
+      }
+      if (best) out.set(v.id, { usd: best.cost_usd, model: best.model, quality: best.quality });
+    }
+  } catch {
+    // Senza tabella non si blocca la vista: si perde il costo, non l'albero.
+  }
+  return out;
+}
+
 lineageRoutes.get("/api/lineage", (c) => {
+  const costi = costiPerVersione();
   const photos = db()
     .query<{ id: string; original_path: string; favorite_version_id: number | null }, []>(
       "SELECT id, original_path, favorite_version_id FROM photos ORDER BY id",
@@ -84,7 +130,7 @@ lineageRoutes.get("/api/lineage", (c) => {
 
   const versions = db()
     .query<VersionRow, []>(
-      `SELECT id, photo_id, version_number, image_path, prompt_used, config, lineage, verdict, note, created_at
+      `SELECT id, photo_id, version_number, image_path, prompt_used, provider, provider_params, config, lineage, verdict, note, created_at
          FROM versions WHERE source = 'generated'
         ORDER BY photo_id, version_number`,
     )
@@ -143,10 +189,34 @@ lineageRoutes.get("/api/lineage", (c) => {
        *  che e' il motivo per cui si ri-generava alla cieca invece di leggere
        *  cosa era gia' stato chiesto. */
       prompt: v.prompt_used,
+      /** Il motore che l'ha prodotta, quando registrato. */
+      backend: cfg.backend ?? v.provider,
+      /** Costo stimato in dollari, agganciato per vicinanza temporale. */
+      costo_usd: costi.get(v.id)?.usd ?? null,
+      /** Modello e resa, da provider_params. Sono la differenza fra due
+       *  varianti che dichiarano la stessa ricetta e non si somigliano:
+       *  `low` e `high` dello stesso modello sono due esperimenti diversi. */
+      ...(() => {
+        try {
+          const pp = v.provider_params ? (JSON.parse(v.provider_params) as Record<string, unknown>) : {};
+          const ch = costi.get(v.id);
+          return {
+            model: ((pp.model as string) ?? ch?.model) ?? null,
+            quality: ((pp.quality as string) ?? ch?.quality) ?? null,
+          };
+        } catch {
+          const ch = costi.get(v.id);
+          return { model: ch?.model ?? null, quality: ch?.quality ?? null };
+        }
+      })(),
       /** I nomi dei file di ingresso, come sono stati registrati. `sources`
        *  sul gruppo viene tradotto in id-foto per le miniature e perde i nomi
        *  che non si risolvono; qui restano quelli veri. */
       file_sorgenti: cfg.sources,
+      /** Gli id-foto corrispondenti, per chiedere la miniatura. Il client non
+       *  puo' ricavarli dal nome: "1.PNG" -> "1" funziona per caso, e su un
+       *  file con estensione inattesa darebbe un'immagine rotta. */
+      id_sorgenti: cfg.sources.map((f) => byBasename.get(f) ?? null),
       file_refs: cfg.refs,
       // Il file c'e' davvero?
       //

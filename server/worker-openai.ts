@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
 import { openaiDailyCapUsd, openaiSyncBudgetUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
 import { db } from "./db.ts";
+import { preparaAllegati, type Allegato } from "./allegati.ts";
 
 /**
  * Backend OpenAI: parla direttamente all'Images API invece di guidare una
@@ -214,6 +215,9 @@ async function saveResult(
   return {
     status: "ok",
     output,
+    model,
+    quality: OPENAI_IMAGE_QUALITY,
+    output_tokens: tok,
     duration_s,
     size_kb,
     ...(tok ? { cost_usd: costUsd(model, tok) } : {}),
@@ -262,6 +266,11 @@ export async function runWorkerOpenAi(input: {
   prompt: string;
   output: string;
   refs?: string[];
+  /** Allegati con il loro ruolo. Quando ci sono, l'ordine di invio e la frase
+   *  che li descrive nascono dalla stessa lista e non possono divergere:
+   *  `refs` da sola lascia a chi chiama il compito di tenerle allineate a mano,
+   *  ed e' una promessa che nessuno verifica. */
+  allegati?: Allegato[];
 }): Promise<WorkerResult> {
   const key = openaiKey();
   if (!key) {
@@ -279,6 +288,14 @@ export async function runWorkerOpenAi(input: {
   const oltre = oltreIlTetto({ conRefs: true });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
+  // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
+  // decide l'ordine degli allegati: e' l'unico modo perche' "le prime due sono
+  // io" resti vero anche dopo aver aggiunto una reference.
+  const conRuoli = (input.allegati ?? []).filter((a) => existsSync(a.path));
+  if (conRuoli.length > 0) {
+    const { files, preambolo } = preparaAllegati(conRuoli, { conSorgente: true });
+    return runEdits(key, [input.image, ...files], `${preambolo} ${input.prompt}`, input.output, startedAt);
+  }
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];
   return runEdits(key, images, input.prompt, input.output, startedAt);
 }

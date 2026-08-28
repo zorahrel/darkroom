@@ -86,3 +86,9 @@ export function collageUrl(id: string, opts: { graded?: boolean; size?: string; 
   const qs = q.toString();
   return pq(`/api/collages/${encodeURIComponent(id)}/image${qs ? `?${qs}` : ""}`);
 }
+
+/** Miniatura di un'immagine di stile in `data/refs`. */
+export function thumbRefUrl(filename: string, w?: number): string {
+  const q = w ? `?w=${w}` : "";
+  return pq(`/thumb/refs/${encodeURIComponent(filename)}${q}`);
+}
