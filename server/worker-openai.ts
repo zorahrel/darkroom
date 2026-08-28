@@ -62,7 +62,7 @@ export function costoAtteso(
 
 /** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
  *  l'errore da mostrare, o null se si puo' procedere. */
-function oltreIlTetto(opzioni: { conRefs?: boolean } = {}): string | null {
+function oltreIlTetto(opzioni: { conRefs?: boolean; quality?: string } = {}): string | null {
   // La soglia del sincrono guarda quanto costa QUESTA chiamata, non quanto si
   // e' speso finora.
   //
@@ -73,7 +73,9 @@ function oltreIlTetto(opzioni: { conRefs?: boolean } = {}): string | null {
   // cosa che il freno riusciva a fermare. Il tetto giornaliero, sotto, resta
   // il freno sul totale: quello e' il suo mestiere.
   const budget = openaiSyncBudgetUsd();
-  const costo = costoAtteso();
+  // La resa di QUESTA chiamata: pesare quella di sistema significava lasciar
+  // passare una high mentre si credeva di aver chiesto una low.
+  const costo = costoAtteso(OPENAI_IMAGE_MODEL, opzioni.quality ?? OPENAI_IMAGE_QUALITY);
   if (budget > 0 && costo > budget) {
     // Il batch NON accetta /edits, che e' l'unico endpoint che prende delle
     // reference: mandare li' chi sta usando una reference e' un vicolo cieco.
@@ -189,6 +191,7 @@ async function saveResult(
   output: string,
   startedAt: number,
   model: string = OPENAI_IMAGE_MODEL,
+  qualitaUsata: string = OPENAI_IMAGE_QUALITY,
 ): Promise<WorkerResult> {
   const duration_s = Math.round((Date.now() - startedAt) / 1000);
   if (json.error) return { status: "error", error: json.error.message ?? "errore sconosciuto", duration_s };
@@ -216,7 +219,7 @@ async function saveResult(
     status: "ok",
     output,
     model,
-    quality: OPENAI_IMAGE_QUALITY,
+    quality: qualitaUsata,
     output_tokens: tok,
     duration_s,
     size_kb,
@@ -271,6 +274,13 @@ export async function runWorkerOpenAi(input: {
    *  `refs` da sola lascia a chi chiama il compito di tenerle allineate a mano,
    *  ed e' una promessa che nessuno verifica. */
   allegati?: Allegato[];
+  /** Resa per QUESTA generazione. Assente = quella di sistema.
+   *
+   *  Era letta solo dall'ambiente del processo: un job che dichiarava `low`
+   *  veniva prodotto in `high`, e una prova che credevo da mezzo centesimo ne
+   *  e' costati 21. Il job dichiarava una cosa e il processo ne faceva
+   *  un'altra, lo stesso difetto che aveva il canale. */
+  quality?: string;
 }): Promise<WorkerResult> {
   const key = openaiKey();
   if (!key) {
@@ -285,7 +295,8 @@ export async function runWorkerOpenAi(input: {
   }
   // Un edit passa SEMPRE da /edits, che il batch non supporta: mandare qui
   // qualcuno al batch sarebbe un vicolo cieco anche senza reference.
-  const oltre = oltreIlTetto({ conRefs: true });
+  const resa = input.quality ?? OPENAI_IMAGE_QUALITY;
+  const oltre = oltreIlTetto({ conRefs: true, quality: resa });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
   // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
@@ -294,10 +305,10 @@ export async function runWorkerOpenAi(input: {
   const conRuoli = (input.allegati ?? []).filter((a) => existsSync(a.path));
   if (conRuoli.length > 0) {
     const { files, preambolo } = preparaAllegati(conRuoli, { conSorgente: true });
-    return runEdits(key, [input.image, ...files], `${preambolo} ${input.prompt}`, input.output, startedAt);
+    return runEdits(key, [input.image, ...files], `${preambolo} ${input.prompt}`, input.output, startedAt, resa);
   }
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];
-  return runEdits(key, images, input.prompt, input.output, startedAt);
+  return runEdits(key, images, input.prompt, input.output, startedAt, resa);
 }
 
 /** MIME dall'estensione: un Blob senza `type` arriva come
@@ -315,12 +326,13 @@ async function runEdits(
   prompt: string,
   output: string,
   startedAt: number,
+  quality: string = OPENAI_IMAGE_QUALITY,
 ): Promise<WorkerResult> {
   const form = new FormData();
   form.append("model", OPENAI_IMAGE_MODEL);
   form.append("prompt", prompt);
   form.append("size", OPENAI_IMAGE_SIZE);
-  form.append("quality", OPENAI_IMAGE_QUALITY);
+  form.append("quality", quality);
   for (const p of images) {
     const bytes = await Bun.file(p).arrayBuffer();
     form.append("image[]", new Blob([bytes], { type: mimeOf(p) }), basename(p));
@@ -328,5 +340,5 @@ async function runEdits(
   const json = await callImages("edits", key, form).catch(
     (e): ImagesResponse => ({ error: { message: String(e) } }),
   );
-  return saveResult(json, output, startedAt);
+  return saveResult(json, output, startedAt, OPENAI_IMAGE_MODEL, quality);
 }

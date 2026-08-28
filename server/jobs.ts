@@ -547,6 +547,17 @@ async function processJob(job: JobRow) {
     // canale, e cambiarlo per una generazione non deve costare il riavvio di un
     // servizio che serve tutti i progetti.
     const backend = backendDi(job);
+    // La resa dichiarata dal job. Senza, il worker leggeva solo l'ambiente del
+    // servizio: un job che chiedeva `low` veniva prodotto in `high`, e una
+    // prova da mezzo centesimo ne costava 21.
+    let resa: string | undefined;
+    try {
+      resa = job.provider_params
+        ? ((JSON.parse(job.provider_params) as { quality?: string }).quality ?? undefined)
+        : undefined;
+    } catch {
+      resa = undefined;
+    }
     const result = isGenerate
       ? await generatePer(backend)({ prompt: job.prompt, output: outputPath, refs })
       : await workerPer(backend)({
@@ -554,6 +565,7 @@ async function processJob(job: JobRow) {
           prompt: job.prompt,
           output: outputPath,
           refs,
+          ...(backend === "openai" && resa ? { quality: resa } : {}),
         });
 
     if (result.status !== "ok") {
