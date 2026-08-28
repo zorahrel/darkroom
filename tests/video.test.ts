@@ -56,7 +56,7 @@ describe("origine", () => {
  * macchina — un test che non puo' misurare non deve fingere di aver misurato —
  * ma quando c'e', deve tornare identico su ogni caso.
  */
-const PIANIFICA = `${process.env.HOME}/Music/Music/Songs/progetto_video/pianifica.py`;
+const PIANIFICA = `${process.env.HOME}/Projects/progetto_video/pianifica.py`;
 
 /** Leggibile, non solo esistente.
  *
@@ -102,7 +102,7 @@ describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
  * Non e' un test di forma: confronta il JSON nodo per nodo, con gli stessi
  * parametri passati a entrambi.
  */
-const GEN = `${process.env.HOME}/Music/Music/Songs/progetto_video/gen.py`;
+const GEN = `${process.env.HOME}/Projects/progetto_video/gen.py`;
 
 describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
   const casi = [
