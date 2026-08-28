@@ -45,12 +45,17 @@ export function enqueueJob(
   inputPath: string | null = null,
   /** JSON array of extra reference images to attach (storyboard characters). */
   refPaths: string | null = null,
+  /** Da dove nasce: `{recipe, refset, sources, refs, preamble}`. Viaggia con il
+   *  job e finisce sulla versione prodotta, cosi' l'albero puo' raggruppare le
+   *  varianti anche quando la generazione passa dalla coda invece che da uno
+   *  script scritto a mano. */
+  lineage: string | null = null,
 ): JobRow {
   const now = Date.now();
   const result = db().run(
-    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, now],
+    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, lineage, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, lineage, now],
   );
   const id = Number(result.lastInsertRowid);
   return db()
@@ -677,9 +682,28 @@ async function processJob(job: JobRow) {
     const costo = result.status === "ok" ? (result.cost_usd ?? null) : null;
     const versionInsert = db().run(
       `INSERT INTO versions
-        (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at, credits)
-       VALUES (?, ?, ?, ?, ?, ?, 'generated', ?, ?)`,
-      [photo.id, finalNumber, outputPath, job.prompt, job.config, provider, Date.now(), costo],
+        (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, lineage, source, created_at, credits)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'generated', ?, ?)`,
+      [
+        photo.id,
+        finalNumber,
+        outputPath,
+        job.prompt,
+        job.config,
+        provider,
+        // Modello e resa: due varianti della stessa ricetta uscite da `low` e
+        // da `high` sono esperimenti diversi, e senza questo dato l'albero le
+        // mostrava come se fossero la stessa cosa.
+        result.status === "ok" && result.model
+          ? JSON.stringify({ model: result.model, quality: result.quality ?? null })
+          : null,
+        // Da dove nasce. Passa dal job cosi' anche le generazioni della coda
+        // si raggruppano nell'albero: prima ce l'avevano solo quelle scritte a
+        // mano, e la strada corretta dava il risultato peggiore.
+        job.lineage,
+        Date.now(),
+        costo,
+      ],
     );
     const versionId = Number(versionInsert.lastInsertRowid);
 

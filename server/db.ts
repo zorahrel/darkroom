@@ -282,6 +282,19 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "jobs", "progress")) {
     d.run("ALTER TABLE jobs ADD COLUMN progress TEXT");
   }
+  // Da dove nasce la versione che questo job produrra': ricetta, insieme di
+  // sorgenti, reference. Serve all'albero per raggruppare le varianti.
+  //
+  // Senza, le generazioni fatte dalla coda finivano tutte sotto "origine non
+  // registrata" mentre solo quelle lanciate da uno script a mano avevano il
+  // lineage: l'effetto perverso e' che la strada CORRETTA dava il risultato
+  // peggiore, e per avere un albero leggibile conveniva scrivere INSERT a mano.
+  // E' cosi' che sono nati due guasti in un giorno solo: un percorso fuori
+  // convenzione (miniature a 500) e dei timestamp in secondi invece che in
+  // millisecondi (ordine cronologico rovesciato).
+  if (!hasColumn(d, "jobs", "lineage")) {
+    d.run("ALTER TABLE jobs ADD COLUMN lineage TEXT");
+  }
   // Acknowledged-by-user flag: hides a failed job from the alert list (kept in
   // the per-photo generation log until retention prunes it).
   if (!hasColumn(d, "jobs", "seen")) {
@@ -558,6 +571,9 @@ export type JobRow = {
   input_path: string | null;
   /** JSON array of extra reference images attached to the request (characters). */
   ref_paths: string | null;
+  /** Da dove nasce la versione che questo job produrra': ricetta, insieme di
+   *  sorgenti, reference. Viene copiato sulla versione a fine lavorazione. */
+  lineage: string | null;
   progress: string | null;
   seen: number;
   attempts: number;

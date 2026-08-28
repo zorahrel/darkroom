@@ -108,3 +108,51 @@ describe("gli istanti si scrivono in millisecondi", () => {
     expect(istanteSospetto(0)).toBe(false);
   });
 });
+
+describe("il lineage viaggia dal job alla versione", () => {
+  // Prima la coda non lo scriveva: le generazioni fatte per la via corretta
+  // finivano sotto "origine non registrata" nell'albero, mentre quelle lanciate
+  // a mano da uno script avevano il raggruppamento giusto. L'effetto perverso e'
+  // che conveniva scrivere INSERT a mano — ed e' cosi' che in un giorno sono
+  // nati un percorso fuori convenzione e dei timestamp in secondi.
+  test("enqueueJob accetta e conserva il lineage", async () => {
+    const { withProject } = await import("../server/project.ts");
+    const { initSchema, db } = await import("../server/db.ts");
+    const { enqueueJob } = await import("../server/jobs.ts");
+    withProject("lin-test", () => {
+      initSchema();
+      db().run(
+        "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('p1','/tmp/x.png','.png',?,?)",
+        [Date.now(), Date.now()],
+      );
+      const lin = JSON.stringify({ recipe: "prova", refset: "1 sorgente", sources: ["x.png"], refs: [] });
+      const job = enqueueJob("p1", "prompt", null, "chatgpt", null, "edit", null, null, lin);
+      const riletto = db()
+        .query<{ lineage: string | null }, [number]>("SELECT lineage FROM jobs WHERE id = ?")
+        .get(job.id);
+      expect(riletto?.lineage).toBe(lin);
+      expect(JSON.parse(riletto!.lineage!).recipe).toBe("prova");
+    });
+  });
+
+  test("senza lineage il job resta valido: le chiamate vecchie non cambiano", async () => {
+    const { withProject } = await import("../server/project.ts");
+    const { initSchema, db } = await import("../server/db.ts");
+    const { enqueueJob } = await import("../server/jobs.ts");
+    withProject("lin-test2", () => {
+      initSchema();
+      // Id diverso dal test precedente: i due condividono il database, e
+      // riusare 'p1' viola la chiave primaria.
+      db().run(
+        "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('p2','/tmp/x.png','.png',?,?)",
+        [Date.now(), Date.now()],
+      );
+      const job = enqueueJob("p2", "prompt");
+      expect(job.status).toBe("pending");
+      const riletto = db()
+        .query<{ lineage: string | null }, [number]>("SELECT lineage FROM jobs WHERE id = ?")
+        .get(job.id);
+      expect(riletto?.lineage).toBeNull();
+    });
+  });
+});
