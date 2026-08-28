@@ -26,6 +26,7 @@ type VersionRow = {
   prompt_used: string;
   provider: string | null;
   provider_params: string | null;
+  credits: number | null;
   config: string | null;
   lineage: string | null;
   verdict: string | null;
@@ -130,7 +131,7 @@ lineageRoutes.get("/api/lineage", (c) => {
 
   const versions = db()
     .query<VersionRow, []>(
-      `SELECT id, photo_id, version_number, image_path, prompt_used, provider, provider_params, config, lineage, verdict, note, created_at
+      `SELECT id, photo_id, version_number, image_path, prompt_used, provider, provider_params, credits, config, lineage, verdict, note, created_at
          FROM versions WHERE source = 'generated'
         ORDER BY photo_id, version_number`,
     )
@@ -191,8 +192,13 @@ lineageRoutes.get("/api/lineage", (c) => {
       prompt: v.prompt_used,
       /** Il motore che l'ha prodotta, quando registrato. */
       backend: cfg.backend ?? v.provider,
-      /** Costo stimato in dollari, agganciato per vicinanza temporale. */
-      costo_usd: costi.get(v.id)?.usd ?? null,
+      /** Costo in dollari. `credits` sulla versione e' il dato AUTOREVOLE:
+       *  viene scritto quando la versione nasce, da chi conosce la chiamata.
+       *  L'aggancio per vicinanza temporale resta come ripiego per lo storico
+       *  che non lo ha — ma sbaglia su ogni versione registrata a distanza di
+       *  ore dalla chiamata pagata, e li' mostrava $0.000 avendo il dato in
+       *  tabella. */
+      costo_usd: v.credits ?? costi.get(v.id)?.usd ?? null,
       /** Modello e resa, da provider_params. Sono la differenza fra due
        *  varianti che dichiarano la stessa ricetta e non si somigliano:
        *  `low` e `high` dello stesso modello sono due esperimenti diversi. */
