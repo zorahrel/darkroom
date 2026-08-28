@@ -720,8 +720,16 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # Verifica che quel che si è scaricato sia DAVVERO questa foto.
             # Il baseline esclude le immagini già viste, ma non copre il caso in
             # cui la pagina ne mostri una nuova appartenente a un altro job.
+            # La soglia bassa era 0.25 e bocciava lavoro buono: una ricetta che
+            # ritaglia stretto e cambia luce scende sotto quel numero da sola
+            # (l'altro worker documenta 0.03 su un ritaglio legittimo, e per
+            # questo NON controlla affatto la somiglianza alla sorgente).
+            # Il 29/08 ha rifiutato un ritratto corretto a 0.17.
+            # Il modo di fallire che si vuole chiudere — scaricare il render di
+            # un altro job — resta coperto dal baseline delle immagini gia' viste
+            # e dal tetto a 0.985 che prende la sorgente ridata indietro intatta.
             corr = looks_like_same_scene(str(image), str(output))
-            if corr < float(os.environ.get("SCENE_MIN_CORR", "0.25")):
+            if corr < float(os.environ.get("SCENE_MIN_CORR", "0.05")):
                 output.unlink(missing_ok=True)
                 raise RuntimeError(
                     f"downloaded image does not match the source photo "
