@@ -485,6 +485,38 @@ async def snapshot_image_srcs(cdp: CDP) -> set:
     return set(srcs or [])
 
 
+def quarantena(output, motivo: str):
+    """Sposta in quarantena l'immagine rifiutata invece di cancellarla.
+
+    Un guard che scarta un file distrugge l'unica prova di COSA sia stato
+    scaricato, e senza quel file la diagnosi resta una congettura: il 29/08
+    tre job sono morti con correlazione -0.05 e per capire che era il secondo
+    allegato ho dovuto ricalcolare la correlazione a mano su tutti i candidati
+    plausibili. Con il file sottomano sarebbe stato un confronto.
+
+    Il nome porta il motivo, cosi' la cartella si legge senza aprire i log.
+    Restano gli ultimi 40 file: e' materiale diagnostico, non un archivio.
+    """
+    try:
+        qdir = output.parent / "_rifiutate"
+        qdir.mkdir(exist_ok=True)
+        dest = qdir / f"{int(time.time())}_{motivo}_{output.name}"
+        output.replace(dest)
+        vecchi = sorted(qdir.glob("*"), key=lambda f: f.stat().st_mtime)[:-40]
+        for v in vecchi:
+            try:
+                v.unlink()
+            except Exception:
+                pass
+    except Exception:
+        # La quarantena e' un aiuto alla diagnosi: se fallisce, il job deve
+        # comunque fallire per il suo motivo, non per colpa nostra.
+        try:
+            output.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def looks_like_same_scene(a_path, b_path, threshold=0.25) -> float:
     """Quanto il render assomiglia STRUTTURALMENTE alla foto di partenza.
 
@@ -748,7 +780,7 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # e dal tetto a 0.985 che prende la sorgente ridata indietro intatta.
             corr = looks_like_same_scene(str(image), str(output))
             if corr < float(os.environ.get("SCENE_MIN_CORR", "0.05")):
-                output.unlink(missing_ok=True)
+                quarantena(output, f"corr{corr:+.2f}")
                 raise RuntimeError(
                     f"downloaded image does not match the source photo "
                     f"(correlation {corr:.2f}) — likely another job's render"
@@ -762,7 +794,7 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # peggio di un errore: sembra lavoro fatto, e il difetto che si
             # voleva correggere resta li'.
             if corr > float(os.environ.get("SCENE_MAX_CORR", "0.985")):
-                output.unlink(missing_ok=True)
+                quarantena(output, f"identica{corr:.3f}")
                 raise RuntimeError(
                     f"ChatGPT returned the source photo unedited "
                     f"(correlation {corr:.3f}) — no edit was applied"
