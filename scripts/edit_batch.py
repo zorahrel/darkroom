@@ -390,7 +390,25 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // scarta niente e si torna al comportamento precedente.
             const hasTurns = !!document.querySelector('[data-message-author-role]');
             const fromUser = (i) => hasTurns && !!i.closest('[data-message-author-role="user"]');
-            const candidates = imgs.filter(i => isGen(i) && !fromUser(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)));
+            // "Nessun turno" non vuol dire "pagina senza turni": vuol dire
+            // quasi sempre pagina a META' CARICAMENTO. Misurato il 29/08 con un
+            // monitor a 4Hz su un job vero: fra 6s e 12s dall'invio la chat si
+            // ricostruisce, `data-message-author-role` sparisce da tutto il
+            // documento, e in quella finestra `fromUser` si autodisattiva —
+            // lasciando passare come "render" un'icona da 54px servita dallo
+            // stesso URL estuary degli allegati. Il render vero e' arrivato a
+            // 91.6s. Tre job di fila sono morti cosi', tutti con la stessa
+            // correlazione -0.05: quella del mio secondo allegato.
+            //
+            // Degradare al comportamento permissivo era la scelta sbagliata:
+            // il momento in cui la difesa si spegneva era esattamente il
+            // momento in cui serviva. Senza turni non si sceglie e si aspetta
+            // il giro dopo — la pagina si ricompone in meno di un secondo, e
+            // un'attesa in piu' costa infinitamente meno di un'immagine
+            // sbagliata salvata come versione buona.
+            const candidates = hasTurns
+              ? imgs.filter(i => isGen(i) && !fromUser(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)))
+              : [];
             const stillStreaming = !!document.querySelector('button[data-testid="stop-button"], button[aria-label*="ferma" i], button[aria-label*="stop" i]');
             const pick = candidates[candidates.length - 1];
             // Content-policy refusal (e.g. copyright / third-party likeness): ChatGPT
