@@ -612,7 +612,9 @@ export function Filtro({
       title={titolo}
       aria-pressed={attiva}
       className={
-        "px-1.5 py-0.5 border rounded-sm text-[11px] transition-colors disabled:opacity-30 " +
+        // py-1, non py-0.5: a 22px di altezza il bersaglio era sotto la soglia
+        // sotto la quale si sbaglia pastiglia, e queste stanno appaiate.
+        "px-2 py-1 border rounded-sm text-[11px] leading-[14px] transition-colors disabled:opacity-30 " +
         (attiva
           ? "border-neutral-300 text-neutral-100"
           : "border-neutral-800 text-neutral-400 hover:border-neutral-600")

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   api,
   lastProject,
@@ -11,39 +11,90 @@ import {
   type StudioProject,
 } from "../api";
 import { Area, Bott, Campo, Cerca, Filtro, Numero, Scegli, Targa, Testata } from "../ui";
+import { useStatoVista } from "../statoVista";
 import { ICONE } from "../icone";
-import { ArrowRight, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 
 /**
- * La home: cosa sa fare Darkroom, e come cominciare.
+ * La home: cosa sa fare Darkroom.
  *
- * Prima l'ingresso era un redirect all'ultimo progetto aperto. Comodo per chi
- * ci lavorava ogni giorno, e muto per chiunque altro: un programma che sa fare
- * ventun mestieri si apriva su una griglia di foto senza dire da nessuna parte
- * che sotto c'era anche il montaggio, i controlli qualità, lo storyboard. Le
- * capacità esistevano e non si trovavano — che, dal di fuori, è lo stesso che
- * non averle.
+ * Due piani, e questa pagina è solo il primo: **Strumenti** («cosa so fare»)
+ * qui, **Progetti** («su cosa lo faccio») in `/studio`. La divisione la fanno
+ * le due schede nella testata in alto, che ci sono sempre — quindi qui non se
+ * ne rimettono altre due uguali sotto: due navigazioni identiche una sull'altra
+ * si leggono come due cose diverse e non lo sono.
  *
- * Qui ogni strumento dice tre cose e nell'ordine in cui uno se le chiede: cosa
- * fa, se funziona ADESSO su questa macchina (e se no, cosa manca), e come si
- * comincia — dentro un progetto che c'è già, facendone uno nuovo, o subito.
+ * Prima le due metà erano schiacciate insieme: ventun schede tutte uguali e,
+ * in mezzo, quattro riquadri di progetti. Il risultato era che nessuna delle
+ * due si leggeva, e il montaggio video — che esiste ed è completo — era la
+ * sedicesima scheda di un muro, cioè invisibile.
+ *
+ * Tre regole che questa pagina si tiene:
+ *
+ * 1. **Il progetto si sceglie una volta.** Prima ogni scheda aveva il suo menu
+ *    «in quale progetto»: ventun tendine che chiedevano ventun volte la stessa
+ *    cosa, e che allargavano le schede a caso. Ora la scelta sta in cima, una
+ *    sola, e tutte le schede parlano di quel progetto.
+ * 2. **Gli strumenti stanno nei loro mestieri.** Le aree sono titoli, non solo
+ *    filtri: si vede che esiste un reparto Montaggio anche senza cercarlo.
+ * 3. **Le schede finiscono tutte alla stessa altezza.** I comandi sono
+ *    ancorati in fondo, così una riga di schede è una riga e non una scalinata.
+ *
  * L'elenco non è scritto qui: arriva dal catalogo del server, lo stesso che
- * risponde all'MCP. Una capacità nuova compare qui il giorno in cui esiste,
- * senza che nessuno si ricordi di aggiungerla anche alla home.
+ * risponde all'MCP. Una capacità nuova compare qui il giorno in cui esiste.
  */
+
 export default function Home() {
   const [cat, setCat] = useState<Catalogo | null>(null);
   const [progetti, setProgetti] = useState<StudioProject[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [cerca, setCerca] = useState("");
-  const [area, setArea] = useState<AreaStrumento | "tutte">("tutte");
-  const [soloPronti, setSoloPronti] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     api.strumenti().then(setCat).catch((e) => setErr(String(e?.message ?? e)));
     api.studioProjects().then((r) => setProgetti(r.projects)).catch(() => {});
   }, []);
+
+  return (
+    <div className="space-y-4 pb-10">
+      <Testata
+        titolo="Strumenti"
+        sotto="Tutto quello che Darkroom sa fare, diviso per mestiere. Lo stesso elenco che vede Claude via MCP."
+      />
+
+      {err && (
+        <div className="rounded border border-rose-900 bg-rose-950/40 text-rose-200 text-[12px] px-2.5 py-1.5">
+          Il catalogo non risponde: {err}
+        </div>
+      )}
+
+      <Strumenti cat={cat} progetti={progetti} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioProject[] }) {
+  const [cerca, setCerca] = useState("");
+  const [area, setArea] = useState<AreaStrumento | "tutte">("tutte");
+  const [soloPronti, setSoloPronti] = useState(false);
+  const navigate = useNavigate();
+
+  /**
+   * Il progetto su cui lavorano tutte le schede. Vive nell'URL, così una home
+   * mandata a qualcuno apre lo stesso lavoro e non «l'ultimo che avevi tu».
+   */
+  const [pidScelto, setPid] = useStatoVista<string>("progetto", "", {
+    leggi: (s) => s.trim() || null,
+    memoria: "darkroom.home.progetto",
+  });
+  const pid = useMemo(() => {
+    if (pidScelto && progetti.some((p) => p.id === pidScelto)) return pidScelto;
+    const ultimo = lastProject();
+    if (ultimo && progetti.some((p) => p.id === ultimo)) return ultimo;
+    return progetti[0]?.id ?? "";
+  }, [pidScelto, progetti]);
+  const attivo = progetti.find((p) => p.id === pid) ?? null;
 
   const conteggi = useMemo(() => {
     const c: Record<string, number> = { tutte: cat?.strumenti.length ?? 0 };
@@ -68,97 +119,95 @@ export default function Home() {
     });
   }, [cat, cerca, area, soloPronti]);
 
-  const ultimo = lastProject();
-  const recenti = useMemo(() => {
-    const ord = [...progetti].sort(
-      (a, b) =>
-        (b.id === ultimo ? 1 : 0) - (a.id === ultimo ? 1 : 0) ||
-        (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
-    );
-    return ord.slice(0, 4);
-  }, [progetti, ultimo]);
+  /** Gli strumenti raggruppati nei loro mestieri, nell'ordine del catalogo. */
+  const reparti = useMemo(() => {
+    return (cat?.aree ?? [])
+      .map((a) => ({ area: a, strumenti: visibili.filter((s) => s.area === a.id) }))
+      .filter((r) => r.strumenti.length > 0);
+  }, [cat, visibili]);
 
   const spenti = (cat?.strumenti ?? []).filter((s) => !s.pronto).length;
 
   return (
-    <div className="space-y-5 pb-10">
-      <Testata
-        titolo="Strumenti"
-        sotto="Tutto quello che Darkroom sa fare, con come si comincia. Lo stesso elenco che vede Claude via MCP."
-      >
-        <Link
-          to="/studio"
-          className="inline-flex items-center gap-1.5 text-[12px] text-neutral-400 hover:text-neutral-100"
-        >
-          {progetti.length} {progetti.length === 1 ? "progetto" : "progetti"}
-          <ArrowRight className="w-3.5 h-3.5" aria-hidden />
-        </Link>
-      </Testata>
-
-      {err && (
-        <div className="rounded border border-rose-900 bg-rose-950/40 text-rose-200 text-[12px] px-2.5 py-1.5">
-          Il catalogo non risponde: {err}
-        </div>
-      )}
-
-      {/* Riprendere è la cosa che si fa più spesso, quindi sta prima di
-          tutto. Era un redirect automatico: comodo per chi torna, e un muro
-          per chi arriva. Qui è un clic, e il resto della casa resta in vista. */}
-      {recenti.length > 0 && (
-        <section className="space-y-1.5">
-          <h2 className="text-[11px] uppercase tracking-wide text-neutral-400">Riprendi</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-            {recenti.map((p) => (
-              <SchedaProgetto key={p.id} p={p} ultimo={p.id === ultimo} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* La barra dei filtri. Le pastiglie contano, perché un filtro senza
-          numero non dice se vale la pena aprirlo. */}
+    <>
+      {/* La barra: cerca, mestieri, e — una volta sola — su quale progetto.
+          I numeri non sono decorazione: un filtro senza conteggio non dice se
+          vale la pena aprirlo. */}
       <div className="sticky top-[var(--h-testata,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
-                      border-y border-neutral-800 flex flex-wrap items-center gap-2">
-        <Cerca valore={cerca} onCambia={setCerca} segnaposto="cerca uno strumento…" />
-        <div className="flex items-center gap-1 flex-wrap">
-          <Filtro attiva={area === "tutte"} onClick={() => setArea("tutte")} n={conteggi.tutte ?? 0}>
-            tutti
-          </Filtro>
-          {cat?.aree.map((a) => (
-            <Filtro
-              key={a.id}
-              attiva={area === a.id}
-              onClick={() => setArea(a.id)}
-              n={conteggi[a.id] ?? 0}
-              titolo={a.cosa}
-            >
-              {a.nome}
+                      border-y border-neutral-800 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Cerca valore={cerca} onCambia={setCerca} segnaposto="cerca uno strumento…" />
+          <div className="flex items-center gap-1 flex-wrap">
+            <Filtro attiva={area === "tutte"} onClick={() => setArea("tutte")} n={conteggi.tutte ?? 0}>
+              tutti
             </Filtro>
-          ))}
-        </div>
-        <Bott
-          taglia="m"
-          peso="quieto"
-          attivo={soloPronti}
-          onClick={() => setSoloPronti((v) => !v)}
-          titolo={
-            spenti
-              ? `${spenti} strumenti non sono usabili adesso: manca qualcosa sulla macchina.`
-              : "Tutti gli strumenti sono usabili adesso."
-          }
-        >
-          solo pronti
-          {spenti > 0 && <span className="ml-1 text-amber-400 tabular-nums">{cat!.strumenti.length - spenti}</span>}
-        </Bott>
-        {cat && (
-          <div className="ml-auto flex items-center gap-1.5">
-            {Object.entries(cat.requisiti).map(([nome, r]) => (
-              <Targa key={nome} tono={r.ok ? "buono" : "attesa"} titolo={r.come}>
-                {r.ok ? "●" : "○"} {nome}
-              </Targa>
+            {cat?.aree.map((a) => (
+              <Filtro
+                key={a.id}
+                attiva={area === a.id}
+                onClick={() => setArea(a.id)}
+                n={conteggi[a.id] ?? 0}
+                titolo={a.cosa}
+              >
+                {a.nome}
+              </Filtro>
             ))}
           </div>
-        )}
+          <Bott
+            taglia="m"
+            peso="quieto"
+            attivo={soloPronti}
+            onClick={() => setSoloPronti((v) => !v)}
+            titolo={
+              spenti
+                ? `${spenti} strumenti non sono usabili adesso: manca qualcosa sulla macchina.`
+                : "Tutti gli strumenti sono usabili adesso."
+            }
+          >
+            solo pronti
+            {spenti > 0 && <span className="ml-1 text-amber-400 tabular-nums">{(cat?.strumenti.length ?? 0) - spenti}</span>}
+          </Bott>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-neutral-400">Lavoro su</span>
+          {progetti.length > 0 ? (
+            <Scegli
+              valore={pid}
+              voci={progetti.map((p) => ({
+                v: p.id,
+                testo: p.name,
+                nota: p.views.join(" · "),
+              }))}
+              onCambia={setPid}
+              larghezza={210}
+              taglia="m"
+              titolo="Il progetto su cui agiscono tutti gli strumenti qui sotto"
+            />
+          ) : (
+            <span className="text-[11px] text-neutral-500">
+              nessun progetto: comincia da uno strumento che ne crea uno.
+            </span>
+          )}
+          {attivo && (
+            <span className="text-[11px] text-neutral-500 truncate">
+              {attivo.video
+                ? `${attivo.video.tagli} tagli`
+                : attivo.stats
+                  ? `${attivo.stats.photos} foto · ${attivo.stats.favorites} preferite`
+                  : ""}
+            </span>
+          )}
+          {cat && (
+            <div className="ml-auto flex items-center gap-1.5">
+              {Object.entries(cat.requisiti).map(([nome, r]) => (
+                <Targa key={nome} tono={r.ok ? "buono" : "attesa"} titolo={r.come}>
+                  {r.ok ? "●" : "○"} {nome}
+                </Targa>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {!cat && <div className="text-[12px] text-neutral-400">Carico il catalogo…</div>}
@@ -166,102 +215,86 @@ export default function Home() {
       {cat && visibili.length === 0 && (
         <div className="text-[12px] text-neutral-400">
           Niente con questi filtri.{" "}
-          <button className="underline hover:text-neutral-100" onClick={() => { setCerca(""); setArea("tutte"); setSoloPronti(false); }}>
+          <button
+            className="underline hover:text-neutral-100"
+            onClick={() => { setCerca(""); setArea("tutte"); setSoloPronti(false); }}
+          >
             Rimettili a posto
           </button>
           .
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 items-start">
-        {visibili.map((s) => (
-          <SchedaStrumento
-            key={s.id}
-            s={s}
-            progetti={progetti}
-            ultimo={ultimo}
-            onFatto={(rotta) => navigate(rotta)}
-          />
+      <div className="space-y-6">
+        {reparti.map(({ area: a, strumenti }) => (
+          <section key={a.id} className="space-y-2">
+            <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1.5">
+              <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.nome}</h2>
+              <span className="text-[11px] text-neutral-500 tabular-nums">{strumenti.length}</span>
+              <span className="text-[11px] text-neutral-500 truncate">{a.cosa}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
+              {strumenti.map((s) => (
+                <SchedaStrumento
+                  key={s.id}
+                  s={s}
+                  progetto={attivo}
+                  progetti={progetti}
+                  onFatto={(rotta) => navigate(rotta)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
 
-function SchedaProgetto({ p, ultimo }: { p: StudioProject; ultimo: boolean }) {
-  const I = ICONE[p.kind === "video" ? "film" : p.kind === "storyboard" ? "clapper" : "images"] ?? Wrench;
-  const n = p.video
-    ? `${p.video.tagli} tagli`
-    : p.stats
-      ? `${p.stats.photos} foto · ${p.stats.favorites} preferite`
-      : "";
-  return (
-    <Link
-      to={`/p/${encodeURIComponent(p.id)}`}
-      className="group rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2.5 flex items-center gap-2.5
-                 hover:border-neutral-600 transition-colors"
-    >
-      <I className="w-4 h-4 shrink-0 text-neutral-400" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] truncate group-hover:text-white">{p.name}</div>
-        <div className="text-[11px] text-neutral-400 truncate">{n}</div>
-      </div>
-      {ultimo && <Targa tono="info">ultimo</Targa>}
-      <ArrowRight className="w-3.5 h-3.5 text-neutral-500 group-hover:text-neutral-100 shrink-0" aria-hidden />
-    </Link>
-  );
-}
-
 /**
- * Uno strumento, con le sue vie d'ingresso.
+ * Uno strumento e le sue vie d'ingresso.
  *
- * Le azioni non sono decorative: «apri» porta dentro un progetto che esiste
- * già, «nuovo» ne fa uno acceso sulla vista giusta, «subito» fa la cosa. Il
- * modulo che si apre sotto è generato dai campi che il catalogo dichiara —
- * così un campo nuovo lato server compare qui senza toccare questo file.
+ * La scheda è alta quanto le sue sorelle: intestazione in cima, comandi
+ * ancorati in fondo (`mt-auto`). Prima ogni scheda finiva dove finiva il suo
+ * testo e una riga di schede era una scalinata.
  */
 function SchedaStrumento({
-  s, progetti, ultimo, onFatto,
+  s, progetto, progetti, onFatto,
 }: {
   s: Strumento;
+  progetto: StudioProject | null;
   progetti: StudioProject[];
-  ultimo: string | null;
   onFatto: (rotta: string) => void;
 }) {
   const [aperto, setAperto] = useState<Avvio | null>(null);
   const I = ICONE[s.icona] ?? Wrench;
 
-  /** I progetti che questo strumento può servire: quelli con la vista accesa. */
-  const compatibili = progetti.filter(
-    (p) => s.viste.length === 0 || s.viste.some((v) => p.views.includes(v)),
-  );
-
   return (
     <div
       className={
-        "rounded-lg border bg-neutral-950/60 p-3 space-y-2.5 transition-colors " +
+        "flex h-full flex-col rounded-lg border bg-neutral-950/60 p-3 transition-colors " +
         (s.pronto ? "border-neutral-800 hover:border-neutral-600" : "border-neutral-800/60")
       }
     >
       <div className="flex items-start gap-2.5">
-        <I className={"w-4 h-4 mt-[3px] shrink-0 " + (s.pronto ? "text-neutral-300" : "text-neutral-500")} aria-hidden />
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={"text-[14px] font-medium " + (s.pronto ? "" : "text-neutral-400")}>{s.nome}</span>
-            {s.mcp.length > 0 && (
-              <Targa titolo={`Da Claude: ${s.mcp.join(", ")}`}>mcp ×{s.mcp.length}</Targa>
-            )}
+        <I
+          className={"w-4 h-4 mt-[2px] shrink-0 " + (s.pronto ? "text-neutral-300" : "text-neutral-500")}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <div className={"text-[13.5px] font-medium leading-tight " + (s.pronto ? "" : "text-neutral-400")}>
+            {s.nome}
           </div>
-          <p className="text-[12px] text-neutral-400 leading-snug">{s.cosa}</p>
+          <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.cosa}</p>
         </div>
       </div>
 
       {/* Non pronto non è «rotto»: è una cosa che manca, con il gesto che la
           sistema. Uno strumento grigio senza spiegazione è una porta chiusa. */}
       {!s.pronto && (
-        <div className="rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5 space-y-0.5">
+        <div className="mt-2 rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5 space-y-0.5">
           {s.manca.map((m) => (
             <div key={m.requisito} className="text-[11px] text-amber-200/90 leading-snug">
               {m.come}
@@ -270,25 +303,50 @@ function SchedaStrumento({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {s.avvii.map((a, i) =>
-          a.modo === "apri" ? (
-            <ApriDove key={i} avvio={a} progetti={compatibili} ultimo={ultimo} onVai={onFatto} />
-          ) : (
-            <Bott
-              key={i}
-              taglia="m"
-              peso={i === 0 ? "primario" : "normale"}
-              disabilitato={!s.pronto}
-              titolo={s.pronto ? a.nota : s.manca[0]?.come}
-              onClick={() => setAperto(aperto === a ? null : a)}
-            >
-              {a.etichetta}
-            </Bott>
-          ),
-        )}
-        {s.avvii.length === 0 && (
-          <span className="text-[11px] text-neutral-500">Si guarda dal pannello Lavori, in alto.</span>
+      {/* Il piede: comandi e riferimenti, sempre nello stesso posto su ogni
+          scheda. I nomi MCP erano una pastiglia «mcp ×3» il cui contenuto si
+          leggeva solo col mouse fermo sopra: un riferimento che non si legge
+          non è un riferimento. */}
+      <div className="mt-auto pt-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {s.avvii.map((a, i) =>
+            a.modo === "apri" ? (
+              <Apri key={i} avvio={a} strumento={s} progetto={progetto} progetti={progetti} onVai={onFatto} />
+            ) : (
+              <Bott
+                key={i}
+                taglia="m"
+                peso={i === 0 ? "primario" : "normale"}
+                disabilitato={!s.pronto}
+                titolo={s.pronto ? a.nota : s.manca[0]?.come}
+                onClick={() => setAperto(aperto === a ? null : a)}
+              >
+                {a.etichetta}
+              </Bott>
+            ),
+          )}
+          {s.avvii.length === 0 && (
+            <span className="text-[11px] text-neutral-500">Si guarda dal pannello Lavori, in alto.</span>
+          )}
+        </div>
+
+        {/* I nomi MCP, per chi guida Darkroom dalla chat. Erano una riga sola
+            tagliata a metà da `truncate`: «check_photo · verification_summ…»
+            non è un riferimento, è un indovinello. Vanno a capo, uno per
+            pastiglia, e si leggono tutti. */}
+        {s.mcp.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1" title="I nomi con cui Claude chiama questo strumento via MCP">
+            <span className="text-[10.5px] text-neutral-600 shrink-0">da Claude</span>
+            {s.mcp.map((m) => (
+              <code
+                key={m}
+                className="rounded-sm border border-neutral-800 bg-neutral-900/60 px-1 py-[1px]
+                           font-mono text-[10px] leading-[14px] text-neutral-400"
+              >
+                {m}
+              </code>
+            ))}
+          </div>
         )}
       </div>
 
@@ -296,8 +354,7 @@ function SchedaStrumento({
         <Modulo
           strumento={s}
           avvio={aperto}
-          progetti={compatibili}
-          ultimo={ultimo}
+          progetto={progetto}
           onAnnulla={() => setAperto(null)}
           onFatto={onFatto}
         />
@@ -306,41 +363,50 @@ function SchedaStrumento({
   );
 }
 
-/** «Apri»: in quale progetto? Con uno solo si entra e basta. */
-function ApriDove({
-  avvio, progetti, ultimo, onVai,
+/**
+ * «Apri»: sul progetto scelto in cima, senza chiedere di nuovo.
+ *
+ * Se quel progetto non ha la vista che serve, il tasto NON si spegne: cerca il
+ * primo progetto che ce l'ha e lo dice nell'etichetta. È il motivo per cui il
+ * montaggio video sembrava non esistere — chi apriva la home con una galleria
+ * di foto selezionata trovava quattro tasti grigi e nessun indizio che
+ * «Lungomare» fosse lì, pronto, a un clic.
+ *
+ * Si spegne solo quando davvero non c'è nessun progetto con quella vista, e
+ * allora lo dice con il gesto che lo sistema.
+ */
+function Apri({
+  avvio, strumento, progetto, progetti, onVai,
 }: {
   avvio: Extract<Avvio, { modo: "apri" }>;
+  strumento: Strumento;
+  progetto: StudioProject | null;
   progetti: StudioProject[];
-  ultimo: string | null;
   onVai: (rotta: string) => void;
 }) {
-  const [pid, setPid] = useState(
-    () => (ultimo && progetti.some((p) => p.id === ultimo) ? ultimo : progetti[0]?.id) ?? "",
-  );
-  if (progetti.length === 0) {
-    return (
-      <span className="text-[11px] text-neutral-500">
-        Nessun progetto con la vista «{avvio.vista}»: fanne uno qui sopra.
-      </span>
-    );
-  }
+  const serve = (p: StudioProject) => strumento.viste.length === 0 || p.views.includes(avvio.vista);
+  const suScelto = !!progetto && serve(progetto);
+  const ripiego = suScelto ? null : progetti.find(serve) ?? null;
+  const bersaglio = suScelto ? progetto : ripiego;
+
   return (
-    <div className="flex items-center gap-1.5">
-      <Bott taglia="m" onClick={() => onVai(avvio.rotta.replace(":pid", encodeURIComponent(pid)))}>
-        {avvio.etichetta}
-      </Bott>
-      {progetti.length > 1 && (
-        <Scegli
-          valore={pid}
-          voci={progetti.map((p) => ({ v: p.id, testo: p.name }))}
-          onCambia={setPid}
-          larghezza={140}
-          taglia="m"
-          titolo="In quale progetto"
-        />
+    <Bott
+      taglia="m"
+      disabilitato={!bersaglio}
+      titolo={
+        bersaglio
+          ? suScelto
+            ? `Apre «${bersaglio.name}»`
+            : `«${progetto?.name ?? "il progetto scelto"}» non ha la vista «${avvio.vista}»: questo apre «${bersaglio.name}», che ce l'ha.`
+          : `Nessun progetto ha la vista «${avvio.vista}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
+      }
+      onClick={() => bersaglio && onVai(avvio.rotta.replace(":pid", encodeURIComponent(bersaglio.id)))}
+    >
+      {avvio.etichetta}
+      {bersaglio && !suScelto && (
+        <span className="ml-1 text-neutral-400">in {bersaglio.name}</span>
       )}
-    </div>
+    </Bott>
   );
 }
 
@@ -352,20 +418,16 @@ function ApriDove({
  * sarebbe rimasto invisibile qui, e nessuno se ne sarebbe accorto.
  */
 function Modulo({
-  strumento, avvio, progetti, ultimo, onAnnulla, onFatto,
+  strumento, avvio, progetto, onAnnulla, onFatto,
 }: {
   strumento: Strumento;
   avvio: Extract<Avvio, { modo: "nuovo" | "subito" }>;
-  progetti: StudioProject[];
-  ultimo: string | null;
+  progetto: StudioProject | null;
   onAnnulla: () => void;
   onFatto: (rotta: string) => void;
 }) {
   const [valori, setValori] = useState<Record<string, string | number>>(() =>
     Object.fromEntries(avvio.campi.map((c) => [c.nome, c.predefinito ?? ""])),
-  );
-  const [pid, setPid] = useState(
-    () => (ultimo && progetti.some((p) => p.id === ultimo) ? ultimo : progetti[0]?.id) ?? "",
   );
   const [inCorso, setInCorso] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -380,7 +442,7 @@ function Modulo({
       const r = await api.avviaStrumento(strumento.id, {
         // Un avvio che CREA il progetto non ne riceve uno: mandarglielo
         // sarebbe un'istruzione che non guarda nessuno.
-        progetto: avvio.modo === "subito" ? pid || undefined : undefined,
+        progetto: avvio.modo === "subito" ? progetto?.id : undefined,
         valori,
       });
       setFatto({ testo: r.fatto, rotta: r.rotta });
@@ -393,7 +455,7 @@ function Modulo({
 
   if (fatto) {
     return (
-      <div className="rounded border border-emerald-900/70 bg-emerald-950/20 p-2.5 space-y-2">
+      <div className="mt-2 rounded border border-emerald-900/70 bg-emerald-950/20 p-2.5 space-y-2">
         <div className="text-[12px] text-emerald-200 leading-snug">{fatto.testo}</div>
         <div className="flex items-center gap-1.5">
           <Bott taglia="m" peso="primario" onClick={() => onFatto(fatto.rotta)}>
@@ -406,20 +468,16 @@ function Modulo({
   }
 
   return (
-    <div className="rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
+    <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
       {avvio.nota && <p className="text-[11px] text-neutral-400 leading-snug">{avvio.nota}</p>}
 
-      {avvio.modo === "subito" && progetti.length > 0 && (
-        <label className="block space-y-1">
-          <span className="text-[11px] text-neutral-400">Su quale progetto</span>
-          <Scegli
-            valore={pid}
-            voci={progetti.map((p) => ({ v: p.id, testo: p.name }))}
-            onCambia={setPid}
-            larghezza={200}
-            taglia="m"
-          />
-        </label>
+      {/* Su quale progetto non si chiede più: è quello scelto in cima. Detto,
+          non taciuto — altrimenti «Genera adesso» è un tasto che non dice dove
+          finisce la roba. */}
+      {avvio.modo === "subito" && (
+        <p className="text-[11px] text-neutral-500">
+          {progetto ? <>Va in coda su <span className="text-neutral-300">{progetto.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
+        </p>
       )}
 
       {avvio.campi.map((c) => (

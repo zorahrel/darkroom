@@ -91,7 +91,7 @@ export default function StudioPage() {
 
   return (
     <div className="space-y-4">
-      <Testata titolo="Studio"
+      <Testata titolo="Progetti"
                sotto="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
 
       {err && (
