@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
 const REF = process.argv[2] ?? join(process.env.DARKROOM_DATA ?? "data", "refs", "riferimento.png");
-const GIRI = Number(process.argv[3] ?? 3);
+const PASSES = Number(process.argv[3] ?? 3);
 // La cartella dati del progetto su cui si calibra: si passa da fuori, perché
 // il percorso di casa di chi ha scritto lo script non è un default.
 const DATA = process.env.DARKROOM_DATA ?? "data";
@@ -21,7 +21,7 @@ type Metriche = { luce: number; soggetto: number; p5: number; p95: number; neri:
 
 /** Le metriche si leggono dai pixel: un VLM descriveva come "hard light from
  *  the side" sia il target sia una resa piatta a -3.4. */
-function misura(file: string): Metriche {
+function measure(file: string): Metriche {
   const py = `
 from PIL import Image
 import numpy as np, json
@@ -76,31 +76,31 @@ const refs = [
   REF,
 ];
 
-const target = misura(REF);
+const target = measure(REF);
 console.log(`TARGET: luce=${target.luce} soggetto=${target.soggetto} p95=${target.p95} neri=${target.neri}%`);
 
 let prompt = BASE;
 let migliore: { file: string; dist: number; m: Metriche } | null = null;
 
-for (let giro = 1; giro <= GIRI; giro++) {
-  const out = `/tmp/match_giro${giro}.png`;
+for (let pass = 1; pass <= PASSES; pass++) {
+  const out = `/tmp/match_giro${pass}.png`;
   const r = await runWorkerOpenAi({ image: `${DATA}/RAW/1.PNG`, refs, prompt, output: out });
   if (r.status !== "ok") {
-    console.log(`giro ${giro}: FALLITO ${r.error?.slice(0, 80)}`);
+    console.log(`giro ${pass}: FALLITO ${r.error?.slice(0, 80)}`);
     continue;
   }
-  const m = misura(out);
+  const m = measure(out);
   // Distanza normalizzata: la luce vale quanto l'inquadratura, altrimenti si
   // ottimizza il numero piu' grande e si perde l'altro.
   const dist = Math.abs(m.luce - target.luce) / 10 + Math.abs(m.soggetto - target.soggetto) * 20;
   console.log(
-    `giro ${giro}: luce=${m.luce} (t ${target.luce}) soggetto=${m.soggetto} (t ${target.soggetto}) dist=${dist.toFixed(2)}`,
+    `giro ${pass}: luce=${m.luce} (t ${target.luce}) soggetto=${m.soggetto} (t ${target.soggetto}) dist=${dist.toFixed(2)}`,
   );
   if (!migliore || dist < migliore.dist) migliore = { file: out, dist, m };
 
   const fix = correzioni(target, m);
   if (fix.length === 0) {
-    console.log(`  dentro tolleranza al giro ${giro}`);
+    console.log(`  dentro tolleranza al giro ${pass}`);
     break;
   }
   prompt = `${BASE}\n\nIMPORTANT CORRECTIONS to apply:\n${fix.map((f) => `- ${f}`).join("\n")}`;

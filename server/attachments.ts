@@ -20,7 +20,7 @@
  */
 
 /** Che cosa e' un'immagine per il modello. */
-export type Ruolo =
+export type Role =
   /** La persona: viso, ossatura, identita' da conservare. */
   | "identita"
   /** Luce, tonalita', inquadratura. Mai il volto. */
@@ -31,15 +31,15 @@ export type Ruolo =
 export type Allegato = {
   /** Percorso del file da inviare. */
   path: string;
-  ruolo: Ruolo;
+  role: Role;
   /** Che cosa prendere da questa immagine, con parole tue. Entra nel prompt:
    *  "the shape of the sunglasses", "the coloured gel lighting". */
   prendi?: string;
 };
 
 /** Come si dice una posizione in inglese, per il prompt. */
-function posizione(indici: number[], totale: number): string {
-  if (totale === 1) return "The attached image";
+function posizione(indici: number[], total: number): string {
+  if (total === 1) return "The attached image";
   if (indici.length === 1) {
     const ord = [
       "first", "second", "third", "fourth", "fifth",
@@ -47,12 +47,12 @@ function posizione(indici: number[], totale: number): string {
     ][indici[0]!];
     return ord ? `The ${ord} attached image` : `Attached image ${indici[0]! + 1}`;
   }
-  if (indici.length === totale) return "The attached images";
+  if (indici.length === total) return "The attached images";
   // Un blocco contiguo si dice per esteso: "the first two", "the last three".
   const contiguo = indici.every((n, i) => i === 0 || n === indici[i - 1]! + 1);
   const quanti = ["", "one", "two", "three", "four", "five", "six"][indici.length] ?? String(indici.length);
   if (contiguo && indici[0] === 0) return `The first ${quanti} attached images`;
-  if (contiguo && indici[indici.length - 1] === totale - 1) return `The last ${quanti} attached images`;
+  if (contiguo && indici[indici.length - 1] === total - 1) return `The last ${quanti} attached images`;
   return `Attached images ${indici.map((n) => n + 1).join(", ")}`;
 }
 
@@ -63,16 +63,16 @@ function posizione(indici: number[], totale: number): string {
  * bianco e nero e' un'altra persona" quando quel file non e' allegato confonde
  * e basta, ed e' un errore gia' fatto in passato.
  */
-export function preambolo(allegati: Allegato[], conSorgente: boolean): string {
+export function preamble(allegati: Allegato[], withSource: boolean): string {
   const tot = allegati.length;
-  const per = (r: Ruolo) =>
-    allegati.map((a, i) => ({ a, i })).filter((x) => x.a.ruolo === r);
+  const per = (r: Role) =>
+    allegati.map((a, i) => ({ a, i })).filter((x) => x.a.role === r);
 
   const frasi: string[] = [];
 
   const ident = per("identita");
-  if (ident.length > 0 || conSorgente) {
-    const chi = conSorgente
+  if (ident.length > 0 || withSource) {
+    const chi = withSource
       ? ident.length > 0
         ? `The SOURCE photograph and ${posizione(ident.map((x) => x.i), tot).toLowerCase()}`
         : "The SOURCE photograph"
@@ -81,7 +81,7 @@ export function preambolo(allegati: Allegato[], conSorgente: boolean): string {
     // ci sia una sorgente: con la sola sorgente e nessun allegato d'identita'
     // usciva "The SOURCE photograph are of ME", e una frase sgrammaticata la
     // paga il modello, che la interpreta peggio.
-    const quante = (conSorgente ? 1 : 0) + ident.length;
+    const quante = (withSource ? 1 : 0) + ident.length;
     frasi.push(
       `${chi} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
         `use them only to keep my face, bone structure and identity exactly as they show it. ` +
@@ -115,9 +115,9 @@ export function preambolo(allegati: Allegato[], conSorgente: boolean): string {
  * ("le prime due") invece di elencare posizioni sparse — che il modello segue
  * peggio. L'ordine dentro ogni gruppo resta quello dichiarato da chi chiama.
  */
-export function ordina(allegati: Allegato[]): Allegato[] {
-  const peso: Record<Ruolo, number> = { identita: 0, stile: 1, oggetto: 2 };
-  return [...allegati].sort((a, b) => peso[a.ruolo] - peso[b.ruolo]);
+export function sort(allegati: Allegato[]): Allegato[] {
+  const weight: Record<Role, number> = { identita: 0, stile: 1, oggetto: 2 };
+  return [...allegati].sort((a, b) => weight[a.role] - weight[b.role]);
 }
 
 /**
@@ -129,12 +129,12 @@ export function ordina(allegati: Allegato[]): Allegato[] {
  */
 export function preparaAllegati(
   allegati: Allegato[],
-  opzioni: { conSorgente?: boolean } = {},
-): { files: string[]; preambolo: string; ordinati: Allegato[] } {
-  const ordinati = ordina(allegati);
+  opzioni: { withSource?: boolean } = {},
+): { files: string[]; preamble: string; sorted: Allegato[] } {
+  const sorted = sort(allegati);
   return {
-    files: ordinati.map((a) => a.path),
-    preambolo: preambolo(ordinati, opzioni.conSorgente ?? false),
-    ordinati,
+    files: sorted.map((a) => a.path),
+    preamble: preamble(sorted, opzioni.withSource ?? false),
+    sorted,
   };
 }

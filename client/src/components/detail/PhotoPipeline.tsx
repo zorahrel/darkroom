@@ -271,7 +271,7 @@ export function PhotoPipeline({
         ),
       },
       {
-        id: "genera",
+        id: "generate",
         label: "Genera",
         icon: <StepIcon type="ai" />,
         render: () => (
@@ -355,7 +355,7 @@ export function PhotoPipeline({
     });
     // OUTPUT — ultimo chip della barra: esporta la versione gradata full-res.
     groups.push({
-      id: "esporta",
+      id: "export",
       label: "Esporta",
       icon: <IconDownload />,
       render: () => (

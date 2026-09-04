@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { api, pq, type VideoShot } from "../../api";
-import { Campo } from "./ui";
+import { Field } from "./ui";
 
 /**
  * Il browser dei piani girati.
@@ -14,46 +14,46 @@ import { Campo } from "./ui";
 
 type Props = {
   shots: VideoShot[];
-  inScena: Map<string, number>;
+  inEdit: Map<string, number>;
   setShots: (s: VideoShot[]) => void;
-  apri: (id: string) => void;
+  open: (id: string) => void;
 };
 
-type Filtro = "tutti" | "in montaggio" | "tenuti" | "scartati" | "annotati";
+type Filter = "tutti" | "in montaggio" | "tenuti" | "scartati" | "annotati";
 
-export default function Libreria({ shots, inScena, setShots, apri }: Props) {
+export default function Library({ shots, inEdit, setShots, open }: Props) {
   const [q, setQ] = useState("");
-  const [filtro, setFiltro] = useState<Filtro>("tutti");
+  const [filter, setFilter] = useState<Filter>("tutti");
   const [scrivo, setScrivo] = useState<string | null>(null);
-  const [testo, setTesto] = useState("");
+  const [text, setText] = useState("");
 
   const visibili = useMemo(() => {
     const t = q.trim().toLowerCase();
     return shots.filter((s) => {
       if (t && !s.id.toLowerCase().includes(t) && !(s.prompt ?? "").toLowerCase().includes(t)) return false;
-      if (filtro === "tenuti") return s.kept;
-      if (filtro === "scartati") return !s.kept;
-      if (filtro === "in montaggio") return (inScena.get(s.id) ?? 0) > 0;
-      if (filtro === "annotati") return s.problemi.length > 0;
+      if (filter === "tenuti") return s.kept;
+      if (filter === "scartati") return !s.kept;
+      if (filter === "in montaggio") return (inEdit.get(s.id) ?? 0) > 0;
+      if (filter === "annotati") return s.problems.length > 0;
       return true;
     });
-  }, [shots, q, filtro, inScena]);
+  }, [shots, q, filter, inEdit]);
 
   const pick = async (id: string, kept: boolean) => {
     setShots(shots.map((s) => (s.id === id ? { ...s, kept } : s)));
     try { setShots((await api.videoPick(id, kept)).shots); } catch { /* niente */ }
   };
-  const segnala = async (id: string) => {
-    const t = testo.trim();
-    setScrivo(null); setTesto("");
+  const flag = async (id: string) => {
+    const t = text.trim();
+    setScrivo(null); setText("");
     if (!t) return;
-    try { setShots((await api.videoProblema(id, t)).shots); } catch { /* niente */ }
+    try { setShots((await api.videoProblem(id, t)).shots); } catch { /* niente */ }
   };
 
-  const F = (k: Filtro) => (
-    <button key={k} onClick={() => setFiltro(k)}
+  const F = (k: Filter) => (
+    <button key={k} onClick={() => setFilter(k)}
       className={`px-1.5 py-0.5 rounded-sm border text-[9.5px] ${
-        filtro === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400 hover:text-neutral-400"}`}>
+        filter === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400 hover:text-neutral-400"}`}>
       {k}
     </button>
   );
@@ -61,7 +61,7 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0 px-2 py-1.5 border-b border-neutral-900 space-y-1.5">
-        <Campo valore={q} onCambia={setQ} onEsc={() => setQ("")}
+        <Field value={q} onChange={setQ} onEsc={() => setQ("")}
                segnaposto={`cerca fra ${shots.length} piani…`}
                className="w-full text-[11px]" />
         <div className="flex flex-wrap gap-1">
@@ -72,7 +72,7 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
       <div className="flex-1 min-h-0 overflow-y-auto">
         {visibili.map((s) => {
           const tk = s.takes.find((x) => x.kept) ?? s.takes[0];
-          const dentro = (inScena.get(s.id) ?? 0) > 0;
+          const dentro = (inEdit.get(s.id) ?? 0) > 0;
           return (
             <div key={s.id}
                  draggable
@@ -86,7 +86,7 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
                  className={`flex gap-2 px-2 py-1.5 border-b border-neutral-900/70 hover:bg-neutral-900/50
                              cursor-grab active:cursor-grabbing
                              ${s.kept ? "" : "opacity-45"}`}>
-              <button onClick={() => apri(s.id)} className="shrink-0" title={dentro ? "vai al taglio" : "non è nel montaggio"}>
+              <button onClick={() => open(s.id)} className="shrink-0" title={dentro ? "vai al taglio" : "non è nel montaggio"}>
                 {tk ? (
                   <video
                     key={tk.clip} src={pq(tk.clip)} poster={pq(tk.poster)}
@@ -103,21 +103,21 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
                 <div className="flex items-baseline gap-2">
                   <span className="text-[11px] text-neutral-200 truncate">{s.id}</span>
                   <span className="ml-auto text-[9.5px] text-neutral-400 tabular-nums shrink-0">
-                    {dentro ? `${(inScena.get(s.id) ?? 0).toFixed(1)}s` : "—"}
+                    {dentro ? `${(inEdit.get(s.id) ?? 0).toFixed(1)}s` : "—"}
                   </span>
                 </div>
                 <div className="mt-1 h-[3px] bg-neutral-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#9a6a4a]" style={{ width: `${(s.durezza ?? 0) * 100}%` }} />
+                  <div className="h-full bg-[#9a6a4a]" style={{ width: `${(s.intensity ?? 0) * 100}%` }} />
                 </div>
                 <div className="mt-1 flex items-center gap-1">
                   <span className="text-[9px] text-neutral-400 tabular-nums">
-                    dur {s.durezza?.toFixed(2) ?? "—"}
+                    dur {s.intensity?.toFixed(2) ?? "—"}
                   </span>
                   {s.takes.length > 1 && (
                     <span className="text-[9px] text-neutral-400">· {s.takes.length} riprese</span>
                   )}
                   <button
-                    onClick={() => { setScrivo(scrivo === s.id ? null : s.id); setTesto(""); }}
+                    onClick={() => { setScrivo(scrivo === s.id ? null : s.id); setText(""); }}
                     title="annota un problema"
                     className="ml-auto text-[9.5px] px-1 rounded-sm border border-neutral-900 text-neutral-400
                                hover:text-amber-400 hover:border-amber-800">!</button>
@@ -129,15 +129,15 @@ export default function Libreria({ shots, inScena, setShots, apri }: Props) {
                   </button>
                 </div>
                 {scrivo === s.id && (
-                  <Campo autoFuoco valore={testo} onCambia={setTesto}
-                         onInvio={() => void segnala(s.id)} onEsc={() => setScrivo(null)}
+                  <Field autoFuoco value={text} onChange={setText}
+                         onInvio={() => void flag(s.id)} onEsc={() => setScrivo(null)}
                          segnaposto="cosa non va — invio"
                          className="mt-1 w-full text-[10px] border-amber-900/60" />
                 )}
-                {s.problemi.map((p, i) => (
+                {s.problems.map((p, i) => (
                   <div key={i} className="mt-0.5 flex items-start gap-1 text-[9.5px] leading-tight text-amber-500/80">
                     <button onClick={async () => {
-                      try { setShots((await api.videoProblema(s.id, undefined, i)).shots); } catch { /* niente */ }
+                      try { setShots((await api.videoProblem(s.id, undefined, i)).shots); } catch { /* niente */ }
                     }} className="text-neutral-400 hover:text-neutral-400">×</button>
                     <span className="truncate">{p}</span>
                   </div>

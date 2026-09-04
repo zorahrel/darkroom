@@ -21,7 +21,7 @@ export const studioRoutes = new Hono();
 /** Spesa registrata sulle versioni, in dollari. Somma cio' che i job hanno
  *  riportato davvero: le versioni dei backend a quota hanno `credits` NULL e
  *  non entrano nel conto. */
-function speso(): { usd: number; immagini: number; modello: string; qualita: string } {
+function spent(): { usd: number; immagini: number; modello: string; quality: string } {
   let usd = 0;
   let immagini = 0;
   for (const p of listProjects()) {
@@ -43,7 +43,7 @@ function speso(): { usd: number; immagini: number; modello: string; qualita: str
     usd: Math.round(usd * 10000) / 10000,
     immagini,
     modello: OPENAI_IMAGE_MODEL,
-    qualita: OPENAI_IMAGE_QUALITY,
+    quality: OPENAI_IMAGE_QUALITY,
   };
 }
 
@@ -51,11 +51,11 @@ function speso(): { usd: number; immagini: number; modello: string; qualita: str
  *  anche quando il backend attivo e' un altro: quei soldi restano spesi. */
 function hasOpenAiVersions(): boolean {
   for (const p of listProjects()) {
-    let trovato = false;
+    let found = false;
     withProject(p.id, () => {
-      trovato = !!db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls WHERE provider='openai'").get()?.n;
+      found = !!db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls WHERE provider='openai'").get()?.n;
     });
-    if (trovato) return true;
+    if (found) return true;
   }
   return false;
 }
@@ -95,19 +95,19 @@ studioRoutes.post("/api/browser/launch", async (c) => {
  * la catena scrive.
  */
 function statsVideo(root: string) {
-  const leggi = <T,>(nome: string, altrimenti: T): T => {
-    try { return JSON.parse(readFileSync(join(root, nome), "utf8")) as T; }
+  const read = <T,>(name: string, altrimenti: T): T => {
+    try { return JSON.parse(readFileSync(join(root, name), "utf8")) as T; }
     catch { return altrimenti; }
   };
-  const plan = leggi<{ segments?: unknown[] }>("plan.json", {});
-  const edl = leggi<{ total_s?: number }>("edl.json", {});
+  const plan = read<{ segments?: unknown[] }>("plan.json", {});
+  const edl = read<{ total_s?: number }>("edl.json", {});
   // durezza.json non e' una mappa di piani: e' { musica_per_battuta, piani }.
   // Contare le sue chiavi dava 2.
-  const durezza = leggi<{ piani?: Record<string, unknown> }>("durezza.json", {});
+  const intensity = read<{ shots?: Record<string, unknown> }>("durezza.json", {});
   return {
-    tagli: plan.segments?.length ?? 0,
-    piani: Object.keys(durezza.piani ?? {}).length,
-    durata: edl.total_s ?? 0,
+    cuts: plan.segments?.length ?? 0,
+    shots: Object.keys(intensity.shots ?? {}).length,
+    duration: edl.total_s ?? 0,
   };
 }
 
@@ -157,9 +157,9 @@ studioRoutes.get("/api/studio/projects", async (c) => {
   // gli endpoint /organization/costs e /dashboard/billing rispondono 403
   // "Missing scopes: api.usage.read" con una normale chiave di progetto.
   // Mostrare la spesa misurata e' onesto; mostrare un saldo inventato no.
-  const spesa =
+  const spend =
     WORKER_BACKEND === "openai" || hasOpenAiVersions()
-      ? speso()
+      ? spent()
       : null;
   return c.json({
     projects,
@@ -169,7 +169,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       runner: getRunnerStatus(),
       /** Presente solo per i backend a pagamento. `chiave` dice se e'
        *  configurata: senza, il backend non parte e va detto prima. */
-      spesa,
+      spend,
       openai_key: WORKER_BACKEND === "openai" ? !!openaiKey() : null,
     },
   });

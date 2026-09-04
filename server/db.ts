@@ -117,7 +117,7 @@ const SCHEMA_STATEMENTS = [
   // reload in the middle would otherwise lose the fact that the card is busy.
   `CREATE TABLE IF NOT EXISTS video_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    piano TEXT NOT NULL,
+    shot TEXT NOT NULL,
     take TEXT NOT NULL DEFAULT 'a',
     prompt TEXT NOT NULL,
     params TEXT NOT NULL,
@@ -294,6 +294,15 @@ export function initSchemaOn(d: Database): void {
   // millisecondi (ordine cronologico rovesciato).
   if (!hasColumn(d, "jobs", "lineage")) {
     d.run("ALTER TABLE jobs ADD COLUMN lineage TEXT");
+  }
+
+  // `piano` -> `shot`. The column was the last Italian name in the schema, and
+  // a name that only half the codebase can read is a name that gets read
+  // wrong: the row came back as `{piano}` while the type said `{shot}`, which
+  // TypeScript cannot catch across a `SELECT *`. Renamed in place, so an
+  // existing queue survives the upgrade.
+  if (hasColumn(d, "video_jobs", "piano") && !hasColumn(d, "video_jobs", "shot")) {
+    d.run("ALTER TABLE video_jobs RENAME COLUMN piano TO shot");
   }
   // Con quale canale lavorare QUESTO job: cdp, codex, codex-http, openai.
   //
@@ -885,7 +894,7 @@ export function versionPath(photoId: string, versionNumber: number): string {
  * chiamare il problema per nome nel punto in cui nasce, invece di scoprirlo
  * settimane dopo da una miniatura che non carica.
  */
-export function percorsoFuoriConvenzione(
+export function pathOutsideConvention(
   photoId: string,
   versionNumber: number,
   imagePath: string,
@@ -918,7 +927,7 @@ export function adesso(): number {
 
 /** Un istante e' in secondi invece che in millisecondi? Serve per accorgersi
  *  dei dati gia' scritti male, che nessun controllo futuro puo' prevenire. */
-export function istanteSospetto(t: number): boolean {
+export function suspectInstant(t: number): boolean {
   // 100000000000 ms = marzo 1973; nessun dato vero sta sotto, mentre QUALSIASI
   // timestamp in secondi di questo secolo ci sta abbondantemente sotto.
   return t > 0 && t < 100_000_000_000;

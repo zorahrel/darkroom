@@ -3,16 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   api,
   lastProject,
-  type AreaStrumento,
-  type Avvio,
-  type CampoAvvio,
-  type Catalogo,
-  type Strumento,
+  type ToolArea,
+  type Start,
+  type StartField,
+  type Catalogue,
+  type Tool,
   type StudioProject,
 } from "../api";
-import { Area, Bott, Campo, Cerca, Filtro, Numero, Scegli, Targa, Testata } from "../ui";
-import { useStatoVista } from "../statoVista";
-import { ICONE } from "../icone";
+import { Area, Bott, Field, Search, Filter, NumberField, Scegli, Badge, Header } from "../ui";
+import { useViewState } from "../viewState";
+import { ICONS } from "../iconNames";
 import { Wrench } from "lucide-react";
 
 /**
@@ -45,19 +45,19 @@ import { Wrench } from "lucide-react";
  */
 
 export default function Home() {
-  const [cat, setCat] = useState<Catalogo | null>(null);
-  const [progetti, setProgetti] = useState<StudioProject[]>([]);
+  const [cat, setCat] = useState<Catalogue | null>(null);
+  const [projects, setProjects] = useState<StudioProject[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    api.strumenti().then(setCat).catch((e) => setErr(String(e?.message ?? e)));
-    api.studioProjects().then((r) => setProgetti(r.projects)).catch(() => {});
+    api.tools().then(setCat).catch((e) => setErr(String(e?.message ?? e)));
+    api.studioProjects().then((r) => setProjects(r.projects)).catch(() => {});
   }, []);
 
   return (
     <div className="space-y-4 pb-10">
-      <Testata
-        titolo="Strumenti"
+      <Header
+        title="Strumenti"
         sotto="Tutto quello che Darkroom sa fare, diviso per mestiere. Lo stesso elenco che vede Claude via MCP."
       />
 
@@ -67,66 +67,66 @@ export default function Home() {
         </div>
       )}
 
-      <Strumenti cat={cat} progetti={progetti} />
+      <Tools cat={cat} projects={projects} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
 
-function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioProject[] }) {
-  const [cerca, setCerca] = useState("");
-  const [area, setArea] = useState<AreaStrumento | "tutte">("tutte");
-  const [soloPronti, setSoloPronti] = useState(false);
+function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProject[] }) {
+  const [search, setSearch] = useState("");
+  const [area, setArea] = useState<ToolArea | "tutte">("tutte");
+  const [onlyReady, setOnlyReady] = useState(false);
   const navigate = useNavigate();
 
   /**
    * Il progetto su cui lavorano tutte le schede. Vive nell'URL, così una home
    * mandata a qualcuno apre lo stesso lavoro e non «l'ultimo che avevi tu».
    */
-  const [pidScelto, setPid] = useStatoVista<string>("progetto", "", {
-    leggi: (s) => s.trim() || null,
+  const [pickedPid, setPid] = useViewState<string>("progetto", "", {
+    read: (s) => s.trim() || null,
     memoria: "darkroom.home.progetto",
   });
   const pid = useMemo(() => {
-    if (pidScelto && progetti.some((p) => p.id === pidScelto)) return pidScelto;
-    const ultimo = lastProject();
-    if (ultimo && progetti.some((p) => p.id === ultimo)) return ultimo;
-    return progetti[0]?.id ?? "";
-  }, [pidScelto, progetti]);
-  const attivo = progetti.find((p) => p.id === pid) ?? null;
+    if (pickedPid && projects.some((p) => p.id === pickedPid)) return pickedPid;
+    const last = lastProject();
+    if (last && projects.some((p) => p.id === last)) return last;
+    return projects[0]?.id ?? "";
+  }, [pickedPid, projects]);
+  const active = projects.find((p) => p.id === pid) ?? null;
 
-  const conteggi = useMemo(() => {
-    const c: Record<string, number> = { tutte: cat?.strumenti.length ?? 0 };
-    for (const s of cat?.strumenti ?? []) c[s.area] = (c[s.area] ?? 0) + 1;
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { tutte: cat?.tools.length ?? 0 };
+    for (const s of cat?.tools ?? []) c[s.area] = (c[s.area] ?? 0) + 1;
     return c;
   }, [cat]);
 
   const visibili = useMemo(() => {
-    const q = cerca.trim().toLowerCase();
-    return (cat?.strumenti ?? []).filter((s) => {
+    const q = search.trim().toLowerCase();
+    return (cat?.tools ?? []).filter((s) => {
       if (area !== "tutte" && s.area !== area) return false;
-      if (soloPronti && !s.pronto) return false;
+      if (onlyReady && !s.ready) return false;
       if (!q) return true;
       // Si cerca anche fra i nomi MCP: chi arriva dalla chat conosce quelli,
       // non i nomi che abbiamo dato ai mestieri.
       return (
-        s.nome.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
         s.cosa.toLowerCase().includes(q) ||
         s.id.includes(q) ||
         s.mcp.some((m) => m.includes(q))
       );
     });
-  }, [cat, cerca, area, soloPronti]);
+  }, [cat, search, area, onlyReady]);
 
   /** Gli strumenti raggruppati nei loro mestieri, nell'ordine del catalogo. */
   const reparti = useMemo(() => {
-    return (cat?.aree ?? [])
-      .map((a) => ({ area: a, strumenti: visibili.filter((s) => s.area === a.id) }))
-      .filter((r) => r.strumenti.length > 0);
+    return (cat?.areas ?? [])
+      .map((a) => ({ area: a, tools: visibili.filter((s) => s.area === a.id) }))
+      .filter((r) => r.tools.length > 0);
   }, [cat, visibili]);
 
-  const spenti = (cat?.strumenti ?? []).filter((s) => !s.pronto).length;
+  const off = (cat?.tools ?? []).filter((s) => !s.ready).length;
 
   return (
     <>
@@ -136,74 +136,74 @@ function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioPr
       <div className="sticky top-[var(--h-testata,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
                       border-y border-neutral-800 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Cerca valore={cerca} onCambia={setCerca} segnaposto="cerca uno strumento…" />
+          <Search value={search} onChange={setSearch} segnaposto="cerca uno strumento…" />
           <div className="flex items-center gap-1 flex-wrap">
-            <Filtro attiva={area === "tutte"} onClick={() => setArea("tutte")} n={conteggi.tutte ?? 0}>
+            <Filter active={area === "tutte"} onClick={() => setArea("tutte")} n={counts.tutte ?? 0}>
               tutti
-            </Filtro>
-            {cat?.aree.map((a) => (
-              <Filtro
+            </Filter>
+            {cat?.areas.map((a) => (
+              <Filter
                 key={a.id}
-                attiva={area === a.id}
+                active={area === a.id}
                 onClick={() => setArea(a.id)}
-                n={conteggi[a.id] ?? 0}
-                titolo={a.cosa}
+                n={counts[a.id] ?? 0}
+                title={a.cosa}
               >
-                {a.nome}
-              </Filtro>
+                {a.name}
+              </Filter>
             ))}
           </div>
           <Bott
             taglia="m"
-            peso="quieto"
-            attivo={soloPronti}
-            onClick={() => setSoloPronti((v) => !v)}
-            titolo={
-              spenti
-                ? `${spenti} strumenti non sono usabili adesso: manca qualcosa sulla macchina.`
+            weight="quieto"
+            active={onlyReady}
+            onClick={() => setOnlyReady((v) => !v)}
+            title={
+              off
+                ? `${off} strumenti non sono usabili adesso: manca qualcosa sulla macchina.`
                 : "Tutti gli strumenti sono usabili adesso."
             }
           >
             solo pronti
-            {spenti > 0 && <span className="ml-1 text-amber-400 tabular-nums">{(cat?.strumenti.length ?? 0) - spenti}</span>}
+            {off > 0 && <span className="ml-1 text-amber-400 tabular-nums">{(cat?.tools.length ?? 0) - off}</span>}
           </Bott>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] text-neutral-400">Lavoro su</span>
-          {progetti.length > 0 ? (
+          {projects.length > 0 ? (
             <Scegli
-              valore={pid}
-              voci={progetti.map((p) => ({
+              value={pid}
+              items={projects.map((p) => ({
                 v: p.id,
-                testo: p.name,
+                text: p.name,
                 nota: p.views.join(" · "),
               }))}
-              onCambia={setPid}
-              larghezza={210}
+              onChange={setPid}
+              width={210}
               taglia="m"
-              titolo="Il progetto su cui agiscono tutti gli strumenti qui sotto"
+              title="Il progetto su cui agiscono tutti gli strumenti qui sotto"
             />
           ) : (
             <span className="text-[11px] text-neutral-500">
               nessun progetto: comincia da uno strumento che ne crea uno.
             </span>
           )}
-          {attivo && (
+          {active && (
             <span className="text-[11px] text-neutral-500 truncate">
-              {attivo.video
-                ? `${attivo.video.tagli} tagli`
-                : attivo.stats
-                  ? `${attivo.stats.photos} foto · ${attivo.stats.favorites} preferite`
+              {active.video
+                ? `${active.video.cuts} tagli`
+                : active.stats
+                  ? `${active.stats.photos} foto · ${active.stats.favorites} preferite`
                   : ""}
             </span>
           )}
           {cat && (
             <div className="ml-auto flex items-center gap-1.5">
-              {Object.entries(cat.requisiti).map(([nome, r]) => (
-                <Targa key={nome} tono={r.ok ? "buono" : "attesa"} titolo={r.come}>
-                  {r.ok ? "●" : "○"} {nome}
-                </Targa>
+              {Object.entries(cat.requirements).map(([name, r]) => (
+                <Badge key={name} tono={r.ok ? "buono" : "attesa"} title={r.come}>
+                  {r.ok ? "●" : "○"} {name}
+                </Badge>
               ))}
             </div>
           )}
@@ -217,7 +217,7 @@ function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioPr
           Niente con questi filtri.{" "}
           <button
             className="underline hover:text-neutral-100"
-            onClick={() => { setCerca(""); setArea("tutte"); setSoloPronti(false); }}
+            onClick={() => { setSearch(""); setArea("tutte"); setOnlyReady(false); }}
           >
             Rimettili a posto
           </button>
@@ -226,21 +226,21 @@ function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioPr
       )}
 
       <div className="space-y-6">
-        {reparti.map(({ area: a, strumenti }) => (
+        {reparti.map(({ area: a, tools }) => (
           <section key={a.id} className="space-y-2">
             <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1.5">
-              <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.nome}</h2>
-              <span className="text-[11px] text-neutral-500 tabular-nums">{strumenti.length}</span>
+              <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.name}</h2>
+              <span className="text-[11px] text-neutral-500 tabular-nums">{tools.length}</span>
               <span className="text-[11px] text-neutral-500 truncate">{a.cosa}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
-              {strumenti.map((s) => (
-                <SchedaStrumento
+              {tools.map((s) => (
+                <ToolCard
                   key={s.id}
                   s={s}
-                  progetto={attivo}
-                  progetti={progetti}
-                  onFatto={(rotta) => navigate(rotta)}
+                  project={active}
+                  projects={projects}
+                  onDone={(rotta) => navigate(rotta)}
                 />
               ))}
             </div>
@@ -260,32 +260,32 @@ function Strumenti({ cat, progetti }: { cat: Catalogo | null; progetti: StudioPr
  * ancorati in fondo (`mt-auto`). Prima ogni scheda finiva dove finiva il suo
  * testo e una riga di schede era una scalinata.
  */
-function SchedaStrumento({
-  s, progetto, progetti, onFatto,
+function ToolCard({
+  s, project, projects, onDone,
 }: {
-  s: Strumento;
-  progetto: StudioProject | null;
-  progetti: StudioProject[];
-  onFatto: (rotta: string) => void;
+  s: Tool;
+  project: StudioProject | null;
+  projects: StudioProject[];
+  onDone: (rotta: string) => void;
 }) {
-  const [aperto, setAperto] = useState<Avvio | null>(null);
-  const I = ICONE[s.icona] ?? Wrench;
+  const [open, setOpen] = useState<Start | null>(null);
+  const I = ICONS[s.icon] ?? Wrench;
 
   return (
     <div
       className={
         "flex h-full flex-col rounded-lg border bg-neutral-950/60 p-3 transition-colors " +
-        (s.pronto ? "border-neutral-800 hover:border-neutral-600" : "border-neutral-800/60")
+        (s.ready ? "border-neutral-800 hover:border-neutral-600" : "border-neutral-800/60")
       }
     >
       <div className="flex items-start gap-2.5">
         <I
-          className={"w-4 h-4 mt-[2px] shrink-0 " + (s.pronto ? "text-neutral-300" : "text-neutral-500")}
+          className={"w-4 h-4 mt-[2px] shrink-0 " + (s.ready ? "text-neutral-300" : "text-neutral-500")}
           aria-hidden
         />
         <div className="min-w-0 flex-1">
-          <div className={"text-[13.5px] font-medium leading-tight " + (s.pronto ? "" : "text-neutral-400")}>
-            {s.nome}
+          <div className={"text-[13.5px] font-medium leading-tight " + (s.ready ? "" : "text-neutral-400")}>
+            {s.name}
           </div>
           <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.cosa}</p>
         </div>
@@ -293,10 +293,10 @@ function SchedaStrumento({
 
       {/* Non pronto non è «rotto»: è una cosa che manca, con il gesto che la
           sistema. Uno strumento grigio senza spiegazione è una porta chiusa. */}
-      {!s.pronto && (
+      {!s.ready && (
         <div className="mt-2 rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5 space-y-0.5">
-          {s.manca.map((m) => (
-            <div key={m.requisito} className="text-[11px] text-amber-200/90 leading-snug">
+          {s.missing.map((m) => (
+            <div key={m.requirement} className="text-[11px] text-amber-200/90 leading-snug">
               {m.come}
             </div>
           ))}
@@ -309,23 +309,23 @@ function SchedaStrumento({
           non è un riferimento. */}
       <div className="mt-auto pt-3 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {s.avvii.map((a, i) =>
+          {s.starters.map((a, i) =>
             a.modo === "apri" ? (
-              <Apri key={i} avvio={a} strumento={s} progetto={progetto} progetti={progetti} onVai={onFatto} />
+              <Open key={i} start={a} tool={s} project={project} projects={projects} onVai={onDone} />
             ) : (
               <Bott
                 key={i}
                 taglia="m"
-                peso={i === 0 ? "primario" : "normale"}
-                disabilitato={!s.pronto}
-                titolo={s.pronto ? a.nota : s.manca[0]?.come}
-                onClick={() => setAperto(aperto === a ? null : a)}
+                weight={i === 0 ? "primario" : "normale"}
+                disabilitato={!s.ready}
+                title={s.ready ? a.nota : s.missing[0]?.come}
+                onClick={() => setOpen(open === a ? null : a)}
               >
                 {a.etichetta}
               </Bott>
             ),
           )}
-          {s.avvii.length === 0 && (
+          {s.starters.length === 0 && (
             <span className="text-[11px] text-neutral-500">Si guarda dal pannello Lavori, in alto.</span>
           )}
         </div>
@@ -350,13 +350,13 @@ function SchedaStrumento({
         )}
       </div>
 
-      {aperto && aperto.modo !== "apri" && (
-        <Modulo
-          strumento={s}
-          avvio={aperto}
-          progetto={progetto}
-          onAnnulla={() => setAperto(null)}
-          onFatto={onFatto}
+      {open && open.modo !== "apri" && (
+        <Form
+          tool={s}
+          start={open}
+          project={project}
+          onCancel={() => setOpen(null)}
+          onDone={onDone}
         />
       )}
     </div>
@@ -375,35 +375,35 @@ function SchedaStrumento({
  * Si spegne solo quando davvero non c'è nessun progetto con quella vista, e
  * allora lo dice con il gesto che lo sistema.
  */
-function Apri({
-  avvio, strumento, progetto, progetti, onVai,
+function Open({
+  start, tool, project, projects, onVai,
 }: {
-  avvio: Extract<Avvio, { modo: "apri" }>;
-  strumento: Strumento;
-  progetto: StudioProject | null;
-  progetti: StudioProject[];
+  start: Extract<Start, { modo: "apri" }>;
+  tool: Tool;
+  project: StudioProject | null;
+  projects: StudioProject[];
   onVai: (rotta: string) => void;
 }) {
-  const serve = (p: StudioProject) => strumento.viste.length === 0 || p.views.includes(avvio.vista);
-  const suScelto = !!progetto && serve(progetto);
-  const ripiego = suScelto ? null : progetti.find(serve) ?? null;
-  const bersaglio = suScelto ? progetto : ripiego;
+  const fits = (p: StudioProject) => tool.views.length === 0 || p.views.includes(start.view);
+  const onPicked = !!project && fits(project);
+  const fallback = onPicked ? null : projects.find(fits) ?? null;
+  const bersaglio = onPicked ? project : fallback;
 
   return (
     <Bott
       taglia="m"
       disabilitato={!bersaglio}
-      titolo={
+      title={
         bersaglio
-          ? suScelto
+          ? onPicked
             ? `Apre «${bersaglio.name}»`
-            : `«${progetto?.name ?? "il progetto scelto"}» non ha la vista «${avvio.vista}»: questo apre «${bersaglio.name}», che ce l'ha.`
-          : `Nessun progetto ha la vista «${avvio.vista}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
+            : `«${project?.name ?? "il progetto scelto"}» non ha la vista «${start.view}»: questo apre «${bersaglio.name}», che ce l'ha.`
+          : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
       }
-      onClick={() => bersaglio && onVai(avvio.rotta.replace(":pid", encodeURIComponent(bersaglio.id)))}
+      onClick={() => bersaglio && onVai(start.rotta.replace(":pid", encodeURIComponent(bersaglio.id)))}
     >
-      {avvio.etichetta}
-      {bersaglio && !suScelto && (
+      {start.etichetta}
+      {bersaglio && !onPicked && (
         <span className="ml-1 text-neutral-400">in {bersaglio.name}</span>
       )}
     </Bott>
@@ -417,35 +417,35 @@ function Apri({
  * tenere allineati a ventuno handler: il primo campo aggiunto lato server
  * sarebbe rimasto invisibile qui, e nessuno se ne sarebbe accorto.
  */
-function Modulo({
-  strumento, avvio, progetto, onAnnulla, onFatto,
+function Form({
+  tool, start, project, onCancel, onDone,
 }: {
-  strumento: Strumento;
-  avvio: Extract<Avvio, { modo: "nuovo" | "subito" }>;
-  progetto: StudioProject | null;
-  onAnnulla: () => void;
-  onFatto: (rotta: string) => void;
+  tool: Tool;
+  start: Extract<Start, { modo: "nuovo" | "subito" }>;
+  project: StudioProject | null;
+  onCancel: () => void;
+  onDone: (rotta: string) => void;
 }) {
-  const [valori, setValori] = useState<Record<string, string | number>>(() =>
-    Object.fromEntries(avvio.campi.map((c) => [c.nome, c.predefinito ?? ""])),
+  const [values, setValues] = useState<Record<string, string | number>>(() =>
+    Object.fromEntries(start.fields.map((c) => [c.name, c.predefinito ?? ""])),
   );
   const [inCorso, setInCorso] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [fatto, setFatto] = useState<{ testo: string; rotta: string } | null>(null);
+  const [done, setDone] = useState<{ text: string; rotta: string } | null>(null);
 
-  const mancante = avvio.campi.find((c) => c.richiesto && !String(valori[c.nome] ?? "").trim());
+  const missing = start.fields.find((c) => c.richiesto && !String(values[c.name] ?? "").trim());
 
   async function vai() {
     setInCorso(true);
     setErr(null);
     try {
-      const r = await api.avviaStrumento(strumento.id, {
+      const r = await api.startTool(tool.id, {
         // Un avvio che CREA il progetto non ne riceve uno: mandarglielo
         // sarebbe un'istruzione che non guarda nessuno.
-        progetto: avvio.modo === "subito" ? progetto?.id : undefined,
-        valori,
+        project: start.modo === "subito" ? project?.id : undefined,
+        values,
       });
-      setFatto({ testo: r.fatto, rotta: r.rotta });
+      setDone({ text: r.done, rotta: r.rotta });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -453,15 +453,15 @@ function Modulo({
     }
   }
 
-  if (fatto) {
+  if (done) {
     return (
       <div className="mt-2 rounded border border-emerald-900/70 bg-emerald-950/20 p-2.5 space-y-2">
-        <div className="text-[12px] text-emerald-200 leading-snug">{fatto.testo}</div>
+        <div className="text-[12px] text-emerald-200 leading-snug">{done.text}</div>
         <div className="flex items-center gap-1.5">
-          <Bott taglia="m" peso="primario" onClick={() => onFatto(fatto.rotta)}>
+          <Bott taglia="m" weight="primario" onClick={() => onDone(done.rotta)}>
             Vai a vedere
           </Bott>
-          <Bott taglia="m" peso="quieto" onClick={onAnnulla}>Resta qui</Bott>
+          <Bott taglia="m" weight="quieto" onClick={onCancel}>Resta qui</Bott>
         </div>
       </div>
     );
@@ -469,24 +469,24 @@ function Modulo({
 
   return (
     <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
-      {avvio.nota && <p className="text-[11px] text-neutral-400 leading-snug">{avvio.nota}</p>}
+      {start.nota && <p className="text-[11px] text-neutral-400 leading-snug">{start.nota}</p>}
 
       {/* Su quale progetto non si chiede più: è quello scelto in cima. Detto,
           non taciuto — altrimenti «Genera adesso» è un tasto che non dice dove
           finisce la roba. */}
-      {avvio.modo === "subito" && (
+      {start.modo === "subito" && (
         <p className="text-[11px] text-neutral-500">
-          {progetto ? <>Va in coda su <span className="text-neutral-300">{progetto.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
+          {project ? <>Va in coda su <span className="text-neutral-300">{project.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
         </p>
       )}
 
-      {avvio.campi.map((c) => (
-        <CampoDiAvvio
-          key={c.nome}
-          campo={c}
-          valore={valori[c.nome] ?? ""}
-          onCambia={(v) => setValori((x) => ({ ...x, [c.nome]: v }))}
-          onInvia={() => { if (!mancante) void vai(); }}
+      {start.fields.map((c) => (
+        <StartField
+          key={c.name}
+          field={c}
+          value={values[c.name] ?? ""}
+          onChange={(v) => setValues((x) => ({ ...x, [c.name]: v }))}
+          onInvia={() => { if (!missing) void vai(); }}
         />
       ))}
 
@@ -495,54 +495,54 @@ function Modulo({
       <div className="flex items-center gap-1.5">
         <Bott
           taglia="m"
-          peso="primario"
-          disabilitato={inCorso || !!mancante}
-          titolo={mancante ? `Manca: ${mancante.etichetta}` : undefined}
+          weight="primario"
+          disabilitato={inCorso || !!missing}
+          title={missing ? `Manca: ${missing.etichetta}` : undefined}
           onClick={vai}
         >
-          {inCorso ? "Vado…" : avvio.etichetta}
+          {inCorso ? "Vado…" : start.etichetta}
         </Bott>
-        <Bott taglia="m" peso="quieto" onClick={onAnnulla}>Annulla</Bott>
+        <Bott taglia="m" weight="quieto" onClick={onCancel}>Annulla</Bott>
       </div>
     </div>
   );
 }
 
-function CampoDiAvvio({
-  campo, valore, onCambia, onInvia,
+function StartField({
+  field, value, onChange, onInvia,
 }: {
-  campo: CampoAvvio;
-  valore: string | number;
-  onCambia: (v: string | number) => void;
+  field: StartField;
+  value: string | number;
+  onChange: (v: string | number) => void;
   onInvia: () => void;
 }) {
   return (
     <label className="block space-y-1">
       <span className="text-[11px] text-neutral-400">
-        {campo.etichetta}
-        {campo.richiesto && <span className="text-neutral-600"> *</span>}
+        {field.etichetta}
+        {field.richiesto && <span className="text-neutral-600"> *</span>}
       </span>
-      {campo.tipo === "lungo" ? (
+      {field.tipo === "lungo" ? (
         <Area
-          valore={String(valore)}
-          onCambia={onCambia}
-          segnaposto={campo.segnaposto}
+          value={String(value)}
+          onChange={onChange}
+          segnaposto={field.segnaposto}
           onInvia={onInvia}
           className="text-[12px] h-20"
         />
-      ) : campo.tipo === "numero" ? (
-        <Numero valore={Number(valore) || 1} onCambia={onCambia} min={1} max={50} />
+      ) : field.tipo === "numero" ? (
+        <NumberField value={Number(value) || 1} onChange={onChange} min={1} max={50} />
       ) : (
-        <Campo
-          valore={String(valore)}
-          onCambia={onCambia}
-          segnaposto={campo.segnaposto}
+        <Field
+          value={String(value)}
+          onChange={onChange}
+          segnaposto={field.segnaposto}
           onInvio={onInvia}
           taglia="m"
-          className={"w-full " + (campo.tipo === "cartella" ? "font-mono" : "")}
+          className={"w-full " + (field.tipo === "cartella" ? "font-mono" : "")}
         />
       )}
-      {campo.nota && <span className="block text-[10.5px] text-neutral-500">{campo.nota}</span>}
+      {field.nota && <span className="block text-[10.5px] text-neutral-500">{field.nota}</span>}
     </label>
   );
 }

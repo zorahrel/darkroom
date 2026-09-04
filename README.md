@@ -231,8 +231,8 @@ storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_pane
 | POST | `/api/verify/photos/:id` | Check every render of a photo + favourite suggestion |
 | POST | `/api/verify/batch` | Background pass over unchecked renders |
 | GET | `/api/verify/summary` | What gets flagged, how often, and the trend |
-| GET | `/api/strumenti` | The tool catalogue + what is ready on this machine |
-| POST | `/api/strumenti/:id/avvia` | Start a tool (creating its project if needed) |
+| GET | `/api/tools` | The tool catalogue + what is ready on this machine |
+| POST | `/api/tools/:id/start` | Start a tool (creating its project if needed) |
 | GET/POST | `/api/studio/projects` | List projects · create one from a name |
 | DELETE | `/api/studio/projects/:pid` | Forget a project (files stay) |
 | GET/POST | `/api/sources` | Photo folders of the active project (link/copy) |

@@ -162,8 +162,8 @@ export default function HiggsfieldButton({
                 <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                   Modello
                 </span>
-                <Scegli valore={modelId} onCambia={setModelId} larghezza={264} taglia="m"
-                        voci={models.map((m) => ({ v: m.id, testo: m.name, nota: m.provider_name }))} />
+                <Scegli value={modelId} onChange={setModelId} width={264} taglia="m"
+                        items={models.map((m) => ({ v: m.id, text: m.name, nota: m.provider_name }))} />
               </label>
 
               {model?.description && (
@@ -177,9 +177,9 @@ export default function HiggsfieldButton({
                   <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                     aspect ratio
                   </span>
-                  <Scegli valore={params.aspect_ratio ?? ""} larghezza={264} taglia="m"
-                          onCambia={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, aspect_ratio: v })); }}
-                          voci={model.aspect_ratios.map((ar) => ({ v: ar, testo: ar }))} />
+                  <Scegli value={params.aspect_ratio ?? ""} width={264} taglia="m"
+                          onChange={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, aspect_ratio: v })); }}
+                          items={model.aspect_ratios.map((ar) => ({ v: ar, text: ar }))} />
                 </label>
               ) : null}
 
@@ -188,9 +188,9 @@ export default function HiggsfieldButton({
                   <span className="text-[10px] uppercase tracking-wider text-neutral-400">
                     {p.name}
                   </span>
-                  <Scegli valore={String(params[p.name] ?? p.default ?? "")} larghezza={264} taglia="m"
-                          onCambia={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, [p.name]: v })); }}
-                          voci={p.options!.map((o) => ({ v: o, testo: o }))} />
+                  <Scegli value={String(params[p.name] ?? p.default ?? "")} width={264} taglia="m"
+                          onChange={(v) => { setTouchedParams(true); setParams((prev) => ({ ...prev, [p.name]: v })); }}
+                          items={p.options!.map((o) => ({ v: o, text: o }))} />
                 </label>
               ))}
 

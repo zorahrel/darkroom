@@ -190,7 +190,7 @@ generationRoutes.post("/api/photos/reindex-times", async (c) => {
  * secondo `for` che accoda con un prompt costruito quasi uguale sarebbe la
  * strada per due comportamenti che divergono in silenzio.
  */
-export function accodaMancanti(): number {
+export function enqueueMissing(): number {
   const photos = db()
     .query<PhotoRow, []>(
       // Le foto rifiutate da ChatGPT restano senza versione per sempre: senza
@@ -216,13 +216,13 @@ export function accodaMancanti(): number {
   return count;
 }
 
-generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: accodaMancanti() }));
+generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: enqueueMissing() }));
 
 // Generate brand-new images from a text prompt (no source photo). Each creates
 // a `kind='generated'` photo whose first render becomes its original.
 /** Genera dal nulla: N foto vuote, una per variante, ognuna già in coda. */
-export function creaGenerazioni(prompt: string, conta: number): { created: number; ids: string[] } {
-  const count = Math.min(Math.max(Number(conta) || 1, 1), 50);
+export function creaGenerazioni(prompt: string, count: number): { created: number; ids: string[] } {
+  const howMany = Math.min(Math.max(Number(count) || 1, 1), 50);
   const now = Date.now();
   const ids: string[] = [];
   const insert = db().prepare(

@@ -16,7 +16,7 @@
  *   security add-generic-password -s openai -a darkroom -w "<chiave>" -U
  */
 import { openaiKey, openaiDailyCapUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE } from "../server/config.ts";
-import { registraChiamata, spesoOggi } from "../server/worker-openai.ts";
+import { recordCall, spentToday } from "../server/worker-openai.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -51,12 +51,12 @@ async function submit(file: string): Promise<void> {
   // parte e che nessun limite fermava. Qui si stima PRIMA di accodare, perche'
   // dopo il batch e' partito e si paga comunque.
   const tokAttesi = OPENAI_IMAGE_QUALITY === "low" ? 200 : OPENAI_IMAGE_QUALITY === "medium" ? 1100 : 7000;
-  const stima = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokAttesi);
+  const estimate = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokAttesi);
   const cap = openaiDailyCapUsd();
-  if (cap > 0 && spesoOggi() + stima > cap) {
+  if (cap > 0 && spentToday() + estimate > cap) {
     console.error(
-      `il batch costerebbe ~$${stima.toFixed(2)} e supererebbe il tetto giornaliero ` +
-        `($${spesoOggi().toFixed(2)} gia' spesi, limite $${cap.toFixed(2)}).\n` +
+      `il batch costerebbe ~$${estimate.toFixed(2)} e supererebbe il tetto giornaliero ` +
+        `($${spentToday().toFixed(2)} gia' spesi, limite $${cap.toFixed(2)}).\n` +
         `Alza OPENAI_DAILY_CAP_USD, riduci i prompt, o usa OPENAI_IMAGE_QUALITY=low.`,
     );
     process.exit(1);
@@ -149,7 +149,7 @@ async function fetchOut(id: string, outdir: string): Promise<void> {
     tokens += tok;
     // Registrata alla raccolta, non alla sottomissione: qui i token sono quelli
     // veri, non una stima. Lo sconto 0.5 e' la tariffa batch.
-    if (tok) registraChiamata(OPENAI_IMAGE_MODEL, tok, true, "batch", 0.5);
+    if (tok) recordCall(OPENAI_IMAGE_MODEL, tok, true, "batch", 0.5);
     saved++;
     console.log(`  ${r.custom_id}.png  ${Math.round(bytes.length / 1024)}KB`);
   }

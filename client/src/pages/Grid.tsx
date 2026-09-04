@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Scegli } from "../ui";
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { useStatoVista, leggiUnoDi, leggiNumero } from "../statoVista";
+import { useViewState, readOneOf, readNumber } from "../viewState";
 import {
   api,
   currentProject,
@@ -160,11 +160,11 @@ export default function GridPage({
   // scritta a mano qui e da nessun'altra parte, ed e' il motivo per cui
   // l'albero perdeva i suoi filtri a ogni visita.
   const [photos, setPhotos] = useState<PhotoListItem[] | null>(null);
-  const [filter, setFilter] = useStatoVista<Filter>("filter", "all", {
-    leggi: leggiUnoDi(FILTERS.map((f) => f.id) as Filter[]),
+  const [filter, setFilter] = useViewState<Filter>("filter", "all", {
+    read: readOneOf(FILTERS.map((f) => f.id) as Filter[]),
   });
-  const [groupMode, setGroupMode] = useStatoVista<GroupMode>("group", "scene", {
-    leggi: leggiUnoDi(["day", "none", "scene", "post"] as const),
+  const [groupMode, setGroupMode] = useViewState<GroupMode>("group", "scene", {
+    read: readOneOf(["day", "none", "scene", "post"] as const),
     memoria: "darkroom.grid.group",
   });
   // Collections = posts/caroselli. Loaded once and refreshed after every edit,
@@ -218,8 +218,8 @@ export default function GridPage({
   const [runData, setRunData] = useState<
     { item: PhotoListItem; v: number }[] | null
   >(null);
-  const [zoom, setZoom] = useStatoVista("zoom", 180, {
-    leggi: leggiNumero(80, 400),
+  const [zoom, setZoom] = useViewState("zoom", 180, {
+    read: readNumber(80, 400),
     memoria: "darkroom.grid.zoom",
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
@@ -747,16 +747,16 @@ export default function GridPage({
             </button>
           ))}
           <Scegli
-            valore=""
-            larghezza={150}
-            titolo={collectionsBusy ? "Assegno…" : "Metti le foto scelte in un post"}
-            voci={[
-              { v: "", testo: collectionsBusy ? "Assegno…" : "Assegna a post…" },
-              { v: "__new__", testo: "＋ Nuovo post…" },
-              ...collections.map((c) => ({ v: c.id, testo: c.title, nota: String(c.photo_count) })),
-              { v: "__none__", testo: "— Togli dal post" },
+            value=""
+            width={150}
+            title={collectionsBusy ? "Assegno…" : "Metti le foto scelte in un post"}
+            items={[
+              { v: "", text: collectionsBusy ? "Assegno…" : "Assegna a post…" },
+              { v: "__new__", text: "＋ Nuovo post…" },
+              ...collections.map((c) => ({ v: c.id, text: c.title, nota: String(c.photo_count) })),
+              { v: "__none__", text: "— Togli dal post" },
             ]}
-            onCambia={(v) => { if (v) assignSelection(v === "__none__" ? null : v); }}
+            onChange={(v) => { if (v) assignSelection(v === "__none__" ? null : v); }}
           />
           <button
             disabled={bulkBusy || selectedHasActiveJob === 0}
@@ -997,13 +997,13 @@ export default function GridPage({
               Run
             </span>
             <Scegli
-              valore={selectedRun == null ? "" : String(selectedRun)}
-              larghezza={190}
-              voci={[
-                { v: "", testo: "Tutte le versioni" },
-                ...runs.map((r) => ({ v: String(r.id), testo: runLabel(r) })),
+              value={selectedRun == null ? "" : String(selectedRun)}
+              width={190}
+              items={[
+                { v: "", text: "Tutte le versioni" },
+                ...runs.map((r) => ({ v: String(r.id), text: runLabel(r) })),
               ]}
-              onCambia={(v) => setSelectedRun(v ? Number(v) : null)}
+              onChange={(v) => setSelectedRun(v ? Number(v) : null)}
             />
           </div>
         )}

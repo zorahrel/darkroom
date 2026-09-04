@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { preparaAllegati, preambolo, ordina, type Allegato } from "../server/allegati.ts";
+import { preparaAllegati, preamble, sort, type Allegato } from "../server/attachments.ts";
 
 /**
  * Il guasto che questo modulo previene non solleva errori: l'API riceve tutte
@@ -10,14 +10,14 @@ import { preparaAllegati, preambolo, ordina, type Allegato } from "../server/all
  * Questi test guardano una cosa sola: che la frase e l'ordine dicano sempre
  * la stessa cosa.
  */
-const io = (n: string): Allegato => ({ path: `/RAW/${n}`, ruolo: "identita" });
-const stile = (n: string, prendi?: string): Allegato => ({ path: `/refs/${n}`, ruolo: "stile", prendi });
-const oggetto = (n: string, prendi?: string): Allegato => ({ path: `/refs/${n}`, ruolo: "oggetto", prendi });
+const io = (n: string): Allegato => ({ path: `/RAW/${n}`, role: "identita" });
+const stile = (n: string, prendi?: string): Allegato => ({ path: `/refs/${n}`, role: "stile", prendi });
+const oggetto = (n: string, prendi?: string): Allegato => ({ path: `/refs/${n}`, role: "oggetto", prendi });
 
 describe("l'ordine degli allegati e la frase che li descrive", () => {
   test("identita' prima, poi stile, poi oggetti", () => {
-    const { ordinati } = preparaAllegati([oggetto("occhiali.jpg"), stile("luce.jpg"), io("me.png")]);
-    expect(ordinati.map((a) => a.ruolo)).toEqual(["identita", "stile", "oggetto"]);
+    const { sorted } = preparaAllegati([oggetto("occhiali.jpg"), stile("luce.jpg"), io("me.png")]);
+    expect(sorted.map((a) => a.role)).toEqual(["identita", "stile", "oggetto"]);
   });
 
   test("l'ordine dichiarato dentro un ruolo si conserva", () => {
@@ -29,8 +29,8 @@ describe("l'ordine degli allegati e la frase che li descrive", () => {
   test("la frase nomina le posizioni VERE dopo il riordino", () => {
     // IL BUG: dichiarati in quest'ordine, gli occhiali sarebbero i primi
     // dell'array e un prompt scritto a mano direbbe "i primi due sono io".
-    const p = preambolo(
-      ordina([oggetto("occhiali.jpg"), io("a.png"), io("b.png")]),
+    const p = preamble(
+      sort([oggetto("occhiali.jpg"), io("a.png"), io("b.png")]),
       false,
     );
     expect(p).toContain("The first two attached images");
@@ -40,13 +40,13 @@ describe("l'ordine degli allegati e la frase che li descrive", () => {
   });
 
   test("con la sorgente, la frase la nomina insieme alle foto d'identita'", () => {
-    const p = preambolo(ordina([io("altra.png")]), true);
+    const p = preamble(sort([io("altra.png")]), true);
     expect(p).toContain("SOURCE photograph");
     expect(p).toContain("are of ME");
   });
 
   test("una sorgente sola, senza allegati d'identita'", () => {
-    const p = preambolo(ordina([stile("luce.jpg")]), true);
+    const p = preamble(sort([stile("luce.jpg")]), true);
     expect(p).toContain("The SOURCE photograph is of ME");
   });
 });
@@ -55,47 +55,47 @@ describe("si parla solo di cio' che e' allegato", () => {
   test("senza reference di stile, non se ne parla", () => {
     // Dire "la foto di stile e' un'altra persona" quando quel file non c'e'
     // confonde e basta: e' un errore gia' fatto in passato.
-    const p = preambolo(ordina([io("a.png"), io("b.png")]), true);
+    const p = preamble(sort([io("a.png"), io("b.png")]), true);
     expect(p).not.toContain("STYLING");
     expect(p).not.toContain("OBJECT");
   });
 
   test("senza foto d'identita' e senza sorgente, non si promette un volto", () => {
-    const p = preambolo(ordina([stile("luce.jpg")]), false);
+    const p = preamble(sort([stile("luce.jpg")]), false);
     expect(p).not.toContain("of ME");
     expect(p).toContain("STYLING");
   });
 
   test("un elenco vuoto non produce frasi", () => {
-    expect(preambolo([], false)).toBe("");
+    expect(preamble([], false)).toBe("");
   });
 });
 
 describe("ogni ruolo dice cosa prendere e cosa no", () => {
   test("dallo stile non si copia mai il volto", () => {
-    const p = preambolo(ordina([io("a.png"), stile("luce.jpg")]), false);
+    const p = preamble(sort([io("a.png"), stile("luce.jpg")]), false);
     expect(p).toContain("never copy the face");
   });
 
   test("nemmeno dagli oggetti", () => {
-    const p = preambolo(ordina([io("a.png"), oggetto("occhiali.jpg")]), false);
+    const p = preamble(sort([io("a.png"), oggetto("occhiali.jpg")]), false);
     expect(p).toContain("Never copy any face");
   });
 
   test("il dettaglio da prendere entra nella frase", () => {
-    const p = preambolo(ordina([oggetto("g.jpg", "the exact shape of the sunglasses")]), false);
+    const p = preamble(sort([oggetto("g.jpg", "the exact shape of the sunglasses")]), false);
     expect(p).toContain("the exact shape of the sunglasses");
   });
 
   test("senza dettaglio, resta una formula sensata", () => {
-    const p = preambolo(ordina([stile("luce.jpg")]), false);
+    const p = preamble(sort([stile("luce.jpg")]), false);
     expect(p).toContain("lighting, tonality, framing and treatment");
   });
 });
 
 describe("i file inviati e le posizioni citate coincidono", () => {
   test("il caso reale di v37: 3 scatti, 1 stile, 2 occhiali", () => {
-    const { files, preambolo: p } = preparaAllegati(
+    const { files, preamble: p } = preparaAllegati(
       [
         oggetto("gascan-nero.jpg", "the exact shape of the sunglasses"),
         oggetto("gascan-frontale.jpg"),
@@ -103,7 +103,7 @@ describe("i file inviati e le posizioni citate coincidono", () => {
         io("ChatGPT.png"),
         stile("fondo-blu.jpg", "the deep blue background and hard top light"),
       ],
-      { conSorgente: true },
+      { withSource: true },
     );
     // L'ordine mandato all'API
     expect(files).toEqual([
@@ -123,14 +123,14 @@ describe("i file inviati e le posizioni citate coincidono", () => {
 
   test("aggiungere una reference NON sposta cio' che la frase chiama identita'", () => {
     // E' il modo silenzioso di sbagliare: un file in piu' e il prompt mente.
-    const prima = preparaAllegati([io("a.png"), io("b.png"), stile("x.jpg")], { conSorgente: true });
+    const prima = preparaAllegati([io("a.png"), io("b.png"), stile("x.jpg")], { withSource: true });
     const dopo = preparaAllegati(
       [io("a.png"), io("b.png"), stile("x.jpg"), oggetto("y.jpg")],
-      { conSorgente: true },
+      { withSource: true },
     );
     expect(dopo.files.slice(0, 2)).toEqual(prima.files.slice(0, 2));
     // Minuscolo: dentro la frase la posizione segue "The SOURCE photograph and".
-    expect(dopo.preambolo).toContain("the first two attached images");
+    expect(dopo.preamble).toContain("the first two attached images");
   });
 
   test("il numero di file inviati e' quello dichiarato", () => {
@@ -139,6 +139,6 @@ describe("i file inviati e le posizioni citate coincidono", () => {
   });
 
   test("un solo allegato non si dice 'il primo di uno'", () => {
-    expect(preambolo(ordina([stile("x.jpg")]), false)).toContain("The attached image");
+    expect(preamble(sort([stile("x.jpg")]), false)).toContain("The attached image");
   });
 });

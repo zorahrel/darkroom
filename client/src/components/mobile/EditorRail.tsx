@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bott, Conferma, Interruttore } from "../../ui";
+import { Bott, Confirm, Toggle } from "../../ui";
 import type { ToolGroup, AddableStep } from "./BottomToolbar";
 import type { MasterControls } from "./EditorShell";
 import {
@@ -507,9 +507,9 @@ function Section({
               dito di distanza. */}
           {step && (
             <div className="flex items-center gap-1 mb-2 pb-2 border-b border-neutral-800/70">
-              <Interruttore acceso={step.enabled} onCambia={step.onToggle}
-                            acceso_testo="acceso" spento_testo="spento"
-                            titolo="Se spento, questo passo non tocca l'immagine" />
+              <Toggle on={step.enabled} onChange={step.onToggle}
+                            onText="acceso" offText="spento"
+                            title="Se spento, questo passo non tocca l'immagine" />
               <div className="flex-1" />
               <div className="flex items-center rounded border border-neutral-800">
                 <button
@@ -530,24 +530,24 @@ function Section({
                 </button>
               </div>
               {step.onSolo && (
-                <Bott taglia="s" attivo={step.isSolo} onClick={step.onSolo}
-                      titolo={step.isSolo
+                <Bott taglia="s" active={step.isSolo} onClick={step.onSolo}
+                      title={step.isSolo
                         ? "Riaccendi tutti gli step"
                         : "Solo questo: spegne gli altri per vedere cosa fa davvero"}>
                   solo
                 </Bott>
               )}
               {step.onReset && (
-                <Bott peso="quieto" taglia="s" onClick={step.onReset}
-                      titolo="Rimetti i valori di partenza">
+                <Bott weight="quieto" taglia="s" onClick={step.onReset}
+                      title="Rimetti i valori di partenza">
                   <IconReset />
                 </Bott>
               )}
-              <Conferma taglia="s" titolo="Togli questo passo"
+              <Confirm taglia="s" title="Togli questo passo"
                         domanda="Tolgo questo passo?"
-                        conferma="togli" onConferma={step.onRemove}>
+                        confirm="togli" onConfirm={step.onRemove}>
                 <IconTrash />
-              </Conferma>
+              </Confirm>
             </div>
           )}
           {group.render()}

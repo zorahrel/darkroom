@@ -24,11 +24,11 @@ export default function JobsPanel({
   const [gen, setGen] = useState<{ backend: string; browser: boolean | null }>(
     { backend: "…", browser: null });
   useEffect(() => {
-    let vivo = true;
+    let alive = true;
     api.studioProjects()
-      .then((r) => { if (vivo) setGen({ backend: r.worker.backend, browser: r.worker.browser_alive }); })
+      .then((r) => { if (alive) setGen({ backend: r.worker.backend, browser: r.worker.browser_alive }); })
       .catch(() => {});
-    return () => { vivo = false; };
+    return () => { alive = false; };
   }, []);
 
   const dismissable = useMemo(

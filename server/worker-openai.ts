@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
 import { openaiDailyCapUsd, openaiSyncBudgetUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
 import { db } from "./db.ts";
-import { preparaAllegati, type Allegato } from "./allegati.ts";
+import { preparaAllegati, type Allegato } from "./attachments.ts";
 
 /**
  * Backend OpenAI: parla direttamente all'Images API invece di guidare una
@@ -30,7 +30,7 @@ const OUTPUT_RATE_PER_M: Record<string, number> = {
 };
 
 /** Speso nelle ultime 24h, dalle chiamate registrate. */
-export function spesoOggi(): number {
+export function spentToday(): number {
   try {
     const r = db()
       .query<{ tot: number | null }, [number]>(
@@ -53,7 +53,7 @@ const TOKEN_ATTESI: Record<string, number> = { low: 200, medium: 1600, high: 710
 
 /** Quanto costera' la prossima chiamata, in dollari. Una stima per eccesso:
  *  un freno che sottostima non frena. */
-export function costoAtteso(
+export function expectedCost(
   model: string = OPENAI_IMAGE_MODEL,
   quality: string = OPENAI_IMAGE_QUALITY,
 ): number {
@@ -62,7 +62,7 @@ export function costoAtteso(
 
 /** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
  *  l'errore da mostrare, o null se si puo' procedere. */
-function oltreIlTetto(opzioni: { conRefs?: boolean; quality?: string } = {}): string | null {
+function overCap(opzioni: { withRefs?: boolean; quality?: string } = {}): string | null {
   // La soglia del sincrono guarda quanto costa QUESTA chiamata, non quanto si
   // e' speso finora.
   //
@@ -75,32 +75,32 @@ function oltreIlTetto(opzioni: { conRefs?: boolean; quality?: string } = {}): st
   const budget = openaiSyncBudgetUsd();
   // La resa di QUESTA chiamata: pesare quella di sistema significava lasciar
   // passare una high mentre si credeva di aver chiesto una low.
-  const costo = costoAtteso(OPENAI_IMAGE_MODEL, opzioni.quality ?? OPENAI_IMAGE_QUALITY);
-  if (budget > 0 && costo > budget) {
+  const cost = expectedCost(OPENAI_IMAGE_MODEL, opzioni.quality ?? OPENAI_IMAGE_QUALITY);
+  if (budget > 0 && cost > budget) {
     // Il batch NON accetta /edits, che e' l'unico endpoint che prende delle
     // reference: mandare li' chi sta usando una reference e' un vicolo cieco.
-    const strada = opzioni.conRefs
+    const path = opzioni.withRefs
       ? `Con delle reference il batch non e' una strada (non supporta /edits): ` +
-        `prova prima in OPENAI_IMAGE_QUALITY=low (~$${costoAtteso(OPENAI_IMAGE_MODEL, "low").toFixed(3)}), ` +
+        `prova prima in OPENAI_IMAGE_QUALITY=low (~$${expectedCost(OPENAI_IMAGE_MODEL, "low").toFixed(3)}), ` +
         `oppure alza OPENAI_SYNC_BUDGET_USD.`
       : `Il batch costa META': bun run scripts/openai_batch.ts submit <file-prompt>. ` +
         `Per forzare il sincrono: OPENAI_SYNC_BUDGET_USD=0`;
     return (
-      `questa chiamata costa ~$${costo.toFixed(2)} (${OPENAI_IMAGE_QUALITY}), ` +
-      `sopra la soglia del sincrono ($${budget.toFixed(2)}). ${strada}`
+      `questa chiamata costa ~$${cost.toFixed(2)} (${OPENAI_IMAGE_QUALITY}), ` +
+      `sopra la soglia del sincrono ($${budget.toFixed(2)}). ${path}`
     );
   }
   // Letto qui e non all'import: un tetto che si puo' alzare solo riavviando il
   // server e' un tetto che si aggira riavviando il server.
   const cap = openaiDailyCapUsd();
   if (!(cap > 0)) return null;
-  const speso = spesoOggi();
+  const spent = spentToday();
   // Anche il tetto guarda avanti: fermarsi DOPO averlo superato significa
   // superarlo sempre di una chiamata.
-  if (speso + costo <= cap) return null;
+  if (spent + cost <= cap) return null;
   return (
-    `tetto giornaliero raggiunto: $${speso.toFixed(2)} spesi nelle ultime 24h ` +
-    `piu' ~$${costo.toFixed(2)} di questa chiamata (limite $${cap.toFixed(2)}). ` +
+    `tetto giornaliero raggiunto: $${spent.toFixed(2)} spesi nelle ultime 24h ` +
+    `piu' ~$${cost.toFixed(2)} di questa chiamata (limite $${cap.toFixed(2)}). ` +
     `Alza OPENAI_DAILY_CAP_USD o aspetta.`
   );
 }
@@ -111,7 +111,7 @@ function oltreIlTetto(opzioni: { conRefs?: boolean; quality?: string } = {}): st
  *
  *  Non deve mai far fallire una generazione: se il DB non e' raggiungibile
  *  (uno script fuori da un progetto) si perde la riga, non l'immagine. */
-export function registraChiamata(
+export function recordCall(
   model: string,
   outputTokens: number,
   ok: boolean,
@@ -214,7 +214,7 @@ async function saveResult(
   // I token si leggono dalla risposta: la tabella dei docs dava 4160 per una
   // high 1024 dove ne sono stati consumati 7024, il 69% in piu'.
   const tok = json.usage?.output_tokens;
-  if (tok) registraChiamata(model, tok, true);
+  if (tok) recordCall(model, tok, true);
   return {
     status: "ok",
     output,
@@ -243,7 +243,7 @@ export async function runWorkerOpenAiGenerate(input: {
     };
   }
   const refs = (input.refs ?? []).filter((p) => existsSync(p));
-  const oltre = oltreIlTetto({ conRefs: refs.length > 0 });
+  const oltre = overCap({ withRefs: refs.length > 0 });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
 
@@ -295,20 +295,20 @@ export async function runWorkerOpenAi(input: {
   }
   // Un edit passa SEMPRE da /edits, che il batch non supporta: mandare qui
   // qualcuno al batch sarebbe un vicolo cieco anche senza reference.
-  const resa = input.quality ?? OPENAI_IMAGE_QUALITY;
-  const oltre = oltreIlTetto({ conRefs: true, quality: resa });
+  const wantedQuality = input.quality ?? OPENAI_IMAGE_QUALITY;
+  const oltre = overCap({ withRefs: true, quality: wantedQuality });
   if (oltre) return { status: "error", error: oltre };
   const startedAt = Date.now();
   // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
   // decide l'ordine degli allegati: e' l'unico modo perche' "le prime due sono
   // io" resti vero anche dopo aver aggiunto una reference.
-  const conRuoli = (input.allegati ?? []).filter((a) => existsSync(a.path));
-  if (conRuoli.length > 0) {
-    const { files, preambolo } = preparaAllegati(conRuoli, { conSorgente: true });
-    return runEdits(key, [input.image, ...files], `${preambolo} ${input.prompt}`, input.output, startedAt, resa);
+  const withRoles = (input.allegati ?? []).filter((a) => existsSync(a.path));
+  if (withRoles.length > 0) {
+    const { files, preamble } = preparaAllegati(withRoles, { withSource: true });
+    return runEdits(key, [input.image, ...files], `${preamble} ${input.prompt}`, input.output, startedAt, wantedQuality);
   }
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];
-  return runEdits(key, images, input.prompt, input.output, startedAt, resa);
+  return runEdits(key, images, input.prompt, input.output, startedAt, wantedQuality);
 }
 
 /** MIME dall'estensione: un Blob senza `type` arriva come

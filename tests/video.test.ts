@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { origine, setScelta } from "../server/video.ts";
+import { origine, setPick } from "../server/video.ts";
 import { addProject, rootDir, withProject } from "../server/project.ts";
 import { workflow } from "../server/comfy.ts";
 
@@ -80,7 +80,7 @@ const leggibile = (p: string) => {
 
 describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
   test("le due implementazioni concordano su tutti i casi", () => {
-    const nomi = CASI.map(([k]) => k);
+    const names = CASI.map(([k]) => k);
     // Il modulo si importa senza eseguire main() (che sta sotto __main__), e
     // si chiama la sua origine() sugli stessi nomi.
     const py = [
@@ -88,14 +88,14 @@ describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
       `spec = importlib.util.spec_from_file_location("p", ${JSON.stringify(PIANIFICA)})`,
       "m = importlib.util.module_from_spec(spec)",
       "spec.loader.exec_module(m)",
-      `nomi = json.loads(${JSON.stringify(JSON.stringify(nomi))})`,
+      `nomi = json.loads(${JSON.stringify(JSON.stringify(names))})`,
       "print(json.dumps([m.origine(n) for n in nomi]))",
     ].join("\n");
     const r = spawnSync("python3", ["-c", py], { encoding: "utf8", timeout: 30_000 });
     expect(r.status, `python: ${r.stderr}`).toBe(0);
-    const dalPython = JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as string[];
+    const fromPython = JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as string[];
     // Se le due divergono, questo dice SU QUALE nome — non solo che divergono.
-    expect(dalPython).toEqual(nomi.map((n) => origine(n)));
+    expect(fromPython).toEqual(names.map((n) => origine(n)));
   });
 });
 
@@ -113,11 +113,11 @@ const GEN = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/gen.py` : "";
 
 describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
   const casi = [
-    { nome: "senza tasselli", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
-    { nome: "a tasselli, i default di oggi", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
+    { name: "senza tasselli", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
+    { name: "a tasselli, i default di oggi", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
   ];
-  for (const { nome, p } of casi) {
-    test(nome, () => {
+  for (const { name, p } of casi) {
+    test(name, () => {
       const py = [
         "import importlib.util, json",
         `spec = importlib.util.spec_from_file_location("g", ${JSON.stringify(GEN)})`,
@@ -128,8 +128,8 @@ describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeSc
       ].join("\n");
       const r = spawnSync("python3", ["-c", py], { encoding: "utf8", timeout: 30_000 });
       expect(r.status, `python: ${r.stderr}`).toBe(0);
-      const dalPython = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}");
-      expect(JSON.parse(JSON.stringify(workflow("pre", "un prompt", p as any)))).toEqual(dalPython);
+      const fromPython = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}");
+      expect(JSON.parse(JSON.stringify(workflow("pre", "un prompt", p as any)))).toEqual(fromPython);
     });
   }
 });
@@ -144,8 +144,12 @@ describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeSc
  * sbagliato, perche' sembra di essere tornati indietro. Misurato su `g_corr`.
  */
 describe("togliere un verdetto e' un terzo stato, non un si'", () => {
-  const conProgetto = <T,>(fn: () => T): T => {
+  /** A throwaway video project. Named apart from the imported `withProject`
+   *  on purpose: when both were called that, the helper called itself. */
+  const inTempProject = <T,>(fn: () => T): T => {
     const dir = mkdtempSync(join(tmpdir(), "video-scelte-"));
+    // These keys are the on-disk contract shared with the Python pipeline, so
+    // they stay in Italian here even though the code around them does not.
     writeFileSync(join(dir, "scelte.json"), JSON.stringify({ scartati: {}, tenuti: {} }));
     const p = addProject({ name: `scelte-${Date.now()}`, root: dir, kind: "video" });
     return withProject(p.id, fn);
@@ -153,11 +157,11 @@ describe("togliere un verdetto e' un terzo stato, non un si'", () => {
   const letto = () => JSON.parse(readFileSync(join(rootDir(), "scelte.json"), "utf8"));
 
   test("scarto, poi annullo: la ripresa non risulta ne' scartata ne' tenuta", () => {
-    conProgetto(() => {
-      setScelta("g_corr0", false, "prova");
+    inTempProject(() => {
+      setPick("g_corr0", false, "prova");
       expect(letto().scartati["g_corr0"]).toBe("prova");
 
-      setScelta("g_corr0", null); // l'annulla
+      setPick("g_corr0", null); // l'annulla
       const s = letto();
       expect(s.scartati["g_corr0"]).toBeUndefined();
       expect(s.tenuti["g_corr0"]).toBeUndefined();
@@ -165,11 +169,11 @@ describe("togliere un verdetto e' un terzo stato, non un si'", () => {
   });
 
   test("annullare un si' non lo trasforma in uno scarto", () => {
-    conProgetto(() => {
-      setScelta("w_alto", true);
+    inTempProject(() => {
+      setPick("w_alto", true);
       expect(letto().tenuti["w_alto"]).toBeGreaterThan(0);
 
-      setScelta("w_alto", null);
+      setPick("w_alto", null);
       const s = letto();
       expect(s.tenuti["w_alto"]).toBeUndefined();
       expect(s.scartati["w_alto"]).toBeUndefined();
@@ -177,10 +181,10 @@ describe("togliere un verdetto e' un terzo stato, non un si'", () => {
   });
 
   test("i due verdetti veri restano quelli di prima", () => {
-    conProgetto(() => {
-      setScelta("mare6", true);
+    inTempProject(() => {
+      setPick("mare6", true);
       expect(letto().tenuti["mare6"]).toBeGreaterThan(0);
-      setScelta("mare6", false, "si sfascia");
+      setPick("mare6", false, "si sfascia");
       const s = letto();
       expect(s.scartati["mare6"]).toBe("si sfascia");
       expect(s.tenuti["mare6"]).toBeUndefined();

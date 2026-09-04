@@ -87,7 +87,7 @@ function configOf(v: VersionRow): {
  * chiamata riuscita entro un minuto dalla versione e' quella che l'ha prodotta.
  * Non e' esatto per costruzione, quindi il client lo mostra come stima.
  */
-function costiPerVersione(): Map<number, { usd: number; model: string; quality: string | null }> {
+function costPerVersion(): Map<number, { usd: number; model: string; quality: string | null }> {
   const out = new Map<number, { usd: number; model: string; quality: string | null }>();
   try {
     const chiamate = db()
@@ -116,7 +116,7 @@ function costiPerVersione(): Map<number, { usd: number; model: string; quality: 
 }
 
 lineageRoutes.get("/api/lineage", (c) => {
-  const costi = costiPerVersione();
+  const costs = costPerVersion();
   const photos = db()
     .query<{ id: string; original_path: string; favorite_version_id: number | null }, []>(
       "SELECT id, original_path, favorite_version_id FROM photos ORDER BY id",
@@ -198,31 +198,31 @@ lineageRoutes.get("/api/lineage", (c) => {
        *  che non lo ha — ma sbaglia su ogni versione registrata a distanza di
        *  ore dalla chiamata pagata, e li' mostrava $0.000 avendo il dato in
        *  tabella. */
-      costo_usd: v.credits ?? costi.get(v.id)?.usd ?? null,
+      cost_usd: v.credits ?? costs.get(v.id)?.usd ?? null,
       /** Modello e resa, da provider_params. Sono la differenza fra due
        *  varianti che dichiarano la stessa ricetta e non si somigliano:
        *  `low` e `high` dello stesso modello sono due esperimenti diversi. */
       ...(() => {
         try {
           const pp = v.provider_params ? (JSON.parse(v.provider_params) as Record<string, unknown>) : {};
-          const ch = costi.get(v.id);
+          const ch = costs.get(v.id);
           return {
             model: ((pp.model as string) ?? ch?.model) ?? null,
             quality: ((pp.quality as string) ?? ch?.quality) ?? null,
           };
         } catch {
-          const ch = costi.get(v.id);
+          const ch = costs.get(v.id);
           return { model: ch?.model ?? null, quality: ch?.quality ?? null };
         }
       })(),
       /** I nomi dei file di ingresso, come sono stati registrati. `sources`
        *  sul gruppo viene tradotto in id-foto per le miniature e perde i nomi
        *  che non si risolvono; qui restano quelli veri. */
-      file_sorgenti: cfg.sources,
+      source_files: cfg.sources,
       /** Gli id-foto corrispondenti, per chiedere la miniatura. Il client non
        *  puo' ricavarli dal nome: "1.PNG" -> "1" funziona per caso, e su un
        *  file con estensione inattesa darebbe un'immagine rotta. */
-      id_sorgenti: cfg.sources.map((f) => byBasename.get(f) ?? null),
+      source_ids: cfg.sources.map((f) => byBasename.get(f) ?? null),
       file_refs: cfg.refs,
       // Il file c'e' davvero?
       //
@@ -231,14 +231,14 @@ lineageRoutes.get("/api/lineage", (c) => {
       // e al suo posto arrivava un rettangolo vuoto perche' la miniatura
       // rispondeva 500. Una variante senza file non e' una variante: dirlo qui
       // costa uno stat e trasforma un guasto muto in un'etichetta.
-      manca: !existsSync(v.image_path),
+      missing: !existsSync(v.image_path),
     });
   }
 
   /** Quando e' nata la variante piu' recente di ogni radice. Serve a mettere
    *  in cima il lavoro di adesso: l'ordine per id-foto e' stabile ma arbitrario,
    *  e con 189 radici la generazione appena fatta finiva a meta' pagina. */
-  const piuRecente = (r: Root) =>
+  const mostRecent = (r: Root) =>
     Math.max(
       0,
       ...[...r.groups.values()].flatMap((g) =>
@@ -247,7 +247,7 @@ lineageRoutes.get("/api/lineage", (c) => {
     );
 
   const out = [...roots.values()]
-    .sort((a, b) => piuRecente(b) - piuRecente(a))
+    .sort((a, b) => mostRecent(b) - mostRecent(a))
     .map((r) => {
     for (const g of r.groups.values()) {
       g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
@@ -305,7 +305,7 @@ lineageRoutes.get("/api/versions/:id/scarto", (c) => {
   if (!v) return c.json({ error: "versione non trovata" }, 404);
   if (!existsSync(v.image_path)) return c.json({ error: "immagine mancante" }, 404);
 
-  const leggi = (raw: string | null): string[] => {
+  const read = (raw: string | null): string[] => {
     if (!raw) return [];
     try {
       const r = (JSON.parse(raw) as { refs?: unknown }).refs;
@@ -314,26 +314,26 @@ lineageRoutes.get("/api/versions/:id/scarto", (c) => {
       return [];
     }
   };
-  const nome = (leggi(v.lineage)[0] ?? leggi(v.config)[0] ?? "").split("/").pop() ?? "";
+  const name = (read(v.lineage)[0] ?? read(v.config)[0] ?? "").split("/").pop() ?? "";
   // Nessuna reference non e' un errore: e' l'informazione che questa variante
   // non aveva un bersaglio, ed e' esattamente il caso che è costato 12
   // generazioni su profilo.
-  if (!nome) return c.json({ reference: null, scarto: null });
+  if (!name) return c.json({ reference: null, scarto: null });
 
-  const refPath = join(refsDir(), nome);
-  if (!existsSync(refPath)) return c.json({ reference: nome, scarto: null, error: "reference mancante" });
+  const refPath = join(refsDir(), name);
+  if (!existsSync(refPath)) return c.json({ reference: name, scarto: null, error: "reference mancante" });
 
   const r = spawnSync("python3", [join(REPO_ROOT, "scripts", "ref_match.py"), v.image_path, refPath], {
     encoding: "utf8",
     timeout: 30_000,
   });
   if (r.status !== 0) {
-    return c.json({ reference: nome, scarto: null, error: (r.stderr || "misura fallita").slice(0, 200) });
+    return c.json({ reference: name, scarto: null, error: (r.stderr || "misura fallita").slice(0, 200) });
   }
   try {
-    return c.json({ reference: nome, scarto: JSON.parse(r.stdout) });
+    return c.json({ reference: name, scarto: JSON.parse(r.stdout) });
   } catch {
-    return c.json({ reference: nome, scarto: null, error: "risposta illeggibile" });
+    return c.json({ reference: name, scarto: null, error: "risposta illeggibile" });
   }
 });
 

@@ -25,7 +25,7 @@ import { COMFY_HOST, RENDER_BASH, RENDER_DIR, RENDER_OUT_DIR, RENDER_SSH } from 
 const HOST = COMFY_HOST;
 const PC = RENDER_SSH;
 const BASH = RENDER_BASH;
-const USCITA = RENDER_OUT_DIR;
+const OUTPUT = RENDER_OUT_DIR;
 
 /**
  * The same remote directory, in the two spellings that machine needs.
@@ -102,20 +102,20 @@ export function workflow(prefix: string, prompt: string, p: ParametriComfy, star
 }
 
 export type VideoJob = {
-  id: number; piano: string; take: string; prompt: string; params: string;
+  id: number; shot: string; take: string; prompt: string; params: string;
   status: "pending" | "running" | "done" | "failed" | "cancelled";
   prompt_id: string | null; frames: number | null; log: string | null; error: string | null;
   created_at: number; started_at: number | null; finished_at: number | null;
 };
 
-export function accodaVideoJob(piano: string, prompt: string, take = "a", params: Partial<ParametriComfy> = {}): VideoJob {
+export function enqueueVideoJob(shot: string, prompt: string, take = "a", params: Partial<ParametriComfy> = {}): VideoJob {
   const p = { ...PARAMETRI_DEFAULT, ...params };
   const db = getDb();
   const r = db.query(
-    `INSERT INTO video_jobs (piano, take, prompt, params, status, created_at)
+    `INSERT INTO video_jobs (shot, take, prompt, params, status, created_at)
      VALUES (?, ?, ?, ?, 'pending', ?) RETURNING *`,
-  ).get(piano, take, prompt, JSON.stringify(p), Date.now()) as VideoJob;
-  avviaCoda();
+  ).get(shot, take, prompt, JSON.stringify(p), Date.now()) as VideoJob;
+  startQueue();
   return r;
 }
 
@@ -140,7 +140,7 @@ export function listaVideoJob(limit = 300): VideoJob[] {
  * ferma quella che gira, `/queue delete` toglie quelle in attesa) e segnare la
  * riga, cosi' il ciclo d'attesa esce e la coda va avanti.
  */
-export function annullaVideoJob(id: number): boolean {
+export function cancelVideoJob(id: number): boolean {
   const db = getDb();
   const j = db.query(`SELECT * FROM video_jobs WHERE id=?`).get(id) as VideoJob | null;
   if (!j || j.status === "done" || j.status === "cancelled") return false;
@@ -166,14 +166,14 @@ async function fermatiSuComfy(promptId: string | null): Promise<void> {
   await fetch(`${HOST}/interrupt`, { method: "POST" }).catch(() => {});
 }
 
-const scrivi = (id: number, campi: Record<string, unknown>) => {
-  const k = Object.keys(campi);
-  getDb().run(`UPDATE video_jobs SET ${k.map((x) => `${x}=?`).join(", ")} WHERE id=?`, [...k.map((x) => campi[x] as any), id]);
+const write = (id: number, fields: Record<string, unknown>) => {
+  const k = Object.keys(fields);
+  getDb().run(`UPDATE video_jobs SET ${k.map((x) => `${x}=?`).join(", ")} WHERE id=?`, [...k.map((x) => fields[x] as any), id]);
 };
 
-const appendi = (id: number, riga: string) => {
+const appendi = (id: number, row: string) => {
   const j = getDb().query(`SELECT log FROM video_jobs WHERE id=?`).get(id) as { log: string | null } | null;
-  scrivi(id, { log: ((j?.log ?? "") + riga + "\n").slice(-20_000) });
+  write(id, { log: ((j?.log ?? "") + row + "\n").slice(-20_000) });
 };
 
 let inCorso = false;
@@ -207,24 +207,24 @@ function riprendiIn(_pid: string): void {
     appendi(j.id, j.prompt_id
       ? "-- il server e' ripartito: mi riaggancio alla generazione --"
       : "-- il server e' ripartito prima che partisse: torna in coda --");
-    scrivi(j.id, { status: "pending" });
+    write(j.id, { status: "pending" });
   }
-  if (persi.length) avviaCoda();
+  if (persi.length) startQueue();
 }
 
 /** Una scheda, una generazione: la coda avanza da sola finche' c'e' lavoro. */
-export function avviaCoda(): void {
+export function startQueue(): void {
   if (inCorso) return;
-  const prossimo = getDb().query(`SELECT * FROM video_jobs WHERE status='pending' ORDER BY id LIMIT 1`).get() as VideoJob | null;
-  if (!prossimo) return;
+  const next = getDb().query(`SELECT * FROM video_jobs WHERE status='pending' ORDER BY id LIMIT 1`).get() as VideoJob | null;
+  if (!next) return;
   inCorso = true;
-  void esegui(prossimo)
+  void run(next)
     .catch((e) => {
-      const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(prossimo.id) as { status: string } | null;
+      const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(next.id) as { status: string } | null;
       if (ora?.status === "cancelled") return;   // fermata apposta, non e' un guasto
-      scrivi(prossimo.id, { status: "failed", error: String(e), finished_at: Date.now() });
+      write(next.id, { status: "failed", error: String(e), finished_at: Date.now() });
     })
-    .finally(() => { inCorso = false; avviaCoda(); });
+    .finally(() => { inCorso = false; startQueue(); });
 }
 
 const ssh = async (comando: string) => {
@@ -233,10 +233,10 @@ const ssh = async (comando: string) => {
   return { code: await proc.exited, out, err };
 };
 
-async function esegui(job: VideoJob): Promise<void> {
+async function run(job: VideoJob): Promise<void> {
   const p = JSON.parse(job.params) as ParametriComfy;
-  const prefix = `${job.piano}_${job.take}_${job.id}`;
-  scrivi(job.id, { status: "running", started_at: Date.now(), log: "" });
+  const prefix = `${job.shot}_${job.take}_${job.id}`;
+  write(job.id, { status: "running", started_at: Date.now(), log: "" });
   appendi(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
 
   /**
@@ -272,12 +272,12 @@ async function esegui(job: VideoJob): Promise<void> {
     const h = await fetch(`${HOST}/history/${job.prompt_id}`).then((x) => x.json() as any).catch(() => ({}));
     if (h[job.prompt_id]) {
       appendi(job.id, `ripreso: ${job.prompt_id} era gia' finito`);
-      return await raccogli(job, prefix);
+      return await collect(job, prefix);
     }
-    if (await inCodaComfy(job.prompt_id)) {
+    if (await queuedOnComfy(job.prompt_id)) {
       appendi(job.id, `ripreso: ${job.prompt_id} sta ancora girando, torno ad aspettarlo`);
       await aspetta(job, job.prompt_id, prefix, p);
-      return await raccogli(job, prefix);
+      return await collect(job, prefix);
     }
     appendi(job.id, `${job.prompt_id} non e' ne' finito ne' in coda: lo rimando`);
   }
@@ -289,15 +289,15 @@ async function esegui(job: VideoJob): Promise<void> {
   });
   if (!r.ok) throw new Error(`ComfyUI ha rifiutato: ${r.status} ${(await r.text()).slice(0, 400)}`);
   const promptId = ((await r.json()) as any).prompt_id as string;
-  scrivi(job.id, { prompt_id: promptId });
+  write(job.id, { prompt_id: promptId });
   appendi(job.id, `in coda su ComfyUI: ${promptId}`);
 
   await aspetta(job, promptId, prefix, p);
-  return await raccogli(job, prefix);
+  return await collect(job, prefix);
 }
 
 /** Quel prompt e' ancora nella coda di ComfyUI (in corso o in attesa)? */
-async function inCodaComfy(promptId: string): Promise<boolean> {
+async function queuedOnComfy(promptId: string): Promise<boolean> {
   const q = await fetch(`${HOST}/queue`).then((x) => x.json() as any).catch(() => null);
   if (!q) return false;
   const dentro = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
@@ -312,8 +312,8 @@ async function inCodaComfy(promptId: string): Promise<boolean> {
  */
 async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ParametriComfy): Promise<void> {
   const t0 = Date.now();
-  const LIMITE_SENZA_FOTOGRAMMI = 15 * 60_000;
-  let ultimoConteggio = 0, ultimoMovimento = t0;
+  const LIMIT_WITHOUT_FRAMES = 15 * 60_000;
+  let lastCount = 0, lastMove = t0;
   for (;;) {
     await Bun.sleep(5000);
     // Annullata mentre aspettava: si esce di qui, non si raccoglie niente.
@@ -325,11 +325,11 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Param
       if (st.status_str === "error") throw new Error(`ComfyUI: ${JSON.stringify(st).slice(0, 600)}`);
       return;
     }
-    const n = await contaFotogrammi(prefix);
-    if (n > ultimoConteggio) { ultimoConteggio = n; ultimoMovimento = Date.now(); }
+    const n = await countFrames(prefix);
+    if (n > lastCount) { lastCount = n; lastMove = Date.now(); }
     const attesa = Math.round((Date.now() - t0) / 1000);
     appendi(job.id, `  ${attesa}s — ${n} fotogrammi`);
-    if (Date.now() - ultimoMovimento > LIMITE_SENZA_FOTOGRAMMI) {
+    if (Date.now() - lastMove > LIMIT_WITHOUT_FRAMES) {
       throw new Error(
         `nessun fotogramma nuovo per 15 minuti (${attesa}s totali, ${n} fotogrammi). ` +
         `Parametri: ${p.width}x${p.height}/${p.length}/${p.steps}. A 704x1280 con 81 fotogrammi ` +
@@ -340,16 +340,16 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Param
 }
 
 /** Dai PNG alla ripresa: succede sul PC, e di qui passa solo l'anteprima. */
-async function raccogli(job: VideoJob, prefix: string): Promise<void> {
+async function collect(job: VideoJob, prefix: string): Promise<void> {
   appendi(job.id, "-> raccolta sul PC");
-  const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.piano} ${job.take}"`);
+  const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.shot} ${job.take}"`);
   appendi(job.id, (rac.out + rac.err).trim());
   if (rac.code !== 0) throw new Error(`raccogli.sh e' uscito ${rac.code}: ${(rac.err || rac.out).slice(0, 600)}`);
 
   // Di qui passa solo la clip leggera: e' l'unica cosa che il browser deve aprire.
-  const nome = `${job.piano}__${job.take}`;
+  const name = `${job.shot}__${job.take}`;
   for (const est of ["mp4", "jpg"]) {
-    const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${nome}.${est}`, join(videoRoot(), "prev", `${nome}.${est}`)], { stdout: "pipe", stderr: "pipe" });
+    const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${name}.${est}`, join(videoRoot(), "prev", `${name}.${est}`)], { stdout: "pipe", stderr: "pipe" });
     if ((await scp.exited) !== 0) appendi(job.id, `!! anteprima ${est} non ritirata`);
   }
   const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
@@ -363,14 +363,14 @@ async function raccogli(job: VideoJob, prefix: string): Promise<void> {
    */
   const reg = join(videoRoot(), "raccolte.json");
   const prec = existsSync(reg) ? JSON.parse(readFileSync(reg, "utf8")) as Record<string, any> : {};
-  prec[`${job.piano}__${job.take}`] = { frames, quando: Date.now(), prompt: job.prompt, remota: true };
+  prec[`${job.shot}__${job.take}`] = { frames, quando: Date.now(), prompt: job.prompt, remota: true };
   writeFileSync(reg, JSON.stringify(prec, null, 1));
 
-  scrivi(job.id, { status: "done", frames, finished_at: Date.now() });
-  appendi(job.id, `fatto: ${frames} fotogrammi, anteprima ${existsSync(join(videoRoot(), "prev", `${nome}.mp4`)) ? "pronta" : "MANCANTE"}`);
+  write(job.id, { status: "done", frames, finished_at: Date.now() });
+  appendi(job.id, `fatto: ${frames} fotogrammi, anteprima ${existsSync(join(videoRoot(), "prev", `${name}.mp4`)) ? "pronta" : "MANCANTE"}`);
 }
 
-async function contaFotogrammi(prefix: string): Promise<number> {
-  const r = await ssh(`dir /b "${USCITA}\\${prefix}_"*.png 2>nul | find /c /v ""`);
+async function countFrames(prefix: string): Promise<number> {
+  const r = await ssh(`dir /b "${OUTPUT}\\${prefix}_"*.png 2>nul | find /c /v ""`);
   return Number(r.out.trim().split(/\s+/).pop() ?? 0) || 0;
 }

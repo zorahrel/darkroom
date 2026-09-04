@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Numero, Spunta } from "../ui";
+import { NumberField, Checkbox } from "../ui";
 import {
   api,
   STEP_LABELS,
@@ -244,8 +244,8 @@ export default function PipelineBar({
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-[12px] text-neutral-400">
                     variazioni
-                    <Numero valore={genCount} onCambia={(v) => setGenCount(v || 1)}
-                            min={1} max={20} larghezza={64} />
+                    <NumberField value={genCount} onChange={(v) => setGenCount(v || 1)}
+                            min={1} max={20} width={64} />
                   </label>
                   <button
                     onClick={generateFromPrompt}
@@ -308,7 +308,7 @@ export default function PipelineBar({
     });
     // OUTPUT — ultimo chip: esporta le preferite col grade, a piena risoluzione.
     groups.push({
-      id: "esporta",
+      id: "export",
       label: "Esporta",
       icon: <IconDownload />,
       render: () => (
@@ -334,9 +334,9 @@ export default function PipelineBar({
             </button>
             {run.msg && <span className="text-xs text-neutral-400">{run.msg}</span>}
           </div>
-          <Spunta segnata={gradedView} onCambia={setGradedView}>
+          <Checkbox segnata={gradedView} onChange={setGradedView}>
             Anteprima gradata nella griglia
-          </Spunta>
+          </Checkbox>
         </div>
       ),
     });
@@ -446,10 +446,10 @@ export default function PipelineBar({
         )}
         {saving && <span className="text-amber-400">salvo…</span>}
         <div className="flex-1" />
-        <Spunta segnata={gradedView} onCambia={setGradedView}
-                titolo="Mostra le foto della griglia già passate dalla pipeline, invece che grezze">
+        <Checkbox segnata={gradedView} onChange={setGradedView}
+                title="Mostra le foto della griglia già passate dalla pipeline, invece che grezze">
           anteprima gradata nella griglia
-        </Spunta>
+        </Checkbox>
       </div>
     </div>
   );

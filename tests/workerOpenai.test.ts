@@ -262,11 +262,11 @@ describe("si paga la chiamata, non la versione salvata", () => {
       ).get();
       expect(dopo!.n).toBe(prima + 1);
       // Il costo registrato e' quello vero, non una stima da tabella.
-      const ultima = db().query<{ cost_usd: number; output_tokens: number }, []>(
+      const last = db().query<{ cost_usd: number; output_tokens: number }, []>(
         "SELECT cost_usd, output_tokens FROM api_calls ORDER BY id DESC LIMIT 1",
       ).get();
-      expect(ultima!.output_tokens).toBe(7024);
-      expect(ultima!.cost_usd).toBeCloseTo(0.2107, 4);
+      expect(last!.output_tokens).toBe(7024);
+      expect(last!.cost_usd).toBeCloseTo(0.2107, 4);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -355,7 +355,7 @@ describe("il batch non e' una porta di servizio", () => {
     process.env.OPENAI_API_KEY = "sk-test-batchcap";
     process.env.OPENAI_DAILY_CAP_USD = "0.01";
     let chiamate = 0;
-    let uscito = false;
+    let exited = false;
     globalThis.fetch = (async () => {
       chiamate++;
       return new Response(JSON.stringify({ id: "x" }), { status: 200 });
@@ -363,7 +363,7 @@ describe("il batch non e' una porta di servizio", () => {
     // process.exit(1) qui e' il comportamento voluto: si intercetta per poterlo
     // osservare senza far morire il runner dei test.
     process.exit = ((code?: number) => {
-      uscito = code === 1;
+      exited = code === 1;
       throw new Error("__exit__");
     }) as never;
     const file = "/tmp/darkroom-batch-cap.txt";
@@ -379,7 +379,7 @@ describe("il batch non e' una porta di servizio", () => {
       await import(`../scripts/openai_batch.ts?bcap=${Date.now()}${Math.random()}`).catch((e) => {
         if (!String(e?.message).includes("__exit__")) throw e;
       });
-      expect(uscito).toBe(true);
+      expect(exited).toBe(true);
       // Il punto: niente upload, niente batch creato, niente speso.
       expect(chiamate).toBe(0);
     } finally {
@@ -396,7 +396,7 @@ describe("il batch non e' una porta di servizio", () => {
   test("lo sconto batch dimezza il costo senza falsare i token", async () => {
     const { db } = await import("../server/db.ts");
     const mod = await import(`../server/worker-openai.ts?sconto=${Date.now()}${Math.random()}`);
-    mod.registraChiamata("gpt-image-2", 7024, true, "test-sconto", 0.5);
+    mod.recordCall("gpt-image-2", 7024, true, "test-sconto", 0.5);
     const r = db()
       .query<{ output_tokens: number; cost_usd: number }, []>(
         "SELECT output_tokens, cost_usd FROM api_calls WHERE origin='test-sconto' ORDER BY id DESC LIMIT 1",

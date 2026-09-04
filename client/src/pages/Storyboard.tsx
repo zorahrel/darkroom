@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Numero, Scegli } from "../ui";
+import { NumberField, Scegli } from "../ui";
 import {
   api,
   panelImageUrl,
@@ -208,8 +208,8 @@ function BeatSheet({
         </label>
         <label className="text-xs text-neutral-400 space-y-1">
           <span className="block">Durata (ms)</span>
-          <Numero valore={duration} onCambia={setDuration}
-                  min={100} max={600000} passo={100} larghezza={112} />
+          <NumberField value={duration} onChange={setDuration}
+                  min={100} max={600000} step={100} width={112} />
         </label>
         {characters.length > 0 && (
           <div className="text-xs text-neutral-400 space-y-1">
@@ -350,9 +350,9 @@ function PanelBoard({
                   placeholder="Scena"
                   className="flex-1 min-w-0 text-xs bg-neutral-950 border border-neutral-800 rounded px-2 py-1"
                 />
-                <Numero valore={panel.duration_ms} min={100} max={600000} passo={100}
-                        larghezza={80} titolo="Durata (ms)"
-                        onCambia={(ms) => {
+                <NumberField value={panel.duration_ms} min={100} max={600000} step={100}
+                        width={80} title="Durata (ms)"
+                        onChange={(ms) => {
                           if (Number.isFinite(ms) && ms > 0 && ms !== panel.duration_ms) {
                             onPatch(panel.id, { duration_ms: ms });
                           }
@@ -464,10 +464,10 @@ function CastPanel({
           placeholder="Descrizione (cappotto rosso…)"
           className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-64"
         />
-        <Scegli valore={ref} onCambia={setRef} larghezza={190} taglia="m"
-                titolo="Foto di riferimento"
-                voci={[{ v: "", testo: "Nessun riferimento" },
-                       ...photos.map((p) => ({ v: p.id, testo: p.id }))]} />
+        <Scegli value={ref} onChange={setRef} width={190} taglia="m"
+                title="Foto di riferimento"
+                items={[{ v: "", text: "Nessun riferimento" },
+                       ...photos.map((p) => ({ v: p.id, text: p.id }))]} />
         <button
           disabled={!name.trim() || busy}
           onClick={() => {
@@ -580,16 +580,16 @@ function BoardSettings({
         <div className="absolute right-0 mt-1 z-20 w-80 rounded-lg border border-neutral-700 bg-neutral-900 p-3 space-y-2 shadow-xl">
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>Formato</span>
-            <Scegli valore={String(settings.aspect_ratio)} larghezza={296} taglia="m"
-                    onCambia={(v) => onChange({ aspect_ratio: Number(v) })}
-                    voci={[{ v: String(16 / 9), testo: "16:9" }, { v: "2.39", testo: "2.39:1" },
-                           { v: String(4 / 3), testo: "4:3" }, { v: "1", testo: "1:1" },
-                           { v: String(9 / 16), testo: "9:16" }]} />
+            <Scegli value={String(settings.aspect_ratio)} width={296} taglia="m"
+                    onChange={(v) => onChange({ aspect_ratio: Number(v) })}
+                    items={[{ v: String(16 / 9), text: "16:9" }, { v: "2.39", text: "2.39:1" },
+                           { v: String(4 / 3), text: "4:3" }, { v: "1", text: "1:1" },
+                           { v: String(9 / 16), text: "9:16" }]} />
           </label>
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>FPS</span>
-            <Numero valore={settings.fps} min={1} max={120} larghezza={296}
-                    onCambia={(fps) => { if (fps !== settings.fps) onChange({ fps }); }} />
+            <NumberField value={settings.fps} min={1} max={120} width={296}
+                    onChange={(fps) => { if (fps !== settings.fps) onChange({ fps }); }} />
           </label>
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>Stile dei pannelli (preambolo del prompt)</span>

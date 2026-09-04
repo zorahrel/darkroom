@@ -11,35 +11,35 @@ import { describe, expect, test } from "bun:test";
  * Qui si prova la decisione, che è la parte che si può sbagliare: su quali
  * stati agire, e quando bisogna anche dirlo a ComfyUI.
  */
-export function decidi(stato: string | undefined, promptId: string | null) {
-  if (!stato || stato === "done" || stato === "cancelled") {
-    return { annulla: false, avvisaComfy: false };
+export function decide(state: string | undefined, promptId: string | null) {
+  if (!state || state === "done" || state === "cancelled") {
+    return { cancel: false, notifyComfy: false };
   }
-  return { annulla: true, avvisaComfy: stato === "running" && !!promptId };
+  return { cancel: true, notifyComfy: state === "running" && !!promptId };
 }
 
 describe("fermare una generazione", () => {
   test("in coda: si toglie e basta, la scheda non ne sa niente", () => {
-    expect(decidi("pending", null)).toEqual({ annulla: true, avvisaComfy: false });
+    expect(decide("pending", null)).toEqual({ cancel: true, notifyComfy: false });
   });
 
   test("in corso: si toglie E si dice alla scheda di smettere", () => {
-    expect(decidi("running", "abc")).toEqual({ annulla: true, avvisaComfy: true });
+    expect(decide("running", "abc")).toEqual({ cancel: true, notifyComfy: true });
   });
 
   test("in corso ma non ancora spedita: niente da dire alla scheda", () => {
-    expect(decidi("running", null)).toEqual({ annulla: true, avvisaComfy: false });
+    expect(decide("running", null)).toEqual({ cancel: true, notifyComfy: false });
   });
 
   test("gia' finita: non si tocca — interrompere adesso fermerebbe quella di qualcun altro", () => {
-    expect(decidi("done", "abc")).toEqual({ annulla: false, avvisaComfy: false });
+    expect(decide("done", "abc")).toEqual({ cancel: false, notifyComfy: false });
   });
 
   test("gia' annullata: annullarla due volte non fa niente", () => {
-    expect(decidi("cancelled", "abc")).toEqual({ annulla: false, avvisaComfy: false });
+    expect(decide("cancelled", "abc")).toEqual({ cancel: false, notifyComfy: false });
   });
 
   test("un id che non esiste non e' un'occasione per interrompere a caso", () => {
-    expect(decidi(undefined, "abc")).toEqual({ annulla: false, avvisaComfy: false });
+    expect(decide(undefined, "abc")).toEqual({ cancel: false, notifyComfy: false });
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, refUrl, pq } from "../api";
-import { Pastiglie } from "../ui";
-import { useStatoVista, leggiUnoDi } from "../statoVista";
+import { Pills } from "../ui";
+import { useViewState, readOneOf } from "../viewState";
 
 // Dal riferimento alla ricetta (REF-02).
 //
@@ -13,12 +13,12 @@ import { useStatoVista, leggiUnoDi } from "../statoVista";
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
 type Reference = { file: string; bytes: number; modified_at: number; usata_in: number };
 
-export default function RiferimentiPage() {
+export default function ReferencesPage() {
   const [path, setPath] = useState("");
-  const [testo, setTesto] = useState("");
-  const [nome, setNome] = useState("");
+  const [text, setText] = useState("");
+  const [name, setName] = useState("");
   const [origine, setOrigine] = useState<string | null>(null);
-  const [stato, setStato] = useState<{ tipo: "attesa" | "errore" | "ok"; msg: string } | null>(null);
+  const [state, setState] = useState<{ tipo: "attesa" | "errore" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [refs, setRefs] = useState<Reference[]>([]);
   const [sopra, setSopra] = useState(false);
@@ -26,12 +26,12 @@ export default function RiferimentiPage() {
    *  reference a zero e' una passata intera andata nella direzione sbagliata
    *  senza che nessuno lo vedesse (su profilo e' successo 12 volte su 12), e
    *  con dodici miniature in griglia l'ambra da sola non basta a trovarle. */
-  const [filtro, setFiltro] = useStatoVista<"tutte" | "usate" | "mai">("mostra", "tutte", {
-    leggi: leggiUnoDi(["tutte", "usate", "mai"] as const),
+  const [filter, setFilter] = useViewState<"tutte" | "usate" | "mai">("mostra", "tutte", {
+    read: readOneOf(["tutte", "usate", "mai"] as const),
     memoria: "darkroom.refs.mostra",
   });
 
-  const conteggi = useMemo(
+  const counts = useMemo(
     () => ({
       tutte: refs.length,
       usate: refs.filter((r) => r.usata_in > 0).length,
@@ -42,16 +42,16 @@ export default function RiferimentiPage() {
   /** Le mai usate in cima anche dentro il filtro «tutte»: sono quelle su cui
    *  c'e' qualcosa da decidere. */
   const visibili = useMemo(() => {
-    const scelte =
-      filtro === "usate"
+    const picks =
+      filter === "usate"
         ? refs.filter((r) => r.usata_in > 0)
-        : filtro === "mai"
+        : filter === "mai"
           ? refs.filter((r) => r.usata_in === 0)
           : refs;
-    return [...scelte].sort((a, b) => (a.usata_in === 0 ? 0 : 1) - (b.usata_in === 0 ? 0 : 1));
-  }, [refs, filtro]);
+    return [...picks].sort((a, b) => (a.usata_in === 0 ? 0 : 1) - (b.usata_in === 0 ? 0 : 1));
+  }, [refs, filter]);
 
-  const carica = useCallback(async () => {
+  const load = useCallback(async () => {
     const r = await jsonFetch<{ recipes: Recipe[] }>("/api/recipes");
     setRecipes(r.recipes);
     // Le reference del progetto: senza questa lista la pagina chiedeva di
@@ -62,16 +62,16 @@ export default function RiferimentiPage() {
     setRefs(q.references);
   }, []);
   useEffect(() => {
-    carica();
-  }, [carica]);
+    load();
+  }, [load]);
 
   /** Carica i file scelti, uno per volta: un errore sul terzo non deve far
    *  perdere i primi due, e dirlo su quale e' fallito serve piu' di un
    *  "caricamento fallito" collettivo. */
-  async function carica_file(files: FileList | File[]) {
+  async function loadFiles(files: FileList | File[]) {
     const lista = [...files];
     if (lista.length === 0) return;
-    setStato({ tipo: "attesa", msg: `Carico ${lista.length} file…` });
+    setState({ tipo: "attesa", msg: `Carico ${lista.length} file…` });
     const errori: string[] = [];
     for (const f of lista) {
       const fd = new FormData();
@@ -86,8 +86,8 @@ export default function RiferimentiPage() {
         errori.push(`${f.name}: ${String(e)}`);
       }
     }
-    await carica();
-    setStato(
+    await load();
+    setState(
       errori.length === 0
         ? { tipo: "ok", msg: `Caricati ${lista.length} riferimenti.` }
         : { tipo: "errore", msg: errori.join(" · ") },
@@ -95,9 +95,9 @@ export default function RiferimentiPage() {
   }
 
   async function estrai() {
-    setStato({ tipo: "attesa", msg: "Leggo il riferimento…" });
+    setState({ tipo: "attesa", msg: "Leggo il riferimento…" });
     try {
-      const r = await jsonFetch<{ testo: string; aspetti: number; mancanti: string[]; from_reference: string }>(
+      const r = await jsonFetch<{ text: string; aspetti: number; missing: string[]; from_reference: string }>(
         "/api/reference/extract",
         {
           method: "POST",
@@ -105,33 +105,33 @@ export default function RiferimentiPage() {
           body: JSON.stringify({ path }),
         },
       );
-      setTesto(r.testo);
+      setText(r.text);
       setOrigine(r.from_reference);
-      setNome((n) => n || r.from_reference.replace(/\.[^.]+$/, ""));
+      setName((n) => n || r.from_reference.replace(/\.[^.]+$/, ""));
       // Cio' che non e' stato descritto va detto: e' la parte che dovra'
       // scrivere una persona, e se resta implicita non la scrive nessuno.
-      setStato({
+      setState({
         tipo: "ok",
-        msg: r.mancanti.length
-          ? `Descritti ${r.aspetti} aspetti su 5. Non è riuscito a descrivere: ${r.mancanti.join(", ")} — aggiungili a mano.`
+        msg: r.missing.length
+          ? `Descritti ${r.aspetti} aspetti su 5. Non è riuscito a descrivere: ${r.missing.join(", ")} — aggiungili a mano.`
           : `Descritti tutti e 5 gli aspetti.`,
       });
     } catch (e) {
-      setStato({ tipo: "errore", msg: String((e as Error).message || e) });
+      setState({ tipo: "errore", msg: String((e as Error).message || e) });
     }
   }
 
-  async function salva() {
+  async function save() {
     try {
       await jsonFetch("/api/recipes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nome, body: testo, from_reference: origine }),
+        body: JSON.stringify({ name: name, body: text, from_reference: origine }),
       });
-      setStato({ tipo: "ok", msg: `Ricetta "${nome}" salvata.` });
-      carica();
+      setState({ tipo: "ok", msg: `Ricetta "${name}" salvata.` });
+      load();
     } catch (e) {
-      setStato({ tipo: "errore", msg: String((e as Error).message || e) });
+      setState({ tipo: "errore", msg: String((e as Error).message || e) });
     }
   }
 
@@ -156,7 +156,7 @@ export default function RiferimentiPage() {
         onDrop={(e) => {
           e.preventDefault();
           setSopra(false);
-          if (e.dataTransfer.files.length) carica_file(e.dataTransfer.files);
+          if (e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
         }}
         className={
           "space-y-2 border border-dashed p-3 transition-colors " +
@@ -167,15 +167,15 @@ export default function RiferimentiPage() {
             <h3 className="font-mono text-[10px] uppercase tracking-widest text-amber-500">
               riferimenti del progetto
             </h3>
-            <Pastiglie
-              voci={[
-                { id: "tutte" as const, nome: "tutte" },
-                { id: "usate" as const, nome: "usate" },
-                { id: "mai" as const, nome: "mai usate" },
+            <Pills
+              items={[
+                { id: "tutte" as const, name: "tutte" },
+                { id: "usate" as const, name: "usate" },
+                { id: "mai" as const, name: "mai usate" },
               ]}
-              scelta={filtro}
-              onScegli={setFiltro}
-              conteggi={conteggi}
+              pick={filter}
+              onScegli={setFilter}
+              counts={counts}
               neutra="tutte"
             />
             <label className="ml-auto text-[11px] text-neutral-400 hover:text-amber-500 cursor-pointer">
@@ -185,7 +185,7 @@ export default function RiferimentiPage() {
                 multiple
                 className="hidden"
                 onChange={(e) => {
-                  if (e.target.files) carica_file(e.target.files);
+                  if (e.target.files) loadFiles(e.target.files);
                   e.target.value = "";
                 }}
               />
@@ -201,7 +201,7 @@ export default function RiferimentiPage() {
                stesso messaggio del caso «non c'e' niente». */
             <p className="text-xs text-neutral-500 py-4 text-center">
               Nessuna reference in questo gruppo.{" "}
-              <button onClick={() => setFiltro("tutte")} className="text-amber-500 hover:underline">
+              <button onClick={() => setFilter("tutte")} className="text-amber-500 hover:underline">
                 mostra tutte
               </button>
             </p>
@@ -249,40 +249,40 @@ export default function RiferimentiPage() {
         />
         <button
           onClick={estrai}
-          disabled={!path || stato?.tipo === "attesa"}
+          disabled={!path || state?.tipo === "attesa"}
           className="px-4 py-2 text-sm border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
         >
           Estrai
         </button>
       </div>
 
-      {stato && (
+      {state && (
         <div
           className={
             "text-sm border-l-2 pl-3 py-1 " +
-            (stato.tipo === "errore"
+            (state.tipo === "errore"
               ? "border-red-500 text-red-400"
-              : stato.tipo === "attesa"
+              : state.tipo === "attesa"
                 ? "border-neutral-600 text-neutral-400"
                 : "border-amber-500 text-neutral-300")
           }
         >
-          {stato.msg}
+          {state.msg}
         </div>
       )}
 
-      {testo && (
+      {text && (
         <div className="space-y-3">
           <textarea
             rows={7}
-            value={testo}
-            onChange={(e) => setTesto(e.target.value)}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
             className="w-full text-sm bg-transparent border border-neutral-700 p-3 leading-relaxed resize-y"
           />
           <div className="flex items-center gap-2">
             <input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="nome della ricetta"
               className="bg-transparent border border-neutral-700 px-3 py-2 text-sm"
             />
@@ -290,8 +290,8 @@ export default function RiferimentiPage() {
               <span className="font-mono text-[11px] text-neutral-400">da {origine}</span>
             )}
             <button
-              onClick={salva}
-              disabled={!nome || testo.trim().length < 25}
+              onClick={save}
+              disabled={!name || text.trim().length < 25}
               className="ml-auto px-4 py-2 text-sm border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
             >
               Salva come ricetta
@@ -319,7 +319,7 @@ export default function RiferimentiPage() {
                   onClick={async (e) => {
                     e.preventDefault();
                     await jsonFetch(`/api/recipes/${r.id}`, { method: "DELETE" });
-                    carica();
+                    load();
                   }}
                 >
                   elimina

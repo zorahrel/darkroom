@@ -69,12 +69,12 @@ referenceRoutes.get("/api/references", (c) => {
   return c.json({ references });
 });
 
-const ASPETTI: { chiave: string; domanda: string }[] = [
-  { chiave: "luce", domanda: "Describe only the lighting: direction, hardness, key-to-fill ratio, where the shadows fall." },
-  { chiave: "tonalita", domanda: "Describe only the tonality: black and white or colour, contrast, how deep the blacks are, whether highlights are clipped or lifted." },
-  { chiave: "inquadratura", domanda: "Describe only the framing: how tight the crop is, head position, aspect ratio, camera height and distance." },
-  { chiave: "pelle", domanda: "Describe only the skin rendering: texture, grain, sharpness, whether pores are visible or smoothed." },
-  { chiave: "resa", domanda: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
+const ASPETTI: { key: string; domanda: string }[] = [
+  { key: "luce", domanda: "Describe only the lighting: direction, hardness, key-to-fill ratio, where the shadows fall." },
+  { key: "tonalita", domanda: "Describe only the tonality: black and white or colour, contrast, how deep the blacks are, whether highlights are clipped or lifted." },
+  { key: "inquadratura", domanda: "Describe only the framing: how tight the crop is, head position, aspect ratio, camera height and distance." },
+  { key: "pelle", domanda: "Describe only the skin rendering: texture, grain, sharpness, whether pores are visible or smoothed." },
+  { key: "resa", domanda: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
 ];
 
 async function chiedi(immagine: string, domanda: string): Promise<string | null> {
@@ -103,27 +103,27 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
       : richiesto;
   if (!path || !existsSync(path)) return c.json({ error: "immagine non trovata" }, 400);
 
-  const parti: string[] = [];
-  const mancanti: string[] = [];
+  const parts: string[] = [];
+  const missing: string[] = [];
   for (const a of ASPETTI) {
     const r = await chiedi(path, a.domanda);
-    if (r) parti.push(r);
-    else mancanti.push(a.chiave);
+    if (r) parts.push(r);
+    else missing.push(a.key);
   }
 
   // Meno di tre aspetti su cinque non e' una ricetta: e' un abbozzo che
   // sembrerebbe completo una volta salvato.
-  if (parti.length < 3) {
+  if (parts.length < 3) {
     return c.json(
-      { error: `estrazione non riuscita: descritti ${parti.length} aspetti su ${ASPETTI.length}`, mancanti },
+      { error: `estrazione non riuscita: descritti ${parts.length} aspetti su ${ASPETTI.length}`, missing },
       502,
     );
   }
 
   return c.json({
-    testo: parti.join(" "),
-    aspetti: parti.length,
-    mancanti,
+    text: parts.join(" "),
+    aspetti: parts.length,
+    missing,
     from_reference: path.split("/").pop() ?? path,
   });
 });
@@ -150,20 +150,20 @@ referenceRoutes.post("/api/references", async (c) => {
   // segmento e si ammette un alfabeto ristretto. Sostituire le sole barre
   // lasciava "../../fuga.png" come "_.._fuga.png": innocuo per il filesystem,
   // ma e' un nome che porta in giro l'intento di chi l'ha mandato.
-  const ultimo = (file.name || "reference.png").split(/[/\\]/).pop() ?? "reference.png";
-  const pulito =
-    ultimo
+  const last = (file.name || "reference.png").split(/[/\\]/).pop() ?? "reference.png";
+  const clean =
+    last
       .replace(/[^A-Za-z0-9._-]/g, "_")
       .replace(/\.{2,}/g, ".")
       .replace(/^[._-]+/, "") || "reference.png";
   // I filesystem si fermano a 255 byte per nome: oltre, la scrittura esplode
   // con ENAMETOOLONG invece di rifiutare educatamente. Si accorcia la parte
   // davanti e si tiene l'estensione, che e' quella che conta.
-  const troppo_lungo = Buffer.byteLength(pulito) > 200;
-  const nome_ok = troppo_lungo
-    ? `${pulito.slice(0, 180)}.${pulito.split(".").pop()}`
-    : pulito;
-  const ext = nome_ok.split(".").pop()?.toLowerCase() ?? "";
+  const tooLong = Buffer.byteLength(clean) > 200;
+  const safeName = tooLong
+    ? `${clean.slice(0, 180)}.${clean.split(".").pop()}`
+    : clean;
+  const ext = safeName.split(".").pop()?.toLowerCase() ?? "";
   if (!ESTENSIONI.has(ext)) {
     return c.json({ error: `formato non ammesso (.${ext}): servono png, jpg o webp` }, 400);
   }
@@ -177,15 +177,15 @@ referenceRoutes.post("/api/references", async (c) => {
   // Un nome gia' preso non si sovrascrive: la reference vecchia potrebbe essere
   // quella con cui sono state generate delle varianti, e sostituirla
   // cambierebbe il significato del loro lineage senza dirlo a nessuno.
-  let nome = nome_ok;
-  if (existsSync(join(dir, nome))) {
-    const base = nome_ok.slice(0, -(ext.length + 1));
+  let name = safeName;
+  if (existsSync(join(dir, name))) {
+    const base = safeName.slice(0, -(ext.length + 1));
     let i = 2;
     while (existsSync(join(dir, `${base}-${i}.${ext}`))) i++;
-    nome = `${base}-${i}.${ext}`;
+    name = `${base}-${i}.${ext}`;
   }
-  writeFileSync(join(dir, nome), Buffer.from(await file.arrayBuffer()));
-  return c.json({ file: nome, rinominato: nome !== nome_ok || troppo_lungo });
+  writeFileSync(join(dir, name), Buffer.from(await file.arrayBuffer()));
+  return c.json({ file: name, rinominato: name !== safeName || tooLong });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>

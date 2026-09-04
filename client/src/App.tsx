@@ -20,9 +20,9 @@ export type OutletCtx = {
   setRailOpen: (v: boolean) => void;
 };
 import JobsPanel from "./components/JobsPanel";
-import { Bott, Targa } from "./ui";
+import { Bott, Badge } from "./ui";
 import { LayoutGrid, SlidersHorizontal, Wrench, type LucideIcon } from "lucide-react";
-import { VISTE, vista } from "./viste";
+import { VIEWS, view } from "./views";
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -45,7 +45,7 @@ export default function App() {
   /** Spesa dei backend a pagamento: sta accanto agli altri stati "connessi"
    *  della barra, perche' e' la stessa domanda ("posso generare?") a cui
    *  rispondono il browser vivo e la coda dei lavori. */
-  const [spesa, setSpesa] = useState<StudioOverview["worker"]["spesa"]>(null);
+  const [spend, setSpend] = useState<StudioOverview["worker"]["spend"]>(null);
   // Avviso "stai guardando una dashboard vecchia". Nasce da un caso reale: per
   // nove giorni il dist servito era piu' vecchio del codice, e ogni modifica
   // alla UI sembrava non essere stata fatta.
@@ -72,18 +72,18 @@ export default function App() {
 
   // Project list for the switcher (also tells us if we're multi-project).
   useEffect(() => {
-    const carica = () =>
+    const load = () =>
       api
         .studioProjects()
         .then((r) => {
           setProjects(r.projects);
-          setSpesa(r.worker.spesa ?? null);
+          setSpend(r.worker.spend ?? null);
         })
         .catch(() => {});
-    carica();
+    load();
     // La spesa cambia a ogni generazione: senza ripolling resterebbe ferma al
     // valore del caricamento, cioe' sbagliata proprio mentre si sta spendendo.
-    const t = setInterval(carica, 20000);
+    const t = setInterval(load, 20000);
     return () => clearInterval(t);
   }, []);
 
@@ -149,7 +149,7 @@ export default function App() {
   useEffect(() => {
     if (!pid || !activeProject || activeProject.kind === "photo") return;
     if (location.pathname.replace(/\/+$/, "") !== `/p/${pid}`) return;
-    navigate(vista(activeProject.kind).rotta(pid), { replace: true });
+    navigate(view(activeProject.kind).rotta(pid), { replace: true });
   }, [pid, activeProject, location.pathname, navigate]);
 
   /**
@@ -161,21 +161,21 @@ export default function App() {
    * testata smettevano di coincidere. Con `--h-testata` c'e' una fonte sola, e
    * si aggiorna quando la testata va a capo su una finestra stretta.
    */
-  const testata = useRef<HTMLElement>(null);
+  const header = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
-    const el = testata.current;
+    const el = header.current;
     if (!el) return;
-    const misura = () =>
+    const measure = () =>
       document.documentElement.style.setProperty("--h-testata", `${Math.round(el.getBoundingClientRect().height)}px`);
-    misura();
-    const ro = new ResizeObserver(misura);
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
   return (
     <div className="min-h-full flex flex-col">
-      <header ref={testata} className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
+      <header ref={header} className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
         <div
           className={
             "mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
@@ -194,10 +194,10 @@ export default function App() {
               Darkroom
             </Link>
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
-              <ViewTab to="/" icona={Wrench} current={location.pathname === "/" || location.pathname === "/strumenti"}>
+              <ViewTab to="/" icon={Wrench} current={location.pathname === "/" || location.pathname === "/strumenti"}>
                 Strumenti
               </ViewTab>
-              <ViewTab to="/studio" icona={LayoutGrid} current={location.pathname.startsWith("/studio")}>
+              <ViewTab to="/studio" icon={LayoutGrid} current={location.pathname.startsWith("/studio")}>
                 Progetti
                 {projects.length > 0 && (
                   <span className="ml-1 text-neutral-500 tabular-nums">{projects.length}</span>
@@ -220,15 +220,15 @@ export default function App() {
               nasconde mai davanti a roba che c'e'. */}
           {pid && activeProject && (
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
-              {VISTE.filter((v) =>
+              {VIEWS.filter((v) =>
                 activeProject.views.includes(v.id) ||
                 (v.id === "storyboard" && (activeProject.stats?.panels ?? 0) > 0) ||
-                (v.id === "video" && !!activeProject.video?.tagli),
+                (v.id === "video" && !!activeProject.video?.cuts),
               ).flatMap((v) => {
-                const I = v.icona;
+                const I = v.icon;
                 if (v.id === "video") {
                   return [
-                    <ViewTab key="video" to={`/p/${pid}/video`} icona={I}
+                    <ViewTab key="video" to={`/p/${pid}/video`} icon={I}
                              current={location.pathname.endsWith("/video")}>
                       Montaggio
                     </ViewTab>,
@@ -240,14 +240,14 @@ export default function App() {
                 }
                 if (v.id === "storyboard") {
                   return [
-                    <ViewTab key="sb" to={`/p/${pid}/storyboard`} icona={I}
+                    <ViewTab key="sb" to={`/p/${pid}/storyboard`} icon={I}
                              current={location.pathname.includes("/storyboard")}>
                       Storyboard
                     </ViewTab>,
                   ];
                 }
                 return [
-                  <ViewTab key="foto" to={`/p/${pid}`} icona={I}
+                  <ViewTab key="foto" to={`/p/${pid}`} icon={I}
                            current={
                              location.pathname.startsWith("/p/") &&
                              !location.pathname.includes("/orphans") &&
@@ -290,8 +290,8 @@ export default function App() {
                 voleva dire niente, e nonostante questo era la cosa più
                 appariscente dello schermo. */}
             {health && !health.browser && (
-              <Bott peso="pericolo" taglia="m" disabilitato={launching}
-                    titolo={health.hint ?? ""}
+              <Bott weight="pericolo" taglia="m" disabilitato={launching}
+                    title={health.hint ?? ""}
                     onClick={async () => {
                       setLaunching(true);
                       try {
@@ -307,23 +307,23 @@ export default function App() {
               </Bott>
             )}
             {jobs?.runner?.paused && jobs.runner.paused_until && (
-              <Targa tono="attesa"
-                     titolo={`Limite ChatGPT raggiunto. Riparte da sola alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}>
+              <Badge tono="attesa"
+                     title={`Limite ChatGPT raggiunto. Riparte da sola alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}>
                 ⏸ coda ferma fino alle{" "}
                 {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </Targa>
+              </Badge>
             )}
 
             {activeProject?.views.includes("photo") && (
-              <Bott peso="quieto" taglia="m" attivo={railOpen} onClick={() => setRailOpen(!railOpen)}
-                    titolo={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
+              <Bott weight="quieto" taglia="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
+                    title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
                     className="hidden lg:inline-flex">
                 <SlidersHorizontal className="w-4 h-4" aria-hidden />
               </Bott>
             )}
 
             <Bott taglia="m" onClick={() => setShowJobs((v) => !v)}
-                  titolo="Le generazioni in corso, quelle fatte e quelle fallite">
+                  title="Le generazioni in corso, quelle fatte e quelle fallite">
               Lavori
               <span className={activeJobs > 0 ? "text-sky-300" : "text-neutral-400"}>
                 {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
@@ -333,23 +333,23 @@ export default function App() {
             {/* Speso, non "residuo": il saldo non e' leggibile con una chiave di
                 progetto (403, manca lo scope api.usage.read), e un numero
                 inventato in barra sarebbe peggio di nessun numero. */}
-            {spesa && spesa.immagini > 0 && (
-              <Targa
-                tono={spesa.usd >= 5 ? "attesa" : "neutro"}
-                titolo={
-                  `${spesa.immagini} chiamate a ${spesa.modello}, sommando i token che l'API riporta a ogni richiesta. ` +
+            {spend && spend.immagini > 0 && (
+              <Badge
+                tono={spend.usd >= 5 ? "attesa" : "neutro"}
+                title={
+                  `${spend.immagini} chiamate a ${spend.modello}, sommando i token che l'API riporta a ogni richiesta. ` +
                   `E' una STIMA DAL BASSO: conta le chiamate passate da Darkroom, non quelle fatte da script esterni ` +
                   `prima che venissero registrate, e non include tasse o cambio valuta. Il totale vero sta su ` +
                   `platform.openai.com/usage: OpenAI non lo espone a una chiave di progetto (403, manca lo scope api.usage.read).`
                 }
               >
-                ~${spesa.usd.toFixed(2)} spesi
-              </Targa>
+                ~${spend.usd.toFixed(2)} spesi
+              </Badge>
             )}
 
             {pid && activeProject?.kind !== "video" && activeProject?.kind !== "storyboard" && (
               <Bott taglia="m"
-                    titolo="Copia le preferite, già gradate, in una cartella fuori dal progetto"
+                    title="Copia le preferite, già gradate, in una cartella fuori dal progetto"
                     onClick={async () => {
                       const r = await api.exportFavorites();
                       alert(`Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`);
@@ -506,7 +506,7 @@ function ViewTab({
   to,
   current,
   children,
-  icona: I,
+  icon: I,
 }: {
   to: string;
   current: boolean;
@@ -514,7 +514,7 @@ function ViewTab({
   /** L'icona sta sulla prima scheda di una famiglia: "Montaggio" e "Scelta"
    *  sono la stessa vista in due momenti, e due icone uguali di fila non
    *  aiutano a distinguerle. */
-  icona?: LucideIcon;
+  icon?: LucideIcon;
 }) {
   return (
     <Link

@@ -13,38 +13,38 @@ import type { ProjectKind } from "./api";
  * le schede della barra in alto e la finestra delle impostazioni: tre posti che
  * devono dire la stessa parola.
  */
-export type Vista = {
+export type View = {
   id: ProjectKind;
-  nome: string;
-  icona: LucideIcon;
+  name: string;
+  icon: LucideIcon;
   /** Che cosa ci si fa. Va nel titolo del tasto, non in un manuale. */
   spiega: string;
   /** Dove porta, dentro un progetto. */
   rotta: (pid: string) => string;
 };
 
-export const VISTE: Vista[] = [
+export const VIEWS: View[] = [
   {
     id: "photo",
-    nome: "foto",
-    icona: Images,
+    name: "foto",
+    icon: Images,
     spiega: "Galleria: griglia, versioni, colore, esportazione.",
     rotta: (pid) => `/p/${pid}`,
   },
   {
     id: "storyboard",
-    nome: "storyboard",
-    icona: Clapperboard,
+    name: "storyboard",
+    icon: Clapperboard,
     spiega: "Pannelli in sequenza da una scaletta, con durate e personaggi.",
     rotta: (pid) => `/p/${pid}/storyboard`,
   },
   {
     id: "video",
-    nome: "video",
-    icona: Film,
+    name: "video",
+    icon: Film,
     spiega: "Montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza.",
     rotta: (pid) => `/p/${pid}/video`,
   },
 ];
 
-export const vista = (id: ProjectKind): Vista => VISTE.find((v) => v.id === id) ?? VISTE[0]!;
+export const view = (id: ProjectKind): View => VIEWS.find((v) => v.id === id) ?? VIEWS[0]!;

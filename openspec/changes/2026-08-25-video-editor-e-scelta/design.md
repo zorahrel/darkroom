@@ -52,7 +52,7 @@ una politica; se un giorno cambia, cambia in due posti e i test lo dicono.
 
 ## La barra: eseguita, non reimplementata
 
-`/api/video/barra` lancia `check.py` del progetto e ne restituisce l'uscita analizzata in
+`/api/video/gate` lancia `check.py` del progetto e ne restituisce l'uscita analizzata in
 righe (condizione, valore, verde/rosso). Non ricalcola niente.
 
 La ragione è un difetto reale: la condizione 5 ha misurato per due mesi la cosa sbagliata —

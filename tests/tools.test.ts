@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { app } from "../server/app.ts";
-import { STRUMENTI, AREE, strumento } from "../server/strumenti.ts";
-import { AVVIABILI } from "../server/routes/strumenti.ts";
+import { TOOLS, AREAS, tool } from "../server/tools.ts";
+import { AVVIABILI } from "../server/routes/tools.ts";
 import { tools as MCP } from "../mcp/server.ts";
 
 /**
@@ -17,7 +17,7 @@ import { tools as MCP } from "../mcp/server.ts";
 
 /** Le rotte davvero montate, nella forma "METODO /percorso". */
 const ROTTE = new Set(app.routes.map((r) => `${r.method} ${r.path}`));
-const NOMI_MCP = new Set(MCP.map((t) => t.name));
+const MCP_NAMES = new Set(MCP.map((t) => t.name));
 
 /**
  * I due strumenti che parlano DEL catalogo, non che ci stanno dentro. Sono
@@ -29,7 +29,7 @@ const META = new Set(["list_tools", "start_tool"]);
 describe("il catalogo degli strumenti non promette roba che non c'è", () => {
   test("ogni rotta dichiarata è montata sul server", () => {
     const fantasma: string[] = [];
-    for (const s of STRUMENTI) {
+    for (const s of TOOLS) {
       for (const rotta of s.api) {
         // Le rotte dello storyboard sono montate su un prefisso: il catalogo
         // le scrive per intero perché è così che si chiamano da fuori.
@@ -47,63 +47,63 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
 
   test("ogni strumento MCP dichiarato esiste davvero", () => {
     const fantasma: string[] = [];
-    for (const s of STRUMENTI) {
-      for (const nome of s.mcp) if (!NOMI_MCP.has(nome)) fantasma.push(`${s.id} → ${nome}`);
+    for (const s of TOOLS) {
+      for (const name of s.mcp) if (!MCP_NAMES.has(name)) fantasma.push(`${s.id} → ${name}`);
     }
     expect(fantasma).toEqual([]);
   });
 
   test("ogni strumento MCP è raccontato da qualche voce del catalogo", () => {
-    const coperti = new Set(STRUMENTI.flatMap((s) => s.mcp));
-    const orfani = [...NOMI_MCP].filter((n) => !coperti.has(n) && !META.has(n));
+    const coperti = new Set(TOOLS.flatMap((s) => s.mcp));
+    const orfani = [...MCP_NAMES].filter((n) => !coperti.has(n) && !META.has(n));
     expect(orfani).toEqual([]);
   });
 
   test("aree, id e avvii sono ben formati", () => {
-    const aree = new Set(AREE.map((a) => a.id));
+    const areas = new Set(AREAS.map((a) => a.id));
     const visti = new Set<string>();
-    for (const s of STRUMENTI) {
+    for (const s of TOOLS) {
       expect(visti.has(s.id), `id doppio: ${s.id}`).toBe(false);
       visti.add(s.id);
-      expect(aree.has(s.area), `area sconosciuta in ${s.id}: ${s.area}`).toBe(true);
+      expect(areas.has(s.area), `area sconosciuta in ${s.id}: ${s.area}`).toBe(true);
       expect(s.cosa.length, `${s.id} non dice cosa fa`).toBeGreaterThan(20);
-      for (const a of s.avvii) {
+      for (const a of s.starters) {
         if (a.modo === "apri") expect(a.rotta.includes(":pid")).toBe(true);
-        else expect(Array.isArray(a.campi)).toBe(true);
+        else expect(Array.isArray(a.fields)).toBe(true);
       }
     }
   });
 });
 
-describe("GET /api/strumenti", () => {
+describe("GET /api/tools", () => {
   test("elenca tutto, con cosa è pronto e cosa manca", async () => {
-    const r = await app.request("/api/strumenti");
+    const r = await app.request("/api/tools");
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
-    expect(j.strumenti).toHaveLength(STRUMENTI.length);
-    expect(j.aree.length).toBe(AREE.length);
+    expect(j.tools).toHaveLength(TOOLS.length);
+    expect(j.areas.length).toBe(AREAS.length);
     // Ogni strumento non pronto dice PERCHÉ, non solo che non lo è: uno
     // strumento grigio senza motivo è una porta chiusa senza cartello.
-    for (const s of j.strumenti) {
-      expect(typeof s.pronto).toBe("boolean");
-      if (!s.pronto) {
-        expect(s.manca.length).toBeGreaterThan(0);
-        for (const m of s.manca) expect(m.come.length).toBeGreaterThan(10);
+    for (const s of j.tools) {
+      expect(typeof s.ready).toBe("boolean");
+      if (!s.ready) {
+        expect(s.missing.length).toBeGreaterThan(0);
+        for (const m of s.missing) expect(m.come.length).toBeGreaterThan(10);
       }
     }
   });
 
   test("i progetti di uno strumento sono quelli con la vista giusta", async () => {
-    const r = await app.request("/api/strumenti/montaggio/progetti");
+    const r = await app.request("/api/tools/edit/projects");
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
-    for (const p of j.progetti) expect(p.views).toContain("video");
+    for (const p of j.projects) expect(p.views).toContain("video");
   });
 });
 
-describe("POST /api/strumenti/:id/avvia", () => {
+describe("POST /api/tools/:id/start", () => {
   test("uno strumento sconosciuto è un 404, non un crash", async () => {
-    const r = await app.request("/api/strumenti/inesistente/avvia", {
+    const r = await app.request("/api/tools/inesistente/start", {
       method: "POST",
       body: JSON.stringify({}),
     });
@@ -111,7 +111,7 @@ describe("POST /api/strumenti/:id/avvia", () => {
   });
 
   test("uno strumento che si apre e basta lo dice, invece di fingere di partire", async () => {
-    const r = await app.request("/api/strumenti/albero/avvia", {
+    const r = await app.request("/api/tools/tree/start", {
       method: "POST",
       body: JSON.stringify({}),
     });
@@ -120,48 +120,48 @@ describe("POST /api/strumenti/:id/avvia", () => {
   });
 
   test("un campo obbligatorio mancante torna il motivo, non un 500", async () => {
-    const r = await app.request("/api/strumenti/progetti/avvia", {
+    const r = await app.request("/api/tools/projects/start", {
       method: "POST",
-      body: JSON.stringify({ valori: {} }),
+      body: JSON.stringify({ values: {} }),
     });
     expect(r.status).toBe(400);
     expect(((await r.json()) as any).error).toContain("nome");
   });
 
   test("«progetto vuoto» crea davvero il progetto e dice dove atterrare", async () => {
-    const nome = `catalogo-${Date.now()}`;
-    const r = await app.request("/api/strumenti/progetti/avvia", {
+    const name = `catalogo-${Date.now()}`;
+    const r = await app.request("/api/tools/projects/start", {
       method: "POST",
-      body: JSON.stringify({ valori: { nome } }),
+      body: JSON.stringify({ values: { name } }),
     });
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
     expect(j.ok).toBe(true);
-    expect(j.rotta).toBe(`/p/${j.progetto}`);
-    expect(j.fatto).toContain(nome);
+    expect(j.rotta).toBe(`/p/${j.project}`);
+    expect(j.done).toContain(name);
 
-    const elenco = (await (await app.request("/api/studio/projects")).json()) as any;
-    expect(elenco.projects.some((p: any) => p.id === j.progetto)).toBe(true);
+    const list = (await (await app.request("/api/studio/projects")).json()) as any;
+    expect(list.projects.some((p: any) => p.id === j.project)).toBe(true);
   });
 
   test("una scaletta diventa uno storyboard con i suoi pannelli", async () => {
-    const r = await app.request("/api/strumenti/storyboard/avvia", {
+    const r = await app.request("/api/tools/storyboard/start", {
       method: "POST",
       body: JSON.stringify({
-        valori: { nome: `board-${Date.now()}`, scaletta: "lei entra\nprimo piano\nla strada vuota" },
+        values: { name: `board-${Date.now()}`, scaletta: "lei entra\nprimo piano\nla strada vuota" },
       }),
     });
     // Senza generatore vivo l'avvio si ferma prima, e lo dice: è il
     // comportamento voluto (409), non un fallimento del catalogo.
     if (r.status === 409) {
-      expect(((await r.json()) as any).manca).toContain("generatore");
+      expect(((await r.json()) as any).missing).toContain("generatore");
       return;
     }
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
-    expect(j.rotta).toBe(`/p/${j.progetto}/storyboard`);
+    expect(j.rotta).toBe(`/p/${j.project}/storyboard`);
     const board = (await (
-      await app.request("/api/storyboard", { headers: { "x-darkroom-project": j.progetto } })
+      await app.request("/api/storyboard", { headers: { "x-darkroom-project": j.project } })
     ).json()) as any;
     expect(board.panels).toHaveLength(3);
   });
@@ -169,19 +169,19 @@ describe("POST /api/strumenti/:id/avvia", () => {
   test("ogni strumento con un avvio rapido ha chi lo esegue", () => {
     // Contro il motore, non contro la rotta: chiamare gli avvii per davvero
     // vorrebbe dire far partire Chrome e creare progetti veri dentro la suite.
-    const senzaMotore = STRUMENTI.filter(
-      (s) => s.avvii.some((a) => a.modo !== "apri") && !AVVIABILI.has(s.id),
+    const withoutEngine = TOOLS.filter(
+      (s) => s.starters.some((a) => a.modo !== "apri") && !AVVIABILI.has(s.id),
     ).map((s) => s.id);
-    expect(senzaMotore).toEqual([]);
+    expect(withoutEngine).toEqual([]);
   });
 
   test("e nessun motore avanza senza il suo strumento nel catalogo", () => {
-    const orfani = [...AVVIABILI].filter((id) => !STRUMENTI.some((s) => s.id === id));
+    const orfani = [...AVVIABILI].filter((id) => !TOOLS.some((s) => s.id === id));
     expect(orfani).toEqual([]);
   });
 });
 
 test("strumento() trova per id", () => {
-  expect(strumento("colore")?.nome).toBe("Sviluppo colore");
-  expect(strumento("boh")).toBeUndefined();
+  expect(tool("color")?.name).toBe("Sviluppo colore");
+  expect(tool("boh")).toBeUndefined();
 });

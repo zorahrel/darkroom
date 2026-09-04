@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Scegli, Spunta } from "../ui";
+import { Scegli, Checkbox } from "../ui";
 import {
   type ColorGrade,
   type GradeStep,
@@ -104,12 +104,12 @@ export default function StepEditor({
               </button>
             </div>
             <span className="text-[10px] tabular-nums text-neutral-400 w-4">{i + 1}</span>
-            <Spunta segnata={s.enabled} onCambia={(v) => patchStep(i, { enabled: v })}
-                    titolo={s.enabled ? "Questo passo è acceso" : "Questo passo è spento"}>
+            <Checkbox segnata={s.enabled} onChange={(v) => patchStep(i, { enabled: v })}
+                    title={s.enabled ? "Questo passo è acceso" : "Questo passo è spento"}>
               <span className={`text-[13px] font-medium ${s.enabled ? "text-neutral-100" : "text-neutral-400"}`}>
                 {STEP_LABELS[s.type]}
               </span>
-            </Spunta>
+            </Checkbox>
             <div className="flex-1" />
             <span
               className="text-[11px] text-neutral-400 truncate max-w-[48%] text-right hidden sm:inline"
@@ -325,12 +325,12 @@ function StepBody({
   if (step.type === "white_balance") {
     return (
       <div className="space-y-2.5 text-sm">
-        <Spunta segnata={bool(p.awb)} onCambia={(v) => onParams({ awb: v })}>
+        <Checkbox segnata={bool(p.awb)} onChange={(v) => onParams({ awb: v })}>
           AWB robusto (cast stimato dai grigi)
-        </Spunta>
-        <Spunta segnata={bool(p.scene_match)} onCambia={(v) => onParams({ scene_match: v })}>
+        </Checkbox>
+        <Checkbox segnata={bool(p.scene_match)} onChange={(v) => onParams({ scene_match: v })}>
           Scene-match (WB uniforme fra scatti gemelli)
-        </Spunta>
+        </Checkbox>
         <p className="text-[11px] text-neutral-400 leading-snug">
           Scene-match, dove attivo, sostituisce l'AWB per-immagine con un gain
           condiviso dal gruppo.
@@ -362,7 +362,7 @@ function StepBody({
           format={(v) => v.toFixed(1)}
           resetTo={99.6}
         />
-        <Spunta segnata={bool(p.soft)} onCambia={(v) => onParams({ soft: v })}>
+        <Checkbox segnata={bool(p.soft)} onChange={(v) => onParams({ soft: v })}>
           <span className="block">
             Proteggi le alte luci
             <span className="block text-[11px] text-neutral-400 leading-snug">
@@ -370,7 +370,7 @@ function StepBody({
               su cieli e insegne molto luminose.
             </span>
           </span>
-        </Spunta>
+        </Checkbox>
       </div>
     );
   }
@@ -529,14 +529,14 @@ function StepBody({
         <label className="flex flex-col gap-1">
           <span className="text-neutral-400">LUT</span>
           <Scegli
-            valore={String(p.lut ?? "")}
-            onCambia={(v) => onParams({ lut: v })}
-            larghezza={264}
+            value={String(p.lut ?? "")}
+            onChange={(v) => onParams({ lut: v })}
+            width={264}
             taglia="m"
-            voci={[
-              { v: "", testo: "— nessuna —" },
-              ...lutGroups.flatMap(([gruppo, arr]) =>
-                arr.map((l) => ({ v: l.id, testo: l.name, gruppo }))),
+            items={[
+              { v: "", text: "— nessuna —" },
+              ...lutGroups.flatMap(([group, arr]) =>
+                arr.map((l) => ({ v: l.id, text: l.name, group }))),
             ]}
           />
         </label>
@@ -549,9 +549,9 @@ function StepBody({
           format={(v) => `${v}%`}
           resetTo={80}
         />
-        <Spunta segnata={autoDose} onCambia={(v) => onParams({ auto_dose: v })}>
+        <Checkbox segnata={autoDose} onChange={(v) => onParams({ auto_dose: v })}>
           Auto-dose sulle notturne/rosso-dominanti
-        </Spunta>
+        </Checkbox>
         {autoDose && (
           <SliderRow
             label="Dose notturne"
@@ -751,10 +751,10 @@ function AiStepEditor({
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-sm">
         <span className="text-neutral-400">Provider</span>
-        <Scegli valore={provider} larghezza={160} taglia="m"
-                onCambia={(v) => onParams({ provider: v })}
-                voci={[{ v: "chatgpt", testo: "ChatGPT (web)" },
-                       { v: "higgsfield", testo: "Higgsfield" }]} />
+        <Scegli value={provider} width={160} taglia="m"
+                onChange={(v) => onParams({ provider: v })}
+                items={[{ v: "chatgpt", text: "ChatGPT (web)" },
+                       { v: "higgsfield", text: "Higgsfield" }]} />
       </div>
       <p className="text-[11px] text-neutral-400">
         Rigenera l'immagine di lavoro con questa config. In un bake multi-pass,
@@ -1019,9 +1019,9 @@ function MaskControls({
 
         {mask && (
           <div className="pt-0.5">
-            <Spunta segnata={bool(mask.invert)} onCambia={(v) => set({ invert: v })}>
+            <Checkbox segnata={bool(mask.invert)} onChange={(v) => set({ invert: v })}>
               Inverti maschera
-            </Spunta>
+            </Checkbox>
           </div>
         )}
         <p className="text-[11px] text-neutral-400 leading-snug">

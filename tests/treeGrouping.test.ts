@@ -19,7 +19,7 @@ function foto(id: string) {
   );
 }
 
-function variante(n: number, sorgenti: string[], photoId = sorgenti[0]!) {
+function variante(n: number, sources: string[], photoId = sources[0]!) {
   db().run(
     `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
      VALUES (?,?,?,'p',NULL,?,'openai','generated',?)`,
@@ -27,13 +27,13 @@ function variante(n: number, sorgenti: string[], photoId = sorgenti[0]!) {
       photoId.replace(/\.png$/, ""),
       n,
       `/gen/v${n}.png`,
-      JSON.stringify({ recipe: "r", refset: "rs", sources: sorgenti }),
+      JSON.stringify({ recipe: "r", refset: "rs", sources: sources }),
       Date.now(),
     ],
   );
 }
 
-async function albero(): Promise<{ photos: { photo: string; photos?: string[]; variants: number }[] }> {
+async function tree(): Promise<{ photos: { photo: string; photos?: string[]; variants: number }[] }> {
   return (await (await app.request("/api/lineage")).json()) as never;
 }
 
@@ -47,11 +47,11 @@ describe("la radice è l'insieme, non la prima foto", () => {
     for (const id of ["A", "B", "C"]) foto(id);
     for (let n = 1; n <= 12; n++) variante(n, ["A.png", "B.png", "C.png"]);
 
-    const { photos } = await albero();
-    const conVarianti = photos.filter((p) => p.variants > 0);
-    expect(conVarianti).toHaveLength(1);
-    expect(conVarianti[0]!.photos).toHaveLength(3);
-    expect(conVarianti[0]!.variants).toBe(12);
+    const { photos } = await tree();
+    const withVariants = photos.filter((p) => p.variants > 0);
+    expect(withVariants).toHaveLength(1);
+    expect(withVariants[0]!.photos).toHaveLength(3);
+    expect(withVariants[0]!.variants).toBe(12);
     // Il difetto opposto: 3 radici x 12 = 36 apparizioni per 12 generazioni.
     expect(photos.reduce((a, p) => a + p.variants, 0)).toBe(12);
   });
@@ -59,7 +59,7 @@ describe("la radice è l'insieme, non la prima foto", () => {
   test("nessuna foto dell'insieme compare a parte con zero varianti", async () => {
     for (const id of ["A", "B", "C"]) foto(id);
     variante(1, ["A.png", "B.png", "C.png"]);
-    const { photos } = await albero();
+    const { photos } = await tree();
     // B e C hanno contribuito: non devono comparire come radici vuote.
     expect(photos).toHaveLength(1);
   });
@@ -69,7 +69,7 @@ describe("la radice è l'insieme, non la prima foto", () => {
     foto("B");
     variante(1, ["A.png"]);
     variante(2, ["B.png"], "B.png");
-    const { photos } = await albero();
+    const { photos } = await tree();
     expect(photos.filter((p) => p.variants > 0)).toHaveLength(2);
     for (const p of photos) expect(p.photos).toHaveLength(1);
   });
@@ -79,7 +79,7 @@ describe("la radice è l'insieme, non la prima foto", () => {
     variante(1, ["A.png", "B.png"]);
     variante(2, ["A.png", "B.png"]);
     variante(3, ["A.png", "B.png", "C.png"]);
-    const { photos } = await albero();
+    const { photos } = await tree();
     const r = photos.filter((p) => p.variants > 0);
     expect(r).toHaveLength(2);
     expect(r.map((x) => x.variants).sort()).toEqual([1, 2]);
@@ -91,7 +91,7 @@ describe("la radice è l'insieme, non la prima foto", () => {
     for (const id of ["A", "B"]) foto(id);
     variante(1, ["A.png", "B.png"]);
     variante(2, ["B.png", "A.png"], "A.png");
-    const { photos } = await albero();
+    const { photos } = await tree();
     expect(photos.filter((p) => p.variants > 0)).toHaveLength(1);
   });
 
@@ -99,7 +99,7 @@ describe("la radice è l'insieme, non la prima foto", () => {
     foto("A");
     foto("mai-usata");
     variante(1, ["A.png"]);
-    const { photos } = await albero();
+    const { photos } = await tree();
     expect(photos.some((p) => p.photo === "mai-usata" && p.variants === 0)).toBe(true);
   });
 });

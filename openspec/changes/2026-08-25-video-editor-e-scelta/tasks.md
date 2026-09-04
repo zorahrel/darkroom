@@ -28,7 +28,7 @@
 - [x] rotta in `client/src/App.tsx`
 
 ## 4. La barra in pagina
-- [x] `GET /api/video/barra` esegue `check.py` e restituisce le condizioni analizzate
+- [x] `GET /api/video/gate` esegue `check.py` e restituisce le condizioni analizzate
 - [x] intestazione di `/video` con le sei righe e i valori misurati
 
 ## 5. `/video` — l'editor
@@ -89,7 +89,7 @@
 - [x] la timeline sta **sotto, a tutta larghezza**: schiacciata in una colonna non si legge
 - [x] ogni corsia ha il suo nome in una colonna che non scorre — tempo · atti · suono ·
       tagli · quadri — e una legenda dice cosa vuol dire ogni colore
-- [x] forma d'onda del brano con i confini di battuta (`/api/video/onda`, 2.400 picchi
+- [x] forma d'onda del brano con i confini di battuta (`/api/video/wave`, 2.400 picchi
       calcolati una volta e tenuti in `onda.json`)
 - [x] zoom da tutto-in-vista a 128x (misurato 846 px → 13.536 px); a 16x compaiono i nomi
       dei piani e le 277 tacche di beat; `⌥`+rotellina
@@ -137,7 +137,7 @@ non era il clic, era che una modifica invisibile è una modifica che non si può
 - [x] il provino nell'ispettore **sceglie**, non scrive: apre un confronto fianco a
       fianco con un bottone che dice per esteso cosa farà («metti w_alto al posto di
       w_taglio»)
-- [x] `GET /api/video/forzature` elenca tutto ciò che sta sopra il piano derivato —
+- [x] `GET /api/video/overrides` elenca tutto ciò che sta sopra il piano derivato —
       inchiodature, durate forzate, scarti fatti a mano
 - [x] contatore nella barra in cima, e un elenco con «togli» / «rimetti» su ogni voce
 - [x] i tagli inchiodati portano un segno azzurro sulla timeline
@@ -165,7 +165,7 @@ si può trascinare, purché ogni gesto scriva una **forzatura dichiarata** invec
 modifica muta. Il piano resta derivato; quello che lo scavalca è scritto, visibile e
 reversibile.
 - [x] **trascinare un blocco sopra un altro**: i due si scambiano di posto. Un solo
-      scambio scritto in una volta (`POST /api/video/scambia`), così l'annulla rimette
+      scambio scritto in una volta (`POST /api/video/swap`), così l'annulla rimette
       entrambi o nessuno. Muovere «un po' più in là» non esiste: i tagli stanno su battute
       misurate e ogni battuta ne regge uno
 - [x] **tirare il bordo destro**: quante battute dura, a passi di mezza battuta — fra una

@@ -216,7 +216,7 @@ export type StudioProject = {
   stats: ProjectStats | null;
   /** Solo per i progetti video: i numeri che per un montaggio vogliono dire
    *  qualcosa. Nullo altrove. */
-  video: { tagli: number; piani: number; durata: number } | null;
+  video: { cuts: number; shots: number; duration: number } | null;
   error: string | null;
 };
 
@@ -229,7 +229,7 @@ export type StudioOverview = {
     /** Solo per i backend a pagamento: quanto e' costato finora, sommato dai
      *  job. Il saldo residuo non e' leggibile con una chiave di progetto
      *  (403 "Missing scopes: api.usage.read"), quindi si mostra la spesa. */
-    spesa?: { usd: number; immagini: number; modello: string; qualita: string } | null;
+    spend?: { usd: number; immagini: number; modello: string; quality: string } | null;
     openai_key?: boolean | null;
   };
 };
@@ -513,59 +513,59 @@ export type VideoShot = {
   prompt: string;
   takes: VideoTake[];
   /** Quella che conta: la forzatura a mano se c'è, altrimenti la misurata. */
-  durezza: number | null;
-  durezzaMisurata: number | null;
-  durezzaAMano: number | null;
+  intensity: number | null;
+  measuredIntensity: number | null;
+  manualIntensity: number | null;
   /** Una riga su cosa si vede. Scritta a mano, o ritagliata dal prompt. */
   descrizione: string | null;
   descrizioneAMano: boolean;
   moto: number | null;
   dettaglio: number | null;
-  inScena: number;
+  inEdit: number;
   kept: boolean;
   perche: string | null;
   giudizio: "tenuta" | "scartata" | null;
-  giudicataIl: number | null;
-  problemi: string[];
+  judgedAt: number | null;
+  problems: string[];
   /** Perché merita di essere guardata per prima. Non è un verdetto. */
-  sospetto: string | null;
+  suspect: string | null;
   /** Due meta' della stessa presa condividono questa: `z43_0` e `z43_1` -> `z43`. */
   origine: string;
-  atto: string | null;
+  act: string | null;
   /** Secondo del film in cui compare la prima volta, null se non e' in montaggio. */
   minuto: number | null;
   /** OGNI volta che entra nel montaggio, in ordine. Vuoto se non e' montata. */
-  apparizioni: { t: number; dur: number; atto: string | null }[];
+  apparizioni: { t: number; dur: number; act: string | null }[];
   /** Perche' il pianificatore l'ha escluso, quando non e' stato scartato a mano. */
   escluso: string | null;
 };
 export type VideoCut = {
   t: number; dur: number; bar: number; shot: string;
-  durezzaSuono: number; durezzaPiano: number | null;
+  soundIntensity: number; shotIntensity: number | null;
   velocita: number; rovescio: boolean;
-  atto: string | null; origine: string;
+  act: string | null; origine: string;
 };
-export type VideoAtto = { da: number; a: number; nome: string; t0: number; t1: number; perche?: string };
-export type VideoSospesa = { battuta: number; garanzia: string };
-export type VideoAssets = { anteprima: string | null; reel: string | null; master: string | null };
-export type BarraRiga = { n: string; testo: string; ok: boolean | null };
-export type VideoBarra = {
-  righe: BarraRiga[];
-  esito: "verde" | "rosso" | "sconosciuto";
+export type VideoAct = { da: number; a: number; name: string; t0: number; t1: number; perche?: string };
+export type VideoHeld = { bar: number; garanzia: string };
+export type VideoAssets = { preview: string | null; reel: string | null; master: string | null };
+export type GateRow = { n: string; text: string; ok: boolean | null };
+export type VideoGate = {
+  rows: GateRow[];
+  outcome: "verde" | "rosso" | "sconosciuto";
   fallite: string[];
   quando: number | null;
   calcolo: boolean;
 };
-export type VideoRicostruzione = {
-  attiva: boolean; log: string;
-  iniziata: number | null; finita: number | null; uscita: number | null;
+export type VideoRebuild = {
+  active: boolean; log: string;
+  iniziata: number | null; finita: number | null; output: number | null;
 };
 
 /** Una generazione sulla 3090. Il tempo che ci mette dipende dai parametri, non
  *  dal prompt: e' la memoria della scheda a decidere se sono 90 secondi o mai. */
 export type VideoJob = {
   id: number;
-  piano: string;
+  shot: string;
   take: string;
   prompt: string;
   params: string;
@@ -581,22 +581,22 @@ export type VideoJob = {
 
 /** Il suono sotto la timeline: profilo di ampiezza, beat misurati, confini di
  *  battuta. `pronta` e' falso finche' i picchi non sono stati calcolati. */
-export type VideoOnda = {
+export type VideoWave = {
   picchi: number[];
   beats: number[];
-  battute: number[];
-  durata: number;
+  bars: number[];
+  duration: number;
   pronta: boolean;
 };
 
 /** Un appunto attaccato a un istante del montaggio. */
-export type VideoMarcatore = { t: number; nota: string };
+export type VideoMarker = { t: number; nota: string };
 
 /** Ciò che è stato forzato a mano sopra il piano derivato. */
-export type VideoForzature = {
-  pin: { battuta: number; piano: string }[];
-  durata: { battuta: number; battute: number }[];
-  scartatiAMano: { piano: string; motivo: string }[];
+export type VideoOverrides = {
+  pin: { bar: number; shot: string }[];
+  duration: { bar: number; bars: number }[];
+  discardedByHand: { shot: string; reason: string }[];
 };
 
 // ---- catalogo degli strumenti ---------------------------------------------
@@ -604,13 +604,13 @@ export type VideoForzature = {
 // dichiarano solo per leggerle. Se le due divergono, è il server ad avere
 // ragione — questa è la copia, non l'originale.
 
-export type AreaStrumento =
+export type ToolArea =
   | "immagini" | "colore" | "qualita" | "libreria" | "racconto" | "montaggio" | "sistema";
 
-export type Requisito = "generatore" | "ffmpeg" | "moondream" | "comfy";
+export type Requirement = "generatore" | "ffmpeg" | "moondream" | "comfy";
 
-export type CampoAvvio = {
-  nome: string;
+export type StartField = {
+  name: string;
   etichetta: string;
   tipo: "testo" | "lungo" | "numero" | "cartella";
   segnaposto?: string;
@@ -619,39 +619,39 @@ export type CampoAvvio = {
   nota?: string;
 };
 
-export type Avvio =
-  | { modo: "apri"; etichetta: string; rotta: string; vista: ProjectKind }
-  | { modo: "nuovo" | "subito"; etichetta: string; campi: CampoAvvio[]; nota?: string };
+export type Start =
+  | { modo: "apri"; etichetta: string; rotta: string; view: ProjectKind }
+  | { modo: "nuovo" | "subito"; etichetta: string; fields: StartField[]; nota?: string };
 
-export type Strumento = {
+export type Tool = {
   id: string;
-  nome: string;
+  name: string;
   cosa: string;
-  area: AreaStrumento;
-  icona: string;
-  viste: ProjectKind[];
+  area: ToolArea;
+  icon: string;
+  views: ProjectKind[];
   api: string[];
   mcp: string[];
-  richiede: Requisito[];
-  avvii: Avvio[];
+  richiede: Requirement[];
+  starters: Start[];
   /** Usabile adesso su questa macchina. */
-  pronto: boolean;
+  ready: boolean;
   /** Cosa manca, detto con il gesto che lo sistema. */
-  manca: { requisito: Requisito; come: string }[];
+  missing: { requirement: Requirement; come: string }[];
 };
 
-export type Catalogo = {
-  aree: { id: AreaStrumento; nome: string; cosa: string }[];
-  requisiti: Record<Requisito, { ok: boolean; come: string }>;
+export type Catalogue = {
+  areas: { id: ToolArea; name: string; cosa: string }[];
+  requirements: Record<Requirement, { ok: boolean; come: string }>;
   backend: string;
-  strumenti: Strumento[];
+  tools: Tool[];
 };
 
 /** Cosa è successo avviando uno strumento, e dove si atterra. */
-export type EsitoAvvio = {
+export type StartOutcome = {
   ok: true;
   rotta: string;
-  progetto: string;
-  fatto: string;
+  project: string;
+  done: string;
   dati?: unknown;
 };

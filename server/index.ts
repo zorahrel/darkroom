@@ -3,7 +3,7 @@ import { finalDir, genDir, listProjects, rawDir } from "./project.ts";
 import { startRunner } from "./jobs.ts";
 import { REPO_ROOT } from "./config.ts";
 import { staleDistWarning } from "./distFreshness.ts";
-import { chiAscoltaReale, messaggioOccupata, verificaPorta } from "./portGuard.ts";
+import { realListeners, messaggioOccupata, checkPort } from "./portGuard.ts";
 
 /** Boot: start the job runner and serve the app (see app.ts for the routes). */
 
@@ -19,14 +19,14 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 // avviare il job runner e di rubare traffico a un altro progetto. Vedi
 // `portGuard.ts` per il guasto reale che questo controllo evita.
 if (process.env.DARKROOM_PORT_FORCE !== "1") {
-  const esito = verificaPorta(PORT, { chiAscolta: chiAscoltaReale, pidNostro: process.pid });
-  if (esito.stato === "occupata") {
-    console.error(messaggioOccupata(PORT, esito.occupanti));
+  const outcome = checkPort(PORT, { listeners: realListeners, pidNostro: process.pid });
+  if (outcome.state === "occupata") {
+    console.error(messaggioOccupata(PORT, outcome.occupanti));
     process.exit(1);
   }
-  if (esito.stato === "ignoto") {
+  if (outcome.state === "ignoto") {
     // Non blocca: un controllo che non sa non ha il diritto di fermare il boot.
-    console.warn(`[porta] controllo saltato (${esito.perche}) — parto lo stesso.`);
+    console.warn(`[porta] controllo saltato (${outcome.perche}) — parto lo stesso.`);
   }
 }
 

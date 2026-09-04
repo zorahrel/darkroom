@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, thumbRefUrl, genUrl, refUrl } from "../api";
-import { useStatoVista, leggiBool, leggiUnoDi, leggiNumero } from "../statoVista";
-import { Pastiglie } from "../ui";
-import { VERDETTI, type Verdetto, filtraAlbero, conteggiaVerdetti } from "../alberoFiltro";
+import { useViewState, readBool, readOneOf, readNumber } from "../viewState";
+import { Pills } from "../ui";
+import { VERDICTS, type Verdetto, filterTree, countVerdicts } from "../treeFilter";
 
 // Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
 // configurazione.
@@ -22,12 +22,12 @@ type Variant = {
    *  capire perche' due varianti differiscono bisognava aprire sqlite. */
   prompt?: string;
   /** I nomi veri dei file di ingresso, non gli id tradotti per le miniature. */
-  file_sorgenti?: string[];
+  source_files?: string[];
   file_refs?: string[];
   /** Gli id-foto delle sorgenti, paralleli a `file_sorgenti`. Servono per la
    *  miniatura: il client non puo' ricavarli dal nome, "1.PNG" -> "1" funziona
    *  per caso e su un'estensione inattesa darebbe un'immagine rotta. */
-  id_sorgenti?: (string | null)[];
+  source_ids?: (string | null)[];
   /** Il motore che l'ha prodotta: cdp, codex-http, openai. */
   backend?: string | null;
   /** Modello e resa: lo stesso modello in `low` e in `high` sono due
@@ -35,12 +35,12 @@ type Variant = {
   model?: string | null;
   quality?: string | null;
   /** Costo stimato in dollari. */
-  costo_usd?: number | null;
+  cost_usd?: number | null;
   /** Quando e' nata, in millisecondi. */
   created_at?: number;
   /** Il file non c'e' sul disco. Una variante cosi' mostrava un rettangolo
    *  vuoto senza spiegazione: sembrava una miniatura ancora da caricare. */
-  manca?: boolean;
+  missing?: boolean;
 };
 type Group = {
   recipe: string;
@@ -74,21 +74,21 @@ const CYCLE = [null, "tieni", "forse", "scarta"] as const;
  * guasto, una che dice "nessuno" si legge come un fatto — e sono due cose
  * diverse quando si cerca di capire perche' due varianti sono uscite diverse.
  */
-function Voce({
-  titolo,
-  valori,
-  vuoto,
+function Item({
+  title,
+  values,
+  empty,
   ids,
-  anteprima,
+  preview,
   onZoom,
 }: {
-  titolo: string;
-  valori?: string[];
-  vuoto: string;
+  title: string;
+  values?: string[];
+  empty: string;
   /** Id-foto paralleli a `valori`, quando la miniatura si chiede per id. */
   ids?: (string | null)[];
   /** Come costruire la miniatura, quando si chiede per nome di file. */
-  anteprima?: (f: string) => string;
+  preview?: (f: string) => string;
   /** Ingrandimento: una miniatura da 64px serve a riconoscere un'immagine gia'
    *  nota, non a giudicarla. Senza, per vedere cosa era davvero entrato nella
    *  generazione bisognava aprire il file dal Finder. */
@@ -96,11 +96,11 @@ function Voce({
 }) {
   return (
     <div>
-      <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">{titolo}</span>
-      {(valori?.length ?? 0) > 0 ? (
+      <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">{title}</span>
+      {(values?.length ?? 0) > 0 ? (
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {valori!.map((f, i) => {
-            const src = ids?.[i] ? thumbRawUrl(ids[i]!, 120) : anteprima?.(f);
+          {values!.map((f, i) => {
+            const src = ids?.[i] ? thumbRawUrl(ids[i]!, 120) : preview?.(f);
             // A schermo intero si vuole l'originale, non la miniatura ingrandita.
             const grande = ids?.[i] ? thumbRawUrl(ids[i]!, 1600) : refUrl(f);
             return (
@@ -129,7 +129,7 @@ function Voce({
           })}
         </div>
       ) : (
-        <p className="mt-0.5 font-mono text-[10px] text-neutral-500 italic">{vuoto}</p>
+        <p className="mt-0.5 font-mono text-[10px] text-neutral-500 italic">{empty}</p>
       )}
     </div>
   );
@@ -137,7 +137,7 @@ function Voce({
 
 /** Modello, resa e motore in una riga sola. Sono la differenza fra due
  *  varianti che dichiarano la stessa ricetta e non si somigliano. */
-function Come({ v }: { v: Variant }) {
+function How({ v }: { v: Variant }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">motore</span>
@@ -146,14 +146,14 @@ function Come({ v }: { v: Variant }) {
       <span className="font-mono text-[10px] text-neutral-300">
         {v.model ? `${v.model}${v.quality ? ` · ${v.quality}` : ""}` : "non registrato"}
       </span>
-      {typeof v.costo_usd === "number" && (
+      {typeof v.cost_usd === "number" && (
         <>
           <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">costo</span>
           <span
             className="font-mono text-[10px] text-neutral-300 tabular-nums"
             title="Stima: la chiamata pagata piu' vicina nel tempo a questa versione. Si paga la chiamata, non la versione, quindi l'aggancio e' per prossimita'."
           >
-            ~${v.costo_usd.toFixed(3)}
+            ~${v.cost_usd.toFixed(3)}
           </span>
         </>
       )}
@@ -179,7 +179,7 @@ function Come({ v }: { v: Variant }) {
  * mille caratteri di prompt spingerebbero le varianti sotto la piega, e le
  * varianti sono cio' che si e' venuti a guardare.
  */
-function Ricetta({
+function Recipe({
   v,
   onZoom,
 }: {
@@ -202,20 +202,20 @@ function Ricetta({
     // si allunga per i prompt lunghi.
     <div className="flex flex-wrap items-stretch gap-x-5 gap-y-2 border-l-2 border-neutral-800 pl-3">
       <div className="flex shrink-0 flex-col gap-2">
-        <Come v={v} />
+        <How v={v} />
         <div className="flex flex-wrap gap-x-5 gap-y-2">
-          <Voce
-            titolo="sorgenti"
-            valori={v.file_sorgenti}
-            ids={v.id_sorgenti}
-            vuoto="nessuna registrata"
+          <Item
+            title="sorgenti"
+            values={v.source_files}
+            ids={v.source_ids}
+            empty="nessuna registrata"
             onZoom={onZoom}
           />
-          <Voce
-            titolo="riferimenti"
-            valori={v.file_refs}
-            anteprima={(f) => thumbRefUrl(f, 120)}
-            vuoto="nessuno: generata senza reference"
+          <Item
+            title="riferimenti"
+            values={v.file_refs}
+            preview={(f) => thumbRefUrl(f, 120)}
+            empty="nessuno: generata senza reference"
             onZoom={onZoom}
           />
         </div>
@@ -238,7 +238,7 @@ function Ricetta({
 const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
 
 /** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
-const VERDETTO_LABEL: Record<Verdetto, string> = {
+const VERDICT_LABEL: Record<Verdetto, string> = {
   tutte: "tutte",
   tieni: "tenute",
   forse: "forse",
@@ -257,7 +257,7 @@ const RECIPE_LABEL: Record<string, string> = {
   "bw-grain": "B/N grana 35mm",
 };
 
-export default function AlberoPage() {
+export default function TreePage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   /**
    * Sovrapposizione del riferimento, spenta di default.
@@ -270,16 +270,16 @@ export default function AlberoPage() {
    * Sempre opzionale: acceso di default coprirebbe le varianti proprio mentre
    * le si sfoglia, che e' l'uso normale di questa pagina.
    */
-  const [overlay, setOverlay] = useStatoVista("rif", false, {
-    leggi: leggiBool,
+  const [overlay, setOverlay] = useViewState("rif", false, {
+    read: readBool,
     memoria: "darkroom.albero.rif",
   });
-  const [opacita, setOpacita] = useStatoVista("op", 0.5, {
-    leggi: leggiNumero(0, 1),
+  const [opacita, setOpacita] = useViewState("op", 0.5, {
+    read: readNumber(0, 1),
     memoria: "darkroom.albero.op",
   });
-  const [modo, setModo] = useStatoVista<"sopra" | "differenza">("modo", "sopra", {
-    leggi: leggiUnoDi(["sopra", "differenza"] as const),
+  const [modo, setModo] = useViewState<"sopra" | "differenza">("modo", "sopra", {
+    read: readOneOf(["sopra", "differenza"] as const),
     memoria: "darkroom.albero.modo",
   });
   /**
@@ -287,8 +287,8 @@ export default function AlberoPage() {
    * trenta varianti, "mostrami solo le tenute" e' cio' che si stava guardando,
    * e ricaricare la pagina non deve riportare tutto in mezzo.
    */
-  const [verdetto, setVerdetto] = useStatoVista<Verdetto>("giudizio", "tutte", {
-    leggi: leggiUnoDi(VERDETTI),
+  const [verdetto, setVerdetto] = useViewState<Verdetto>("giudizio", "tutte", {
+    read: readOneOf(VERDICTS),
     memoria: "darkroom.albero.giudizio",
   });
   /**
@@ -297,7 +297,7 @@ export default function AlberoPage() {
    * pagina con centinaia di varianti la si pagherebbe tutta per guardarne tre.
    */
   const [scarti, setScarti] = useState<Record<number, number | null>>({});
-  const [misurando, setMisurando] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
 
@@ -331,26 +331,26 @@ export default function AlberoPage() {
   }
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
-  const tenute = all.filter((v) => v.verdict === "tieni");
+  const kept = all.filter((v) => v.verdict === "tieni");
   /** Quante varianti per giudizio: un filtro che porta a una pagina vuota va
    *  saputo PRIMA di cliccarlo, non dopo. */
-  const conteggi = useMemo(() => conteggiaVerdetti(all), [all]);
+  const counts = useMemo(() => countVerdicts(all), [all]);
 
   /**
    * L'albero filtrato. Si potano i gruppi rimasti vuoti e poi le radici rimaste
    * senza gruppi: una sorgente con l'intestazione e nessuna variante sotto
    * sembra un caricamento a meta', non un filtro che ha funzionato.
    */
-  const visibili = useMemo(() => filtraAlbero(nodes, verdetto), [nodes, verdetto]);
+  const visibili = useMemo(() => filterTree(nodes, verdetto), [nodes, verdetto]);
   // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
   // senza riferimenti sarebbero un interruttore che non accende niente.
-  const haRiferimenti = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
+  const hasReferences = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
 
   /** Misura le varianti che hanno una reference. In sequenza: sono processi
    *  python, e lanciarne trenta insieme mette in ginocchio la macchina su cui
    *  sta girando anche la generazione. */
-  async function misura() {
-    setMisurando(true);
+  async function measure() {
+    setMeasuring(true);
     const daFare = nodes.flatMap((n) =>
       n.groups.flatMap((g) => ((g.refs?.length ?? 0) > 0 ? g.variants.map((v) => v.id) : [])),
     );
@@ -369,7 +369,7 @@ export default function AlberoPage() {
         setScarti((s) => ({ ...s, [id]: null }));
       }
     }
-    setMisurando(false);
+    setMeasuring(false);
   }
 
   if (loading) return <div className="py-20 text-center text-neutral-400">Carico l'albero…</div>;
@@ -386,15 +386,15 @@ export default function AlberoPage() {
       <div className="sticky top-14 z-30 flex items-center gap-2 flex-wrap text-[11px] border border-neutral-800 bg-neutral-950/95 backdrop-blur px-2 py-1">
         {/* I filtri per giudizio: stessa forma dei filtri della griglia
             (pastiglie con il conteggio), perche' e' la stessa domanda. */}
-        <Pastiglie
-          voci={VERDETTI.map((k) => ({ id: k, nome: VERDETTO_LABEL[k] }))}
-          scelta={verdetto}
+        <Pills
+          items={VERDICTS.map((k) => ({ id: k, name: VERDICT_LABEL[k] }))}
+          pick={verdetto}
           onScegli={setVerdetto}
-          conteggi={conteggi}
+          counts={counts}
           neutra="tutte"
         />
 
-        {haRiferimenti && (
+        {hasReferences && (
           <>
             <span className="w-px h-4 bg-neutral-800" />
             <label
@@ -442,12 +442,12 @@ export default function AlberoPage() {
               </span>
             )}
             <button
-              onClick={misura}
-              disabled={misurando}
+              onClick={measure}
+              disabled={measuring}
               title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Piu' basso e' piu' somiglia."
               className="ml-auto px-1.5 py-0.5 border border-neutral-800 text-neutral-400 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
             >
-              {misurando ? "misuro…" : "misura scarto"}
+              {measuring ? "misuro…" : "misura scarto"}
             </button>
           </>
         )}
@@ -455,7 +455,7 @@ export default function AlberoPage() {
 
       {visibili.length === 0 && (
         <div className="py-16 text-center text-neutral-500 text-sm">
-          Nessuna variante {VERDETTO_LABEL[verdetto]}.{" "}
+          Nessuna variante {VERDICT_LABEL[verdetto]}.{" "}
           <button onClick={() => setVerdetto("tutte")} className="text-amber-500 hover:underline">
             mostra tutte
           </button>
@@ -620,7 +620,7 @@ export default function AlberoPage() {
                       su uno schermo largo restava mezza riga bianca a destra
                       mentre il prompt si leggeva in una colonna stretta. */}
                   <div className="min-w-0 lg:flex-1">
-                    <Ricetta
+                    <Recipe
                       v={g.variants[0]}
                       onZoom={(src, cap) => setZoom({ src, cap })}
                     />
@@ -634,7 +634,7 @@ export default function AlberoPage() {
 
       <div className="fixed left-0 right-0 bottom-0 z-20 bg-neutral-900/95 backdrop-blur border-t border-neutral-700 px-4 py-2.5 flex items-center gap-4 flex-wrap">
         <span className="font-mono text-sm text-neutral-400 tabular-nums">
-          <b className="text-amber-500 text-base">{tenute.length}</b> / {all.length} tenute
+          <b className="text-amber-500 text-base">{kept.length}</b> / {all.length} tenute
         </span>
         <button
           className="text-sm px-3 py-1.5 border border-neutral-700 hover:border-amber-500 hover:text-amber-500"
@@ -763,7 +763,7 @@ function Leaf({
             aspetta, si ricarica la pagina, e solo dopo un po' viene il dubbio
             che il problema non sia la rete. Con due cover su ventitre e'
             costato mezz'ora prima che qualcuno andasse a guardare il DB. */}
-        {v.manca && (
+        {v.missing && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-neutral-950/90 text-center px-2">
             <span className="font-mono text-[10px] uppercase tracking-wide text-red-400">
               file mancante
@@ -849,12 +849,12 @@ function Leaf({
               {v.quality}
             </span>
           )}
-          {typeof v.costo_usd === "number" && (
+          {typeof v.cost_usd === "number" && (
             <span
               className="ml-auto text-[10px] tabular-nums text-neutral-500"
               title="Costo stimato: la chiamata pagata piu' vicina nel tempo. Si paga la chiamata, non la versione."
             >
-              ~${v.costo_usd.toFixed(3)}
+              ~${v.cost_usd.toFixed(3)}
             </span>
           )}
         </div>

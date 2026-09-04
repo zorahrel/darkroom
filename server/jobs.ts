@@ -36,9 +36,9 @@ const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
 export type Backend = "cdp" | "codex" | "codex-http" | "openai";
 
 export function backendDi(job?: { backend?: string | null }): Backend {
-  const scelto = (job?.backend ?? WORKER_BACKEND).toLowerCase();
-  return scelto === "codex-http" || scelto === "codex" || scelto === "openai"
-    ? (scelto as Backend)
+  const picked = (job?.backend ?? WORKER_BACKEND).toLowerCase();
+  return picked === "codex-http" || picked === "codex" || picked === "openai"
+    ? (picked as Backend)
     : "cdp";
 }
 
@@ -550,13 +550,13 @@ async function processJob(job: JobRow) {
     // La resa dichiarata dal job. Senza, il worker leggeva solo l'ambiente del
     // servizio: un job che chiedeva `low` veniva prodotto in `high`, e una
     // prova da mezzo centesimo ne costava 21.
-    let resa: string | undefined;
+    let wantedQuality: string | undefined;
     try {
-      resa = job.provider_params
+      wantedQuality = job.provider_params
         ? ((JSON.parse(job.provider_params) as { quality?: string }).quality ?? undefined)
         : undefined;
     } catch {
-      resa = undefined;
+      wantedQuality = undefined;
     }
     const result = isGenerate
       ? await generatePer(backend)({ prompt: job.prompt, output: outputPath, refs })
@@ -565,7 +565,7 @@ async function processJob(job: JobRow) {
           prompt: job.prompt,
           output: outputPath,
           refs,
-          ...(backend === "openai" && resa ? { quality: resa } : {}),
+          ...(backend === "openai" && wantedQuality ? { quality: wantedQuality } : {}),
         });
 
     if (result.status !== "ok") {
@@ -726,7 +726,7 @@ async function processJob(job: JobRow) {
     // la costante globale avrebbe registrato 'chatgpt' su una versione uscita
     // dall'API, e il costo del progetto sarebbe tornato illeggibile.
     const provider = backendDi(job) === "openai" ? "openai" : "chatgpt";
-    const costo = result.status === "ok" ? (result.cost_usd ?? null) : null;
+    const cost = result.status === "ok" ? (result.cost_usd ?? null) : null;
     const versionInsert = db().run(
       `INSERT INTO versions
         (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, lineage, source, created_at, credits)
@@ -749,7 +749,7 @@ async function processJob(job: JobRow) {
         // mano, e la strada corretta dava il risultato peggiore.
         job.lineage,
         Date.now(),
-        costo,
+        cost,
       ],
     );
     const versionId = Number(versionInsert.lastInsertRowid);

@@ -20,7 +20,7 @@ export function serveFile(absPath: string, mime?: string, req?: Request): Respon
   const size = statSync(absPath).size;
   const tipo = mime ?? guessMime(absPath);
   const file = Bun.file(absPath);
-  const comuni = {
+  const common = {
     "content-type": tipo,
     "cache-control": "public, max-age=300",
     "accept-ranges": "bytes",
@@ -36,17 +36,17 @@ export function serveFile(absPath: string, mime?: string, req?: Request): Respon
     let a = suffisso || m[2] === "" ? size - 1 : Number(m[2]);
     if (!Number.isFinite(da) || da >= size) {
       return new Response("range non soddisfacibile", {
-        status: 416, headers: { ...comuni, "content-range": `bytes */${size}` },
+        status: 416, headers: { ...common, "content-range": `bytes */${size}` },
       });
     }
     a = Math.min(a, size - 1);
     return new Response(file.slice(da, a + 1), {
       status: 206,
-      headers: { ...comuni, "content-range": `bytes ${da}-${a}/${size}`, "content-length": String(a - da + 1) },
+      headers: { ...common, "content-range": `bytes ${da}-${a}/${size}`, "content-length": String(a - da + 1) },
     });
   }
 
-  return new Response(file, { headers: { ...comuni, "content-length": String(size) } });
+  return new Response(file, { headers: { ...common, "content-length": String(size) } });
 }
 
 export function guessMime(p: string): string {

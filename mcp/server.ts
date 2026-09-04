@@ -93,7 +93,7 @@ type Tool = {
 };
 
 /** Il campo `project`, aggiunto a ogni strumento che non e' globale. */
-const CAMPO_PROGETTO = {
+const PROJECT_FIELD = {
   project: {
     type: "string",
     description:
@@ -436,14 +436,14 @@ export const tools: Tool[] = [
     name: "video_shots",
     description:
       "Every shot of a video project: its measured hardness, which act it belongs to, whether it is in the cut, and whether you already judged it. This is what a judging pass reads.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
     handler: (a) => call("GET", "/api/video/shots", undefined, a.project),
   },
   {
     name: "video_cuts",
     description:
       "The montage as it stands: every cut with its bar, time, duration, shot, speed, and the two hardness numbers (sound vs picture) the choice was derived from. Plus BPM, total duration and the acts.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
     handler: (a) => call("GET", "/api/video/cuts", undefined, a.project),
   },
   {
@@ -456,7 +456,7 @@ export const tools: Tool[] = [
         shot: { type: "string" },
         kept: { type: "boolean" },
         perche: { type: "string", description: "Why, in your own words" },
-        ...CAMPO_PROGETTO,
+        ...PROJECT_FIELD,
       },
       required: ["shot", "kept"],
     },
@@ -472,7 +472,7 @@ export const tools: Tool[] = [
       properties: {
         bar: { type: "number" },
         shot: { type: ["string", "null"] },
-        ...CAMPO_PROGETTO,
+        ...PROJECT_FIELD,
       },
       required: ["bar"],
     },
@@ -486,26 +486,26 @@ export const tools: Tool[] = [
       type: "object",
       properties: {
         bar: { type: "number" },
-        battute: { type: ["number", "null"] },
-        ...CAMPO_PROGETTO,
+        bars: { type: ["number", "null"] },
+        ...PROJECT_FIELD,
       },
       required: ["bar"],
     },
     handler: (a) =>
-      call("POST", "/api/video/durata", { bar: a.bar, battute: a.battute ?? null }, a.project),
+      call("POST", "/api/video/durata", { bar: a.bar, bars: a.bars ?? null }, a.project),
   },
   {
     name: "video_forcings",
     description:
       "Everything decided by hand on this montage — pinned bars, forced durations, discarded shots — i.e. exactly what overrides the measurements. Read it before rebuilding.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
-    handler: (a) => call("GET", "/api/video/forzature", undefined, a.project),
+    inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
+    handler: (a) => call("GET", "/api/video/overrides", undefined, a.project),
   },
   {
     name: "video_rebuild",
     description:
       "Rebuild the video with the current choices. Heavy work: it runs on the PC with the 3090, about twelve minutes. Returns immediately — follow it with video_rebuild_status.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
+    inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
     handler: (a) => call("POST", "/api/video/ricostruisci", undefined, a.project),
   },
   {
@@ -515,33 +515,33 @@ export const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        righe: {
+        rows: {
           type: "number",
           description: "How many trailing log lines to return (default 20, 0 for the whole log)",
         },
-        ...CAMPO_PROGETTO,
+        ...PROJECT_FIELD,
       },
     },
     handler: async (a) => {
-      const d = (await call("GET", "/api/video/ricostruzione", undefined, a.project)) as {
-        attiva?: boolean; log?: string; uscita?: number | null; iniziata?: number | null;
+      const d = (await call("GET", "/api/video/rebuild", undefined, a.project)) as {
+        active?: boolean; log?: string; output?: number | null; iniziata?: number | null;
       };
-      const righe = typeof a.righe === "number" ? a.righe : 20;
+      const rows = typeof a.rows === "number" ? a.rows : 20;
       const log = (d.log ?? "").replace(/\r/g, "");
       // Quante riprese sono state montate sulle 64: la riga della fonderia e'
       // "  nome  159 frame ->  52 quadri", una per ripresa. E' l'unica cosa che
       // si vuole davvero sapere mentre gira, e nella coda del log non si vede
       // perche' la coda dice solo dove sta adesso, non quanta strada ha fatto.
-      const fatte = (log.match(/^ {2}\S+ +\d+ frame -> +\d+ quadri/gm) ?? []).length;
+      const done = (log.match(/^ {2}\S+ +\d+ frame -> +\d+ quadri/gm) ?? []).length;
       const attese = (log.match(/^ {2}\S+ +\d+ frame sorgente$/gm) ?? []).length;
       const tutte = log.split("\n");
       return {
-        attiva: d.attiva,
-        uscita: d.uscita ?? null,
-        avanzamento: attese ? `${fatte}/${attese} riprese montate` : null,
+        active: d.active,
+        output: d.output ?? null,
+        avanzamento: attese ? `${done}/${attese} riprese montate` : null,
         minuti: d.iniziata ? +((Date.now() - d.iniziata) / 60000).toFixed(1) : null,
-        log: righe > 0 ? tutte.slice(-righe).join("\n") : log,
-        log_troncato: righe > 0 && tutte.length > righe ? `${tutte.length - righe} righe prima` : null,
+        log: rows > 0 ? tutte.slice(-rows).join("\n") : log,
+        log_troncato: rows > 0 && tutte.length > rows ? `${tutte.length - rows} righe prima` : null,
       };
     },
   },
@@ -553,10 +553,10 @@ export const tools: Tool[] = [
       type: "object",
       properties: {
         force: { type: "boolean", description: "Re-measure instead of using the cached result" },
-        ...CAMPO_PROGETTO,
+        ...PROJECT_FIELD,
       },
     },
-    handler: (a) => call("GET", `/api/video/barra${a.force ? "?force=1" : ""}`, undefined, a.project),
+    handler: (a) => call("GET", `/api/video/gate${a.force ? "?force=1" : ""}`, undefined, a.project),
   },
   {
     name: "video_generate",
@@ -565,26 +565,26 @@ export const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        piano: { type: "string", description: "Name of the shot to create" },
+        shot: { type: "string", description: "Name of the shot to create" },
         prompt: { type: "string" },
         width: { type: "number" },
         height: { type: "number" },
         length: { type: "number", description: "Frames" },
         steps: { type: "number" },
-        ...CAMPO_PROGETTO,
+        ...PROJECT_FIELD,
       },
-      required: ["piano", "prompt"],
+      required: ["shot", "prompt"],
     },
     handler: (a) => {
       const { project, ...corpo } = a;
-      return call("POST", "/api/video/genera", corpo, project);
+      return call("POST", "/api/video/generate", corpo, project);
     },
   },
   {
     name: "video_generations",
     description: "The shot generations: running, done and failed, with their logs.",
-    inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
-    handler: (a) => call("GET", "/api/video/generazioni", undefined, a.project),
+    inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
+    handler: (a) => call("GET", "/api/video/generatetions", undefined, a.project),
   },
 
   // ---- colore, foto, post -------------------------------------------------
@@ -681,35 +681,35 @@ export const tools: Tool[] = [
     },
     globale: true,
     handler: async (a) => {
-      const d = (await call("GET", "/api/strumenti")) as {
-        aree: unknown[];
+      const d = (await call("GET", "/api/tools")) as {
+        areas: unknown[];
         backend: string;
-        requisiti: Record<string, { ok: boolean; come: string }>;
-        strumenti: any[];
+        requirements: Record<string, { ok: boolean; come: string }>;
+        tools: any[];
       };
-      const scelti = d.strumenti
+      const picked = d.tools
         .filter((s) => (a.area ? s.area === a.area : true))
-        .filter((s) => (a.pronti ? s.pronto : true));
+        .filter((s) => (a.pronti ? s.ready : true));
       return {
         backend: d.backend,
-        requisiti: d.requisiti,
+        requirements: d.requirements,
         // Compatto di proposito: lo schema intero di ventun strumenti e' un
         // manuale, e chi chiede "cosa sai fare" non lo sta leggendo.
-        strumenti: scelti.map((s) => ({
+        tools: picked.map((s) => ({
           id: s.id,
-          nome: s.nome,
+          name: s.name,
           cosa: s.cosa,
           area: s.area,
-          viste: s.viste,
+          views: s.views,
           mcp: s.mcp,
-          pronto: s.pronto,
-          manca: s.manca?.map((m: { come: string }) => m.come) ?? [],
-          avvia: s.avvii
+          ready: s.ready,
+          missing: s.missing?.map((m: { come: string }) => m.come) ?? [],
+          start: s.starters
             .filter((v: { modo: string }) => v.modo !== "apri")
-            .map((v: { modo: string; etichetta: string; campi: { nome: string; richiesto?: boolean }[] }) => ({
+            .map((v: { modo: string; etichetta: string; fields: { name: string; richiesto?: boolean }[] }) => ({
               modo: v.modo,
               etichetta: v.etichetta,
-              campi: v.campi.map((cx) => (cx.richiesto ? `${cx.nome}*` : cx.nome)),
+              fields: v.fields.map((cx) => (cx.richiesto ? `${cx.name}*` : cx.name)),
             })),
         })),
       };
@@ -723,7 +723,7 @@ export const tools: Tool[] = [
       type: "object",
       properties: {
         tool: { type: "string", description: "Tool id from list_tools" },
-        valori: {
+        values: {
           type: "object",
           description: 'The tool\'s fields, e.g. { prompt: "…", conta: 4 }',
         },
@@ -736,9 +736,9 @@ export const tools: Tool[] = [
     },
     globale: true,
     handler: (a) =>
-      call("POST", `/api/strumenti/${encodeURIComponent(a.tool)}/avvia`, {
-        progetto: a.project,
-        valori: a.valori ?? {},
+      call("POST", `/api/tools/${encodeURIComponent(a.tool)}/avvia`, {
+        project: a.project,
+        values: a.values ?? {},
       }),
   },
 
@@ -775,7 +775,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       ? inputSchema
       : {
           ...inputSchema,
-          properties: { ...(inputSchema as any).properties, ...CAMPO_PROGETTO },
+          properties: { ...(inputSchema as any).properties, ...PROJECT_FIELD },
         },
   })),
 }));

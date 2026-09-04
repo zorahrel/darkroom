@@ -1,14 +1,14 @@
 import { jsonFetch } from "./http";
 import type {
   VideoShot,
-  VideoAtto,
-  VideoSospesa,
-  VideoBarra,
-  VideoRicostruzione,
+  VideoAct,
+  VideoHeld,
+  VideoGate,
+  VideoRebuild,
   VideoJob,
-  VideoOnda,
-  VideoMarcatore,
-  VideoForzature,
+  VideoWave,
+  VideoMarker,
+  VideoOverrides,
   VideoCut,
   VideoAssets,
   BakeResult,
@@ -48,8 +48,8 @@ import type {
   RunPhoto,
   StudioOverview,
   StudioProject,
-  Catalogo,
-  EsitoAvvio,
+  Catalogue,
+  StartOutcome,
 } from "./types";
 
 /** Every REST endpoint the client calls, one method each. */
@@ -427,35 +427,35 @@ export const api = {
   videoShots: () => jsonFetch<{ shots: VideoShot[] }>("/api/video/shots"),
   videoCuts: () =>
     jsonFetch<{
-      cuts: VideoCut[]; durata: number; bpm: number | null;
-      atti: VideoAtto[]; sospese: VideoSospesa[];
+      cuts: VideoCut[]; duration: number; bpm: number | null;
+      acts: VideoAct[]; held: VideoHeld[];
     }>("/api/video/cuts"),
   videoAssets: () => jsonFetch<VideoAssets>("/api/video/assets"),
-  videoOnda: () => jsonFetch<VideoOnda>("/api/video/onda"),
-  videoDurezza: (shot: string, valore: number | null) =>
-    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/durezza", {
-      method: "POST", body: JSON.stringify({ shot, valore }),
+  videoWave: () => jsonFetch<VideoWave>("/api/video/wave"),
+  videoIntensity: (shot: string, value: number | null) =>
+    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/intensity", {
+      method: "POST", body: JSON.stringify({ shot, value }),
     }),
-  videoDescrizione: (shot: string, testo: string) =>
-    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/descrizione", {
-      method: "POST", body: JSON.stringify({ shot, testo }),
+  videoDescrizione: (shot: string, text: string) =>
+    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/description", {
+      method: "POST", body: JSON.stringify({ shot, text }),
     }),
   videoScordaGiudizio: (shot: string) =>
-    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/scordagiudizio", {
+    jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/clear-verdict", {
       method: "POST", body: JSON.stringify({ shot }),
     }),
-  videoScambia: (barA: number, pianoA: string, barB: number, pianoB: string) =>
-    jsonFetch<{ pin: Record<string, string> }>("/api/video/scambia", {
-      method: "POST", body: JSON.stringify({ barA, pianoA, barB, pianoB }),
+  videoSwap: (barA: number, shotA: string, barB: number, shotB: string) =>
+    jsonFetch<{ pin: Record<string, string> }>("/api/video/swap", {
+      method: "POST", body: JSON.stringify({ barA, shotA, barB, shotB }),
     }),
-  videoSganciaPin: (battute: number[]) =>
-    jsonFetch<{ pin: Record<string, string> }>("/api/video/sganciapin", {
-      method: "POST", body: JSON.stringify({ battute }),
+  videoSganciaPin: (bars: number[]) =>
+    jsonFetch<{ pin: Record<string, string> }>("/api/video/unpin", {
+      method: "POST", body: JSON.stringify({ bars }),
     }),
-  videoForzature: () => jsonFetch<VideoForzature>("/api/video/forzature"),
-  videoMarcatori: () => jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatori"),
-  videoMarcatore: (t: number, nota: string | null) =>
-    jsonFetch<{ marcatori: VideoMarcatore[] }>("/api/video/marcatore", {
+  videoOverrides: () => jsonFetch<VideoOverrides>("/api/video/overrides"),
+  videoMarkers: () => jsonFetch<{ markers: VideoMarker[] }>("/api/video/markers"),
+  videoMarker: (t: number, nota: string | null) =>
+    jsonFetch<{ markers: VideoMarker[] }>("/api/video/marker", {
       method: "POST", body: JSON.stringify({ t, nota }),
     }),
   videoRipresa: (shot: string, take: string, kept: boolean) =>
@@ -463,10 +463,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ shot, take, kept }),
     }),
-  videoProblema: (shot: string, testo?: string, i?: number) =>
-    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/problema", {
+  videoProblem: (shot: string, text?: string, i?: number) =>
+    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/problem", {
       method: "POST",
-      body: JSON.stringify({ shot, testo, i }),
+      body: JSON.stringify({ shot, text, i }),
     }),
   /** `kept: null` toglie il verdetto e riporta la ripresa a "mai giudicata". */
   videoPick: (shot: string, kept: boolean | null, perche?: string) =>
@@ -479,35 +479,35 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ bar, shot }),
     }),
-  videoDurata: (bar: number, battute: number | null) =>
+  videoDuration: (bar: number, bars: number | null) =>
     jsonFetch<{ ok: true }>("/api/video/durata", {
       method: "POST",
-      body: JSON.stringify({ bar, battute }),
+      body: JSON.stringify({ bar, bars }),
     }),
-  videoBarra: (force = false) =>
-    jsonFetch<VideoBarra>(`/api/video/barra${force ? "?force=1" : ""}`),
+  videoGate: (force = false) =>
+    jsonFetch<VideoGate>(`/api/video/gate${force ? "?force=1" : ""}`),
   videoRicostruisci: () =>
     jsonFetch<{ ok: true }>("/api/video/ricostruisci", { method: "POST" }),
-  videoRicostruzione: () => jsonFetch<VideoRicostruzione>("/api/video/ricostruzione"),
+  videoRicostruzione: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
   videoGenerazioni: () =>
-    jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generazioni"),
-  videoGenera: (piano: string, prompt: string, take: string, params: Record<string, number | string>) =>
-    jsonFetch<{ job: VideoJob }>("/api/video/genera", {
+    jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generatetions"),
+  videoGenera: (shot: string, prompt: string, take: string, params: Record<string, number | string>) =>
+    jsonFetch<{ job: VideoJob }>("/api/video/generate", {
       method: "POST",
-      body: JSON.stringify({ piano, prompt, take, params }),
+      body: JSON.stringify({ shot, prompt, take, params }),
     }),
-  videoAnnullaGenerazione: (id: number) =>
-    jsonFetch<{ ok: boolean }>(`/api/video/genera/${id}/annulla`, { method: "POST" }),
+  videoCancelGeneration: (id: number) =>
+    jsonFetch<{ ok: boolean }>(`/api/video/generatete/${id}/cancel`, { method: "POST" }),
 
   // ---- catalogo degli strumenti -------------------------------------------
   /** Cosa sa fare Darkroom e cosa di quello è pronto adesso. */
-  strumenti: () => jsonFetch<Catalogo>("/api/strumenti"),
+  tools: () => jsonFetch<Catalogue>("/api/tools"),
   /** I progetti che possono ospitare uno strumento (quelli con la vista giusta). */
-  strumentoProgetti: (id: string) =>
-    jsonFetch<{ progetti: StudioProject[] }>(`/api/strumenti/${encodeURIComponent(id)}/progetti`),
+  toolProjects: (id: string) =>
+    jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/progetti`),
   /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */
-  avviaStrumento: (id: string, corpo: { progetto?: string; valori?: Record<string, string | number> }) =>
-    jsonFetch<EsitoAvvio>(`/api/strumenti/${encodeURIComponent(id)}/avvia`, {
+  startTool: (id: string, corpo: { project?: string; values?: Record<string, string | number> }) =>
+    jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/avvia`, {
       method: "POST",
       body: JSON.stringify(corpo),
     }),

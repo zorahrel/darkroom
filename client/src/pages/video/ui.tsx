@@ -6,5 +6,5 @@
  * al primo ritocco, ed è esattamente come si finisce con quattordici misure di
  * carattere e sei raggi diversi.
  */
-export { Area, Bott, Campo, Conferma, Interruttore, Numero, Scegli, Spunta, Targa, Testata } from "../../ui";
-export type { Peso, Taglia } from "../../ui";
+export { Area, Bott, Field, Confirm, Toggle, NumberField, Scegli, Checkbox, Badge, Header } from "../../ui";
+export type { Weight, Taglia } from "../../ui";

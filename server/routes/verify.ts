@@ -112,7 +112,7 @@ verifyRoutes.get("/batch", (c) => c.json(batch));
  * pestano i piedi e la seconda non aggiunge niente. Fuori dalla rotta perché
  * la chiama anche l'avvio rapido della home.
  */
-export function avviaVerifica(limite = 100, recheck = false): { started: number } | null {
+export function startVerification(limite = 100, recheck = false): { started: number } | null {
   if (batch.running) return null;
   const limit = Math.min(Math.max(Number(limite) || 100, 1), 2000);
 
@@ -146,7 +146,7 @@ export function avviaVerifica(limite = 100, recheck = false): { started: number 
 
 verifyRoutes.post("/batch", async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const avviata = avviaVerifica(Number(body?.limit) || 100, body?.recheck === true);
-  if (!avviata) return c.json({ error: "verifica già in corso", status: batch }, 409);
-  return c.json(avviata);
+  const started = startVerification(Number(body?.limit) || 100, body?.recheck === true);
+  if (!started) return c.json({ error: "verifica già in corso", status: batch }, 409);
+  return c.json(started);
 });

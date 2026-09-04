@@ -26,28 +26,28 @@ import { useSearchParams } from "react-router-dom";
  * `null` come valore significa «togli questa chiave»: e' cio' che serve per non
  * lasciare i valori di default nell'URL.
  */
-const inSospeso = new Map<string, string | null>();
+const held = new Map<string, string | null>();
 let flushProgrammato = false;
 
-function accoda(
-  chiave: string,
-  valore: string | null,
+function enqueue(
+  key: string,
+  value: string | null,
   applica: (fn: (prev: URLSearchParams) => URLSearchParams, opt: { replace: boolean }) => void,
 ) {
-  inSospeso.set(chiave, valore);
+  held.set(key, value);
   if (flushProgrammato) return;
   flushProgrammato = true;
   // Un microtask, non un timer: si applica alla fine di questo giro di
   // rendering, prima che il browser dipinga, cosi' l'URL non "lampeggia".
   queueMicrotask(() => {
     flushProgrammato = false;
-    if (inSospeso.size === 0) return;
-    const modifiche = [...inSospeso.entries()];
-    inSospeso.clear();
+    if (held.size === 0) return;
+    const edits = [...held.entries()];
+    held.clear();
     applica(
       (prev) => {
         const next = new URLSearchParams(prev);
-        for (const [k, v] of modifiche) {
+        for (const [k, v] of edits) {
           if (v === null) next.delete(k);
           else next.set(k, v);
         }
@@ -58,33 +58,33 @@ function accoda(
   });
 }
 
-export function useStatoVista<T extends string | number | boolean>(
-  chiave: string,
+export function useViewState<T extends string | number | boolean>(
+  key: string,
   predefinito: T,
   opzioni: {
     /** Da stringa a valore. Torna `null` se la stringa non e' accettabile:
      *  un `?zoom=banana` deve tornare al default, non rompere la vista. */
-    leggi: (s: string) => T | null;
+    read: (s: string) => T | null;
     /** Con che nome ricordarlo fra una sessione e l'altra. Assente = non si
      *  ricorda: giusto per le cose legate a *questo* elenco e non al modo in
      *  cui si lavora (una selezione, una ricerca). */
     memoria?: string;
   },
 ): [T, (v: T) => void] {
-  const { leggi, memoria } = opzioni;
+  const { read, memoria } = opzioni;
   const [searchParams, setSearchParams] = useSearchParams();
   // Solo alla prima resa: dopo, la sorgente di verita' e' lo stato di React.
   // Rileggere l'URL a ogni giro farebbe combattere due scritture in corsa.
-  const [valore, setValore] = useState<T>(() => {
-    const daUrl = searchParams.get(chiave);
+  const [value, setValue] = useState<T>(() => {
+    const daUrl = searchParams.get(key);
     if (daUrl !== null) {
-      const v = leggi(daUrl);
+      const v = read(daUrl);
       if (v !== null) return v;
     }
     if (memoria) {
-      const salvato = localStorage.getItem(memoria);
-      if (salvato !== null) {
-        const v = leggi(salvato);
+      const saved = localStorage.getItem(memoria);
+      if (saved !== null) {
+        const v = read(saved);
         if (v !== null) return v;
       }
     }
@@ -107,26 +107,26 @@ export function useStatoVista<T extends string | number | boolean>(
   setParams.current = setSearchParams;
 
   useEffect(() => {
-    if (memoria) localStorage.setItem(memoria, String(valore));
-    accoda(chiave, valore === predefinito ? null : String(valore), setParams.current);
+    if (memoria) localStorage.setItem(memoria, String(value));
+    enqueue(key, value === predefinito ? null : String(value), setParams.current);
     // `predefinito` e `chiave` sono costanti per chi chiama.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valore]);
+  }, [value]);
 
-  const cambia = useCallback((v: T) => setValore(v), []);
-  return [valore, cambia];
+  const change = useCallback((v: T) => setValue(v), []);
+  return [value, change];
 }
 
 /** Letture pronte, cosi' ogni vista non si riscrive il suo parser. */
-export const leggiBool = (s: string): boolean | null =>
+export const readBool = (s: string): boolean | null =>
   s === "1" || s === "true" ? true : s === "0" || s === "false" ? false : null;
 
-export const leggiUnoDi =
+export const readOneOf =
   <T extends string>(ammessi: readonly T[]) =>
   (s: string): T | null =>
     (ammessi as readonly string[]).includes(s) ? (s as T) : null;
 
-export const leggiNumero =
+export const readNumber =
   (min: number, max: number) =>
   (s: string): number | null => {
     const n = Number(s);

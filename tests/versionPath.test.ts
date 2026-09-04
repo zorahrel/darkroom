@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { withProject, genDir } from "../server/project.ts";
-import { versionFileName, versionPath, percorsoFuoriConvenzione } from "../server/db.ts";
+import { versionFileName, versionPath, pathOutsideConvention } from "../server/db.ts";
 
 /**
  * Il 27/08 due cover generate non comparivano nell'albero. La riga nel database
@@ -50,14 +50,14 @@ describe("dove deve stare il file di una versione", () => {
 describe("il controllo sulla convenzione", () => {
   test("un percorso giusto non ha niente da dire", () => {
     withProject("conv-c", () => {
-      expect(percorsoFuoriConvenzione("f", 3, versionPath("f", 3))).toBeNull();
+      expect(pathOutsideConvention("f", 3, versionPath("f", 3))).toBeNull();
     });
   });
 
   test("il file nella radice invece che nella cartella della foto viene visto", () => {
     withProject("conv-d", () => {
-      const sbagliato = join(genDir(), "cover-scena-gel-high.png");
-      const msg = percorsoFuoriConvenzione("1", 30, sbagliato);
+      const wrong = join(genDir(), "cover-scena-gel-high.png");
+      const msg = pathOutsideConvention("1", 30, wrong);
       expect(msg).not.toBeNull();
       // Il messaggio deve dire cosa succedera', non solo che e' diverso: e'
       // l'unica cosa che collega la causa al sintomo osservato (un 500).
@@ -69,19 +69,19 @@ describe("il controllo sulla convenzione", () => {
   test("il numero senza zero davanti e' comunque fuori convenzione", () => {
     // `v3.png` invece di `v03.png`: il file esiste, la miniatura no.
     withProject("conv-e", () => {
-      expect(percorsoFuoriConvenzione("f", 3, join(genDir(), "f", "v3.png"))).not.toBeNull();
+      expect(pathOutsideConvention("f", 3, join(genDir(), "f", "v3.png"))).not.toBeNull();
     });
   });
 
   test("la cartella di un'ALTRA foto e' fuori convenzione", () => {
     withProject("conv-f", () => {
-      expect(percorsoFuoriConvenzione("a", 1, versionPath("b", 1))).not.toBeNull();
+      expect(pathOutsideConvention("a", 1, versionPath("b", 1))).not.toBeNull();
     });
   });
 
   test("il numero di versione sbagliato nella cartella giusta e' fuori convenzione", () => {
     withProject("conv-g", () => {
-      expect(percorsoFuoriConvenzione("a", 2, versionPath("a", 1))).not.toBeNull();
+      expect(pathOutsideConvention("a", 2, versionPath("a", 1))).not.toBeNull();
     });
   });
 });
@@ -98,14 +98,14 @@ describe("gli istanti si scrivono in millisecondi", () => {
   test("riconosce un istante scritto in secondi", async () => {
     // IL BUG: tre versioni registrate a mano con Date.now()/1000 finivano in
     // fondo all'ordine cronologico, sembrando vecchie di decenni.
-    const { istanteSospetto } = await import("../server/db.ts");
-    expect(istanteSospetto(1787854707)).toBe(true); // v31, come era scritta
-    expect(istanteSospetto(1787854707000)).toBe(false); // come deve essere
+    const { suspectInstant } = await import("../server/db.ts");
+    expect(suspectInstant(1787854707)).toBe(true); // v31, come era scritta
+    expect(suspectInstant(1787854707000)).toBe(false); // come deve essere
   });
 
   test("zero non e' sospetto: e' assente, non sbagliato", async () => {
-    const { istanteSospetto } = await import("../server/db.ts");
-    expect(istanteSospetto(0)).toBe(false);
+    const { suspectInstant } = await import("../server/db.ts");
+    expect(suspectInstant(0)).toBe(false);
   });
 });
 
@@ -127,11 +127,11 @@ describe("il lineage viaggia dal job alla versione", () => {
       );
       const lin = JSON.stringify({ recipe: "prova", refset: "1 sorgente", sources: ["x.png"], refs: [] });
       const job = enqueueJob("p1", "prompt", null, "chatgpt", null, "edit", null, null, lin);
-      const riletto = db()
+      const reread = db()
         .query<{ lineage: string | null }, [number]>("SELECT lineage FROM jobs WHERE id = ?")
         .get(job.id);
-      expect(riletto?.lineage).toBe(lin);
-      expect(JSON.parse(riletto!.lineage!).recipe).toBe("prova");
+      expect(reread?.lineage).toBe(lin);
+      expect(JSON.parse(reread!.lineage!).recipe).toBe("prova");
     });
   });
 
@@ -149,10 +149,10 @@ describe("il lineage viaggia dal job alla versione", () => {
       );
       const job = enqueueJob("p2", "prompt");
       expect(job.status).toBe("pending");
-      const riletto = db()
+      const reread = db()
         .query<{ lineage: string | null }, [number]>("SELECT lineage FROM jobs WHERE id = ?")
         .get(job.id);
-      expect(riletto?.lineage).toBeNull();
+      expect(reread?.lineage).toBeNull();
     });
   });
 });
@@ -199,10 +199,10 @@ describe("il canale si sceglie per job, non per processo", () => {
         [Date.now(), Date.now()],
       );
       const job = enqueueJob("p3", "prompt", null, "chatgpt", null, "edit", null, null, null, "openai");
-      const riletto = db()
+      const reread = db()
         .query<{ backend: string | null }, [number]>("SELECT backend FROM jobs WHERE id = ?")
         .get(job.id);
-      expect(riletto?.backend).toBe("openai");
+      expect(reread?.backend).toBe("openai");
     });
   });
 });

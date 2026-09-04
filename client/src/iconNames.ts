@@ -32,7 +32,7 @@ import {
  * posto solo, e una chiave sconosciuta non rompe la pagina — chi legge mette
  * la sua chiave di riserva.
  */
-export const ICONE: Record<string, LucideIcon> = {
+export const ICONS: Record<string, LucideIcon> = {
   activity: Activity,
   check: CheckCheck,
   clapper: Clapperboard,

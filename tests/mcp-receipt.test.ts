@@ -9,9 +9,9 @@ import { ricevuta } from "../mcp/server.ts";
  */
 describe("ricevuta", () => {
   test("gli elenchi grossi diventano un conteggio", () => {
-    const r = ricevuta({ ok: true, scartati: { a: "x" }, shots: [1, 2, 3] }) as any;
+    const r = ricevuta({ ok: true, discarded: { a: "x" }, shots: [1, 2, 3] }) as any;
     expect(r.ok).toBe(true);
-    expect(r.scartati).toEqual({ a: "x" });
+    expect(r.discarded).toEqual({ a: "x" });
     expect(r.shots).toBe("3 voci — chiedile con video_shots/video_cuts");
   });
 

@@ -37,9 +37,9 @@ const TAGLIA = {
 } as const;
 
 export type Taglia = keyof typeof TAGLIA;
-export type Peso = "primario" | "normale" | "quieto" | "pericolo";
+export type Weight = "primario" | "normale" | "quieto" | "pericolo";
 
-const PESO: Record<Peso, string> = {
+const WEIGHT: Record<Weight, string> = {
   primario: "border-transparent bg-neutral-100 text-neutral-900 hover:bg-white font-medium",
   normale: "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100",
   quieto: "border-transparent text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70",
@@ -47,31 +47,31 @@ const PESO: Record<Peso, string> = {
 };
 
 export function Bott({
-  children, onClick, attivo, peso = "normale", taglia = "m",
-  titolo, disabilitato, className = "", tipo = "button",
+  children, onClick, active, weight = "normale", taglia = "m",
+  title, disabilitato, className = "", tipo = "button",
 }: {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
   /** Stato acceso di un interruttore: si vede senza doverlo leggere. */
-  attivo?: boolean;
-  peso?: Peso;
+  active?: boolean;
+  weight?: Weight;
   taglia?: Taglia;
-  titolo?: string;
+  title?: string;
   disabilitato?: boolean;
   className?: string;
   tipo?: "button" | "submit";
 }) {
   const stile = disabilitato
     ? "border-neutral-800 text-neutral-400/50 cursor-not-allowed"
-    : attivo
+    : active
       ? "border-neutral-400 bg-neutral-800 text-neutral-100"
-      : PESO[peso];
+      : WEIGHT[weight];
   return (
     <button
       type={tipo}
-      title={titolo}
+      title={title}
       disabled={disabilitato}
-      aria-pressed={attivo}
+      aria-pressed={active}
       onClick={onClick}
       className={`inline-flex items-center justify-center border whitespace-nowrap
                   transition-colors focus-visible:outline focus-visible:outline-1
@@ -91,18 +91,18 @@ export function Bott({
  * pericolosa non sta ferma sullo schermo con l'aria di essere cliccabile per
  * sbaglio, e chi la vede la vede insieme a cosa succede davvero.
  */
-export function Conferma({
-  children, domanda, conferma, onConferma, taglia = "m", titolo, className = "",
+export function Confirm({
+  children, domanda, confirm, onConfirm, taglia = "m", title, className = "",
 }: {
   /** Il richiamo, sempre quieto. */
   children: React.ReactNode;
   /** Che cosa succede, detto per intero. */
   domanda: string;
   /** Il testo del bottone rosso: un verbo, non "ok". */
-  conferma: string;
-  onConferma: () => void;
+  confirm: string;
+  onConfirm: () => void;
   taglia?: Taglia;
-  titolo?: string;
+  title?: string;
   className?: string;
 }) {
   const [chiesto, setChiesto] = useState(false);
@@ -115,7 +115,7 @@ export function Conferma({
 
   if (!chiesto) {
     return (
-      <Bott peso="quieto" taglia={taglia} titolo={titolo} className={className}
+      <Bott weight="quieto" taglia={taglia} title={title} className={className}
             onClick={() => setChiesto(true)}>
         {children}
       </Bott>
@@ -124,10 +124,10 @@ export function Conferma({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-[11px] text-neutral-300">{domanda}</span>
-      <Bott peso="pericolo" taglia={taglia} onClick={() => { setChiesto(false); onConferma(); }}>
-        {conferma}
+      <Bott weight="pericolo" taglia={taglia} onClick={() => { setChiesto(false); onConfirm(); }}>
+        {confirm}
       </Bott>
-      <Bott peso="quieto" taglia={taglia} onClick={() => setChiesto(false)}>lascia stare</Bott>
+      <Bott weight="quieto" taglia={taglia} onClick={() => setChiesto(false)}>lascia stare</Bott>
     </span>
   );
 }
@@ -142,7 +142,7 @@ export function Conferma({
  * — cioe' al momento di esitare su un tasto. Sul tasto invece la si guarda ogni
  * volta che ci si guarda il tasto, e chi la impara smette da solo di usarlo.
  */
-export function Scorciatoia({ children }: { children: React.ReactNode }) {
+export function Shortcut({ children }: { children: React.ReactNode }) {
   return (
     <kbd
       className="px-1 py-px rounded-[3px] border border-current/30 bg-current/10
@@ -154,7 +154,7 @@ export function Scorciatoia({ children }: { children: React.ReactNode }) {
 }
 
 /** Un tasto d'azione con la sua scorciatoia stampata sopra. */
-export function TastoGiudizio({
+export function VerdictButton({
   onClick,
   tasto,
   className = "",
@@ -171,17 +171,17 @@ export function TastoGiudizio({
       className={`px-3 py-1.5 rounded-sm border text-[13px] inline-flex items-center gap-2 ${className}`}
     >
       {children}
-      <Scorciatoia>{tasto}</Scorciatoia>
+      <Shortcut>{tasto}</Shortcut>
     </button>
   );
 }
 
-export function Targa({
-  children, tono = "neutro", titolo, className = "",
+export function Badge({
+  children, tono = "neutro", title, className = "",
 }: {
   children: React.ReactNode;
   tono?: "neutro" | "buono" | "attesa" | "male" | "info";
-  titolo?: string;
+  title?: string;
   className?: string;
 }) {
   const t = {
@@ -192,7 +192,7 @@ export function Targa({
     info: "border-sky-800 text-sky-200 bg-sky-950/40",
   }[tono];
   return (
-    <span title={titolo}
+    <span title={title}
           className={`inline-flex items-center gap-1 border rounded-sm px-1.5 py-[1px]
                       text-[10.5px] whitespace-nowrap ${t} ${className}`}>
       {children}
@@ -201,39 +201,39 @@ export function Targa({
 }
 
 /** Un interruttore: acceso/spento si legge dalla forma, non dalla parola. */
-export function Interruttore({
-  acceso, onCambia, acceso_testo, spento_testo, titolo,
+export function Toggle({
+  on, onChange, onText, offText, title,
 }: {
-  acceso: boolean;
-  onCambia: (v: boolean) => void;
-  acceso_testo: string;
-  spento_testo: string;
-  titolo?: string;
+  on: boolean;
+  onChange: (v: boolean) => void;
+  onText: string;
+  offText: string;
+  title?: string;
 }) {
   return (
-    <button type="button" role="switch" aria-checked={acceso} title={titolo}
-            onClick={() => onCambia(!acceso)}
+    <button type="button" role="switch" aria-checked={on} title={title}
+            onClick={() => onChange(!on)}
             className="inline-flex items-center gap-1.5 text-[11px] group">
       <span className={`w-6 h-3.5 rounded-full border transition-colors relative shrink-0 ${
-        acceso ? "bg-emerald-800/70 border-emerald-600" : "bg-neutral-800 border-neutral-600"}`}>
+        on ? "bg-emerald-800/70 border-emerald-600" : "bg-neutral-800 border-neutral-600"}`}>
         <span className={`absolute top-[1px] w-[10px] h-[10px] rounded-full transition-all ${
-          acceso ? "left-[12px] bg-emerald-300" : "left-[1px] bg-neutral-400"}`} />
+          on ? "left-[12px] bg-emerald-300" : "left-[1px] bg-neutral-400"}`} />
       </span>
-      <span className={acceso ? "text-neutral-200" : "text-neutral-400"}>
-        {acceso ? acceso_testo : spento_testo}
+      <span className={on ? "text-neutral-200" : "text-neutral-400"}>
+        {on ? onText : offText}
       </span>
     </button>
   );
 }
 
 /** L'intestazione di una pagina: titolo e, sotto, cosa ci si fa. */
-export function Testata({
-  titolo, sotto, children,
-}: { titolo: string; sotto?: string; children?: React.ReactNode }) {
+export function Header({
+  title, sotto, children,
+}: { title: string; sotto?: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 flex-wrap">
       <div className="min-w-0 space-y-0.5">
-        <h1 className="text-[17px] font-semibold tracking-tight leading-tight">{titolo}</h1>
+        <h1 className="text-[17px] font-semibold tracking-tight leading-tight">{title}</h1>
         {sotto && <p className="text-[12px] text-neutral-400 leading-snug">{sotto}</p>}
       </div>
       {children && <div className="ml-auto flex items-center gap-1.5">{children}</div>}
@@ -246,83 +246,83 @@ export function Testata({
 /** Un menu a tendina. Il valore è una stringa; le voci possono avere
  *  un'etichetta diversa dal valore e una nota a destra. */
 export function Scegli<T extends string>({
-  valore, voci, onCambia, larghezza = 120, titolo, taglia = "s",
+  value, items, onChange, width = 120, title, taglia = "s",
 }: {
-  valore: T;
+  value: T;
   /** `gruppo` mette una riga di titolo prima della voce: serve quando l'elenco
    *  è lungo e diviso per famiglia (le LUT, per dire). */
-  voci: { v: T; testo: string; nota?: string; gruppo?: string }[];
-  onCambia: (v: T) => void;
-  larghezza?: number;
-  titolo?: string;
+  items: { v: T; text: string; nota?: string; group?: string }[];
+  onChange: (v: T) => void;
+  width?: number;
+  title?: string;
   taglia?: Taglia;
 }) {
-  const [aperto, setAperto] = useState(false);
+  const [open, setOpen] = useState(false);
   const [evidenziato, setEvidenziato] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
-  const scelta = voci.find((x) => x.v === valore);
+  const pick = items.find((x) => x.v === value);
   const t = taglia === "s" ? "text-[10.5px] px-1.5 py-0.5" : "text-[12px] px-2 py-1";
 
   useEffect(() => {
-    if (!aperto) return;
-    setEvidenziato(Math.max(0, voci.findIndex((x) => x.v === valore)));
+    if (!open) return;
+    setEvidenziato(Math.max(0, items.findIndex((x) => x.v === value)));
     const fuori = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setAperto(false);
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
     };
     window.addEventListener("pointerdown", fuori);
     return () => window.removeEventListener("pointerdown", fuori);
-  }, [aperto, voci, valore]);
+  }, [open, items, value]);
 
   const tasti = (e: React.KeyboardEvent) => {
-    if (!aperto) {
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); setAperto(true); }
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
       return;
     }
     e.stopPropagation();
-    if (e.key === "Escape") { e.preventDefault(); setAperto(false); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); setEvidenziato((i) => Math.min(voci.length - 1, i + 1)); }
+    if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setEvidenziato((i) => Math.min(items.length - 1, i + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setEvidenziato((i) => Math.max(0, i - 1)); }
     else if (e.key === "Home") { e.preventDefault(); setEvidenziato(0); }
-    else if (e.key === "End") { e.preventDefault(); setEvidenziato(voci.length - 1); }
+    else if (e.key === "End") { e.preventDefault(); setEvidenziato(items.length - 1); }
     else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      const v = voci[evidenziato];
-      if (v) { onCambia(v.v); setAperto(false); }
+      const v = items[evidenziato];
+      if (v) { onChange(v.v); setOpen(false); }
     }
   };
 
   return (
-    <div ref={box} className="relative" style={{ width: larghezza }}>
+    <div ref={box} className="relative" style={{ width: width }}>
       <button
-        type="button" title={titolo} aria-haspopup="listbox" aria-expanded={aperto}
-        onClick={() => setAperto((a) => !a)} onKeyDown={tasti}
+        type="button" title={title} aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => setOpen((a) => !a)} onKeyDown={tasti}
         className={`w-full flex items-center gap-1 rounded-sm border border-neutral-700
                     bg-neutral-950 text-neutral-200 text-left ${t}
                     hover:border-neutral-500 focus:outline-none focus:border-neutral-300`}>
-        <span className="truncate flex-1">{scelta?.testo ?? valore}</span>
+        <span className="truncate flex-1">{pick?.text ?? value}</span>
         <span className="text-neutral-400 text-[8px] leading-none">▾</span>
       </button>
-      {aperto && (
+      {open && (
         <ul role="listbox" id={id}
             className="absolute z-50 mt-0.5 w-full max-h-[46vh] overflow-y-auto bg-neutral-950
                        border border-neutral-700 rounded-sm shadow-2xl py-0.5">
-          {voci.map((x, i) => (
-            <li key={x.v} role="option" aria-selected={x.v === valore}>
-              {x.gruppo && x.gruppo !== voci[i - 1]?.gruppo && (
+          {items.map((x, i) => (
+            <li key={x.v} role="option" aria-selected={x.v === value}>
+              {x.group && x.group !== items[i - 1]?.group && (
                 <div className="px-1.5 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-neutral-400">
-                  {x.gruppo}
+                  {x.group}
                 </div>
               )}
               <button
                 type="button"
                 onPointerEnter={() => setEvidenziato(i)}
-                onClick={() => { onCambia(x.v); setAperto(false); }}
+                onClick={() => { onChange(x.v); setOpen(false); }}
                 className={`w-full flex items-baseline gap-2 px-1.5 py-1 text-left text-[10.5px]
                             ${i === evidenziato ? "bg-neutral-800 text-neutral-100" : "text-neutral-300"}`}>
-                <span className="truncate flex-1">{x.testo}</span>
+                <span className="truncate flex-1">{x.text}</span>
                 {x.nota && <span className="text-neutral-400 tabular-nums shrink-0">{x.nota}</span>}
-                {x.v === valore && <span className="text-emerald-400 shrink-0">✓</span>}
+                {x.v === value && <span className="text-emerald-400 shrink-0">✓</span>}
               </button>
             </li>
           ))}
@@ -334,11 +334,11 @@ export function Scegli<T extends string>({
 
 /** Un campo di testo senza la scocca del sistema. `onInvio`/`onEsc` sono i due
  *  tasti che in un editor contano. */
-export function Campo({
-  valore, onCambia, segnaposto, onInvio, onEsc, autoFuoco, taglia = "s", className = "",
+export function Field({
+  value, onChange, segnaposto, onInvio, onEsc, autoFuoco, taglia = "s", className = "",
 }: {
-  valore: string;
-  onCambia: (v: string) => void;
+  value: string;
+  onChange: (v: string) => void;
   segnaposto?: string;
   onInvio?: () => void;
   onEsc?: () => void;
@@ -350,8 +350,8 @@ export function Campo({
   return (
     <input
       autoFocus={autoFuoco}
-      value={valore}
-      onChange={(e) => onCambia(e.target.value)}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={segnaposto}
       onKeyDown={(e) => {
         // La pagina ascolta lettere singole (spazio, m, z…): mentre si scrive,
@@ -369,10 +369,10 @@ export function Campo({
 
 /** Un'area di testo, stesso trattamento del campo. */
 export function Area({
-  valore, onCambia, segnaposto, onEsc, onInvia, autoFuoco, className = "",
+  value, onChange, segnaposto, onEsc, onInvia, autoFuoco, className = "",
 }: {
-  valore: string;
-  onCambia: (v: string) => void;
+  value: string;
+  onChange: (v: string) => void;
   segnaposto?: string;
   onEsc?: () => void;
   /** ⌘invio: mandare a capo dev'essere possibile, quindi il solo invio no. */
@@ -383,8 +383,8 @@ export function Area({
   return (
     <textarea
       autoFocus={autoFuoco}
-      value={valore}
-      onChange={(e) => onCambia(e.target.value)}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={segnaposto}
       onKeyDown={(e) => {
         e.stopPropagation();
@@ -400,32 +400,32 @@ export function Area({
 
 /** Un numero con i suoi passi: le frecce lo cambiano, e non compare la doppia
  *  freccina del sistema che nessuno riesce mai a centrare. */
-export function Numero({
-  valore, onCambia, min = 1, max = 4096, passo = 1, larghezza = 62, titolo,
+export function NumberField({
+  value, onChange, min = 1, max = 4096, step = 1, width = 62, title,
 }: {
-  valore: number; onCambia: (v: number) => void;
-  min?: number; max?: number; passo?: number; larghezza?: number; titolo?: string;
+  value: number; onChange: (v: number) => void;
+  min?: number; max?: number; step?: number; width?: number; title?: string;
 }) {
   const limita = (v: number) => Math.max(min, Math.min(max, v));
   return (
     <div className="flex items-center rounded-sm border border-neutral-700 bg-neutral-950"
-         style={{ width: larghezza }} title={titolo}>
+         style={{ width: width }} title={title}>
       <input
-        value={valore}
-        onChange={(e) => { const n = Number(e.target.value.replace(/[^0-9.]/g, "")); if (Number.isFinite(n)) onCambia(n); }}
-        onBlur={() => onCambia(limita(valore))}
+        value={value}
+        onChange={(e) => { const n = Number(e.target.value.replace(/[^0-9.]/g, "")); if (Number.isFinite(n)) onChange(n); }}
+        onBlur={() => onChange(limita(value))}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "ArrowUp") { e.preventDefault(); onCambia(limita(valore + passo)); }
-          if (e.key === "ArrowDown") { e.preventDefault(); onCambia(limita(valore - passo)); }
+          if (e.key === "ArrowUp") { e.preventDefault(); onChange(limita(value + step)); }
+          if (e.key === "ArrowDown") { e.preventDefault(); onChange(limita(value - step)); }
         }}
         className="appearance-none w-full bg-transparent px-1.5 py-0.5 text-[10.5px] text-neutral-100
                    tabular-nums outline-none"
       />
       <div className="flex flex-col border-l border-neutral-800">
-        <button type="button" onClick={() => onCambia(limita(valore + passo))}
+        <button type="button" onClick={() => onChange(limita(value + step))}
                 className="px-1 text-[7px] leading-[9px] text-neutral-400 hover:text-neutral-100">▲</button>
-        <button type="button" onClick={() => onCambia(limita(valore - passo))}
+        <button type="button" onClick={() => onChange(limita(value - step))}
                 className="px-1 text-[7px] leading-[9px] text-neutral-400 hover:text-neutral-100">▼</button>
       </div>
     </div>
@@ -440,19 +440,19 @@ export function Numero({
  * stesso comportamento — spazio la cambia, il fuoco si vede, l'etichetta è
  * cliccabile — e la stessa grafica del resto.
  */
-export function Spunta({
-  segnata, onCambia, children, titolo, disabilitata,
+export function Checkbox({
+  segnata, onChange, children, title, disabilitata,
 }: {
   segnata: boolean;
-  onCambia: (v: boolean) => void;
+  onChange: (v: boolean) => void;
   children?: React.ReactNode;
-  titolo?: string;
+  title?: string;
   disabilitata?: boolean;
 }) {
   return (
     <button
-      type="button" role="checkbox" aria-checked={segnata} title={titolo} disabled={disabilitata}
-      onClick={() => onCambia(!segnata)}
+      type="button" role="checkbox" aria-checked={segnata} title={title} disabled={disabilitata}
+      onClick={() => onChange(!segnata)}
       className={`inline-flex items-center gap-1.5 text-left text-[11px] group
                   focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2
                   focus-visible:outline-neutral-300 rounded-sm
@@ -482,49 +482,49 @@ export function Spunta({
 /** Come chiudere il menu da dentro. Una voce che fa la sua cosa e lascia il
  *  menu aperto costringe a un clic in più per togliersi di torno il pannello,
  *  e a quel punto non si sa se l'azione è andata. */
-const ChiudiMenu = createContext<() => void>(() => {});
-export const useChiudiMenu = () => useContext(ChiudiMenu);
+const CloseMenu = createContext<() => void>(() => {});
+export const useCloseMenu = () => useContext(CloseMenu);
 
 export function Altro({
-  children, titolo = "Altre azioni", className = "", discreto = false,
+  children, title = "Altre azioni", className = "", discreto = false,
 }: {
   children: React.ReactNode;
-  titolo?: string;
+  title?: string;
   className?: string;
   /** Si vede solo passandoci sopra o arrivandoci col tasto di tabulazione —
    *  ma **mai** mentre è aperto: un menu semitrasparente sotto il dito che si
    *  sposta per scegliere una voce è un menu che non si può usare. */
   discreto?: boolean;
 }) {
-  const [aperto, setAperto] = useState(false);
+  const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!aperto) return;
-    const fuori = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setAperto(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAperto(false); };
+    if (!open) return;
+    const fuori = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("pointerdown", fuori);
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("pointerdown", fuori); window.removeEventListener("keydown", esc); };
-  }, [aperto]);
-  const visibilita = !discreto || aperto
+  }, [open]);
+  const visibilita = !discreto || open
     ? "opacity-100"
     : "opacity-0 group-hover:opacity-100 focus-within:opacity-100";
   return (
-    <div ref={box} className={`relative ${aperto ? "z-40" : "z-20"} transition-opacity ${visibilita} ${className}`}>
-      <button type="button" title={titolo} aria-haspopup="menu" aria-expanded={aperto}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAperto((a) => !a); }}
+    <div ref={box} className={`relative ${open ? "z-40" : "z-20"} transition-opacity ${visibilita} ${className}`}>
+      <button type="button" title={title} aria-haspopup="menu" aria-expanded={open}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((a) => !a); }}
               className={`px-1 py-0.5 rounded-sm leading-none transition-colors
-                          ${aperto ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
+                          ${open ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
         <MoreHorizontal className="w-4 h-4" aria-hidden />
       </button>
-      {aperto && (
-        <ChiudiMenu.Provider value={() => setAperto(false)}>
+      {open && (
+        <CloseMenu.Provider value={() => setOpen(false)}>
           <div role="menu"
                className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded border border-neutral-700
                           bg-neutral-950 p-1 shadow-2xl space-y-0.5">
             {children}
           </div>
-        </ChiudiMenu.Provider>
+        </CloseMenu.Provider>
       )}
     </div>
   );
@@ -542,42 +542,42 @@ export function Altro({
  * invece di sparire — sparire sposterebbe le altre sotto il dito proprio mentre
  * si sta per premere.
  */
-export function Pastiglie<T extends string>({
-  voci,
-  scelta,
+export function Pills<T extends string>({
+  items,
+  pick,
   onScegli,
-  conteggi,
+  counts,
   /** La voce che non filtra: resta sempre premibile anche a zero, perche' e'
    *  la via d'uscita da un filtro che non mostra niente. */
   neutra,
   className = "",
 }: {
-  voci: readonly { id: T; nome: string }[];
-  scelta: T;
+  items: readonly { id: T; name: string }[];
+  pick: T;
   onScegli: (v: T) => void;
-  conteggi: Record<string, number>;
+  counts: Record<string, number>;
   neutra?: T;
   className?: string;
 }) {
   return (
     <div className={`flex items-center gap-1 shrink-0 ${className}`}>
-      {voci.map((v) => {
-        const n = conteggi[v.id] ?? 0;
-        const attiva = scelta === v.id;
+      {items.map((v) => {
+        const n = counts[v.id] ?? 0;
+        const active = pick === v.id;
         return (
           <button
             key={v.id}
             onClick={() => onScegli(v.id)}
             disabled={n === 0 && v.id !== neutra}
-            title={`${v.nome}: ${n}`}
+            title={`${v.name}: ${n}`}
             className={
               "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
-              (attiva
+              (active
                 ? "border-amber-500 text-amber-500"
                 : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
             }
           >
-            {v.nome}
+            {v.name}
             <span className="ml-1 opacity-60 tabular-nums">{n}</span>
           </button>
         );
@@ -595,27 +595,27 @@ export function Pastiglie<T extends string>({
  * progetti, e due barre di filtri che si somigliano ma non coincidono si
  * leggono come due cose diverse.
  */
-export function Filtro({
-  children, attiva, onClick, n, titolo,
+export function Filter({
+  children, active, onClick, n, title,
 }: {
   children: React.ReactNode;
-  attiva: boolean;
+  active: boolean;
   onClick: () => void;
   n: number;
-  titolo?: string;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={n === 0 && !attiva}
-      title={titolo}
-      aria-pressed={attiva}
+      disabled={n === 0 && !active}
+      title={title}
+      aria-pressed={active}
       className={
         // py-1, non py-0.5: a 22px di altezza il bersaglio era sotto la soglia
         // sotto la quale si sbaglia pastiglia, e queste stanno appaiate.
         "px-2 py-1 border rounded-sm text-[11px] leading-[14px] transition-colors disabled:opacity-30 " +
-        (attiva
+        (active
           ? "border-neutral-300 text-neutral-100"
           : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
       }
@@ -627,26 +627,26 @@ export function Filtro({
 }
 
 /** Il campo di ricerca di una barra filtri: la lente sta dentro, non accanto. */
-export function Cerca({
-  valore, onCambia, segnaposto, larghezza = "13rem",
+export function Search({
+  value, onChange, segnaposto, width = "13rem",
 }: {
-  valore: string;
-  onCambia: (v: string) => void;
+  value: string;
+  onChange: (v: string) => void;
   segnaposto?: string;
-  larghezza?: string;
+  width?: string;
 }) {
   return (
     <div className="relative">
       <SearchIcon className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" aria-hidden />
       <input
-        value={valore}
-        onChange={(e) => onCambia(e.target.value)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "Escape") onCambia("");
+          if (e.key === "Escape") onChange("");
         }}
         placeholder={segnaposto}
-        style={{ width: larghezza }}
+        style={{ width: width }}
         className="appearance-none bg-neutral-950 border border-neutral-700 rounded-sm pl-7 pr-2 py-1
                    text-[12px] text-neutral-100 placeholder:text-neutral-500 outline-none
                    focus:border-neutral-300"

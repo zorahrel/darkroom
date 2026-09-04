@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import Home from "./pages/Home";
-import Galleria from "./pages/Galleria";
+import Galleria from "./pages/Gallery";
 
 // Due superfici d'ingresso, entrambe nel chunk principale perché sono le due
 // pagine da cui si comincia: la home (gli strumenti) e la griglia di un
@@ -17,10 +17,10 @@ const StudioPage = lazy(() => import("./pages/Studio"));
 const StoryboardPage = lazy(() => import("./pages/Storyboard"));
 const SourcesPage = lazy(() => import("./pages/Sources"));
 const VideoPage = lazy(() => import("./pages/Video"));
-const VideoScelta = lazy(() => import("./pages/VideoScelta"));
+const VideoPick = lazy(() => import("./pages/VideoPick"));
 // La vista di scelta: pesa quanto la griglia, quindi code-split come le altre.
-const AlberoPage = lazy(() => import("./pages/Albero"));
-const RiferimentiPage = lazy(() => import("./pages/Riferimenti"));
+const TreePage = lazy(() => import("./pages/Tree"));
+const ReferencesPage = lazy(() => import("./pages/References"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
@@ -73,7 +73,7 @@ ReactDOM.createRoot(root).render(
             path="p/:pid/video/scelta"
             element={
               <Suspense fallback={<PageFallback />}>
-                <VideoScelta />
+                <VideoPick />
               </Suspense>
             }
           />
@@ -89,7 +89,7 @@ ReactDOM.createRoot(root).render(
             path="p/:pid/riferimenti"
             element={
               <Suspense fallback={<PageFallback />}>
-                <RiferimentiPage />
+                <ReferencesPage />
               </Suspense>
             }
           />
@@ -97,7 +97,7 @@ ReactDOM.createRoot(root).render(
             path="p/:pid/albero"
             element={
               <Suspense fallback={<PageFallback />}>
-                <AlberoPage />
+                <TreePage />
               </Suspense>
             }
           />

@@ -29,7 +29,7 @@
  */
 
 /** Chi tiene un socket in LISTEN su una porta. */
-export interface Occupante {
+export interface Occupant {
   pid: number;
   /** La riga di comando, se leggibile: `lsof` con permessi ridotti da' solo il pid. */
   comando: string | null;
@@ -37,31 +37,31 @@ export interface Occupante {
   indirizzo: string | null;
 }
 
-export type EsitoPorta =
+export type PortOutcome =
   /** Nessuno ascolta: si puo' partire. */
-  | { stato: "libera" }
+  | { state: "libera" }
   /** Ascolta qualcun altro: NON si parte. */
-  | { stato: "occupata"; occupanti: Occupante[] }
+  | { state: "occupata"; occupanti: Occupant[] }
   /** Non si e' potuto sapere (lsof assente, permessi). Si parte: un controllo
    *  che non sa non ha il diritto di bloccare il lavoro. */
-  | { stato: "ignoto"; perche: string };
+  | { state: "ignoto"; perche: string };
 
 export interface GuardiaDeps {
   /** I socket in LISTEN su quella porta, o `null` se non si e' potuto sapere. */
-  chiAscolta: (porta: number) => Occupante[] | null;
+  listeners: (porta: number) => Occupant[] | null;
   /** Il nostro pid, per non accusare noi stessi (o un hot-reload di noi stessi). */
   pidNostro: number;
 }
 
 /** La porta e' libera per noi? */
-export function verificaPorta(porta: number, deps: GuardiaDeps): EsitoPorta {
-  const trovati = deps.chiAscolta(porta);
-  if (trovati === null) {
-    return { stato: "ignoto", perche: "impossibile leggere i socket in ascolto" };
+export function checkPort(porta: number, deps: GuardiaDeps): PortOutcome {
+  const found = deps.listeners(porta);
+  if (found === null) {
+    return { state: "ignoto", perche: "impossibile leggere i socket in ascolto" };
   }
-  const altrui = trovati.filter((o) => o.pid !== deps.pidNostro);
-  if (altrui.length === 0) return { stato: "libera" };
-  return { stato: "occupata", occupanti: altrui };
+  const altrui = found.filter((o) => o.pid !== deps.pidNostro);
+  if (altrui.length === 0) return { state: "libera" };
+  return { state: "occupata", occupanti: altrui };
 }
 
 /**
@@ -70,15 +70,15 @@ export function verificaPorta(porta: number, deps: GuardiaDeps): EsitoPorta {
  * Dice il pid e il comando perche' la domanda successiva e' sempre «e adesso
  * quale finestra chiudo»: un «porta occupata» senza un pid la lascia aperta.
  */
-export function messaggioOccupata(porta: number, occupanti: Occupante[]): string {
-  const righe = occupanti.map((o) => {
+export function messaggioOccupata(porta: number, occupanti: Occupant[]): string {
+  const rows = occupanti.map((o) => {
     const dove = o.indirizzo ? ` su ${o.indirizzo}` : "";
     const cosa = o.comando ? ` — ${o.comando}` : "";
     return `    pid ${o.pid}${dove}${cosa}`;
   });
   return [
     `[porta] NON PARTO: la porta ${porta} e' gia' servita da qualcun altro.`,
-    ...righe,
+    ...rows,
     `  Legarsi comunque non darebbe errore (IPv4 e IPv6 convivono) ma ruberebbe`,
     `  il traffico a quel processo, che risponderebbe con la UI sbagliata.`,
     `  Scegli un'altra porta:  PORT=<numero> bun run server/index.ts`,
@@ -94,16 +94,16 @@ export function messaggioOccupata(porta: number, occupanti: Occupante[]): string
  * la occupano; `-nP` evita le risoluzioni DNS e dei nomi di servizio, che
  * costano secondi e non aggiungono niente.
  */
-export function chiAscoltaReale(porta: number): Occupante[] | null {
+export function realListeners(porta: number): Occupant[] | null {
   try {
     const proc = Bun.spawnSync(
       ["lsof", "-nP", `-iTCP:${porta}`, "-sTCP:LISTEN", "-Fpcn"],
       { stdout: "pipe", stderr: "pipe" },
     );
     // exit 1 senza output = nessuno ascolta: e' un esito, non un errore.
-    const testo = new TextDecoder().decode(proc.stdout);
-    if (!testo.trim()) return proc.exitCode === 0 || proc.exitCode === 1 ? [] : null;
-    return parseLsof(testo, porta);
+    const text = new TextDecoder().decode(proc.stdout);
+    if (!text.trim()) return proc.exitCode === 0 || proc.exitCode === 1 ? [] : null;
+    return parseLsof(text, porta);
   } catch {
     return null;
   }
@@ -114,14 +114,14 @@ export function chiAscoltaReale(porta: number): Occupante[] | null {
  * processo (`p`/`c`) e poi per file (`n`). Si legge in ordine e si tiene lo
  * stato corrente — un `n` appartiene all'ultimo `p` visto.
  */
-export function parseLsof(testo: string, porta: number): Occupante[] {
-  const out: Occupante[] = [];
+export function parseLsof(text: string, porta: number): Occupant[] {
+  const out: Occupant[] = [];
   let pid: number | null = null;
   let comando: string | null = null;
-  for (const riga of testo.split("\n")) {
-    if (!riga) continue;
-    const tipo = riga[0];
-    const val = riga.slice(1);
+  for (const row of text.split("\n")) {
+    if (!row) continue;
+    const tipo = row[0];
+    const val = row.slice(1);
     if (tipo === "p") {
       pid = Number(val);
       comando = null;

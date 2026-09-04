@@ -14,41 +14,41 @@ type Props = {
   /** "col" separa due colonne (si trascina in orizzontale), "riga" due fasce. */
   verso: "col" | "riga";
   /** Il valore corrente in pixel. */
-  valore: number;
+  value: number;
   /** Quanto vale dopo aver trascinato di `d` pixel: il segno lo decide chi
    *  chiama, perché una maniglia a destra di un pannello lo allarga andando a
    *  destra e quella a sinistra fa il contrario. */
-  calcola: (valore0: number, d: number) => number;
-  onCambia: (v: number) => void;
-  onFine?: (v: number) => void;
-  titolo?: string;
+  calcola: (value0: number, d: number) => number;
+  onChange: (v: number) => void;
+  onEnd?: (v: number) => void;
+  title?: string;
 };
 
-export default function Maniglia({ verso, valore, calcola, onCambia, onFine, titolo }: Props) {
+export default function Handle({ verso, value, calcola, onChange, onEnd, title }: Props) {
   const giu = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const p0 = verso === "col" ? e.clientX : e.clientY;
-    const v0 = valore;
-    let ultimo = v0;
-    const muovi = (ev: PointerEvent) => {
+    const v0 = value;
+    let last = v0;
+    const move = (ev: PointerEvent) => {
       const p = verso === "col" ? ev.clientX : ev.clientY;
-      ultimo = calcola(v0, p - p0);
-      onCambia(ultimo);
+      last = calcola(v0, p - p0);
+      onChange(last);
     };
     const su = () => {
-      window.removeEventListener("pointermove", muovi);
+      window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
-      onFine?.(ultimo);
+      onEnd?.(last);
     };
-    window.addEventListener("pointermove", muovi);
+    window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", su);
-  }, [verso, valore, calcola, onCambia, onFine]);
+  }, [verso, value, calcola, onChange, onEnd]);
 
   const col = verso === "col";
   return (
     <div
       onPointerDown={giu}
-      title={titolo}
+      title={title}
       className={`shrink-0 group bg-neutral-900 hover:bg-neutral-600 transition-colors
                   flex items-center justify-center
                   ${col ? "w-[5px] cursor-col-resize" : "h-[6px] cursor-row-resize"}`}>

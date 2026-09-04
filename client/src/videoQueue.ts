@@ -15,7 +15,7 @@
  * Sta qui, fuori dal componente, perche' e' una regola — non un dettaglio di
  * resa — e perche' un difetto invisibile a occhio va tenuto fermo da un test.
  */
-export type FiltroScelta =
+export type PickFilter =
   | "da giudicare"
   | "sospette"
   | "tenute"
@@ -25,12 +25,12 @@ export type FiltroScelta =
   | "tutte";
 
 /** true se la scena, dopo questo verdetto, sparisce dall'elenco filtrato. */
-export function esceDallaCoda(filtro: FiltroScelta, kept: boolean): boolean {
+export function leavesQueue(filter: PickFilter, kept: boolean): boolean {
   // Tutt'e due chiedono un verdetto che non c'e' ancora: darlo la fa uscire,
   // qualunque esso sia.
-  if (filtro === "da giudicare" || filtro === "sospette") return true;
-  if (filtro === "tenute") return !kept;
-  if (filtro === "scartate") return kept;
+  if (filter === "da giudicare" || filter === "sospette") return true;
+  if (filter === "tenute") return !kept;
+  if (filter === "scartate") return kept;
   // "annotate", "in montaggio" e "tutte" non guardano il verdetto: la riga
   // resta dov'e' e l'indice deve avanzare come sempre.
   return false;

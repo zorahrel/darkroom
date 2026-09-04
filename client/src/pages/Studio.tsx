@@ -8,8 +8,8 @@ import {
   type StudioProject,
 } from "../api";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Altro, Bott, Campo, Cerca, Conferma, Filtro, Targa, Testata, useChiudiMenu } from "../ui";
-import { VISTE, vista } from "../viste";
+import { Altro, Bott, Field, Search, Confirm, Filter, Badge, Header, useCloseMenu } from "../ui";
+import { VIEWS, view } from "../views";
 
 /**
  * L'elenco dei progetti: il banco di lavoro da cui si entra.
@@ -22,15 +22,15 @@ import { VISTE, vista } from "../viste";
  * annulla da sola.
  */
 /** Come si guarda l'elenco: per cosa sa fare un progetto, o per come sta. */
-type Stato = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
+type State = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
 type Ordine = "recenti" | "nome" | "grandi";
 
 export default function StudioPage() {
   const [data, setData] = useState<StudioOverview | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [cerca, setCerca] = useState("");
-  const [vista, setVista] = useState<ProjectKind | "tutte">("tutte");
-  const [stato, setStato] = useState<Stato>("tutti");
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<ProjectKind | "tutte">("tutte");
+  const [state, setState] = useState<State>("tutti");
   const [ordine, setOrdine] = useState<Ordine>("recenti");
   const navigate = useNavigate();
 
@@ -50,7 +50,7 @@ export default function StudioPage() {
 
   /** Quanti progetti cadrebbero in ogni filtro. Un filtro senza numero non
    *  dice se vale la pena aprirlo, e a zero si spegne da solo. */
-  const conta = useMemo(() => {
+  const count = useMemo(() => {
     const q = (f: (p: StudioProject) => boolean) => tutti.filter(f).length;
     return {
       tutte: tutti.length,
@@ -66,32 +66,32 @@ export default function StudioPage() {
   }, [tutti]);
 
   const visibili = useMemo(() => {
-    const q = cerca.trim().toLowerCase();
+    const q = search.trim().toLowerCase();
     const dentro = tutti.filter((p) => {
-      if (vista !== "tutte" && !p.views.includes(vista)) return false;
-      if (stato === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
-      if (stato === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
-      if (stato === "pausa" && p.active) return false;
-      if (stato === "rotti" && p.root_exists && !p.error) return false;
+      if (view !== "tutte" && !p.views.includes(view)) return false;
+      if (state === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
+      if (state === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
+      if (state === "pausa" && p.active) return false;
+      if (state === "rotti" && p.root_exists && !p.error) return false;
       if (!q) return true;
       return p.name.toLowerCase().includes(q) || p.root.toLowerCase().includes(q) || p.id.includes(q);
     });
-    const peso = (p: StudioProject) => p.stats?.photos ?? p.video?.tagli ?? 0;
+    const weight = (p: StudioProject) => p.stats?.photos ?? p.video?.cuts ?? 0;
     return dentro.sort((a, b) =>
       ordine === "nome"
         ? a.name.localeCompare(b.name)
         : ordine === "grandi"
-          ? peso(b) - peso(a)
+          ? weight(b) - weight(a)
           // "Recenti" è l'ultima versione generata, non la data di creazione:
           // il progetto su cui si stava lavorando è quello che ha prodotto
           // qualcosa per ultimo, non quello aperto per ultimo.
           : (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
     );
-  }, [tutti, cerca, vista, stato, ordine]);
+  }, [tutti, search, view, state, ordine]);
 
   return (
     <div className="space-y-4">
-      <Testata titolo="Progetti"
+      <Header title="Progetti"
                sotto="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
 
       {err && (
@@ -112,34 +112,34 @@ export default function StudioPage() {
           Due domande diverse, quindi due gruppi, non un elenco unico in cui
           «video» e «in pausa» si escludono a vicenda senza motivo. */}
       <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
-        <Cerca valore={cerca} onCambia={setCerca} segnaposto="cerca un progetto…" />
+        <Search value={search} onChange={setSearch} segnaposto="cerca un progetto…" />
         <div className="flex items-center gap-1">
-          <Filtro attiva={vista === "tutte"} onClick={() => setVista("tutte")} n={conta.tutte}>tutti</Filtro>
-          {VISTE.map((v) => (
-            <Filtro key={v.id} attiva={vista === v.id} onClick={() => setVista(v.id)}
-                    n={conta[v.id]} titolo={v.spiega}>
-              {v.nome}
-            </Filtro>
+          <Filter active={view === "tutte"} onClick={() => setView("tutte")} n={count.tutte}>tutti</Filter>
+          {VIEWS.map((v) => (
+            <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
+                    n={count[v.id]} title={v.spiega}>
+              {v.name}
+            </Filter>
           ))}
         </div>
         <span className="w-px h-4 bg-neutral-800" aria-hidden />
         <div className="flex items-center gap-1">
-          <Filtro attiva={stato === "in_corso"} onClick={() => setStato(stato === "in_corso" ? "tutti" : "in_corso")}
-                  n={conta.in_corso} titolo="Hanno lavori in coda o in corso">in corso</Filtro>
-          <Filtro attiva={stato === "falliti"} onClick={() => setStato(stato === "falliti" ? "tutti" : "falliti")}
-                  n={conta.falliti} titolo="Hanno generazioni fallite da guardare">falliti</Filtro>
-          <Filtro attiva={stato === "pausa"} onClick={() => setStato(stato === "pausa" ? "tutti" : "pausa")}
-                  n={conta.pausa} titolo="Il generatore li salta">in pausa</Filtro>
-          <Filtro attiva={stato === "rotti"} onClick={() => setStato(stato === "rotti" ? "tutti" : "rotti")}
-                  n={conta.rotti} titolo="Cartella sparita o database che non si apre">da sistemare</Filtro>
+          <Filter active={state === "in_corso"} onClick={() => setState(state === "in_corso" ? "tutti" : "in_corso")}
+                  n={count.in_corso} title="Hanno lavori in coda o in corso">in corso</Filter>
+          <Filter active={state === "falliti"} onClick={() => setState(state === "falliti" ? "tutti" : "falliti")}
+                  n={count.falliti} title="Hanno generazioni fallite da guardare">falliti</Filter>
+          <Filter active={state === "pausa"} onClick={() => setState(state === "pausa" ? "tutti" : "pausa")}
+                  n={count.pausa} title="Il generatore li salta">in pausa</Filter>
+          <Filter active={state === "rotti"} onClick={() => setState(state === "rotti" ? "tutti" : "rotti")}
+                  n={count.rotti} title="Cartella sparita o database che non si apre">da sistemare</Filter>
         </div>
         <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
           ordina
-          {([["recenti", "recenti"], ["nome", "nome"], ["grandi", "più grandi"]] as const).map(([id, testo]) => (
+          {([["recenti", "recenti"], ["nome", "nome"], ["grandi", "più grandi"]] as const).map(([id, text]) => (
             <button key={id} type="button" onClick={() => setOrdine(id)} aria-pressed={ordine === id}
                     className={"px-1.5 py-0.5 rounded-sm border transition-colors " +
                       (ordine === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
-              {testo}
+              {text}
             </button>
           ))}
         </div>
@@ -152,7 +152,7 @@ export default function StudioPage() {
             : "Niente con questi filtri. "}
           {tutti.length > 0 && (
             <button className="underline hover:text-neutral-100"
-                    onClick={() => { setCerca(""); setVista("tutte"); setStato("tutti"); }}>
+                    onClick={() => { setSearch(""); setView("tutte"); setState("tutti"); }}>
               Rimettili a posto
             </button>
           )}
@@ -161,54 +161,54 @@ export default function StudioPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
         {visibili.map((p) => (
-          <Scheda
+          <Card
             key={p.id}
             p={p}
-            onApri={() => navigate(`/p/${p.id}`)}
+            onOpen={() => navigate(`/p/${p.id}`)}
             onGenera={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
-            onViste={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
+            onViews={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
             onTogli={async () => { await api.studioRemoveProject(p.id); refresh(); }}
           />
         ))}
       </div>
 
-      <Nuovo onFatto={refresh} />
+      <Nuovo onDone={refresh} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
 
-const durataBreve = (s: number) =>
+const shortDuration = (s: number) =>
   s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}s`;
 
-function Scheda({
-  p, onApri, onGenera, onViste, onTogli,
+function Card({
+  p, onOpen, onGenera, onViews, onTogli,
 }: {
   p: StudioProject;
-  onApri: () => void;
+  onOpen: () => void;
   onGenera: (v: boolean) => void;
-  onViste: (v: ProjectKind[]) => void;
+  onViews: (v: ProjectKind[]) => void;
   onTogli: () => void;
 }) {
   const s = p.stats;
   const q = s?.queue ?? {};
-  const principale = vista(p.kind);
-  const Icona = principale.icona;
+  const principale = view(p.kind);
+  const Icon = principale.icon;
 
-  const numeri = p.video
-    ? [["tagli", p.video.tagli], ["riprese", p.video.piani], ["durata", durataBreve(p.video.durata)]] as const
+  const numbers = p.video
+    ? [["tagli", p.video.cuts], ["riprese", p.video.shots], ["durata", shortDuration(p.video.duration)]] as const
     : s
       ? [["foto", s.photos], ["preferite", s.favorites], ["versioni", s.versions]] as const
       : null;
 
   /** Accendere e spegnere una vista. La principale non si spegne: sarebbe un
    *  progetto che si apre su una pagina che non c'è. */
-  const cambiaVista = (id: ProjectKind) => {
+  const changeView = (id: ProjectKind) => {
     if (id === p.kind) return;
     const dentro = new Set(p.views);
     if (dentro.has(id)) dentro.delete(id); else dentro.add(id);
-    onViste([...dentro]);
+    onViews([...dentro]);
   };
 
   return (
@@ -217,12 +217,12 @@ function Scheda({
     // cliccare è il progetto, non un bottone dentro il progetto.
     <div className="group relative rounded-lg border border-neutral-800 bg-neutral-950/60 p-3
                     flex flex-col gap-2.5 transition-colors hover:border-neutral-600">
-      <button type="button" onClick={onApri} aria-label={`Apri ${p.name}`}
+      <button type="button" onClick={onOpen} aria-label={`Apri ${p.name}`}
               className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-1
                          focus-visible:outline-offset-2 focus-visible:outline-neutral-300" />
 
       <div className="relative z-20 flex items-start gap-2 min-w-0 pointer-events-none">
-        <Icona className="w-4 h-4 mt-[3px] shrink-0 text-neutral-400" aria-hidden />
+        <Icon className="w-4 h-4 mt-[3px] shrink-0 text-neutral-400" aria-hidden />
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-[14px] font-medium truncate group-hover:text-white">{p.name}</span>
@@ -232,18 +232,18 @@ function Scheda({
         {/* Compare passandoci sopra, e resta se ci si arriva col tasto di
             tabulazione: nascosto non vuol dire irraggiungibile. */}
         <Altro discreto className="pointer-events-auto">
-          <VoceMenu onClick={onApri}>Apri il progetto</VoceMenu>
-          <VoceMenu onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</VoceMenu>
-          <VoceMenu onClick={() => onGenera(!p.active)}
+          <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
+          <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
+          <MenuItem onClick={() => onGenera(!p.active)}
                     nota="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
             {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
-          </VoceMenu>
+          </MenuItem>
           <div className="border-t border-neutral-800 my-1" />
-          <Conferma taglia="s" className="w-full justify-start"
+          <Confirm taglia="s" className="w-full justify-start"
                     domanda={`Tolgo «${p.name}»? I file restano dove sono.`}
-                    conferma="togli" onConferma={onTogli}>
+                    confirm="togli" onConfirm={onTogli}>
             Togli dall'elenco
-          </Conferma>
+          </Confirm>
         </Altro>
       </div>
 
@@ -260,9 +260,9 @@ function Scheda({
         </div>
       )}
 
-      {numeri && (
+      {numbers && (
         <div className="relative z-10 grid grid-cols-3 gap-1.5 text-center pointer-events-none">
-          {numeri.map(([etichetta, v]) => (
+          {numbers.map(([etichetta, v]) => (
             <div key={etichetta} className="rounded bg-neutral-900/60 border border-neutral-800 py-1">
               <div className="text-[15px] font-semibold tabular-nums leading-tight">{v}</div>
               <div className="text-[10px] text-neutral-400">{etichetta}</div>
@@ -276,13 +276,13 @@ function Scheda({
           deve diventare due progetti sulla stessa cartella. */}
       <div className="relative z-10 flex flex-wrap items-center gap-1"
            title="Le viste di questo progetto: accendile e spegnile da qui.">
-        {VISTE.map((v) => {
+        {VIEWS.map((v) => {
           const accesa = p.views.includes(v.id);
           const fissa = v.id === p.kind;
-          const I = v.icona;
+          const I = v.icon;
           return (
             <button key={v.id} type="button" disabled={fissa}
-                    onClick={(e) => { e.stopPropagation(); cambiaVista(v.id); }}
+                    onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
                     title={fissa
                       ? `${v.spiega} È la vista principale: si apre qui, quindi non si spegne.`
                       : accesa ? `${v.spiega} Clicca per spegnerla.` : `${v.spiega} Clicca per accenderla.`}
@@ -292,7 +292,7 @@ function Scheda({
                       : fissa ? "border-neutral-500 bg-neutral-800 text-neutral-100 cursor-default"
                       : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-neutral-500"}`}>
               <I className="w-3 h-3" aria-hidden />
-              {v.nome}
+              {v.name}
             </button>
           );
         })}
@@ -302,20 +302,20 @@ function Scheda({
           delle schede della stessa fila finivano a tre pixel di scarto. */}
       <div className="relative z-10 flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]
                       pointer-events-none">
-        {(q.running ?? 0) > 0 && <Targa tono="info">{q.running} in corso</Targa>}
-        {(q.pending ?? 0) > 0 && <Targa>{q.pending} in coda</Targa>}
+        {(q.running ?? 0) > 0 && <Badge tono="info">{q.running} in corso</Badge>}
+        {(q.pending ?? 0) > 0 && <Badge>{q.pending} in coda</Badge>}
         {(q.failed ?? 0) > 0 && (
-          <Targa tono="male" titolo="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
+          <Badge tono="male" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
             {q.failed} falliti
-          </Targa>
+          </Badge>
         )}
         {/* Lo stato normale non si scrive: si vede che non c'è niente di
             strano. In pausa invece è un'eccezione — i lavori ci sono e nessuno
             li tocca — e quella va detta. */}
         {!p.active && (
-          <Targa tono="attesa" titolo="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
+          <Badge tono="attesa" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
             in pausa
-          </Targa>
+          </Badge>
         )}
         <span className="ml-auto text-neutral-400 shrink-0" title="ultima versione generata">
           {quando(s?.last_version_at ?? null)}
@@ -330,13 +330,13 @@ function Scheda({
   );
 }
 
-function VoceMenu({ children, onClick, nota }: {
+function MenuItem({ children, onClick, nota }: {
   children: React.ReactNode; onClick: () => void; nota?: string;
 }) {
-  const chiudi = useChiudiMenu();
+  const close = useCloseMenu();
   return (
     <button type="button" role="menuitem" title={nota}
-            onClick={(e) => { e.stopPropagation(); onClick(); chiudi(); }}
+            onClick={(e) => { e.stopPropagation(); onClick(); close(); }}
             className="w-full text-left px-2 py-1 rounded-sm text-[11px] text-neutral-300
                        hover:bg-neutral-800 hover:text-neutral-100">
       {children}
@@ -345,11 +345,11 @@ function VoceMenu({ children, onClick, nota }: {
   );
 }
 
-function Nuovo({ onFatto }: { onFatto: () => void }) {
-  const [aperto, setAperto] = useState(false);
-  const [nome, setNome] = useState("");
+function Nuovo({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
   const [tipo, setTipo] = useState<ProjectKind>("photo");
-  const [foto, setFoto] = useState("");
+  const [foto, setPhotos] = useState("");
   const [modo, setModo] = useState<"link" | "copy">("link");
   const [radice, setRadice] = useState("");
   const [avanzate, setAvanzate] = useState(false);
@@ -360,7 +360,7 @@ function Nuovo({ onFatto }: { onFatto: () => void }) {
     setInCorso(true); setErr(null);
     try {
       const res = await api.studioAddProject({
-        name: nome.trim(),
+        name: name.trim(),
         kind: tipo,
         root: radice.trim() || undefined,
         photos: foto.trim() ? { path: foto.trim(), mode: modo } : undefined,
@@ -368,58 +368,58 @@ function Nuovo({ onFatto }: { onFatto: () => void }) {
       if (res.summary && res.summary.added === 0 && res.summary.scanned === 0) {
         setErr("Progetto creato, ma in quella cartella non ho trovato foto.");
       }
-      setNome(""); setFoto(""); setRadice(""); setAvanzate(false); setAperto(false);
-      onFatto();
+      setName(""); setPhotos(""); setRadice(""); setAvanzate(false); setOpen(false);
+      onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally { setInCorso(false); }
   }
 
-  if (!aperto) return <Bott taglia="m" onClick={() => setAperto(true)}>+ Nuovo progetto</Bott>;
+  if (!open) return <Bott taglia="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
 
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-3 max-w-lg">
       <div className="text-[13px] font-medium">Nuovo progetto</div>
 
-      <Riga etichetta="Come si chiama">
-        <Campo valore={nome} onCambia={setNome} segnaposto="es. Kyoto 2026" autoFuoco
-               taglia="m" className="w-full" onInvio={() => { if (nome.trim()) void crea(); }} />
-      </Riga>
+      <Row etichetta="Come si chiama">
+        <Field value={name} onChange={setName} segnaposto="es. Kyoto 2026" autoFuoco
+               taglia="m" className="w-full" onInvio={() => { if (name.trim()) void crea(); }} />
+      </Row>
 
-      <Riga etichetta="Che cosa ci fai">
+      <Row etichetta="Che cosa ci fai">
         <div className="grid grid-cols-3 gap-1.5">
-          {VISTE.map((v) => (
-            <Sceltona key={v.id} scelto={tipo === v.id} onClick={() => setTipo(v.id)}
-                      icona={v.icona} titolo={v.nome} nota={v.spiega} />
+          {VIEWS.map((v) => (
+            <BigPick key={v.id} picked={tipo === v.id} onClick={() => setTipo(v.id)}
+                      icon={v.icon} title={v.name} nota={v.spiega} />
           ))}
         </div>
-      </Riga>
+      </Row>
 
       {tipo === "photo" && (
-        <Riga etichetta="Le foto — puoi aggiungerle anche dopo">
-          <Campo valore={foto} onCambia={setFoto} segnaposto="/Users/…/Foto/Kyoto"
+        <Row etichetta="Le foto — puoi aggiungerle anche dopo">
+          <Field value={foto} onChange={setPhotos} segnaposto="/Users/…/Foto/Kyoto"
                  taglia="m" className="w-full font-mono" />
           {foto.trim() && (
             <div className="grid grid-cols-2 gap-1.5 pt-1.5">
-              <Sceltona scelto={modo === "link"} onClick={() => setModo("link")}
-                        titolo="Lasciale dove sono" nota="Le indicizzo sul posto: non copio niente." />
-              <Sceltona scelto={modo === "copy"} onClick={() => setModo("copy")}
-                        titolo="Copiale nel progetto" nota="Utile se la cartella è temporanea." />
+              <BigPick picked={modo === "link"} onClick={() => setModo("link")}
+                        title="Lasciale dove sono" nota="Le indicizzo sul posto: non copio niente." />
+              <BigPick picked={modo === "copy"} onClick={() => setModo("copy")}
+                        title="Copiale nel progetto" nota="Utile se la cartella è temporanea." />
             </div>
           )}
-        </Riga>
+        </Row>
       )}
 
       <div>
-        <Bott peso="quieto" taglia="s" onClick={() => setAvanzate((v) => !v)}>
+        <Bott weight="quieto" taglia="s" onClick={() => setAvanzate((v) => !v)}>
           {avanzate ? "▾" : "▸"} Dove salvare il progetto
         </Bott>
         {avanzate && (
           <div className="pt-1.5">
-            <Riga etichetta="Cartella del progetto — vuoto: la crea Darkroom">
-              <Campo valore={radice} onCambia={setRadice} taglia="m"
+            <Row etichetta="Cartella del progetto — vuoto: la crea Darkroom">
+              <Field value={radice} onChange={setRadice} taglia="m"
                      segnaposto="~/Darkroom/projects/<nome>" className="w-full font-mono" />
-            </Riga>
+            </Row>
           </div>
         )}
       </div>
@@ -427,32 +427,32 @@ function Nuovo({ onFatto }: { onFatto: () => void }) {
       {err && <div className="text-[11px] text-amber-300">{err}</div>}
 
       <div className="flex items-center gap-1.5">
-        <Bott peso="primario" taglia="m" onClick={crea} disabilitato={inCorso || !nome.trim()}>
+        <Bott weight="primario" taglia="m" onClick={crea} disabilitato={inCorso || !name.trim()}>
           {inCorso ? "Creo…" : "Crea"}
         </Bott>
-        <Bott peso="quieto" taglia="m" onClick={() => setAperto(false)}>Annulla</Bott>
+        <Bott weight="quieto" taglia="m" onClick={() => setOpen(false)}>Annulla</Bott>
       </div>
     </div>
   );
 }
 
-function Sceltona({ scelto, onClick, titolo, nota, icona: I }: {
-  scelto: boolean; onClick: () => void; titolo: string; nota: string; icona?: LucideIcon;
+function BigPick({ picked, onClick, title, nota, icon: I }: {
+  picked: boolean; onClick: () => void; title: string; nota: string; icon?: LucideIcon;
 }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={scelto}
+    <button type="button" onClick={onClick} aria-pressed={picked}
             className={`text-left p-2 rounded border transition-colors ${
-              scelto ? "border-emerald-700 bg-emerald-950/30" : "border-neutral-800 hover:border-neutral-600"}`}>
+              picked ? "border-emerald-700 bg-emerald-950/30" : "border-neutral-800 hover:border-neutral-600"}`}>
       <div className="text-[12px] text-neutral-100 flex items-center gap-1.5">
         {I && <I className="w-3.5 h-3.5 text-neutral-400" aria-hidden />}
-        {titolo}
+        {title}
       </div>
       <div className="text-[11px] text-neutral-400 leading-snug mt-0.5">{nota}</div>
     </button>
   );
 }
 
-function Riga({ etichetta, children }: { etichetta: string; children: React.ReactNode }) {
+function Row({ etichetta, children }: { etichetta: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
       <span className="text-[11px] text-neutral-400">{etichetta}</span>
