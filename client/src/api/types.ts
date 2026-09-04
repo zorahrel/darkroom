@@ -598,3 +598,60 @@ export type VideoForzature = {
   durata: { battuta: number; battute: number }[];
   scartatiAMano: { piano: string; motivo: string }[];
 };
+
+// ---- catalogo degli strumenti ---------------------------------------------
+// Le forme arrivano da `server/strumenti.ts`, che è la fonte: qui si
+// dichiarano solo per leggerle. Se le due divergono, è il server ad avere
+// ragione — questa è la copia, non l'originale.
+
+export type AreaStrumento =
+  | "immagini" | "colore" | "qualita" | "libreria" | "racconto" | "montaggio" | "sistema";
+
+export type Requisito = "generatore" | "ffmpeg" | "moondream" | "comfy";
+
+export type CampoAvvio = {
+  nome: string;
+  etichetta: string;
+  tipo: "testo" | "lungo" | "numero" | "cartella";
+  segnaposto?: string;
+  richiesto?: boolean;
+  predefinito?: string | number;
+  nota?: string;
+};
+
+export type Avvio =
+  | { modo: "apri"; etichetta: string; rotta: string; vista: ProjectKind }
+  | { modo: "nuovo" | "subito"; etichetta: string; campi: CampoAvvio[]; nota?: string };
+
+export type Strumento = {
+  id: string;
+  nome: string;
+  cosa: string;
+  area: AreaStrumento;
+  icona: string;
+  viste: ProjectKind[];
+  api: string[];
+  mcp: string[];
+  richiede: Requisito[];
+  avvii: Avvio[];
+  /** Usabile adesso su questa macchina. */
+  pronto: boolean;
+  /** Cosa manca, detto con il gesto che lo sistema. */
+  manca: { requisito: Requisito; come: string }[];
+};
+
+export type Catalogo = {
+  aree: { id: AreaStrumento; nome: string; cosa: string }[];
+  requisiti: Record<Requisito, { ok: boolean; come: string }>;
+  backend: string;
+  strumenti: Strumento[];
+};
+
+/** Cosa è successo avviando uno strumento, e dove si atterra. */
+export type EsitoAvvio = {
+  ok: true;
+  rotta: string;
+  progetto: string;
+  fatto: string;
+  dati?: unknown;
+};

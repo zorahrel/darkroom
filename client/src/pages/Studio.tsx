@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   api,
@@ -8,7 +8,7 @@ import {
   type StudioProject,
 } from "../api";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Altro, Bott, Campo, Conferma, Targa, Testata, useChiudiMenu } from "../ui";
+import { Altro, Bott, Campo, Cerca, Conferma, Filtro, Targa, Testata, useChiudiMenu } from "../ui";
 import { VISTE, vista } from "../viste";
 
 /**
@@ -21,9 +21,17 @@ import { VISTE, vista } from "../viste";
  * progetto è quieto e chiede conferma, perché è l'unica cosa qui che non si
  * annulla da sola.
  */
+/** Come si guarda l'elenco: per cosa sa fare un progetto, o per come sta. */
+type Stato = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
+type Ordine = "recenti" | "nome" | "grandi";
+
 export default function StudioPage() {
   const [data, setData] = useState<StudioOverview | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [cerca, setCerca] = useState("");
+  const [vista, setVista] = useState<ProjectKind | "tutte">("tutte");
+  const [stato, setStato] = useState<Stato>("tutti");
+  const [ordine, setOrdine] = useState<Ordine>("recenti");
   const navigate = useNavigate();
 
   async function refresh() {
@@ -38,6 +46,48 @@ export default function StudioPage() {
   }, []);
 
   const pausa = data?.worker.runner;
+  const tutti = data?.projects ?? [];
+
+  /** Quanti progetti cadrebbero in ogni filtro. Un filtro senza numero non
+   *  dice se vale la pena aprirlo, e a zero si spegne da solo. */
+  const conta = useMemo(() => {
+    const q = (f: (p: StudioProject) => boolean) => tutti.filter(f).length;
+    return {
+      tutte: tutti.length,
+      photo: q((p) => p.views.includes("photo")),
+      storyboard: q((p) => p.views.includes("storyboard")),
+      video: q((p) => p.views.includes("video")),
+      tutti: tutti.length,
+      in_corso: q((p) => ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) > 0),
+      falliti: q((p) => (p.stats?.queue?.failed ?? 0) > 0),
+      pausa: q((p) => !p.active),
+      rotti: q((p) => !p.root_exists || !!p.error),
+    };
+  }, [tutti]);
+
+  const visibili = useMemo(() => {
+    const q = cerca.trim().toLowerCase();
+    const dentro = tutti.filter((p) => {
+      if (vista !== "tutte" && !p.views.includes(vista)) return false;
+      if (stato === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
+      if (stato === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
+      if (stato === "pausa" && p.active) return false;
+      if (stato === "rotti" && p.root_exists && !p.error) return false;
+      if (!q) return true;
+      return p.name.toLowerCase().includes(q) || p.root.toLowerCase().includes(q) || p.id.includes(q);
+    });
+    const peso = (p: StudioProject) => p.stats?.photos ?? p.video?.tagli ?? 0;
+    return dentro.sort((a, b) =>
+      ordine === "nome"
+        ? a.name.localeCompare(b.name)
+        : ordine === "grandi"
+          ? peso(b) - peso(a)
+          // "Recenti" è l'ultima versione generata, non la data di creazione:
+          // il progetto su cui si stava lavorando è quello che ha prodotto
+          // qualcosa per ultimo, non quello aperto per ultimo.
+          : (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
+    );
+  }, [tutti, cerca, vista, stato, ordine]);
 
   return (
     <div className="space-y-4">
@@ -58,8 +108,59 @@ export default function StudioPage() {
         </div>
       )}
 
+      {/* La barra dei filtri: prima COSA sa fare un progetto, poi COME sta.
+          Due domande diverse, quindi due gruppi, non un elenco unico in cui
+          «video» e «in pausa» si escludono a vicenda senza motivo. */}
+      <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
+        <Cerca valore={cerca} onCambia={setCerca} segnaposto="cerca un progetto…" />
+        <div className="flex items-center gap-1">
+          <Filtro attiva={vista === "tutte"} onClick={() => setVista("tutte")} n={conta.tutte}>tutti</Filtro>
+          {VISTE.map((v) => (
+            <Filtro key={v.id} attiva={vista === v.id} onClick={() => setVista(v.id)}
+                    n={conta[v.id]} titolo={v.spiega}>
+              {v.nome}
+            </Filtro>
+          ))}
+        </div>
+        <span className="w-px h-4 bg-neutral-800" aria-hidden />
+        <div className="flex items-center gap-1">
+          <Filtro attiva={stato === "in_corso"} onClick={() => setStato(stato === "in_corso" ? "tutti" : "in_corso")}
+                  n={conta.in_corso} titolo="Hanno lavori in coda o in corso">in corso</Filtro>
+          <Filtro attiva={stato === "falliti"} onClick={() => setStato(stato === "falliti" ? "tutti" : "falliti")}
+                  n={conta.falliti} titolo="Hanno generazioni fallite da guardare">falliti</Filtro>
+          <Filtro attiva={stato === "pausa"} onClick={() => setStato(stato === "pausa" ? "tutti" : "pausa")}
+                  n={conta.pausa} titolo="Il generatore li salta">in pausa</Filtro>
+          <Filtro attiva={stato === "rotti"} onClick={() => setStato(stato === "rotti" ? "tutti" : "rotti")}
+                  n={conta.rotti} titolo="Cartella sparita o database che non si apre">da sistemare</Filtro>
+        </div>
+        <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
+          ordina
+          {([["recenti", "recenti"], ["nome", "nome"], ["grandi", "più grandi"]] as const).map(([id, testo]) => (
+            <button key={id} type="button" onClick={() => setOrdine(id)} aria-pressed={ordine === id}
+                    className={"px-1.5 py-0.5 rounded-sm border transition-colors " +
+                      (ordine === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
+              {testo}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {data && visibili.length === 0 && (
+        <div className="text-[12px] text-neutral-400">
+          {tutti.length === 0
+            ? "Nessun progetto ancora: cominciane uno qui sotto, o dagli strumenti."
+            : "Niente con questi filtri. "}
+          {tutti.length > 0 && (
+            <button className="underline hover:text-neutral-100"
+                    onClick={() => { setCerca(""); setVista("tutte"); setStato("tutti"); }}>
+              Rimettili a posto
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
-        {data?.projects.map((p) => (
+        {visibili.map((p) => (
           <Scheda
             key={p.id}
             p={p}

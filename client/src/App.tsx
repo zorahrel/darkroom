@@ -21,7 +21,7 @@ export type OutletCtx = {
 };
 import JobsPanel from "./components/JobsPanel";
 import { Bott, Targa } from "./ui";
-import { SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { LayoutGrid, SlidersHorizontal, Wrench, type LucideIcon } from "lucide-react";
 import { VISTE, vista } from "./viste";
 
 export default function App() {
@@ -181,27 +181,35 @@ export default function App() {
             "mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
           }
         >
-          {/* Breadcrumb: the app, then which project you are in. Studio is not
-              a view of a project — it's the floor above — so it lives inside
-              the project menu instead of sitting next to Griglia/Storyboard. */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            {/* A project named like the app would read "Darkroom / Darkroom":
-                in that case the project chip stands on its own. */}
-            {projects.find((p) => p.id === pid)?.name.trim().toLowerCase() !== "darkroom" && (
+          {/* La navigazione ha due piani, e si vedono.
+
+              STRUMENTI è cosa Darkroom sa fare; PROGETTI è su cosa lo stai
+              facendo. Prima esisteva solo il secondo — l'app si apriva
+              sull'ultimo progetto — e le capacità (montaggio, storyboard,
+              controlli qualità) si scoprivano solo se già sapevi che c'erano.
+              Le due aree stanno sempre in barra: da dentro un progetto si
+              torna agli strumenti con un clic, non tornando indietro. */}
+          <div className="flex items-center gap-2 min-w-0">
+            <Link to="/" className="font-semibold tracking-tight shrink-0" title="Darkroom">
+              Darkroom
+            </Link>
+            <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
+              <ViewTab to="/" icona={Wrench} current={location.pathname === "/" || location.pathname === "/strumenti"}>
+                Strumenti
+              </ViewTab>
+              <ViewTab to="/studio" icona={LayoutGrid} current={location.pathname.startsWith("/studio")}>
+                Progetti
+                {projects.length > 0 && (
+                  <span className="ml-1 text-neutral-500 tabular-nums">{projects.length}</span>
+                )}
+              </ViewTab>
+            </nav>
+            {pid && (
               <>
-                <Link to="/studio" className="font-semibold tracking-tight shrink-0">
-                  Darkroom
-                </Link>
-                <span className="text-neutral-400 shrink-0">/</span>
+                <span className="text-neutral-600 shrink-0">/</span>
+                <ProjectMenu projects={projects} activeId={pid} />
               </>
             )}
-            <ProjectMenu
-              projects={projects}
-              activeId={pid}
-              standalone={
-                projects.find((p) => p.id === pid)?.name.trim().toLowerCase() === "darkroom"
-              }
-            />
           </div>
 
           {/* Le viste del progetto.
@@ -404,12 +412,9 @@ export default function App() {
 function ProjectMenu({
   projects,
   activeId,
-  standalone = false,
 }: {
   projects: StudioProject[];
   activeId: string;
-  /** True when the chip IS the breadcrumb (no wordmark before it). */
-  standalone?: boolean;
 }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -440,10 +445,7 @@ function ProjectMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         title="Progetto attivo"
-        className={
-          "flex items-center gap-1 max-w-[12rem] px-2 py-1 rounded text-sm text-white hover:bg-neutral-900 transition-colors " +
-          (standalone ? "font-semibold tracking-tight" : "")
-        }
+        className="flex items-center gap-1 max-w-[12rem] px-2 py-1 rounded text-sm text-white hover:bg-neutral-900 transition-colors"
       >
         <span className="truncate">{label}</span>
         <span className="text-neutral-400 text-xs">▾</span>

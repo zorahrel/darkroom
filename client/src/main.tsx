@@ -1,15 +1,16 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import Home from "./pages/Home";
-import { api, lastProject } from "./api";
+import Galleria from "./pages/Galleria";
 
-// Home is the landing surface — keep it in the main chunk so the grid paints
-// without a flash. The secondary pages (per-photo editor, orphans, studio) are
-// code-split so their heavier deps (StepEditor, PromptBuilder, masks) don't
-// weigh down first paint of the grid.
+// Due superfici d'ingresso, entrambe nel chunk principale perché sono le due
+// pagine da cui si comincia: la home (gli strumenti) e la griglia di un
+// progetto. Le altre — editor per foto, orfane, studio — sono code-split, così
+// le loro dipendenze pesanti (StepEditor, PromptBuilder, maschere) non pesano
+// sul primo disegno.
 const DetailPage = lazy(() => import("./pages/Detail"));
 const OrphansPage = lazy(() => import("./pages/Orphans"));
 const StudioPage = lazy(() => import("./pages/Studio"));
@@ -25,33 +26,6 @@ function PageFallback() {
   return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
 }
 
-// `/` lands on the last-opened project's grid (or the first registered one,
-// or the Studio if there are none). Keeps the single-project muscle memory
-// while the project now lives in the URL (`/p/:pid`).
-function RootRedirect() {
-  const [to, setTo] = useState<string | null>(null);
-  useEffect(() => {
-    // La query string va portata dentro il redirect: filtro, raggruppamento e
-    // zoom vivono li'. Senza, un link come "/?filter=covers_todo" atterrava su
-    // "/p/darkroom" mostrando tutte e 190 le foto — e sembrava che il filtro
-    // non funzionasse, quando invece era stato buttato via per strada.
-    const qs = window.location.search + window.location.hash;
-    const last = lastProject();
-    if (last) {
-      setTo(`/p/${encodeURIComponent(last)}${qs}`);
-      return;
-    }
-    api
-      .studioProjects()
-      .then((r) =>
-        setTo(r.projects[0] ? `/p/${encodeURIComponent(r.projects[0].id)}${qs}` : "/studio"),
-      )
-      .catch(() => setTo("/studio"));
-  }, []);
-  if (!to) return null;
-  return <Navigate to={to} replace />;
-}
-
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
 
@@ -60,7 +34,8 @@ ReactDOM.createRoot(root).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
-          <Route index element={<RootRedirect />} />
+          <Route index element={<Home />} />
+          <Route path="strumenti" element={<Home />} />
           <Route
             path="studio"
             element={
@@ -69,7 +44,7 @@ ReactDOM.createRoot(root).render(
               </Suspense>
             }
           />
-          <Route path="p/:pid" element={<Home />} />
+          <Route path="p/:pid" element={<Galleria />} />
           <Route
             path="p/:pid/photo/:id"
             element={
@@ -134,7 +109,7 @@ ReactDOM.createRoot(root).render(
               </Suspense>
             }
           />
-          <Route path="*" element={<Navigate to="/studio" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

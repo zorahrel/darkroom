@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
 
 /**
  * I pezzi di interfaccia dell'app.
@@ -582,6 +582,73 @@ export function Pastiglie<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Una voce di filtro con il suo numero.
+ *
+ * Il numero non è decorazione: un filtro senza conteggio non dice se vale la
+ * pena aprirlo, e quello a zero si spegne da solo invece di portare su un
+ * elenco vuoto. Sta qui perché lo usano la home degli strumenti e l'elenco dei
+ * progetti, e due barre di filtri che si somigliano ma non coincidono si
+ * leggono come due cose diverse.
+ */
+export function Filtro({
+  children, attiva, onClick, n, titolo,
+}: {
+  children: React.ReactNode;
+  attiva: boolean;
+  onClick: () => void;
+  n: number;
+  titolo?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={n === 0 && !attiva}
+      title={titolo}
+      aria-pressed={attiva}
+      className={
+        "px-1.5 py-0.5 border rounded-sm text-[11px] transition-colors disabled:opacity-30 " +
+        (attiva
+          ? "border-neutral-300 text-neutral-100"
+          : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+      }
+    >
+      {children}
+      <span className="ml-1 opacity-60 tabular-nums">{n}</span>
+    </button>
+  );
+}
+
+/** Il campo di ricerca di una barra filtri: la lente sta dentro, non accanto. */
+export function Cerca({
+  valore, onCambia, segnaposto, larghezza = "13rem",
+}: {
+  valore: string;
+  onCambia: (v: string) => void;
+  segnaposto?: string;
+  larghezza?: string;
+}) {
+  return (
+    <div className="relative">
+      <SearchIcon className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" aria-hidden />
+      <input
+        value={valore}
+        onChange={(e) => onCambia(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Escape") onCambia("");
+        }}
+        placeholder={segnaposto}
+        style={{ width: larghezza }}
+        className="appearance-none bg-neutral-950 border border-neutral-700 rounded-sm pl-7 pr-2 py-1
+                   text-[12px] text-neutral-100 placeholder:text-neutral-500 outline-none
+                   focus:border-neutral-300"
+      />
     </div>
   );
 }
