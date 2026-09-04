@@ -81,6 +81,23 @@ for it, and only run the next step if everything landed.
    - Tune the per‑photo prompt and **Save override** when the global look isn't enough. Each version records the exact prompt used.
 5. **Export favorites** — copies every favorite into `<root>/data/final/<photo_id>.png`.
 
+## Tools and projects
+
+Two floors, and the header shows both. **Strumenti** (the home) is what Darkroom can do;
+**Progetti** is what you are doing it to.
+
+The home lists every capability with the one line that says whether it is what you need, whether
+it works *right now* on this machine — and if not, the thing that is missing, phrased as the
+gesture that fixes it — and how to begin: open it inside a project you already have, make a new
+project already switched to the right view, or just use it (type a prompt and generate, point a
+folder at a new gallery, turn a beat sheet into a storyboard, run the quality pass, export).
+
+That list is not written in the UI. It comes from a catalogue in
+[`server/strumenti.ts`](server/strumenti.ts) that the MCP server reads too (`list_tools`), so a
+new capability shows up in both the day it exists — and a test ties every entry to routes that
+are actually mounted and MCP tools that actually exist, in both directions, so the catalogue
+can't drift into a brochure.
+
 ## Projects
 
 Darkroom runs several local projects side by side. A project is a folder with its
@@ -171,7 +188,21 @@ Darkroom ships an MCP server that wraps the local API. Start the backend, then r
 }
 ```
 
-Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list_jobs`, `set_favorite`, `set_global_prompt`, `export_favorites`, plus the storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_panel`, `list_characters`, `set_character`, `export_storyboard`) and the quality set (`check_photo`, `verification_summary`, `list_failure_modes`, `add_failure_mode`). See [`mcp/README.md`](mcp/README.md).
+Start with **`list_tools`**: it returns the capability catalogue — what each tool is for,
+which project views it lives in, whether it is usable *right now* on this machine (and if not,
+what is missing), and how to start it. **`start_tool`** then does the thing in one call, creating
+the project it needs if it needs one. That catalogue is the same one the home page renders, so
+Claude and the UI can never disagree about what Darkroom can do.
+
+Under it, one tool per operation: `list_photos`, `get_photo`, `edit_photo`, `generate_image`,
+`generate_missing`, `list_jobs`, `set_favorite`, `set_global_prompt`, `color_grade`,
+`add_photos`, `rescan_photos`, `list_collections`, `assign_photos`, `export_favorites`, the
+storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_panel`,
+`list_characters`, `set_character`, `export_storyboard`), the quality set (`check_photo`,
+`verification_summary`, `list_failure_modes`, `add_failure_mode`), the video set (`video_shots`,
+`video_cuts`, `video_judge`, `video_pin`, `video_duration`, `video_forcings`, `video_rebuild`,
+`video_rebuild_status`, `video_check`, `video_generate`, `video_generations`) and the project set
+(`list_projects`, `add_project`, `update_project`, `status`). See [`mcp/README.md`](mcp/README.md).
 
 ## API
 
@@ -200,6 +231,8 @@ Tools exposed: `list_photos`, `get_photo`, `edit_photo`, `generate_image`, `list
 | POST | `/api/verify/photos/:id` | Check every render of a photo + favourite suggestion |
 | POST | `/api/verify/batch` | Background pass over unchecked renders |
 | GET | `/api/verify/summary` | What gets flagged, how often, and the trend |
+| GET | `/api/strumenti` | The tool catalogue + what is ready on this machine |
+| POST | `/api/strumenti/:id/avvia` | Start a tool (creating its project if needed) |
 | GET/POST | `/api/studio/projects` | List projects · create one from a name |
 | DELETE | `/api/studio/projects/:pid` | Forget a project (files stay) |
 | GET/POST | `/api/sources` | Photo folders of the active project (link/copy) |
