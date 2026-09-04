@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { db as getDb } from "./db.ts";
 import { videoRoot } from "./video.ts";
 import { listProjects, withProject } from "./project.ts";
+import { COMFY_HOST, RENDER_BASH, RENDER_OUT_DIR, RENDER_SSH } from "./config.ts";
 
 /**
  * Generazione video sulla 3090.
@@ -21,10 +22,10 @@ import { listProjects, withProject } from "./project.ts";
  * fotogrammi per una perdita di qualita' pagata solo per attraversare il cavo.
  */
 
-const HOST = "http://$COMFY_HOST:8188";
-const PC = "<utente>@$COMFY_HOST";
-const BASH = "C:\\Program Files\\Git\\bin\\bash.exe";
-const USCITA = "D:\\video_out";
+const HOST = COMFY_HOST;
+const PC = RENDER_SSH;
+const BASH = RENDER_BASH;
+const USCITA = RENDER_OUT_DIR;
 
 /** Il negativo di `gen.py`, parola per parola. Non vieta piu' il movimento di
  *  camera: vietarlo produceva cartoline. La firma dell'AI non e' la camera che

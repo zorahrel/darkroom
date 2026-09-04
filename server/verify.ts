@@ -1,6 +1,6 @@
 import { spawnSync } from "bun";
 import { existsSync } from "node:fs";
-import { FFMPEG_BIN } from "./config.ts";
+import { FFMPEG_BIN, moondreamBin } from "./config.ts";
 import { db, type VersionRow } from "./db.ts";
 import { thumbnailPath } from "./thumb.ts";
 
@@ -342,10 +342,6 @@ export function hashSimilarity(a: boolean[], b: boolean[]): number {
 
 /** Path of the Moondream CLI. Read per call (not cached) so it is overridable
  *  per machine — and so tests can point it at a stub. */
-function moondreamBin(): string {
-  return process.env.MOONDREAM_BIN ?? "moondream";
-}
-
 /** Ask the vision model a yes/no question about an image.
  *  Anything that is not a clear yes/no is `unsure`, which counts as a pass. */
 export function askVision(imagePath: string, question: string, timeoutMs = 30000): { verdict: Verdict; detail: string } {

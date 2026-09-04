@@ -181,3 +181,35 @@ export const FFMPEG_BIN =
     existsSync(p),
   ) ??
   "ffmpeg";
+
+// --- La fonderia remota (facoltativa) -------------------------------------
+/**
+ * Il PC con la scheda video, quando c'è.
+ *
+ * Erano tre costanti scritte a mano dentro `comfy.ts` e `video.ts`: l'utente e
+ * l'indirizzo di UNA macchina, cioè un pezzo della casa di chi l'ha scritto
+ * finito dentro un programma che sta su GitHub. Chiunque altro clonasse il
+ * repo si ritrovava il codice che prova a fare ssh su un indirizzo privato
+ * altrui. Adesso sono variabili d'ambiente: senza, la generazione di riprese
+ * resta spenta e Darkroom lo dice invece di provarci.
+ */
+export const COMFY_HOST = process.env.COMFY_HOST ?? "";
+/** `utente@host` della macchina che monta i fotogrammi. Vuoto = nessuna. */
+export const RENDER_SSH = process.env.RENDER_SSH ?? "";
+/** Le cartelle di lavoro SU quella macchina (percorsi suoi, non di questa). */
+export const RENDER_DIR = process.env.RENDER_DIR ?? "D:\\progetto";
+export const RENDER_OUT_DIR = process.env.RENDER_OUT_DIR ?? "D:\\video_out";
+/** La bash con cui lanciare gli script là (Git for Windows, di solito). */
+export const RENDER_BASH = process.env.RENDER_BASH ?? "C:\\Program Files\\Git\\bin\\bash.exe";
+
+/**
+ * La CLI di Moondream per i controlli che guardano l'immagine.
+ *
+ * Una funzione, non una costante: i test sostituiscono il binario con un finto
+ * a ogni caso, e una costante letta all'import li avrebbe fatti parlare tutti
+ * con il Moondream vero della macchina — che è lento e che, soprattutto,
+ * risponde davvero, cioè non prova più niente.
+ */
+export function moondreamBin(): string {
+  return process.env.MOONDREAM_BIN ?? "moondream";
+}

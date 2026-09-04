@@ -9,10 +9,13 @@
  */
 import { runWorkerOpenAi } from "../server/worker-openai.ts";
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 
-const REF = process.argv[2] ?? "$HOME/Darkroom/projects/profilo/data/refs/style-bw-wet-hair-hardlight.png";
+const REF = process.argv[2] ?? join(process.env.DARKROOM_DATA ?? "data", "refs", "riferimento.png");
 const GIRI = Number(process.argv[3] ?? 3);
-const DATA = "$HOME/Darkroom/projects/profilo/data";
+// La cartella dati del progetto su cui si calibra: si passa da fuori, perché
+// il percorso di casa di chi ha scritto lo script non è un default.
+const DATA = process.env.DARKROOM_DATA ?? "data";
 
 type Metriche = { luce: number; soggetto: number; p5: number; p95: number; neri: number };
 

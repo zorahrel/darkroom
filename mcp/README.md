@@ -24,8 +24,8 @@ stdio user-scope si moltiplica per ogni sessione aperta.
 gateway_mount {
   name: "darkroom",
   transport: "stdio",
-  command: "$HOME/.bun/bin/bun",
-  args: ["$HOME/Projects/darkroom/mcp/server.ts"],
+  command: "bun",
+  args: ["/absolute/path/to/darkroom/mcp/server.ts"],
   env: { "DARKROOM_API": "http://localhost:3737" }
 }
 ```

@@ -8,7 +8,7 @@ TEXT con dentro del JSON. Nessun vincolo, non interrogabile, e nessuno si accorg
 vuota.
 
 Il costo è misurato sul progetto `profilo`
-(`$HOME/Darkroom/projects/profilo/photos.db`, letto in sola lettura su copia):
+(il `photos.db` di un progetto reale, letto in sola lettura su copia):
 
 | Cosa | Misura |
 |---|---|

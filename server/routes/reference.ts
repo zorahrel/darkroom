@@ -10,6 +10,7 @@
 // viene dichiarata fallita invece di salvare una frase generica che poi
 // sembrerebbe una ricetta vera.
 import { Hono } from "hono";
+import { moondreamBin } from "../config.ts";
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
@@ -77,7 +78,7 @@ const ASPETTI: { chiave: string; domanda: string }[] = [
 ];
 
 async function chiedi(immagine: string, domanda: string): Promise<string | null> {
-  const p = Bun.spawn(["$HOME/bin/moondream", immagine, domanda], {
+  const p = Bun.spawn([moondreamBin(), immagine, domanda], {
     stdout: "pipe",
     stderr: "pipe",
   });
