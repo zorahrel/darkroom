@@ -174,6 +174,13 @@ photoRoutes.get("/api/photos/counts", (c) => {
          SUM(CASE WHEN p.picked = 0 THEN 1 ELSE 0 END) AS not_picked,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM versions v
                WHERE v.photo_id = p.id AND v.provider = 'higgsfield') THEN 1 ELSE 0 END) AS pro,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)
+               THEN 1 ELSE 0 END) AS covers,
+         SUM(CASE WHEN EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)
+               AND p.skipped = 0
+               AND NOT EXISTS (SELECT 1 FROM versions v
+                     WHERE v.id = p.favorite_version_id AND v.provider = 'higgsfield')
+               THEN 1 ELSE 0 END) AS covers_todo,
          SUM(CASE WHEN EXISTS (SELECT 1 FROM versions v WHERE v.photo_id = p.id
                AND v.created_at > (strftime('%s','now') - 24*3600) * 1000) THEN 1 ELSE 0 END) AS recent
        FROM photos p`,
