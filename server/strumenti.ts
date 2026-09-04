@@ -4,6 +4,7 @@ import {
   COMFY_HOST,
   FFMPEG_BIN,
   moondreamBin,
+  renderConfigured,
   WORKER_BACKEND,
   openaiKey,
 } from "./config.ts";
@@ -520,10 +521,15 @@ export async function requisiti(
           come: "Manca la CLI Moondream: i controlli a pixel funzionano lo stesso, quelli che guardano l'immagine no.",
         },
     comfy: {
-      ok: !!COMFY_HOST,
-      come: COMFY_HOST
-        ? `ComfyUI su ${COMFY_HOST}.`
-        : "Nessun ComfyUI configurato (COMFY_HOST): la generazione di riprese resta spenta.",
+      // A shot needs both halves: ComfyUI to render the frames and the render
+      // box to collect them. Reporting "ready" on COMFY_HOST alone was a
+      // half-truth that only failed later, inside an ssh call.
+      ok: !!COMFY_HOST && renderConfigured(),
+      come: !COMFY_HOST
+        ? "Nessun ComfyUI configurato (COMFY_HOST): la generazione di riprese resta spenta."
+        : renderConfigured()
+          ? `ComfyUI su ${COMFY_HOST}.`
+          : `ComfyUI su ${COMFY_HOST}, ma manca la macchina che raccoglie i fotogrammi (RENDER_SSH, RENDER_DIR, RENDER_OUT_DIR).`,
     },
   };
   cache = { t: Date.now(), v };

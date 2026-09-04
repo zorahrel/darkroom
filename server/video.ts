@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
-import { RENDER_DIR, RENDER_SSH } from "./config.ts";
+import { RENDER_DIR, RENDER_SSH, VIDEO_AUDIO } from "./config.ts";
 
 /**
  * Video projects. A video project is a folder produced by the beat-locked
@@ -713,9 +713,27 @@ export function onda(): Onda {
   return { picchi: [], beats, battute, durata, pronta: false };
 }
 
+/**
+ * The track the edit is cut to.
+ *
+ * This was one filename belonging to one project, so the waveform under the
+ * timeline drew for its author and stayed blank, unexplained, for anybody
+ * else. Order: what the operator set, then the first audio file sitting beside
+ * the project folder — which is where a project's music actually lives.
+ */
+function audioTrack(): string | null {
+  if (VIDEO_AUDIO) return existsSync(VIDEO_AUDIO) ? VIDEO_AUDIO : null;
+  const beside = join(videoRoot(), "..");
+  if (!existsSync(beside)) return null;
+  const found = readdirSync(beside)
+    .filter((f) => /\.(mp3|wav|m4a|flac|aac|ogg)$/i.test(f))
+    .sort();
+  return found.length ? join(beside, found[0]!) : null;
+}
+
 async function calcolaOnda(): Promise<void> {
-  const audio = join(videoRoot(), "..", "progetto [112].mp3");
-  if (!existsSync(audio)) return;
+  const audio = audioTrack();
+  if (!audio) return;
   // Mono, 8 kHz, interi con segno: per un profilo di ampiezza basta e avanza, e
   // sono 1,2 MB invece di 25.
   const proc = Bun.spawn(

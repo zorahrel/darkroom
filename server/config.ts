@@ -182,25 +182,45 @@ export const FFMPEG_BIN =
   ) ??
   "ffmpeg";
 
-// --- La fonderia remota (facoltativa) -------------------------------------
+// --- The remote render box (optional) --------------------------------------
 /**
- * Il PC con la scheda video, quando c'è.
+ * The machine with the GPU, when there is one.
  *
- * Erano tre costanti scritte a mano dentro `comfy.ts` e `video.ts`: l'utente e
- * l'indirizzo di UNA macchina, cioè un pezzo della casa di chi l'ha scritto
- * finito dentro un programma che sta su GitHub. Chiunque altro clonasse il
- * repo si ritrovava il codice che prova a fare ssh su un indirizzo privato
- * altrui. Adesso sono variabili d'ambiente: senza, la generazione di riprese
- * resta spenta e Darkroom lo dice invece di provarci.
+ * These used to be constants typed into `comfy.ts` and `video.ts`: the login
+ * and the address of ONE machine — a piece of the author's home wired into a
+ * program that lives on GitHub. Anyone else cloning the repo got code that
+ * tries to ssh into a stranger's private address. They are environment
+ * variables now: without them shot generation stays off and Darkroom says so
+ * instead of trying.
  */
 export const COMFY_HOST = process.env.COMFY_HOST ?? "";
-/** `utente@host` della macchina che monta i fotogrammi. Vuoto = nessuna. */
+/** `user@host` of the machine that renders the frames. Empty = none. */
 export const RENDER_SSH = process.env.RENDER_SSH ?? "";
-/** Le cartelle di lavoro SU quella macchina (percorsi suoi, non di questa). */
-export const RENDER_DIR = process.env.RENDER_DIR ?? "D:\\progetto";
-export const RENDER_OUT_DIR = process.env.RENDER_OUT_DIR ?? "D:\\video_out";
-/** La bash con cui lanciare gli script là (Git for Windows, di solito). */
+/**
+ * The working directories ON that machine (its paths, not this one's).
+ *
+ * No default: a path only its owner could guess is worse than an empty one,
+ * because it fails deep inside an ssh call instead of at the gate. Empty is
+ * what `renderConfigured()` reads to keep the feature off.
+ */
+export const RENDER_DIR = process.env.RENDER_DIR ?? "";
+export const RENDER_OUT_DIR = process.env.RENDER_OUT_DIR ?? "";
+/** The bash used to run the scripts over there (Git for Windows, usually). */
 export const RENDER_BASH = process.env.RENDER_BASH ?? "C:\\Program Files\\Git\\bin\\bash.exe";
+
+/** Every piece the remote render needs, or the feature cannot run at all. */
+export const renderConfigured = (): boolean =>
+  Boolean(RENDER_SSH && RENDER_DIR && RENDER_OUT_DIR);
+
+/**
+ * The music the edit is cut to, when the project has one.
+ *
+ * It used to be one filename, in one person's project. The waveform under the
+ * timeline therefore only ever drew for them; for everybody else the panel was
+ * empty with no explanation. Now: this variable if set, otherwise the first
+ * audio file sitting next to the project folder.
+ */
+export const VIDEO_AUDIO = process.env.VIDEO_AUDIO ?? "";
 
 /**
  * La CLI di Moondream per i controlli che guardano l'immagine.

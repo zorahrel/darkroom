@@ -59,7 +59,10 @@ describe("origine", () => {
  * macchina — un test che non puo' misurare non deve fingere di aver misurato —
  * ma quando c'e', deve tornare identico su ogni caso.
  */
-const PIANIFICA = `${process.env.HOME}/Projects/progetto_video/pianifica.py`;
+/** Where the video project's Python lives. One person's folder used to be
+ *  hardcoded here, which meant these tests could only ever run for them. */
+const VIDEO_PY_DIR = process.env.VIDEO_PY_DIR ?? "";
+const PIANIFICA = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/pianifica.py` : "";
 
 /** Leggibile, non solo esistente.
  *
@@ -71,6 +74,7 @@ const PIANIFICA = `${process.env.HOME}/Projects/progetto_video/pianifica.py`;
  *  disposizione su questa macchina?" — un file che non si puo' leggere e un
  *  file che non c'e' sono la stessa cosa. */
 const leggibile = (p: string) => {
+  if (!p) return false;
   try { accessSync(p, constants.R_OK); return true; } catch { return false; }
 };
 
@@ -105,7 +109,7 @@ describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
  * Non e' un test di forma: confronta il JSON nodo per nodo, con gli stessi
  * parametri passati a entrambi.
  */
-const GEN = `${process.env.HOME}/Projects/progetto_video/gen.py`;
+const GEN = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/gen.py` : "";
 
 describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
   const casi = [

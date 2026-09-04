@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { db as getDb } from "./db.ts";
 import { videoRoot } from "./video.ts";
 import { listProjects, withProject } from "./project.ts";
-import { COMFY_HOST, RENDER_BASH, RENDER_OUT_DIR, RENDER_SSH } from "./config.ts";
+import { COMFY_HOST, RENDER_BASH, RENDER_DIR, RENDER_OUT_DIR, RENDER_SSH } from "./config.ts";
 
 /**
  * Generazione video sulla 3090.
@@ -26,6 +26,18 @@ const HOST = COMFY_HOST;
 const PC = RENDER_SSH;
 const BASH = RENDER_BASH;
 const USCITA = RENDER_OUT_DIR;
+
+/**
+ * The same remote directory, in the two spellings that machine needs.
+ *
+ * `RENDER_DIR` is a Windows path because that is what the box runs, but the
+ * collect step goes through Git-bash (which wants `/d/foo`) and the preview
+ * comes back over scp (which wants `D:/foo`). These used to be one hardcoded
+ * path each, pointing at a folder only the author had.
+ */
+const remoteBash = (): string =>
+  RENDER_DIR.replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, d: string) => `/${d.toLowerCase()}`);
+const remoteScp = (): string => RENDER_DIR.replace(/\\/g, "/");
 
 /** Il negativo di `gen.py`, parola per parola. Non vieta piu' il movimento di
  *  camera: vietarlo produceva cartoline. La firma dell'AI non e' la camera che
@@ -330,14 +342,14 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Param
 /** Dai PNG alla ripresa: succede sul PC, e di qui passa solo l'anteprima. */
 async function raccogli(job: VideoJob, prefix: string): Promise<void> {
   appendi(job.id, "-> raccolta sul PC");
-  const rac = await ssh(`"${BASH}" -lc "/d/progetto/raccogli.sh ${prefix} ${job.piano} ${job.take}"`);
+  const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.piano} ${job.take}"`);
   appendi(job.id, (rac.out + rac.err).trim());
   if (rac.code !== 0) throw new Error(`raccogli.sh e' uscito ${rac.code}: ${(rac.err || rac.out).slice(0, 600)}`);
 
   // Di qui passa solo la clip leggera: e' l'unica cosa che il browser deve aprire.
   const nome = `${job.piano}__${job.take}`;
   for (const est of ["mp4", "jpg"]) {
-    const scp = Bun.spawn(["scp", "-q", `${PC}:D:/progetto/prev/${nome}.${est}`, join(videoRoot(), "prev", `${nome}.${est}`)], { stdout: "pipe", stderr: "pipe" });
+    const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${nome}.${est}`, join(videoRoot(), "prev", `${nome}.${est}`)], { stdout: "pipe", stderr: "pipe" });
     if ((await scp.exited) !== 0) appendi(job.id, `!! anteprima ${est} non ritirata`);
   }
   const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
