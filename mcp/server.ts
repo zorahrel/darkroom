@@ -101,7 +101,9 @@ const CAMPO_PROGETTO = {
   },
 } as const;
 
-const tools: Tool[] = [
+/** Esportato per il test che tiene allineati catalogo e strumenti: un
+ *  catalogo che dimentica uno strumento nuovo torna a essere una brochure. */
+export const tools: Tool[] = [
   {
     name: "list_photos",
     description:
@@ -583,6 +585,161 @@ const tools: Tool[] = [
     description: "The shot generations: running, done and failed, with their logs.",
     inputSchema: { type: "object", properties: { ...CAMPO_PROGETTO } },
     handler: (a) => call("GET", "/api/video/generazioni", undefined, a.project),
+  },
+
+  // ---- colore, foto, post -------------------------------------------------
+  // Esistevano solo nell'interfaccia: chi guidava Darkroom da fuori poteva
+  // generare e giudicare, ma non dire di che colore, ne' da quale cartella
+  // vengono le foto, ne' in quale post finiscono. Tre buchi che rendevano
+  // falsa la frase "si fa tutto anche da qui".
+  {
+    name: "color_grade",
+    description:
+      "The project's colour development (3D LUT, white balance, sky, match). Called bare it reads the current chain and the LUTs available; with `grade` it writes it. The look is one for the whole set — the same chain the grid previews and the export bakes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        grade: {
+          type: "object",
+          description:
+            "The full grade to store: { enabled, steps: [...] }. Read it first, change what you need, send it back.",
+        },
+      },
+    },
+    handler: async (a) => {
+      if (a.grade) return call("PUT", "/api/settings/color-grade", { grade: a.grade }, a.project);
+      const [grade, luts] = await Promise.all([
+        call("GET", "/api/settings/color-grade", undefined, a.project),
+        call("GET", "/api/luts", undefined, a.project),
+      ]);
+      return { ...(grade as object), luts: (luts as { luts?: unknown[] }).luts };
+    },
+  },
+  {
+    name: "add_photos",
+    description:
+      "Point the project at a folder of photos. mode 'link' (default) indexes them where they are and copies nothing; 'copy' brings them into the project — for a card or a downloads folder you will empty.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string" },
+        mode: { type: "string", description: "link | copy (default link)" },
+      },
+      required: ["path"],
+    },
+    handler: (a) => call("POST", "/api/sources", { path: a.path, mode: a.mode ?? "link" }, a.project),
+  },
+  {
+    name: "rescan_photos",
+    description: "Re-read the project's photo folders, picking up files added since.",
+    inputSchema: { type: "object", properties: {} },
+    handler: (a) => call("POST", "/api/sources/rescan", undefined, a.project),
+  },
+  {
+    name: "list_collections",
+    description:
+      "The project's collections (posts/carousels): each one's title, caption, cover and how many photos are in it — plus how many are actually publishable, which differs when a photo was refused and will never have a render.",
+    inputSchema: { type: "object", properties: {} },
+    handler: (a) => call("GET", "/api/collections", undefined, a.project),
+  },
+  {
+    name: "assign_photos",
+    description:
+      "Move photos into a collection, appended in the given order. `collection_id: null` takes them out of every collection. Membership is exclusive, so a photo can't silently go out twice.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        photo_ids: { type: "array", items: { type: "string" } },
+        collection_id: { type: ["string", "null"] },
+      },
+      required: ["photo_ids"],
+    },
+    handler: (a) =>
+      call("POST", "/api/collections/assign", {
+        photo_ids: a.photo_ids,
+        collection_id: a.collection_id ?? null,
+      }),
+  },
+
+  // ---- il catalogo --------------------------------------------------------
+  // Sopra le chiamate c'e' il mestiere. Questi due danno a chi arriva la
+  // stessa mappa che vede un umano sulla home, invece di trentasette primitive
+  // da cui dedurre cosa sa fare il programma.
+  {
+    name: "list_tools",
+    description:
+      "What Darkroom can do, as capabilities rather than endpoints: for each one what it is for, which project views it lives in, which MCP tools drive it, whether it is usable RIGHT NOW on this machine (and if not, what is missing and how to fix it), and how to start it. Read this first when you don't know where to begin — it is the same catalogue the home page shows.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        area: {
+          type: "string",
+          description: "Only one area: immagini | colore | qualita | libreria | racconto | montaggio | sistema",
+        },
+        pronti: { type: "boolean", description: "Only the ones usable right now" },
+      },
+    },
+    globale: true,
+    handler: async (a) => {
+      const d = (await call("GET", "/api/strumenti")) as {
+        aree: unknown[];
+        backend: string;
+        requisiti: Record<string, { ok: boolean; come: string }>;
+        strumenti: any[];
+      };
+      const scelti = d.strumenti
+        .filter((s) => (a.area ? s.area === a.area : true))
+        .filter((s) => (a.pronti ? s.pronto : true));
+      return {
+        backend: d.backend,
+        requisiti: d.requisiti,
+        // Compatto di proposito: lo schema intero di ventun strumenti e' un
+        // manuale, e chi chiede "cosa sai fare" non lo sta leggendo.
+        strumenti: scelti.map((s) => ({
+          id: s.id,
+          nome: s.nome,
+          cosa: s.cosa,
+          area: s.area,
+          viste: s.viste,
+          mcp: s.mcp,
+          pronto: s.pronto,
+          manca: s.manca?.map((m: { come: string }) => m.come) ?? [],
+          avvia: s.avvii
+            .filter((v: { modo: string }) => v.modo !== "apri")
+            .map((v: { modo: string; etichetta: string; campi: { nome: string; richiesto?: boolean }[] }) => ({
+              modo: v.modo,
+              etichetta: v.etichetta,
+              campi: v.campi.map((cx) => (cx.richiesto ? `${cx.nome}*` : cx.nome)),
+            })),
+        })),
+      };
+    },
+  },
+  {
+    name: "start_tool",
+    description:
+      "Start one of the tools from list_tools in a single call: it does the work (creating the project it needs, if it needs one) and answers with what happened and the page to land on. Pass the tool id and its fields — `campi` in list_tools, a star meaning required. Without `project` it works on the default one, like every other tool here.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tool: { type: "string", description: "Tool id from list_tools" },
+        valori: {
+          type: "object",
+          description: 'The tool\'s fields, e.g. { prompt: "…", conta: 4 }',
+        },
+        project: {
+          type: "string",
+          description: "Which project to work on (ignored by the tools that create their own)",
+        },
+      },
+      required: ["tool"],
+    },
+    globale: true,
+    handler: (a) =>
+      call("POST", `/api/strumenti/${encodeURIComponent(a.tool)}/avvia`, {
+        progetto: a.project,
+        valori: a.valori ?? {},
+      }),
   },
 
   {

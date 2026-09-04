@@ -19,7 +19,9 @@ export const pipelineRoutes = new Hono();
 
 // ---- API: export -----------------------------------------------------------
 
-pipelineRoutes.post("/api/export-favorites", (c) => {
+/** Copia le preferite, sviluppate a piena risoluzione, nella cartella d'uscita.
+ *  Fuori dalla rotta perché la chiama anche l'avvio rapido della home. */
+export function esportaPreferite(): { copied: number; total: number; dir: string; graded: boolean } {
   ensureFinalDir();
   const rows = db()
     .query<
@@ -59,8 +61,10 @@ pipelineRoutes.post("/api/export-favorites", (c) => {
     copyFileSync(r.image_path, dst);
     copied++;
   }
-  return c.json({ copied, total: rows.length, dir: finalDir(), graded });
-});
+  return { copied, total: rows.length, dir: finalDir(), graded };
+}
+
+pipelineRoutes.post("/api/export-favorites", (c) => c.json(esportaPreferite()));
 
 // ---- API: pipeline (AI generation stage as a first-class system step) ------
 

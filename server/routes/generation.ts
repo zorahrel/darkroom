@@ -182,7 +182,15 @@ generationRoutes.post("/api/photos/reindex-times", async (c) => {
   return c.json({ updated, missed, total: photos.length });
 });
 
-generationRoutes.post("/api/generate-missing", (c) => {
+/**
+ * Accoda ogni foto che non ha ancora una versione.
+ *
+ * Sta fuori dalla rotta perché non è più solo una rotta: la home la chiama
+ * quando si comincia un lavoro da una cartella, e l'MCP dallo stesso posto. Un
+ * secondo `for` che accoda con un prompt costruito quasi uguale sarebbe la
+ * strada per due comportamenti che divergono in silenzio.
+ */
+export function accodaMancanti(): number {
   const photos = db()
     .query<PhotoRow, []>(
       // Le foto rifiutate da ChatGPT restano senza versione per sempre: senza
@@ -205,17 +213,16 @@ generationRoutes.post("/api/generate-missing", (c) => {
     );
     count++;
   }
-  return c.json({ enqueued: count });
-});
+  return count;
+}
+
+generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: accodaMancanti() }));
 
 // Generate brand-new images from a text prompt (no source photo). Each creates
 // a `kind='generated'` photo whose first render becomes its original.
-generationRoutes.post("/api/generate-new", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-  if (!prompt) return c.json({ error: "prompt required" }, 400);
-  const count = Math.min(Math.max(Number(body.count) || 1, 1), 50);
-
+/** Genera dal nulla: N foto vuote, una per variante, ognuna già in coda. */
+export function creaGenerazioni(prompt: string, conta: number): { created: number; ids: string[] } {
+  const count = Math.min(Math.max(Number(conta) || 1, 1), 50);
   const now = Date.now();
   const ids: string[] = [];
   const insert = db().prepare(
@@ -229,5 +236,12 @@ generationRoutes.post("/api/generate-new", async (c) => {
     enqueueJob(id, prompt, null, "chatgpt", null, "generate");
     ids.push(id);
   }
-  return c.json({ created: ids.length, ids });
+  return { created: ids.length, ids };
+}
+
+generationRoutes.post("/api/generate-new", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  if (!prompt) return c.json({ error: "prompt required" }, 400);
+  return c.json(creaGenerazioni(prompt, Number(body.count) || 1));
 });
