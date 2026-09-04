@@ -29,10 +29,13 @@ videoRoutes.get("/api/video/assets", (c) => c.json(assets()));
 
 videoRoutes.post("/api/video/pick", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
-    shot?: string; kept?: boolean; perche?: string;
+    shot?: string; kept?: boolean | null; perche?: string;
   };
   if (!body.shot) return c.json({ error: "shot mancante" }, 400);
-  const s = setScelta(body.shot, body.kept !== false, body.perche);
+  // `kept: null` esplicito = togli il verdetto (l'annulla). Distinto da
+  // "campo assente", che resta un sì: e' la firma che aveva prima.
+  const kept = body.kept === null ? null : body.kept !== false;
+  const s = setScelta(body.shot, kept, body.perche);
   return c.json({ ok: true, scartati: s.scartati, shots: shots() });
 });
 

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
+import { RENDER_DIR, RENDER_SSH } from "./config.ts";
 
 /**
  * Video projects. A video project is a folder produced by the beat-locked
@@ -102,8 +103,8 @@ const readJson = <T,>(p: string, fallback: T): T => {
 
 /** La fonderia: dove si monta, si codifica e si misura. Gli stessi due valori
  *  che stanno in `master.sh` — il Mac e' l'autore, non il nodo di calcolo. */
-const PC = "<utente>@$COMFY_HOST";
-const REMOTO = "D:\\progetto";
+const PC = RENDER_SSH;
+const REMOTO = RENDER_DIR;
 
 export const videoRoot = () => rootDir();
 const at = (...p: string[]) => join(videoRoot(), ...p);
@@ -188,10 +189,24 @@ export function togliProblema(shot: string, i: number) {
  * quindi il piano non se ne accorge: è memoria di chi guarda, non una scelta di
  * montaggio.
  */
-export function setScelta(shot: string, kept: boolean, perche?: string) {
+/**
+ * `null` non è un terzo capriccio: è lo stato in cui nasce ogni ripresa, e
+ * senza di lui l'annulla mente.
+ *
+ * L'annulla della pagina ripristinava `kept`, che è un booleano — e una scena
+ * mai giudicata ha `kept` vero, perché nessuno l'ha scartata. Disfare uno
+ * scarto la scriveva quindi fra i TENUTI: premevi «annulla» su una scena che
+ * non avevi mai visto e le davi un sì. Un annulla che lascia il verdetto
+ * opposto è peggio del verdetto sbagliato, perché sembra di essere tornati
+ * indietro. Misurato su `g_corr` il 04/09.
+ */
+export function setScelta(shot: string, kept: boolean | null, perche?: string) {
   const s = scelte() as Scelte & { tenuti?: Record<string, number> };
   s.tenuti ??= {};
-  if (kept) {
+  if (kept === null) {
+    delete s.scartati[shot];
+    delete s.tenuti[shot];
+  } else if (kept) {
     delete s.scartati[shot];
     s.tenuti[shot] = Date.now();
   } else {

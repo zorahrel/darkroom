@@ -48,6 +48,8 @@ import type {
   RunPhoto,
   StudioOverview,
   StudioProject,
+  Catalogo,
+  EsitoAvvio,
 } from "./types";
 
 /** Every REST endpoint the client calls, one method each. */
@@ -466,7 +468,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ shot, testo, i }),
     }),
-  videoPick: (shot: string, kept: boolean, perche?: string) =>
+  /** `kept: null` toglie il verdetto e riporta la ripresa a "mai giudicata". */
+  videoPick: (shot: string, kept: boolean | null, perche?: string) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/pick", {
       method: "POST",
       body: JSON.stringify({ shot, kept, perche }),
@@ -495,4 +498,17 @@ export const api = {
     }),
   videoAnnullaGenerazione: (id: number) =>
     jsonFetch<{ ok: boolean }>(`/api/video/genera/${id}/annulla`, { method: "POST" }),
+
+  // ---- catalogo degli strumenti -------------------------------------------
+  /** Cosa sa fare Darkroom e cosa di quello è pronto adesso. */
+  strumenti: () => jsonFetch<Catalogo>("/api/strumenti"),
+  /** I progetti che possono ospitare uno strumento (quelli con la vista giusta). */
+  strumentoProgetti: (id: string) =>
+    jsonFetch<{ progetti: StudioProject[] }>(`/api/strumenti/${encodeURIComponent(id)}/progetti`),
+  /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */
+  avviaStrumento: (id: string, corpo: { progetto?: string; valori?: Record<string, string | number> }) =>
+    jsonFetch<EsitoAvvio>(`/api/strumenti/${encodeURIComponent(id)}/avvia`, {
+      method: "POST",
+      body: JSON.stringify(corpo),
+    }),
 };

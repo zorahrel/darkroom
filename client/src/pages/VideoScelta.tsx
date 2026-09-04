@@ -3,6 +3,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { api, pq, type VideoShot, type VideoJob, type VideoAtto, type VideoCut } from "../api";
 import { Area, Numero, Scegli } from "./video/ui";
 import { Scorciatoia, TastoGiudizio } from "../ui";
+import { esceDallaCoda, type FiltroScelta } from "../videoCoda";
 
 import type { OutletCtx } from "../App";
 
@@ -86,7 +87,9 @@ function raggruppa(shots: VideoShot[]): Scena[] {
     .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
 }
 
-type Filtro = "da giudicare" | "sospette" | "tenute" | "scartate" | "annotate" | "in montaggio" | "tutte";
+/** Una sola definizione, accanto alla regola che dice chi esce dall'elenco:
+ *  due elenchi di filtri che divergono sono un salto di scena che ritorna. */
+type Filtro = FiltroScelta;
 
 /** Dodici istanti in una striscia. Ogni casella porta il video al suo. */
 function Provino({ shot, take, onVaiA }: {
@@ -663,26 +666,39 @@ export default function VideoScelta() {
    * a cui si poteva rispondere solo aprendo il file. Adesso l'ultimo resta
    * scritto in pagina, con il suo annulla, finche' non se ne fa un altro.
    */
+  /**
+   * Si ricorda il GIUDIZIO di prima, non `kept`.
+   *
+   * `kept` è un booleano, e una ripresa mai giudicata ce l'ha vero — nessuno
+   * l'ha scartata. Ripristinando quello, l'annulla di uno scarto la scriveva
+   * fra le tenute: premevi «annulla» e al posto di tornare indietro davi un sì.
+   * Il terzo stato (`null` = mai giudicata) è l'unico che sa disfare davvero.
+   */
   const [ultimo, setUltimo] = useState<
-    { ids: string[]; nome: string; kept: boolean; prima: Map<string, boolean>; indice: number } | null
+    { ids: string[]; nome: string; kept: boolean; prima: Map<string, VideoShot["giudizio"]>; indice: number } | null
   >(null);
 
   const giudica = useCallback(
     async (kept: boolean, perche?: string) => {
       if (!scena) return;
       const ids = scena.pezzi.map((p) => p.id);
-      const prima = new Map(scena.pezzi.map((p) => [p.id, p.kept]));
+      const prima = new Map(scena.pezzi.map((p) => [p.id, p.giudizio]));
       // Ottimismo: la riga resta come l'utente l'ha messa anche se la rete tarda.
-      setShots((prev) => prev.map((s) => (ids.includes(s.id) ? { ...s, kept } : s)));
+      setShots((prev) =>
+        prev.map((s) =>
+          ids.includes(s.id) ? { ...s, kept, giudizio: kept ? "tenuta" : "scartata" } : s));
       setUltimo({ ids, nome: scena.origine, kept, prima, indice: i });
       try {
         let u = shots;
         for (const id of ids) u = (await api.videoPick(id, kept, perche)).shots;
         setShots(u);
       } catch { /* la riga resta come l'utente l'ha messa */ }
-      avanti();
+      // Avanzare DOPO aver giudicato salta una scena, e la salta in silenzio:
+      // la giudicata e' gia' uscita dall'elenco e quella dopo e' scalata da
+      // sola in posizione `i`. La regola sta in `videoCoda.ts`, con il suo test.
+      if (!esceDallaCoda(filtro, kept)) avanti();
     },
-    [scena, shots, avanti, i],
+    [scena, shots, avanti, i, filtro],
   );
 
   /** Rimette ogni pezzo com'era e torna sulla scena, così la si può riguardare. */
@@ -690,10 +706,17 @@ export default function VideoScelta() {
     if (!ultimo) return;
     const u = ultimo;
     setUltimo(null);
-    setShots((prev) => prev.map((s) => (u.prima.has(s.id) ? { ...s, kept: u.prima.get(s.id)! } : s)));
+    /** "tenuta" -> sì · "scartata" -> no · mai giudicata -> nessun verdetto. */
+    const verso = (g: VideoShot["giudizio"]) => (g === null ? null : g === "tenuta");
+    setShots((prev) =>
+      prev.map((s) => {
+        if (!u.prima.has(s.id)) return s;
+        const g = u.prima.get(s.id) ?? null;
+        return { ...s, giudizio: g, kept: g !== "scartata" };
+      }));
     try {
       let r = shots;
-      for (const id of u.ids) r = (await api.videoPick(id, u.prima.get(id) ?? true)).shots;
+      for (const id of u.ids) r = (await api.videoPick(id, verso(u.prima.get(id) ?? null))).shots;
       setShots(r);
     } catch { /* niente */ }
     setI(u.indice); setPezzo(0);

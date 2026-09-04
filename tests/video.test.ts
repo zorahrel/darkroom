@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { accessSync, constants } from "node:fs";
-import { origine } from "../server/video.ts";
+import { accessSync, constants, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { origine, setScelta } from "../server/video.ts";
+import { addProject, rootDir, withProject } from "../server/project.ts";
 import { workflow } from "../server/comfy.ts";
 
 /**
@@ -125,4 +128,58 @@ describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeSc
       expect(JSON.parse(JSON.stringify(workflow("pre", "un prompt", p as any)))).toEqual(dalPython);
     });
   }
+});
+
+/**
+ * L'annulla deve riportare la ripresa a "mai giudicata", non a "tenuta".
+ *
+ * `kept` e' un booleano, e una ripresa mai vista ce l'ha vero — nessuno l'ha
+ * scartata. Finche' l'annulla ripristinava quello, disfare uno scarto scriveva
+ * la ripresa fra i TENUTI: premevi «annulla» su una scena mai giudicata e le
+ * davi un si'. Un annulla che lascia il verdetto opposto e' peggio del verdetto
+ * sbagliato, perche' sembra di essere tornati indietro. Misurato su `g_corr`.
+ */
+describe("togliere un verdetto e' un terzo stato, non un si'", () => {
+  const conProgetto = <T,>(fn: () => T): T => {
+    const dir = mkdtempSync(join(tmpdir(), "video-scelte-"));
+    writeFileSync(join(dir, "scelte.json"), JSON.stringify({ scartati: {}, tenuti: {} }));
+    const p = addProject({ name: `scelte-${Date.now()}`, root: dir, kind: "video" });
+    return withProject(p.id, fn);
+  };
+  const letto = () => JSON.parse(readFileSync(join(rootDir(), "scelte.json"), "utf8"));
+
+  test("scarto, poi annullo: la ripresa non risulta ne' scartata ne' tenuta", () => {
+    conProgetto(() => {
+      setScelta("g_corr0", false, "prova");
+      expect(letto().scartati["g_corr0"]).toBe("prova");
+
+      setScelta("g_corr0", null); // l'annulla
+      const s = letto();
+      expect(s.scartati["g_corr0"]).toBeUndefined();
+      expect(s.tenuti["g_corr0"]).toBeUndefined();
+    });
+  });
+
+  test("annullare un si' non lo trasforma in uno scarto", () => {
+    conProgetto(() => {
+      setScelta("w_alto", true);
+      expect(letto().tenuti["w_alto"]).toBeGreaterThan(0);
+
+      setScelta("w_alto", null);
+      const s = letto();
+      expect(s.tenuti["w_alto"]).toBeUndefined();
+      expect(s.scartati["w_alto"]).toBeUndefined();
+    });
+  });
+
+  test("i due verdetti veri restano quelli di prima", () => {
+    conProgetto(() => {
+      setScelta("mare6", true);
+      expect(letto().tenuti["mare6"]).toBeGreaterThan(0);
+      setScelta("mare6", false, "si sfascia");
+      const s = letto();
+      expect(s.scartati["mare6"]).toBe("si sfascia");
+      expect(s.tenuti["mare6"]).toBeUndefined();
+    });
+  });
 });
