@@ -45,4 +45,4 @@ Fetch "$hf/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scale
 
 Write-Host ""
 Write-Host "Fatto. Avvia con:  python main.py --listen 0.0.0.0 --port 8188"
-Write-Host "Dal Mac via Tailscale:  http://$COMFY_HOST:8188"
+Write-Host "Dal Mac: http://<indirizzo-di-questo-PC>:8188 — mettilo in COMFY_HOST nel .env di Darkroom"
