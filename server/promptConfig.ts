@@ -59,11 +59,11 @@ export const WHITE_BALANCE = {
   preserve: "",
   neutral:
     "neutral, accurate white balance; remove any color cast; keep a consistent color temperature across the whole set",
-  // Gli interni giapponesi sono quasi tutti tungsteno su legno: chiedere
-  // genericamente "neutral" non basta, il modello lascia l'ambra perché la
-  // legge come atmosfera invece che come dominante. Qui si nomina il caso
-  // (legno, lampade calde, banconi) e si dà un riferimento verificabile —
-  // il bianco deve uscire bianco — senza chiedere una foto fredda.
+  // Japanese interiors are nearly all tungsten on wood: asking generically for
+  // "neutral" is not enough, the model leaves the amber because it reads it as
+  // atmosphere rather than as a cast. Here the case is named (wood, warm lamps,
+  // counters) and a checkable reference is given — white must come out white —
+  // without asking for a cold photo.
   "neutral-strict":
     "remove the warm cast completely: neutral, accurate white balance as if shot on a color-checked camera. Indoor tungsten and warm LED lighting must NOT leave an amber or yellow cast on wood, walls, counters, tables, food or skin. Anything white or grey in the scene (paper, plates, walls, signage) must render truly white or neutral grey, not cream or yellow. Keep the light sources themselves warm and the mood intact — neutralize the cast, not the lamps",
   warm: "warm white balance",
@@ -78,28 +78,28 @@ export const SKY = {
   off: "",
   "deep-blue":
     "if the sky is visible, brighten it strongly into a luminous, deep, clean blue — bright yet richly saturated, with smooth even gradation and no milky haze or blown-out whites; keep it photographically natural for the scene and invent nothing",
-  // "deep + saturated" spinge il modello verso un cielo cupo, che su una
-  // giornata limpida legge come un temporale in arrivo. Questa variante chiede
-  // l'opposto — chiaro e arioso — dando un riferimento verificabile (più chiaro
-  // dell'edificio, non più scuro) invece dell'ennesimo aggettivo.
-  // Il cielo è la superficie più grande e più liscia di una foto: qualsiasi
-  // irregolarità dell'edit AI si vede lì per prima. Su questo set usciva a
-  // chiazze — zone più sature accanto a zone slavate — e cambiava tono da una
-  // foto all'altra dello stesso pomeriggio. Qui si chiede una cosa sola e
-  // verificabile: UNA superficie continua, e sempre lo stesso azzurro.
+  // "deep + saturated" pushes the model towards a gloomy sky, which on a clear
+  // day reads as an incoming storm. This variant asks for the opposite — light
+  // and airy — giving a checkable reference (lighter than the building, not
+  // darker) instead of yet another adjective.
+  // The sky is the largest and smoothest surface in a photo: any irregularity
+  // of the AI edit shows there first. On this set it came out blotchy — more
+  // saturated areas beside washed-out ones — and changed tone from one photo to
+  // the next within the same afternoon. Here we ask for one checkable thing:
+  // ONE continuous surface, and always the same blue.
   "even-blue":
     "if the sky is visible it must read as ONE single continuous surface: a uniform, even blue that changes only in a smooth gradient from horizon to zenith, with no patches, no blotches, no banding, no areas that are noticeably more saturated or more washed-out than their neighbours, and no halo around buildings, trees or roof lines. Keep it a natural mid-blue of a clear day — neither a dark navy nor a pale washed grey — and keep faint clouds soft and believable if they are already there. Never invent clouds, gradients or colour shifts that were not in the scene",
-  // Cielo notturno di riferimento per tutto il set. Nominare le stelle serve a
-  // due cose opposte: chiederne POCHE (un cielo urbano ne mostra una manciata,
-  // non una via lattea) e impedire al modello di riempire il vuoto con un
-  // firmamento inventato, che è quello che fa quando gli si dice solo "notte".
-  // Le nuvole erano vietate insieme alle stelle inventate, ma sono cose
-  // diverse: un firmamento finto si nota, una nuvola no. Vietarle "dove il
-  // cielo era sereno" lasciava un cielo vuoto proprio negli scatti che ne
-  // avevano più bisogno — e questo strumento reinterpreta la scena, non fa
-  // ritocco fedele. Ora le nuvole si possono aggiungere, purché siano il
-  // meteo credibile di quella città a quell'ora: illuminate da sotto dal
-  // riverbero urbano, mai dipinte o drammatiche.
+  // Reference night sky for the whole set. Naming the stars does two opposite
+  // things: asking for FEW of them (an urban sky shows a handful, not a milky
+  // way) and stopping the model filling the void with an invented firmament,
+  // which is what it does when you only say "night".
+  // Clouds were forbidden together with invented stars, but they are different
+  // things: a fake firmament shows, a cloud does not. Forbidding them "where
+  // the sky was clear" left an empty sky in exactly the shots that needed it
+  // most — and this tool reinterprets the scene, it does not do faithful
+  // retouching. Clouds can now be added, provided they are the believable
+  // weather of that city at that hour: lit from below by the urban glow, never
+  // painted or dramatic.
   "deep-night":
     "if the night sky is visible it must read as one deep, rich blue-black surface with a dramatic gradient — darkest at the top, warming slightly toward the horizon where the city light spills up — smooth and continuous, with no patches, no banding and no halo around buildings. Give the sky atmosphere with clouds: soft, drifting masses lit from below by the city glow, warm and luminous on their undersides, darker against the deep sky, breaking up the emptiness and adding depth. Add them even if the original sky was clear, but keep them the believable weather of a real night over this city — never painted, illustrated, stormy or theatrical. Stars must be clearly VISIBLE yet sparse: a scattering of small, distinct points across the darkest part of the sky, the handful you would actually see above a lit city; never a dense starfield and never a milky way. The whole frame must NOT drown in one amber or yellow bath: keep the warm light strictly where the lamps actually fall, and let everything they do not reach — the sky, shaded stone, distant roofs, foliage — stay cool and blue. That warm-against-cool contrast is what makes the night read real and interesting instead of flat and yellow. The lit subject itself must NOT turn amber or golden: floodlit stone, plaster, wood and paint keep their own true colour — pale stone stays pale, white stays white — lit brightly rather than dyed yellow. Warm means the light, never a colour wash over the building. The sky stays clearly darker than every lit surface in the frame",
   "bright-airy":
@@ -115,25 +115,25 @@ export const GEOMETRY = {
 } as const;
 export type Geometry = keyof typeof GEOMETRY;
 
-// Il permesso di ricomporre, scritto una volta sola.
+// The permission to recompose, written once.
 //
-// Prima distinzione, giusta ma non sufficiente: cambiare INQUADRATURA non e'
-// cambiare CONTENUTO. Muovere la camera si', inventare no.
+// First distinction, right but not sufficient: changing the FRAMING is not
+// changing the CONTENT. Moving the camera yes, inventing no.
 //
-// Seconda lezione, quella che e' costata otto render su IMG_2906: finche'
-// esiste il permesso di ESTENDERE i bordi, il modello inventa comunque —
-// perche' il bordo nuovo e' spazio vuoto che qualcosa deve pur riempire, e
-// nessun divieto ("continua solo cio' che c'e'", "non aggiungere oggetti",
-// "mantieni l'architettura reale") ha retto: sono comparsi un tetto in primo
-// piano e dettagli del tempio che non esistono. Il divieto arriva sempre dopo
-// il permesso, e perde.
+// Second lesson, the one that cost eight renders on IMG_2906: as long as the
+// permission to EXTEND the borders exists, the model invents anyway — because
+// the new border is empty space something has to fill, and no prohibition
+// ("continue only what is there", "do not add objects", "keep the real
+// architecture") held: a roof appeared in the foreground and temple details
+// that do not exist. The prohibition always arrives after the permission, and
+// loses.
 //
-// Quindi il reframe vive DENTRO l'immagine esistente. Non e' una rinuncia:
-// l'inquadratura si sceglie ancora — piu' stretta, spostata, ruotata, con la
-// prospettiva corretta — e resta l'edit editoriale. Ma il rettangolo finale e'
-// fatto di pixel che erano nella foto, e la scena originale era gia' una
-// scelta di chi ha scattato: allargarla non e' un miglioramento, e' un'altra
-// foto.
+// So reframing lives INSIDE the existing image. It is not a renunciation: the
+// framing is still chosen — tighter, shifted, rotated, with the perspective
+// corrected — and it stays an editorial edit. But the final rectangle is made
+// of pixels that were in the photo, and the original scene was already a choice
+// made by whoever shot it: widening it is not an improvement, it is a different
+// photo.
 const REFRAME_FREEDOM =
   "recompose the frame decisively, but only from what the photograph already contains: the final image must be a crop of the source, never wider than it. Do not extend, expand, out-paint or fill beyond the original edges, and do not add any object, structure, roof, railing, branch, figure or silhouette that is not already in the shot. Choose the strongest rectangle inside the frame — tighter, shifted, or rotated — and correct perspective and level as needed, but every pixel of the result comes from the scene as photographed. Buildings and monuments keep their real architecture exactly: the same number of tiers, roofs, windows, columns and ornaments, in the same proportions — a tighter crop shows them differently, it never redesigns them. If the photograph shows only part of something — a temple whose foundations, lower storeys or surrounding ground were never in the shot — leave it partial: an incomplete subject is a fact of this photograph, not a flaw to repair. Never invent the missing base, steps, plinth, ground or lower structure, and never continue a building beyond what the frame captured. Equally, never TAKE AWAY what the photograph did capture: if the whole width of a building is in the shot, the crop must not cut a side off it. ";
 
@@ -141,33 +141,33 @@ export const COMPOSITION = {
   off: "",
   rebalance:
     "subtly improve composition for balance: gentle crop and leveling toward rule-of-thirds and a balanced frame, without inventing or adding new content",
-  // Attenzione al rimedio opposto: chiedere il soggetto "intero e centrato"
-  // ha prodotto un ritaglio piatto, cioe' esattamente lo snapshot che il
-  // prompt base vieta. Le due cose vanno tenute insieme: taglio DECISO, ma il
-  // soggetto non amputato dal bordo.
+  // Beware the opposite remedy: asking for the subject "whole and centred"
+  // produced a flat crop, that is exactly the snapshot the base prompt forbids.
+  // The two have to be held together: a DECISIVE crop, but the subject not
+  // amputated by the border.
   recompose:
     REFRAME_FREEDOM +
     "This must be a photograph someone composed, not a rectangle cut out of a snapshot: choose a decisive point of view, work the diagonal, let the subject loom or sit off to one side against open space, and build depth with a real foreground, middle ground and background. Use the whole frame deliberately: the subject placed with intent, generous negative space where it earns tension, leading lines that carry the eye. Never a flat, dead-centre crop with the subject simply parked in the middle. Keep the subject unobstructed, and keep it as complete as the photograph made it: whatever of the subject WAS captured — its full width, both sides, every storey that appears in the shot — stays inside the new frame. Do not slice through the subject to tighten the composition; if a crop would cut off one side of a building or statue that the original showed whole, choose a different rectangle. The one thing you must never do is the opposite: if the original never captured the base of a building, the foot of a statue or the ground it stands on, that part is simply not in this picture and must NOT be drawn in. Missing is left missing; present is kept present",
-  // Grandangolo ravvicinato: il soggetto grande e vicino, lo spazio dietro che
-  // si apre. È il taglio che fa "posare" un'auto o un monumento invece di
-  // fotografarli e basta. Si nomina la prospettiva (le linee che convergono),
-  // perché senza il modello si limita ad allargare il campo.
-  // Ogni ottica include la libertà di ricomporre: sceglierne una NON deve
-  // significare rinunciare al reframe, che è il cuore dell'edit editoriale.
-  // Prima l'ottica sostituiva "recompose" e le foto restavano incastrate
-  // nell'inquadratura originale.
+  // Close wide angle: the subject large and near, the space behind opening up.
+  // It is the crop that makes a car or a monument "pose" instead of merely
+  // being photographed. The perspective is named (the converging lines),
+  // because without it the model just widens the field.
+  // Every lens includes the freedom to recompose: choosing one must NOT mean
+  // giving up the reframe, which is the heart of the editorial edit. Before,
+  // the lens replaced "recompose" and the photos stayed stuck in the original
+  // framing.
   "wide-hero":
     REFRAME_FREEDOM +
     "Within that crop, go for the wide-angle hero reading: pick the rectangle where the subject sits large and low in the frame, looming and imposing, with the surrounding space already in the shot opening up behind it and its lines leading into the scene. Favour a low, close feel over a distant one — but find it in the existing pixels, do not simulate a lens change by inventing more scene. Keep the geometry honest: no fisheye bulge, no stretching, no deformed edges",
-  // Il grandangolo su un OGGETTO (un'auto, una moto) è un'altra cosa dal
-  // grandangolo su un luogo: qui si scende all'altezza del parafango e si
-  // lascia che la prospettiva allunghi il muso. È l'inquadratura da rivista di
-  // automobili, e "wide-hero" generico non ci arriva.
+  // A wide angle on an OBJECT (a car, a motorbike) is a different thing from a
+  // wide angle on a place: here you drop to fender height and let perspective
+  // stretch the nose. It is the car-magazine framing, and a generic "wide-hero"
+  // does not get there.
   "hero-object":
     REFRAME_FREEDOM +
     "Within that crop, make the object the hero: tighten onto it so it is clearly the largest thing in the frame, keep the horizon low and let its near edge dominate the foreground, using the perspective the photograph already has. Do not invent a lower viewpoint or extra bodywork. Keep every line of the object true — no bowing, no fisheye, no melted panels or warped wheels — and its proportions honest",
-  // Corridoi, filari, sentieri: la prospettiva converge in fondo e crea un
-  // tunnel. Chiedere "grandangolo" e basta non produce il punto di fuga.
+  // Corridors, rows, paths: the perspective converges at the end and creates a
+  // tunnel. Asking for "wide angle" alone does not produce the vanishing point.
   "tunnel":
     REFRAME_FREEDOM +
     "Within that crop, find the tunnel the photograph already contains: centre the path so the lines on both sides converge toward the vanishing point deep in the frame and the scene draws the eye in. Straighten and balance it into symmetry with the verticals dead straight — by cropping and correcting perspective, never by extending the path or inventing what lies further down it",
@@ -205,10 +205,10 @@ export const FOOD = {
   off: "",
   enhance:
     "if the image contains food or drinks, make them look fresh, appetizing and nicely plated — without changing the dish, the ingredients, the portions, or adding anything",
-  // Il cibo è il soggetto che il modello sbaglia più spesso: carne che vira sul
-  // grigio o sul verde, uova che sembrano marce, brodi che sembrano avanzi.
-  // Qui si nomina cosa deve andare storto, perché "rendilo appetitoso" è un
-  // aggettivo e un aggettivo non si può verificare.
+  // Food is the subject the model gets wrong most often: meat turning grey or
+  // green, eggs that look rotten, broths that look like leftovers. Here we name
+  // what must not go wrong, because "make it appetising" is an adjective and an
+  // adjective cannot be checked.
   strict:
     "if the image contains food or drinks, it must look freshly served and appetizing: raw fish and meat keep their true fresh color (bright, clean red or pink — never grey, brown, dull or iridescent), egg yolks stay bright and intact (never grey, green-rimmed or rotten-looking), broths and sauces stay clean and glossy (never murky, split or scummy), and greens stay crisp. Do NOT change the dish, the ingredients, the portions, the plating or the number of pieces, and do not make it look already eaten, picked at or leftover",
 } as const;
@@ -248,15 +248,15 @@ export type Bloom = keyof typeof BLOOM;
 export const DOF = {
   preserve: "preserve original depth of field",
   shallow: "emphasize subject with shallow depth-of-field falloff",
-  // "Sfocato" è un aggettivo; un diaframma è un numero e una conseguenza
-  // fisica. Nominare f/1.4 e il piano di messa a fuoco dà al modello un
-  // riferimento verificabile, e la clausola sui bordi evita il ritaglio
-  // finto-bokeh che si vede quando lo sfocato viene applicato come maschera.
+  // "Blurred" is an adjective; an aperture is a number and a physical
+  // consequence. Naming f/1.4 and the focal plane gives the model a checkable
+  // reference, and the clause about the edges avoids the fake-bokeh cut-out you
+  // see when the blur is applied as a mask.
   "wide-open":
     "shoot it wide open, around f/1.4: the subject snaps into focus and everything in front of and behind it falls away into smooth, creamy, optically correct bokeh with round out-of-focus highlights. The blur must grow gradually with distance the way a real fast lens behaves — never a flat cut-out mask around the subject, never a uniformly blurred background, and the subject's own edges (fur, hair, whiskers, chrome) stay crisp",
-  // Il contrario: si tiene tutto a fuoco ma il soggetto emerge lo stesso,
-  // per luce e posizione. Serve alle scene urbane dove sfocare butta via metà
-  // dell'informazione (insegne, folla, architettura).
+  // The opposite: everything is kept in focus but the subject emerges all the
+  // same, through light and position. Needed for urban scenes where blurring
+  // throws away half the information (signs, crowd, architecture).
   "deep-focus":
     "keep the whole frame in sharp focus, front to back, and separate the subject with light and placement instead of blur",
 } as const;

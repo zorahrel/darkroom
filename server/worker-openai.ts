@@ -6,22 +6,22 @@ import { db } from "./db.ts";
 import { prepareAttachments, type Attachment } from "./attachments.ts";
 
 /**
- * Backend OpenAI: parla direttamente all'Images API invece di guidare una
- * sessione interattiva. Esiste per il caso che gli altri tre backend non
- * reggono — una passata lunga, dove la quota di un account Plus finisce a metà
- * strada — e per il testo dentro l'immagine, dove `gpt-image-2` è l'unico che
- * non produce lettere storte.
+ * OpenAI backend: talks to the Images API directly instead of driving an
+ * interactive session. It exists for the case the other three backends cannot
+ * carry — a long pass, where a Plus account's quota runs out halfway — and for
+ * text inside the image, where `gpt-image-2` is the only one that does not
+ * produce crooked letters.
  *
- * Questo worker è SINCRONO di proposito. La Batch API costa metà, ma su un
- * batch reale da 2 immagini high era ancora `in_progress` dopo 3 minuti: dentro
- * il job loop, che aspetta il ritorno per scrivere 'done', quell'attesa
- * bloccherebbe il runner. Il batch vive in `scripts/openai_batch.ts`, fuori dal
- * loop, dove l'attesa è il prezzo che si accetta consapevolmente.
+ * This worker is SYNCHRONOUS on purpose. The Batch API costs half, but on a
+ * real batch of 2 high images it was still `in_progress` after 3 minutes:
+ * inside the job loop, which waits for the return to write 'done', that wait
+ * would block the runner. Batching lives in `scripts/openai_batch.ts`, outside
+ * the loop, where the wait is a price knowingly accepted.
  */
 
-const TIMEOUT_MS = 6 * 60 * 1000; // come gli altri worker
+const TIMEOUT_MS = 6 * 60 * 1000; // like the other workers
 
-/** Prezzi per 1M token di output immagine (docs OpenAI, ago 2026). */
+/** Prices per 1M image output tokens (OpenAI docs, Aug 2026). */
 const OUTPUT_RATE_PER_M: Record<string, number> = {
   "gpt-image-2": 30.0,
   "gpt-image-1.5": 32.0,
@@ -39,20 +39,20 @@ export function spentToday(): number {
       .get(Date.now() - 24 * 60 * 60 * 1000);
     return r?.tot ?? 0;
   } catch {
-    // Senza DB non si puo' sapere: non si blocca una generazione per questo.
+    // Without a DB there is no way to know: a generation is not blocked over this.
     return 0;
   }
 }
 
-/** Token di output osservati per una 1024², per qualita'.
+/** Output tokens observed for a 1024², by quality.
  *
- *  MISURATI, non presi dalla tabella dei docs: una `high` 1024² ne consuma
- *  7024 dove i docs ne prevedevano 4160, e una `low` 196 dove ne prevedevano
- *  272. Servono per sapere quanto costa una chiamata PRIMA di farla. */
+ *  MEASURED, not taken from the docs table: a `high` 1024² consumes 7024 where
+ *  the docs predicted 4160, and a `low` one 196 where they predicted 272. They
+ *  are needed to know what a call costs BEFORE making it. */
 const TOKEN_ATTESI: Record<string, number> = { low: 200, medium: 1600, high: 7100 };
 
-/** Quanto costera' la prossima chiamata, in dollari. Una stima per eccesso:
- *  un freno che sottostima non frena. */
+/** What the next call will cost, in dollars. An over-estimate on purpose: a
+ *  brake that under-estimates does not brake. */
 export function expectedCost(
   model: string = OPENAI_IMAGE_MODEL,
   quality: string = OPENAI_IMAGE_QUALITY,
@@ -60,25 +60,24 @@ export function expectedCost(
   return costUsd(model, TOKEN_ATTESI[quality] ?? TOKEN_ATTESI.high!);
 }
 
-/** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
- *  l'errore da mostrare, o null se si puo' procedere. */
+/** The cap bites BEFORE the call: afterwards, it has already been paid.
+ *  Returns the error to show, or null if we can proceed. */
 function overCap(options: { withRefs?: boolean; quality?: string } = {}): string | null {
-  // La soglia del sincrono guarda quanto costa QUESTA chiamata, non quanto si
-  // e' speso finora.
+  // The synchronous threshold looks at what THIS call costs, not at what has
+  // been spent so far.
   //
-  // Prima confrontava il totale del giorno con la soglia, e da li' in poi
-  // bloccava tutto: il 27/08 si e' rifiutata una prova in `low` da mezzo
-  // centesimo perche' nella giornata c'erano $2.81 di generazioni `high`. Una
-  // prova economica e' esattamente il modo giusto di lavorare, ed era l'unica
-  // cosa che il freno riusciva a fermare. Il tetto giornaliero, sotto, resta
-  // il freno sul totale: quello e' il suo mestiere.
+  // It used to compare the day's total against the threshold, and from then on
+  // it blocked everything: on 27/08 a half-cent `low` trial was refused because
+  // there were $2.81 of `high` generations that day. A cheap trial is exactly
+  // the right way to work, and it was the only thing the brake managed to stop.
+  // The daily cap, below, stays the brake on the total: that is its job.
   const budget = openaiSyncBudgetUsd();
-  // La resa di QUESTA chiamata: pesare quella di sistema significava lasciar
-  // passare una high mentre si credeva di aver chiesto una low.
+  // THIS call's quality: weighing the system one meant letting a high through
+  // while believing you had asked for a low.
   const cost = expectedCost(OPENAI_IMAGE_MODEL, options.quality ?? OPENAI_IMAGE_QUALITY);
   if (budget > 0 && cost > budget) {
-    // Il batch NON accetta /edits, che e' l'unico endpoint che prende delle
-    // reference: mandare li' chi sta usando una reference e' un vicolo cieco.
+    // The batch does NOT accept /edits, which is the only endpoint that takes
+    // references: sending somebody using a reference there is a dead end.
     const path = options.withRefs
       ? `Con delle reference il batch non e' una strada (non supporta /edits): ` +
         `prova prima in OPENAI_IMAGE_QUALITY=low (~$${expectedCost(OPENAI_IMAGE_MODEL, "low").toFixed(3)}), ` +
@@ -90,13 +89,13 @@ function overCap(options: { withRefs?: boolean; quality?: string } = {}): string
       `sopra la soglia del sincrono ($${budget.toFixed(2)}). ${path}`
     );
   }
-  // Letto qui e non all'import: un tetto che si puo' alzare solo riavviando il
-  // server e' un tetto che si aggira riavviando il server.
+  // Read here and not at import: a cap you can only raise by restarting the
+  // server is a cap you get around by restarting the server.
   const cap = openaiDailyCapUsd();
   if (!(cap > 0)) return null;
   const spent = spentToday();
-  // Anche il tetto guarda avanti: fermarsi DOPO averlo superato significa
-  // superarlo sempre di una chiamata.
+  // The cap looks ahead too: stopping AFTER exceeding it means always
+  // exceeding it by one call.
   if (spent + cost <= cap) return null;
   return (
     `tetto giornaliero raggiunto: $${spent.toFixed(2)} spesi nelle ultime 24h ` +
@@ -105,20 +104,20 @@ function overCap(options: { withRefs?: boolean; quality?: string } = {}): string
   );
 }
 
-/** Ogni chiamata pagata finisce qui, in qualunque progetto si trovi il
- *  chiamante: si paga la richiesta, non la versione che ne esce. Uno script di
- *  calibrazione che scrive in /tmp costa come un job della coda.
+/** Every paid call ends up here, whatever project the caller is in: you pay
+ *  for the request, not for the version that comes out of it. A calibration
+ *  script writing into /tmp costs the same as a queue job.
  *
- *  Non deve mai far fallire una generazione: se il DB non e' raggiungibile
- *  (uno script fuori da un progetto) si perde la riga, non l'immagine. */
+ *  It must never make a generation fail: if the DB is unreachable (a script
+ *  outside a project) the row is lost, not the image. */
 export function recordCall(
   model: string,
   outputTokens: number,
   ok: boolean,
   origin = process.env.DARKROOM_CALL_ORIGIN ?? "worker",
-  /** Il batch paga meta': la tariffa e' una cosa, i token un'altra. Dimezzare
-   *  i token per ottenere il costo giusto falserebbe la colonna che dice
-   *  quanto ha prodotto il modello. */
+  /** The batch pays half: the tariff is one thing, the tokens another.
+   *  Halving the tokens to get the right cost would falsify the column that
+   *  says how much the model produced. */
   sconto = 1,
 ): void {
   try {
@@ -136,19 +135,19 @@ export function recordCall(
       ],
     );
   } catch (e) {
-    // L'immagine conta piu' del conto, quindi non si fallisce. Ma il silenzio
-    // era peggio: uno script lanciato fuori da un progetto non trovava il DB e
-    // quattro generazioni pagate non comparivano da nessuna parte, mentre la
-    // barra continuava a mostrare il totale di prima come se fosse aggiornato.
+    // The image counts more than the accounting, so we do not fail. But silence
+    // was worse: a script launched outside a project could not find the DB and
+    // four paid generations appeared nowhere, while the bar kept showing the
+    // previous total as if it were up to date.
     console.warn(
       `[openai] chiamata NON registrata ($${costUsd(model, outputTokens).toFixed(4)}): ${String(e).slice(0, 120)}`,
     );
   }
 }
 
-/** Costo in dollari di una generazione, dai token che l'API riporta davvero.
- *  Stimarlo dalla dimensione richiesta darebbe un numero sbagliato: una 1024²
- *  low ha consumato 196 token dove la tabella ne prevedeva 272. */
+/** A generation's cost in dollars, from the tokens the API actually reports.
+ *  Estimating it from the requested size would give a wrong number: a 1024²
+ *  low consumed 196 tokens where the table predicted 272. */
 export function costUsd(model: string, outputTokens: number): number {
   const rate = OUTPUT_RATE_PER_M[model] ?? 30.0;
   return (outputTokens / 1e6) * rate;
@@ -180,12 +179,12 @@ async function callImages(
   } catch {
     return { error: { message: `HTTP ${res.status}: ${text.slice(0, 300)}` } };
   }
-  // Un 4xx/5xx senza campo `error` non deve passare per buono.
+  // A 4xx/5xx with no `error` field must not pass for good.
   if (!res.ok && !json.error) json.error = { message: `HTTP ${res.status}` };
   return json;
 }
 
-/** Scrive il PNG e restituisce il risultato nel formato comune ai worker. */
+/** Writes the PNG and returns the result in the shape common to the workers. */
 async function saveResult(
   json: ImagesResponse,
   output: string,
@@ -203,16 +202,17 @@ async function saveResult(
     ? Buffer.from(b64, "base64")
     : Buffer.from(await (await fetch(url as string)).arrayBuffer());
   await Bun.write(output, bytes);
-  // Il file va riletto da disco: una write parziale qui diventerebbe una
-  // versione rotta in galleria, che è esattamente ciò che non si vede in griglia.
+  // The file has to be read back from disk: a partial write here would become
+  // a broken version in the gallery, which is exactly what you cannot see in
+  // the grid.
   if (!existsSync(output)) return { status: "error", error: `scrittura fallita: ${output}`, duration_s };
-  // Si guarda i BYTE, non i kilobyte arrotondati: `size_kb` di un file da 500
-  // byte e' 0, e la guardia scartava come "vuoto" un file che c'era.
+  // It looks at the BYTES, not at rounded kilobytes: `size_kb` of a 500-byte
+  // file is 0, and the guard discarded as "empty" a file that was there.
   const bytes_reali = statSync(output).size;
   if (bytes_reali === 0) return { status: "error", error: `file vuoto: ${basename(output)}`, duration_s };
   const size_kb = Math.round(bytes_reali / 1024);
-  // I token si leggono dalla risposta: la tabella dei docs dava 4160 per una
-  // high 1024 dove ne sono stati consumati 7024, il 69% in piu'.
+  // The tokens are read from the response: the docs table gave 4160 for a high
+  // 1024 where 7024 were consumed, 69% more.
   const tok = json.usage?.output_tokens;
   if (tok) recordCall(model, tok, true);
   return {
@@ -227,8 +227,9 @@ async function saveResult(
   };
 }
 
-/** Text-to-image. `refs` sono accettate e allegate: l'endpoint edits con più
- *  immagini è ciò che tiene coerente un volto fra i pannelli di uno storyboard. */
+/** Text-to-image. `refs` are accepted and attached: the edits endpoint with
+ *  several images is what keeps a face consistent across a storyboard's
+ *  panels. */
 export async function runWorkerOpenAiGenerate(input: {
   prompt: string;
   output: string;
@@ -247,7 +248,7 @@ export async function runWorkerOpenAiGenerate(input: {
   if (over) return { status: "error", error: over };
   const startedAt = Date.now();
 
-  // Con reference si passa da /edits, che è l'unico endpoint che le accetta.
+  // With references we go through /edits, the only endpoint that accepts them.
   if (refs.length > 0) return runEdits(key, refs, input.prompt, input.output, startedAt);
 
   const json = await callImages(
@@ -263,23 +264,23 @@ export async function runWorkerOpenAiGenerate(input: {
   return saveResult(json, input.output, startedAt);
 }
 
-/** Edit di una foto sorgente, con eventuali reference allegate. */
+/** Edit of a source photo, with any references attached. */
 export async function runWorkerOpenAi(input: {
   image: string;
   prompt: string;
   output: string;
   refs?: string[];
-  /** Allegati con il loro ruolo. Quando ci sono, l'ordine di invio e la frase
-   *  che li descrive nascono dalla stessa lista e non possono divergere:
-   *  `refs` da sola lascia a chi chiama il compito di tenerle allineate a mano,
-   *  ed e' una promessa che nessuno verifica. */
+  /** Attachments with their role. When present, the send order and the
+   *  sentence describing them are born from the same list and cannot diverge:
+   *  `refs` alone leaves the caller to keep them aligned by hand, and that is a
+   *  promise nobody checks. */
   attachments?: Attachment[];
-  /** Resa per QUESTA generazione. Assente = quella di sistema.
+  /** Quality for THIS generation. Absent = the system one.
    *
-   *  Era letta solo dall'ambiente del processo: un job che dichiarava `low`
-   *  veniva prodotto in `high`, e una prova che credevo da mezzo centesimo ne
-   *  e' costati 21. Il job dichiarava una cosa e il processo ne faceva
-   *  un'altra, lo stesso difetto che aveva il canale. */
+   *  It used to be read only from the process environment: a job declaring
+   *  `low` was produced in `high`, and a trial I thought cost half a cent cost
+   *  21. The job declared one thing and the process did another, the same
+   *  defect the channel had. */
   quality?: string;
 }): Promise<WorkerResult> {
   const key = openaiKey();
@@ -293,15 +294,16 @@ export async function runWorkerOpenAi(input: {
   if (!existsSync(input.image)) {
     return { status: "error", error: `source image not found: ${input.image}` };
   }
-  // Un edit passa SEMPRE da /edits, che il batch non supporta: mandare qui
-  // qualcuno al batch sarebbe un vicolo cieco anche senza reference.
+  // An edit ALWAYS goes through /edits, which the batch does not support:
+  // sending somebody here to the batch would be a dead end even without
+  // references.
   const wantedQuality = input.quality ?? OPENAI_IMAGE_QUALITY;
   const over = overCap({ withRefs: true, quality: wantedQuality });
   if (over) return { status: "error", error: over };
   const startedAt = Date.now();
-  // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
-  // decide l'ordine degli allegati: e' l'unico modo perche' "le prime due sono
-  // io" resti vero anche dopo aver aggiunto una reference.
+  // With the roles declared, the preamble is generated from the same list that
+  // decides the order of the attachments: it is the only way for "the first two
+  // are me" to stay true even after adding a reference.
   const withRoles = (input.attachments ?? []).filter((a) => existsSync(a.path));
   if (withRoles.length > 0) {
     const { files, preamble } = prepareAttachments(withRoles, { withSource: true });
@@ -311,8 +313,8 @@ export async function runWorkerOpenAi(input: {
   return runEdits(key, images, input.prompt, input.output, startedAt, wantedQuality);
 }
 
-/** MIME dall'estensione: un Blob senza `type` arriva come
- *  `application/octet-stream` e l'endpoint edits lo rifiuta. */
+/** MIME from the extension: a Blob without a `type` arrives as
+ *  `application/octet-stream` and the edits endpoint refuses it. */
 function mimeOf(path: string): string {
   const ext = path.toLowerCase().split(".").pop() ?? "";
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg";

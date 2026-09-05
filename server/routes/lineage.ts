@@ -1,13 +1,13 @@
-// Vista di scelta: l'albero delle varianti (LIN-02).
+// The picking view: the tree of variants (LIN-02).
 //
-// La griglia risponde a "quali foto ho". Questo endpoint risponde a "quale
-// variante tengo, e da cosa e' nata" — che e' una relazione, non un elenco, e
-// per questo non si ottiene filtrando la griglia.
+// The grid answers "which photos do I have". This endpoint answers "which
+// variant do I keep, and what was it born from" — which is a relation, not a
+// list, and that is why it cannot be got by filtering the grid.
 //
-// Il raggruppamento e' per CONFIGURAZIONE e non per variante: due varianti
-// della stessa ricetta ma con riferimenti diversi sono due esperimenti, e
-// vanno letti come tali. Con 162 varianti in sei configurazioni, distinguerle
-// ha richiesto query SQL a mano — il buco che questa vista chiude.
+// The grouping is by CONFIGURATION and not by variant: two variants of the same
+// recipe but with different references are two experiments, and are to be read
+// as such. With 162 variants across six configurations, telling them apart took
+// hand-written SQL queries — the hole this view closes.
 import { Hono } from "hono";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -34,17 +34,18 @@ type VersionRow = {
   created_at: number;
 };
 
-/** Configurazione leggibile di una variante, ricavata da lineage o, per lo
- *  storico che lineage non ce l'ha, da config. Cio' che non e' registrato
- *  resta dichiarato come non registrato: inventarlo sarebbe peggio del vuoto. */
+/** A variant's readable configuration, derived from the lineage or, for the
+ *  historical rows that have none, from config. What is not recorded stays
+ *  declared as not recorded: making it up would be worse than the blank. */
 function configOf(v: VersionRow): {
   backend: string | null;
   recipe: string;
   refset: string;
   preamble: string | null;
   sources: string[];
-  /** I file di stile allegati alla generazione. Servono per sovrapporli alla
-   *  variante: il refset e' una frase per un umano, questi sono i file veri. */
+  /** The style files attached to the generation. They are needed to overlay
+   *  them on the variant: the refset is a phrase for a human, these are the
+   *  real files. */
   refs: string[];
 } {
   const read = (raw: string | null): Record<string, unknown> => {
@@ -57,17 +58,17 @@ function configOf(v: VersionRow): {
   };
   const lin = read(v.lineage);
   const cfg = read(v.config);
-  // Le sorgenti vere, non la foto a cui la riga e' appesa: una variante nata da
-  // tre scatti insieme ha un photo_id solo, e senza questo elenco la vista ne
-  // mostrerebbe uno spacciandolo per l'unico ingresso.
+  // The real sources, not the photo the row hangs from: a variant born from
+  // three shots together has a single photo_id, and without this list the view
+  // would show one of them passing it off as the only input.
   const rawSources = (lin.sources ?? cfg.sources) as unknown;
   const sources = Array.isArray(rawSources) ? rawSources.map(String) : [];
   const rawRefs = (lin.refs ?? cfg.refs) as unknown;
   const refs = Array.isArray(rawRefs) ? rawRefs.map(String) : [];
-  // Con quale motore e' stata prodotta. Cambia il risultato piu' di mezza
-  // ricetta (cdp, codex-http e openai rendono la pelle in modo diverso) ed era
-  // registrato ma invisibile: restava l'unica differenza non spiegabile fra
-  // due varianti che dichiaravano la stessa configurazione.
+  // Which engine produced it. It changes the result more than half a recipe
+  // (cdp, codex-http and openai render skin differently) and it was recorded
+  // but invisible: it remained the only unexplainable difference between two
+  // variants declaring the same configuration.
   const backend = (lin.backend ?? cfg.backend) as string | undefined;
   return {
     backend: backend ?? null,
@@ -80,12 +81,12 @@ function configOf(v: VersionRow): {
 }
 
 /**
- * Quanto e' costata ogni versione, in dollari.
+ * What each version cost, in dollars.
  *
- * Il costo vive in `api_calls` (si paga la CHIAMATA, non la versione) e non ha
- * una chiave verso `versions`. L'aggancio e' per vicinanza nel tempo: una
- * chiamata riuscita entro un minuto dalla versione e' quella che l'ha prodotta.
- * Non e' esatto per costruzione, quindi il client lo mostra come stima.
+ * The cost lives in `api_calls` (you pay for the CALL, not for the version) and
+ * has no key towards `versions`. The link is by proximity in time: a successful
+ * call within a minute of the version is the one that produced it. It is not
+ * exact by construction, so the client shows it as an estimate.
  */
 function costPerVersion(): Map<number, { usd: number; model: string; quality: string | null }> {
   const out = new Map<number, { usd: number; model: string; quality: string | null }>();
@@ -102,7 +103,7 @@ function costPerVersion(): Map<number, { usd: number; model: string; quality: st
       .all();
     for (const v of versions) {
       let best: (typeof chiamate)[number] | null = null;
-      let dist = 60_000; // un minuto: oltre, non e' la stessa generazione
+      let dist = 60_000; // one minute: beyond that, it is not the same generation
       for (const ch of chiamate) {
         const d = Math.abs(ch.created_at - v.created_at);
         if (d < dist) { dist = d; best = ch; }
@@ -123,9 +124,10 @@ lineageRoutes.get("/api/lineage", (c) => {
     )
     .all();
 
-  // lineage registra i NOMI dei file sorgente, la vista indirizza le miniature
-  // per id foto: senza questa mappa il client dovrebbe indovinare l'id dal nome,
-  // e sbaglierebbe su ogni file con un'estensione inattesa.
+  // the lineage records the NAMES of the source files, the view addresses
+  // thumbnails by photo id: without this map the client would have to guess the
+  // id from the name, and would get it wrong on every file with an unexpected
+  // extension.
   const byBasename = new Map(photos.map((p) => [p.original_path.split("/").pop() ?? "", p.id]));
   const favOf = new Map(photos.map((p) => [p.id, p.favorite_version_id]));
 
@@ -137,13 +139,13 @@ lineageRoutes.get("/api/lineage", (c) => {
     )
     .all();
 
-  // La radice e' l'INSIEME di ingresso, non la singola foto. Raggruppare per
-  // photo_id metteva tutte le varianti sotto la PRIMA sorgente e lasciava le
-  // altre a "0 varianti" pur avendo contribuito a tutte; dare una radice a
-  // ciascuna foto contribuente avrebbe fatto l'errore opposto, mostrando le
-  // stesse 12 varianti tre volte. Una foto sola e' l'insieme di cardinalita' 1,
-  // quindi i progetti a sorgente singola non hanno un caso speciale: misurato
-  // su Japan, 189 radici e 3007 varianti, nessuna contata due volte.
+  // The root is the input SET, not the single photo. Grouping by photo_id put
+  // all the variants under the FIRST source and left the others at "0 variants"
+  // despite having contributed to all of them; giving a root to each
+  // contributing photo would have made the opposite mistake, showing the same
+  // 12 variants three times. A single photo is the set of cardinality 1, so
+  // single-source projects have no special case: measured on Japan, 189 roots
+  // and 3007 variants, none counted twice.
   type Root = {
     photos: string[];
     variants: number;
@@ -164,9 +166,8 @@ lineageRoutes.get("/api/lineage", (c) => {
 
   for (const v of versions) {
     const cfg = configOf(v);
-    // I nomi che non si risolvono a una foto nota non spariscono: restano
-    // nell'identita' dell'insieme, altrimenti due insiemi diversi si
-    // fonderebbero in uno solo.
+    // Names that do not resolve to a known photo do not vanish: they stay in the
+    // identity of the set, otherwise two different sets would merge into one.
     const ids = cfg.sources.map((f) => byBasename.get(f) ?? f);
     const members = ids.length > 0 ? ids : [v.photo_id];
     const key = [...members].sort().join("\u0000");
@@ -185,23 +186,24 @@ lineageRoutes.get("/api/lineage", (c) => {
       note: v.note,
       favorite: favOf.get(v.photo_id) === v.id,
       created_at: v.created_at,
-      /** Il prompt ESATTO con cui e' stata generata. Stava solo nel database:
-       *  per sapere perche' due varianti differiscono bisognava aprire sqlite,
-       *  che e' il motivo per cui si ri-generava alla cieca invece di leggere
-       *  cosa era gia' stato chiesto. */
+      /** The EXACT prompt it was generated with. It lived only in the database:
+       *  to know why two variants differ you had to open sqlite, which is why
+       *  people re-generated blindly instead of reading what had already been
+       *  asked for. */
       prompt: v.prompt_used,
-      /** Il motore che l'ha prodotta, quando registrato. */
+      /** The engine that produced it, when recorded. */
       backend: cfg.backend ?? v.provider,
-      /** Costo in dollari. `credits` sulla versione e' il dato AUTOREVOLE:
-       *  viene scritto quando la versione nasce, da chi conosce la chiamata.
-       *  L'aggancio per vicinanza temporale resta come ripiego per lo storico
-       *  che non lo ha — ma sbaglia su ogni versione registrata a distanza di
-       *  ore dalla chiamata pagata, e li' mostrava $0.000 avendo il dato in
-       *  tabella. */
+      /** Cost in dollars. `credits` on the version is the AUTHORITATIVE datum:
+       *  it is written when the version is born, by whoever knows the call. The
+       *  link by temporal proximity stays as a fallback for the historical rows
+       *  that lack it — but it is wrong on every version recorded hours after
+       *  the paid call, and there it showed $0.000 while having the figure in
+       *  the table. */
       cost_usd: v.credits ?? costs.get(v.id)?.usd ?? null,
-      /** Modello e resa, da provider_params. Sono la differenza fra due
-       *  varianti che dichiarano la stessa ricetta e non si somigliano:
-       *  `low` e `high` dello stesso modello sono due esperimenti diversi. */
+      /** Model and quality, from provider_params. They are the difference
+       *  between two variants declaring the same recipe and not resembling each
+       *  other: `low` and `high` of the same model are two different
+       *  experiments. */
       ...(() => {
         try {
           const pp = v.provider_params ? (JSON.parse(v.provider_params) as Record<string, unknown>) : {};
@@ -215,29 +217,30 @@ lineageRoutes.get("/api/lineage", (c) => {
           return { model: ch?.model ?? null, quality: ch?.quality ?? null };
         }
       })(),
-      /** I nomi dei file di ingresso, come sono stati registrati. `sources`
-       *  sul gruppo viene tradotto in id-foto per le miniature e perde i nomi
-       *  che non si risolvono; qui restano quelli veri. */
+      /** The names of the input files, as they were recorded. `sources` on the
+       *  group is translated into photo ids for the thumbnails and loses the
+       *  names that do not resolve; the real ones stay here. */
       source_files: cfg.sources,
-      /** Gli id-foto corrispondenti, per chiedere la miniatura. Il client non
-       *  puo' ricavarli dal nome: "1.PNG" -> "1" funziona per caso, e su un
-       *  file con estensione inattesa darebbe un'immagine rotta. */
+      /** The corresponding photo ids, for requesting the thumbnail. The client
+       *  cannot derive them from the name: "1.PNG" -> "1" works by accident,
+       *  and on a file with an unexpected extension it would give a broken
+       *  image. */
       source_ids: cfg.sources.map((f) => byBasename.get(f) ?? null),
       file_refs: cfg.refs,
-      // Il file c'e' davvero?
+      // Is the file really there?
       //
-      // Il 27/08 due cover erano registrate con un percorso fuori convenzione:
-      // la riga c'era, l'API la restituiva, la variante compariva nell'albero,
-      // e al suo posto arrivava un rettangolo vuoto perche' la miniatura
-      // rispondeva 500. Una variante senza file non e' una variante: dirlo qui
-      // costa uno stat e trasforma un guasto muto in un'etichetta.
+      // On 27/08 two covers were recorded with a path outside the convention:
+      // the row was there, the API returned it, the variant appeared in the
+      // tree, and in its place came an empty rectangle because the thumbnail
+      // answered 500. A variant without a file is not a variant: saying so here
+      // costs one stat and turns a mute failure into a label.
       missing: !existsSync(v.image_path),
     });
   }
 
-  /** Quando e' nata la variante piu' recente di ogni radice. Serve a mettere
-   *  in cima il lavoro di adesso: l'ordine per id-foto e' stabile ma arbitrario,
-   *  e con 189 radici la generazione appena fatta finiva a meta' pagina. */
+  /** When each root's most recent variant was born. It is there to put the
+   *  work of right now on top: ordering by photo id is stable but arbitrary,
+   *  and with 189 roots the generation just made ended up half a page down. */
   const mostRecent = (r: Root) =>
     Math.max(
       0,
@@ -251,20 +254,20 @@ lineageRoutes.get("/api/lineage", (c) => {
     .map((r) => {
     for (const g of r.groups.values()) {
       g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
-      // Anche dentro il gruppo: l'ultima prova per prima.
+      // Inside the group too: the latest attempt first.
       g.variants.sort(
         (x, y) => (y as { created_at: number }).created_at - (x as { created_at: number }).created_at,
       );
     }
     return {
-      // `photo` resta la prima dell'insieme: e' cio' che il client usa per la
-      // miniatura di copertina e per i link. `photos` e' l'insieme intero.
+      // `photo` stays the first of the set: it is what the client uses for the
+      // cover thumbnail and for the links. `photos` is the whole set.
       photo: r.photos[0],
       photos: r.photos,
       variants: r.variants,
       recipes: r.recipes.size,
-      // I gruppi ordinati per la loro variante piu' recente, non per ordine di
-      // inserimento: una ricetta ripresa oggi deve stare sopra a una di ieri.
+      // The groups ordered by their most recent variant, not by insertion order:
+      // a recipe picked up again today has to sit above one from yesterday.
       groups: [...r.groups.values()].sort(
         (a, b) =>
           Math.max(...b.variants.map((v) => (v as { created_at: number }).created_at)) -
@@ -273,8 +276,8 @@ lineageRoutes.get("/api/lineage", (c) => {
     };
   });
 
-  // Le foto che non hanno generato niente restano visibili: un progetto appena
-  // importato non deve sembrare vuoto.
+  // Photos that generated nothing stay visible: a project just imported must
+  // not look empty.
   for (const p of photos) {
     if (![...roots.values()].some((r) => r.photos.includes(p.id)))
       out.push({ photo: p.id, photos: [p.id], variants: 0, recipes: 0, groups: [] });
@@ -283,16 +286,17 @@ lineageRoutes.get("/api/lineage", (c) => {
   return c.json({ photos: out });
 });
 
-/** Quanto una variante somiglia alla reference con cui e' stata generata.
+/** How closely a variant resembles the reference it was generated with.
  *
- *  Serviva un terminale per saperlo. La misura esisteva gia' come script, ma
- *  restava fuori dalla pagina dove si guardano le varianti, quindi la domanda
- *  "mi sto avvicinando?" si poteva porre solo altrove — e le calibrazioni di
- *  ieri sono andate avanti tre giri su un'ipotesi sbagliata proprio per quello.
+ *  Knowing it took a terminal. The measurement already existed as a script, but
+ *  it stayed outside the page where the variants are looked at, so the question
+ *  "am I getting closer?" could only be asked elsewhere — and yesterday's
+ *  calibrations went on for three rounds on a wrong hypothesis for exactly that
+ *  reason.
  *
- *  La reference si legge dal lineage della versione: non la si passa da fuori,
- *  altrimenti si potrebbe confrontare una variante con un'immagine che non
- *  c'entra e leggere un numero che sembra un giudizio. */
+ *  The reference is read from the version's lineage: it is not passed in from
+ *  outside, otherwise you could compare a variant with an unrelated image and
+ *  read a number that looks like a judgement. */
 lineageRoutes.get("/api/versions/:id/gap", (c) => {
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);
@@ -315,9 +319,9 @@ lineageRoutes.get("/api/versions/:id/gap", (c) => {
     }
   };
   const name = (read(v.lineage)[0] ?? read(v.config)[0] ?? "").split("/").pop() ?? "";
-  // Nessuna reference non e' un errore: e' l'informazione che questa variante
-  // non aveva un bersaglio, ed e' esattamente il caso che è costato 12
-  // generazioni su profilo.
+  // No reference is not an error: it is the information that this variant had
+  // no target, and it is exactly the case that cost 12 generations on one
+  // project.
   if (!name) return c.json({ reference: null, gap: null });
 
   const refPath = join(refsDir(), name);
@@ -337,8 +341,8 @@ lineageRoutes.get("/api/versions/:id/gap", (c) => {
   }
 });
 
-/** Giudizio e nota su una variante. Il giudizio sta sulla VERSIONE, non sulla
- *  foto: "mi piace" sceglie una foto, questo sceglie fra le sue varianti. */
+/** Judgement and note on a variant. The judgement sits on the VERSION, not on
+ *  the photo: the pick chooses a photo, this chooses among its variants. */
 lineageRoutes.patch("/api/versions/:id/verdict", async (c) => {
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);
@@ -347,8 +351,8 @@ lineageRoutes.patch("/api/versions/:id/verdict", async (c) => {
   const allowed = ["keep", "maybe", "discard"];
   let verdict: string | null | undefined;
   if ("verdict" in body) {
-    // Stringa vuota e null significano entrambi "torna a non giudicata": e' il
-    // quarto stato del ciclo, non un errore di chi chiama.
+    // Empty string and null both mean "back to not judged": it is the fourth
+    // state of the cycle, not a caller's mistake.
     if (body.verdict === null || body.verdict === "") verdict = null;
     else if (typeof body.verdict === "string" && allowed.includes(body.verdict)) verdict = body.verdict;
     else return c.json({ error: `verdict ammessi: ${allowed.join(", ")} o vuoto` }, 400);
