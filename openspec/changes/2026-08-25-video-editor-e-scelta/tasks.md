@@ -36,6 +36,8 @@
 - [x] clic su un taglio → pannello: piano, durezza suono, durezza piano, atto, origine
 - [x] forzature: inchioda · durata · escludi → `scelte.json`
 - [x] `POST /api/video/ricostruisci` lancia `master.sh`, log in streaming, un solo giro alla volta
+      <!-- La rotta oggi si chiama `POST /api/video/rebuild`: i nomi delle rotte sono
+           passati all'inglese dopo questo lavoro. Il resto vale ancora. -->
 - [x] a fine ricostruzione la barra si aggiorna da sola
 
 ## 6. Generazione sulla 3090
