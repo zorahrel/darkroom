@@ -103,23 +103,24 @@ describe("normalizeGrade", () => {
 });
 
 describe("bloom e sakura: i parametri aggiunti restano retrocompatibili", () => {
-  test("i default dei nuovi parametri sono neutri", () => {
-    // knee 2 (comportamento storico) fa alonare solo le specularità: su una
-    // scena senza riflessi accecanti il bloom sparisce del tutto, ed era il caso
-    // dell'oro del castello. knee/gain e hue_shift/sat sono opt-in: assenti dal
-    // JSON, lo script usa i valori storici e le foto già gradate non cambiano.
+  test("the defaults of the new parameters are neutral", () => {
+    // knee 2 (the historical behaviour) haloes only the speculars: on a scene
+    // without blinding reflections the bloom disappears entirely, and that was
+    // the case with the castle's gold. knee/gain and hue_shift/sat are opt-in:
+    // absent from the JSON, the script uses the historical values and photos
+    // already graded do not change.
     const chain = defaultSteps();
     const bloom = chain.find((s) => s.type === "bloom");
     const sakura = chain.find((s) => s.type === "sakura");
-    // Nessuno dei due porta i nuovi parametri nella catena di default: il
-    // comportamento base è esattamente quello di prima.
+    // Neither of them brings the new parameters into the default chain: the
+    // base behaviour is exactly what it was before.
     expect(bloom?.params.knee).toBeUndefined();
     expect(sakura?.params.hue_shift).toBeUndefined();
   });
 
   test("i parametri nuovi sopravvivono a sanitizeSteps", () => {
-    // Se il sanitizer li scartasse, il grade salvato tornerebbe silenziosamente
-    // al look sbagliato al primo riavvio del server.
+    // If the sanitizer discarded them, the saved grade would silently go back
+    // to the wrong look on the first server restart.
     const steps = sanitizeSteps([
       { id: "sakura", type: "sakura", enabled: true, params: { sat: 85, hue_shift: 14 } },
       {
@@ -138,18 +139,19 @@ describe("bloom e sakura: i parametri aggiunti restano retrocompatibili", () => 
   });
 });
 
-describe("bloom: uno solo, non due", () => {
-  test("la catena di default non porta un passo bloom", () => {
-    // Il prompt AI chiede già "soft cinematic bloom and gentle glow around
-    // existing bright light sources": aggiungerne un secondo in locale li somma.
-    // Misurato su 5 foto: bianchi bruciati dal 3,9% al 6,7%, e l'oro dei templi
-    // che diventava una macchia bianca.
+describe("bloom: one only, not two", () => {
+  test("the default chain does not carry a bloom step", () => {
+    // The AI prompt already asks for "soft cinematic bloom and gentle glow
+    // around existing bright light sources": adding a second one locally sums
+    // them. Measured over 5 photos: blown whites from 3.9% to 6.7%, and the
+    // temples' gold turning into a white blob.
     expect(defaultSteps().some((s) => s.type === "bloom")).toBe(false);
   });
 
-  test("il passo bloom resta disponibile per chi lo vuole a mano", () => {
-    // Toglierlo dal default non significa cancellarlo: su un set senza AI
-    // (solo grade locale) serve, e sanitizeSteps deve continuare ad accettarlo.
+  test("the bloom step stays available for whoever wants it by hand", () => {
+    // Taking it out of the default does not mean deleting it: on a set without
+    // AI (local grade only) it is needed, and sanitizeSteps has to keep
+    // accepting it.
     const kept = sanitizeSteps([
       { id: "b", type: "bloom", enabled: true, params: { amount: 30 } },
     ]);
@@ -157,8 +159,8 @@ describe("bloom: uno solo, non due", () => {
   });
 });
 
-describe("armonizzazione per post", () => {
-  test("il passo match riceve i parametri del gruppo, non quelli salvati", async () => {
+describe("per-post harmonisation", () => {
+  test("the match step receives the group's parameters, not the saved ones", async () => {
     const { resolveStepsForScript } = await import("../server/grade.ts");
     const steps = [
       { id: "m", type: "match" as const, enabled: true, params: {} },
@@ -166,17 +168,17 @@ describe("armonizzazione per post", () => {
     const match = { a_shift: 2.5, b_shift: -3.1, a_scale: 1.05, b_scale: 0.95 };
     const out = resolveStepsForScript(steps, match);
     expect(out).toHaveLength(1);
-    // Solo crominanza: la luminanza della scena non entra nella correzione.
+    // Chrominance only: the scene's luminance does not enter the correction.
     expect(out[0]!.params.a_shift).toBe(2.5);
     expect(out[0]!.params.b_scale).toBe(0.95);
     expect(out[0]!.params).not.toHaveProperty("exposure");
   });
 
-  test("senza gruppo il passo sparisce invece di applicarsi a vuoto", async () => {
+  test("without a group the step disappears instead of applying to nothing", async () => {
     const { resolveStepsForScript } = await import("../server/grade.ts");
-    // Foto non assegnata a un post, o post con una foto sola: non c'è nulla con
-    // cui armonizzare, e un passo senza parametri applicherebbe l'identità
-    // (innocua ma inutile) o peggio dei default sbagliati.
+    // A photo not assigned to a post, or a post with a single photo: there is
+    // nothing to harmonise with, and a step without parameters would apply the
+    // identity (harmless but useless) or worse, some wrong defaults.
     const out = resolveStepsForScript(
       [{ id: "m", type: "match" as const, enabled: true, params: {} }],
       null,
@@ -184,7 +186,7 @@ describe("armonizzazione per post", () => {
     expect(out).toHaveLength(0);
   });
 
-  test("gli altri passi non sono toccati dalla risoluzione del match", async () => {
+  test("the other steps are untouched by resolving the match", async () => {
     const { resolveStepsForScript } = await import("../server/grade.ts");
     const out = resolveStepsForScript(
       [
@@ -198,25 +200,26 @@ describe("armonizzazione per post", () => {
   });
 });
 
-describe("dose LUT graduale, non a scalino", () => {
-  test("night_weight è una rampa continua, non un booleano", async () => {
+describe("a gradual LUT dose, not a stepped one", () => {
+  test("night_weight is a continuous ramp, not a boolean", async () => {
     const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
-    // La soglia netta faceva sì che due render della stessa foto — uno a luma
-    // 68, uno a 61 — ricevessero 70% e 14% di LUT: uno dorato, l'altro spento.
+    // The hard threshold meant two renders of the same photo — one at luma 68,
+    // one at 61 — got 70% and 14% of LUT: one golden, the other flat.
     expect(py).toContain("def night_weight");
     expect(py).not.toContain("def scene_is_warm_dark");
     expect(py).toContain("np.clip(max(w_luma, w_red), 0.0, 1.0)");
   });
 
-  test("la dose si interpola fra piena e notturna", async () => {
+  test("the dose is interpolated between full and night-time", async () => {
     const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
     expect(py).toContain('dose = dose * (1.0 - w) + float(p.get("dose_night")) * w');
   });
 
-  test("uno step notturno non tocca una scena diurna", () => {
-    // La correzione che salva un notturno (togliere l'ambra dalla pietra sotto
-    // i fari) di giorno spegnerebbe i colori del cibo: lo step dichiara quando
-    // vive e viene dosato sulla rampa continua di night_weight, non a soglia.
+  test("a night step does not touch a daytime scene", () => {
+    // The correction that saves a night shot (taking the amber off stone under
+    // floodlights) would flatten food's colours by day: the step declares when
+    // it lives and is dosed on night_weight's continuous ramp, not on a
+    // threshold.
     const steps = sanitizeSteps([
       { id: "a", type: "hsl", enabled: true, only: "night", params: { sat_orange: -60 } },
       { id: "b", type: "color", enabled: true, only: "day", params: { temp: 5 } },
@@ -227,16 +230,16 @@ describe("dose LUT graduale, non a scalino", () => {
     expect(steps[2]!.only).toBeUndefined();
   });
 
-  test("un valore only non valido viene scartato invece di passare al python", () => {
+  test("an invalid only value is discarded instead of being passed to the python", () => {
     const steps = sanitizeSteps([{ id: "a", type: "levels", enabled: true, only: "sometimes", params: {} }]);
     expect(steps[0]!.only).toBeUndefined();
   });
 
 
-  test("il python dosa only=night sulla stessa rampa continua della LUT", async () => {
+  test("the python doses only=night on the same continuous ramp as the LUT", async () => {
     const py = await Bun.file(new URL("../scripts/color_grade.py", import.meta.url)).text();
-    // Se fosse una soglia, due scatti quasi identici prenderebbero correzioni
-    // opposte: e' lo stesso difetto gia' corretto sulla dose della LUT.
+    // If it were a threshold, two nearly identical shots would get opposite
+    // corrections: it is the same defect already fixed on the LUT's dose.
     expect(py).toContain('only = step.get("only")');
     expect(py).toContain('w = nw if only == "night" else (1.0 - nw)');
     expect(py).toContain("b = a * (1.0 - w) + b * w");
@@ -244,7 +247,7 @@ describe("dose LUT graduale, non a scalino", () => {
 
 });
 
-describe("la LUT personale deve arrivare fino in fondo", () => {
+describe("a personal LUT has to make it all the way through", () => {
   const lutStep = (dose = 100, dose_night = 45) => ({
     id: "lut", type: "lut" as const, enabled: true,
     params: { lut: "X.cube", dose, dose_night },
@@ -253,27 +256,27 @@ describe("la LUT personale deve arrivare fino in fondo", () => {
     id: "color", type: "color" as const, enabled: true, params: { saturation },
   });
 
-  test("una saturazione alzata DOPO la lut viene segnalata", () => {
-    // Caso reale: la CMG SUMMER desatura (0.66 -> 0.38 al 100%), ma uno step
-    // 'color' con saturation=+40 in coda la annullava. Il file c'era, il passo
-    // girava, il risultato spariva subito dopo: foto sature e "senza la mia
-    // LUT", senza un solo segnale.
+  test("a saturation raised AFTER the lut is flagged", () => {
+    // A real case: CMG SUMMER desaturates (0.66 -> 0.38 at 100%), but a 'color'
+    // step with saturation=+40 at the end cancelled it. The file was there, the
+    // step ran, the result disappeared right afterwards: saturated photos and
+    // "without my LUT", without a single signal.
     const w = gradeWarnings([lutStep(), colorStep(40)]);
     expect(w.join(" ")).toContain("DOPO la LUT");
   });
 
-  test("una saturazione PRIMA della lut non e' un problema", () => {
+  test("a saturation BEFORE the lut is not a problem", () => {
     expect(gradeWarnings([colorStep(40), lutStep()])).toEqual([]);
   });
 
-  test("una dose notturna quasi nulla viene segnalata", () => {
-    // dose_night=14 su 100: di notte il look del set spariva, e meta' del
-    // viaggio e' notturna.
+  test("a nearly zero night-time dose is flagged", () => {
+    // dose_night=14 out of 100: at night the set's look disappeared, and half
+    // the trip is at night.
     const w = gradeWarnings([lutStep(70, 14)]);
     expect(w.join(" ")).toContain("di notte");
   });
 
-  test("un grade sano non produce avvisi", () => {
+  test("a healthy grade produces no warnings", () => {
     expect(gradeWarnings([lutStep(100, 45), colorStep(0)])).toEqual([]);
   });
 });

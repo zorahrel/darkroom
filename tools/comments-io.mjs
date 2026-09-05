@@ -31,6 +31,22 @@ function ranges(file) {
   const walk = (n) => {
     add(ts.getLeadingCommentRanges(text, n.getFullStart()));
     add(ts.getTrailingCommentRanges(text, n.getEnd()));
+    // The name of a describe/test/it block is prose too, and reads in the CI
+    // output where nobody can see the code beside it.
+    if (
+      ts.isCallExpression(n) &&
+      ts.isIdentifier(n.expression) &&
+      ["describe", "test", "it"].includes(n.expression.text) &&
+      n.arguments.length &&
+      ts.isStringLiteralLike(n.arguments[0])
+    ) {
+      const a = n.arguments[0];
+      const key = `${a.getStart(src)}:${a.getEnd()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ pos: a.getStart(src), end: a.getEnd(), text: text.slice(a.getStart(src), a.getEnd()) });
+      }
+    }
     ts.forEachChild(n, walk);
   };
   walk(src);

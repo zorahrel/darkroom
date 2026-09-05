@@ -4,17 +4,17 @@ import { withProject, genDir } from "../server/project.ts";
 import { versionFileName, versionPath, pathOutsideConvention } from "../server/db.ts";
 
 /**
- * Il 27/08 due cover generate non comparivano nell'albero. La riga nel database
- * c'era, l'API la restituiva, la variante si vedeva in pagina: mancava solo
- * l'immagine, perche' `image_path` puntava a
- * `generations/cover-scena-gel-high.png` mentre il client chiede la miniatura
- * all'indirizzo che ricostruisce da solo, `generations/1/v30.png`.
+ * On 27/08 two generated covers did not appear in the tree. The row was in the
+ * database, the API returned it, the variant showed on the page: only the image
+ * was missing, because `image_path` pointed at
+ * `generations/cover-scena-gel-high.png` while the client asks for the
+ * thumbnail at the address it rebuilds itself, `generations/1/v30.png`.
  *
- * E' il tipo di guasto peggiore: niente si rompe, tutto sembra a posto, e il
- * dato e' invisibile finche' qualcuno non va a cercare proprio quello.
+ * It is the worst kind of failure: nothing breaks, everything looks fine, and
+ * the data is invisible until somebody goes looking for that exact one.
  */
-describe("il nome di file di una versione", () => {
-  test("sotto il dieci si riempie con uno zero", () => {
+describe("a version's file name", () => {
+  test("below ten it is padded with a zero", () => {
     expect(versionFileName(1)).toBe("v01.png");
     expect(versionFileName(9)).toBe("v09.png");
   });
@@ -24,23 +24,23 @@ describe("il nome di file di una versione", () => {
     expect(versionFileName(30)).toBe("v30.png");
   });
 
-  test("oltre il centesimo NON si tronca a due cifre", () => {
-    // Japan ha versioni oltre la centesima: un padding che tronca le
-    // spacciherebbe per fuori convenzione, ed e' esattamente l'errore che ho
-    // fatto scrivendo il censimento (159 falsi positivi con substr(-2)).
+  test("past the hundredth it is NOT truncated to two digits", () => {
+    // Japan has versions past the hundredth: a padding that truncates would
+    // pass them off as outside the convention, and that is exactly the mistake
+    // I made writing the census (159 false positives with substr(-2)).
     expect(versionFileName(100)).toBe("v100.png");
     expect(versionFileName(3007)).toBe("v3007.png");
   });
 });
 
-describe("dove deve stare il file di una versione", () => {
-  test("sotto la cartella della SUA foto, non nella radice", () => {
+describe("where a version's file must live", () => {
+  test("under ITS OWN photo's folder, not in the root", () => {
     withProject("conv-a", () => {
       expect(versionPath("foto1", 30)).toBe(join(genDir(), "foto1", "v30.png"));
     });
   });
 
-  test("due foto non condividono lo stesso file", () => {
+  test("two photos do not share the same file", () => {
     withProject("conv-b", () => {
       expect(versionPath("a", 1)).not.toBe(versionPath("b", 1));
     });
@@ -48,46 +48,46 @@ describe("dove deve stare il file di una versione", () => {
 });
 
 describe("il controllo sulla convenzione", () => {
-  test("un percorso giusto non ha niente da dire", () => {
+  test("a correct path has nothing to say", () => {
     withProject("conv-c", () => {
       expect(pathOutsideConvention("f", 3, versionPath("f", 3))).toBeNull();
     });
   });
 
-  test("il file nella radice invece che nella cartella della foto viene visto", () => {
+  test("a file in the root instead of the photo's folder is spotted", () => {
     withProject("conv-d", () => {
       const wrong = join(genDir(), "cover-scena-gel-high.png");
       const msg = pathOutsideConvention("1", 30, wrong);
       expect(msg).not.toBeNull();
-      // Il messaggio deve dire cosa succedera', non solo che e' diverso: e'
-      // l'unica cosa che collega la causa al sintomo osservato (un 500).
+      // The message has to say what will happen, not just that it is different:
+      // it is the only thing linking the cause to the observed symptom (a 500).
       expect(msg).toContain("500");
       expect(msg).toContain("v30.png");
     });
   });
 
-  test("il numero senza zero davanti e' comunque fuori convenzione", () => {
-    // `v3.png` invece di `v03.png`: il file esiste, la miniatura no.
+  test("a number without a leading zero is outside the convention all the same", () => {
+    // `v3.png` instead of `v03.png`: the file exists, the thumbnail does not.
     withProject("conv-e", () => {
       expect(pathOutsideConvention("f", 3, join(genDir(), "f", "v3.png"))).not.toBeNull();
     });
   });
 
-  test("la cartella di un'ALTRA foto e' fuori convenzione", () => {
+  test("ANOTHER photo's folder is outside the convention", () => {
     withProject("conv-f", () => {
       expect(pathOutsideConvention("a", 1, versionPath("b", 1))).not.toBeNull();
     });
   });
 
-  test("il numero di versione sbagliato nella cartella giusta e' fuori convenzione", () => {
+  test("the wrong version number in the right folder is outside the convention", () => {
     withProject("conv-g", () => {
       expect(pathOutsideConvention("a", 2, versionPath("a", 1))).not.toBeNull();
     });
   });
 });
 
-describe("gli istanti si scrivono in millisecondi", () => {
-  test("adesso() e' in millisecondi, come Date.now()", async () => {
+describe("instants are written in milliseconds", () => {
+  test("now() is in milliseconds, like Date.now()", async () => {
     const { adesso } = await import("../server/db.ts");
     const t = adesso();
     // Un valore in secondi sarebbe ~1.7e9, uno in millisecondi ~1.7e12.
@@ -96,25 +96,25 @@ describe("gli istanti si scrivono in millisecondi", () => {
   });
 
   test("riconosce un istante scritto in secondi", async () => {
-    // IL BUG: tre versioni registrate a mano con Date.now()/1000 finivano in
-    // fondo all'ordine cronologico, sembrando vecchie di decenni.
+    // THE BUG: three versions recorded by hand with Date.now()/1000 ended up at
+    // the bottom of the chronological order, looking decades old.
     const { suspectInstant } = await import("../server/db.ts");
-    expect(suspectInstant(1787854707)).toBe(true); // v31, come era scritta
-    expect(suspectInstant(1787854707000)).toBe(false); // come deve essere
+    expect(suspectInstant(1787854707)).toBe(true); // v31, as it was written
+    expect(suspectInstant(1787854707000)).toBe(false); // as it should be
   });
 
-  test("zero non e' sospetto: e' assente, non sbagliato", async () => {
+  test("zero is not suspicious: it is absent, not wrong", async () => {
     const { suspectInstant } = await import("../server/db.ts");
     expect(suspectInstant(0)).toBe(false);
   });
 });
 
 describe("il lineage viaggia dal job alla versione", () => {
-  // Prima la coda non lo scriveva: le generazioni fatte per la via corretta
-  // finivano sotto "origine non registrata" nell'albero, mentre quelle lanciate
-  // a mano da uno script avevano il raggruppamento giusto. L'effetto perverso e'
-  // che conveniva scrivere INSERT a mano — ed e' cosi' che in un giorno sono
-  // nati un percorso fuori convenzione e dei timestamp in secondi.
+  // The queue did not write it before: generations made the correct way ended
+  // up under "origin not recorded" in the tree, while those launched by hand
+  // from a script had the right grouping. The perverse effect is that writing
+  // INSERTs by hand paid off — and that is how, in a single day, a path outside
+  // the convention and timestamps in seconds were born.
   test("enqueueJob accetta e conserva il lineage", async () => {
     const { withProject } = await import("../server/project.ts");
     const { initSchema, db } = await import("../server/db.ts");
@@ -135,7 +135,7 @@ describe("il lineage viaggia dal job alla versione", () => {
     });
   });
 
-  test("senza lineage il job resta valido: le chiamate vecchie non cambiano", async () => {
+  test("without a lineage the job stays valid: old calls do not change", async () => {
     const { withProject } = await import("../server/project.ts");
     const { initSchema, db } = await import("../server/db.ts");
     const { enqueueJob } = await import("../server/jobs.ts");
@@ -157,25 +157,25 @@ describe("il lineage viaggia dal job alla versione", () => {
   });
 });
 
-describe("il canale si sceglie per job, non per processo", () => {
-  // Era una costante calcolata all'import: per generare con un backend diverso
-  // bisognava riavviare il servizio, e il riavvio cambia il comportamento di
-  // OGNI progetto invece che della singola generazione.
-  test("senza indicazione si usa quello di sistema", async () => {
+describe("the channel is chosen per job, not per process", () => {
+  // It was a constant computed at import: to generate with a different backend
+  // you had to restart the service, and the restart changes the behaviour of
+  // EVERY project instead of the single generation.
+  test("with nothing specified the system one is used", async () => {
     const { backendDi } = await import("../server/jobs.ts");
     expect(backendDi({ backend: null })).toBe("cdp"); // default di WORKER_BACKEND
     expect(backendDi(undefined)).toBe("cdp");
   });
 
-  test("il job puo' portarsi il proprio canale", async () => {
+  test("a job can carry its own channel", async () => {
     const { backendDi } = await import("../server/jobs.ts");
     expect(backendDi({ backend: "openai" })).toBe("openai");
     expect(backendDi({ backend: "codex-http" })).toBe("codex-http");
     expect(backendDi({ backend: "codex" })).toBe("codex");
   });
 
-  test("un canale sconosciuto non rompe la coda: si torna al browser", async () => {
-    // Un valore storto in una colonna di testo non deve far fallire il job.
+  test("an unknown channel does not break the queue: it falls back to the browser", async () => {
+    // A crooked value in a text column must not make the job fail.
     const { backendDi } = await import("../server/jobs.ts");
     expect(backendDi({ backend: "banana" })).toBe("cdp");
     expect(backendDi({ backend: "" })).toBe("cdp");
