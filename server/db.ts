@@ -425,7 +425,15 @@ export function initSchemaOn(d: Database): void {
   // e tenerli sullo stesso campo costringerebbe a sceglierne uno solo.
   // NULL = non ancora giudicata, che non e' la stessa cosa di "scartata".
   if (!hasColumn(d, "versions", "verdict")) {
-    d.run("ALTER TABLE versions ADD COLUMN verdict TEXT"); // tieni | forse | scarta
+    d.run("ALTER TABLE versions ADD COLUMN verdict TEXT"); // keep | maybe | discard
+  }
+
+  // The verdicts stored on a version were Italian words the whole UI compared
+  // against. Renaming only the code would have made every judgement already
+  // made read as "never looked at" — the work of going through a set one
+  // render at a time, silently undone, so the values move with the code.
+  for (const [from, to] of [["tieni", "keep"], ["forse", "maybe"], ["scarta", "discard"]] as const) {
+    d.run("UPDATE versions SET verdict = ? WHERE verdict = ?", [to, from]);
   }
   // Il perche' della scelta. Senza, tornano indietro solo i sopravvissuti e non
   // il motivo, che e' l'unica parte riutilizzabile per la passata successiva.

@@ -39,9 +39,9 @@ export interface Occupant {
 
 export type PortOutcome =
   /** Nessuno ascolta: si puo' partire. */
-  | { state: "libera" }
+  | { state: "free" }
   /** Ascolta qualcun altro: NON si parte. */
-  | { state: "occupata"; occupants: Occupant[] }
+  | { state: "busy"; occupants: Occupant[] }
   /** Non si e' potuto sapere (lsof assente, permessi). Si parte: un controllo
    *  che non sa non ha il diritto di bloccare il lavoro. */
   | { state: "ignoto"; why: string };
@@ -60,8 +60,8 @@ export function checkPort(port: number, deps: GuardiaDeps): PortOutcome {
     return { state: "ignoto", why: "impossibile leggere i socket in ascolto" };
   }
   const altrui = found.filter((o) => o.pid !== deps.ourPid);
-  if (altrui.length === 0) return { state: "libera" };
-  return { state: "occupata", occupants: altrui };
+  if (altrui.length === 0) return { state: "free" };
+  return { state: "busy", occupants: altrui };
 }
 
 /**

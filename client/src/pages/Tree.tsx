@@ -61,7 +61,7 @@ type Node = {
   groups: Group[];
 };
 
-const CYCLE = [null, "tieni", "forse", "scarta"] as const;
+const CYCLE = [null, "keep", "maybe", "discard"] as const;
 
 /**
  * Una riga del pannello dettagli: le immagini di ingresso, non i loro nomi.
@@ -235,15 +235,15 @@ function Recipe({
     </div>
   );
 }
-const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
+const GLYPH: Record<string, string> = { "": "○", keep: "●", maybe: "?", discard: "✕" };
 
 /** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
 const VERDICT_LABEL: Record<Verdict, string> = {
-  tutte: "tutte",
-  tieni: "tenute",
-  forse: "forse",
-  scarta: "scartate",
-  "da-vedere": "da vedere",
+  all: "tutte",
+  keep: "tenute",
+  maybe: "forse",
+  discard: "scartate",
+  unseen: "da vedere",
 };
 
 /** Le ricette hanno una chiave tecnica e un nome leggibile. La chiave resta nel
@@ -278,8 +278,8 @@ export default function TreePage() {
     read: readNumber(0, 1),
     memory: "darkroom.albero.op",
   });
-  const [modo, setModo] = useViewState<"sopra" | "differenza">("modo", "sopra", {
-    read: readOneOf(["sopra", "differenza"] as const),
+  const [overlayMode, setOverlayMode] = useViewState<"over" | "difference">("modo", "over", {
+    read: readOneOf(["over", "difference"] as const),
     memory: "darkroom.albero.modo",
   });
   /**
@@ -287,7 +287,7 @@ export default function TreePage() {
    * trenta varianti, "mostrami solo le tenute" e' cio' che si stava guardando,
    * e ricaricare la pagina non deve riportare tutto in mezzo.
    */
-  const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "tutte", {
+  const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "all", {
     read: readOneOf(VERDICTS),
     memory: "darkroom.albero.giudizio",
   });
@@ -331,7 +331,7 @@ export default function TreePage() {
   }
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
-  const kept = all.filter((v) => v.verdict === "tieni");
+  const kept = all.filter((v) => v.verdict === "keep");
   /** Quante varianti per giudizio: un filtro che porta a una pagina vuota va
    *  saputo PRIMA di cliccarlo, non dopo. */
   const counts = useMemo(() => countVerdicts(all), [all]);
@@ -391,7 +391,7 @@ export default function TreePage() {
           pick={verdict}
           onChoose={setVerdict}
           counts={counts}
-          neutra="tutte"
+          neutra="all"
         />
 
         {hasReferences && (
@@ -427,10 +427,10 @@ export default function TreePage() {
                   {Math.round(opacita * 100)}%
                 </span>
                 <select
-                  value={modo}
-                  onChange={(e) => setModo(e.target.value as "sopra" | "differenza")}
+                  value={overlayMode}
+                  onChange={(e) => setOverlayMode(e.target.value as "over" | "difference")}
                   title={
-                    modo === "differenza"
+                    overlayMode === "difference"
                       ? "Le zone che combaciano restano nere"
                       : "Il riferimento in trasparenza sopra la variante"
                   }
@@ -456,7 +456,7 @@ export default function TreePage() {
       {visibili.length === 0 && (
         <div className="py-16 text-center text-neutral-500 text-sm">
           Nessuna variante {VERDICT_LABEL[verdict]}.{" "}
-          <button onClick={() => setVerdict("tutte")} className="text-amber-500 hover:underline">
+          <button onClick={() => setVerdict("all")} className="text-amber-500 hover:underline">
             mostra tutte
           </button>
         </div>
@@ -600,7 +600,7 @@ export default function TreePage() {
                         gap={gaps[v.id]}
                         rif={overlay ? (g.refs?.[0] ?? null) : null}
                         opacita={opacita}
-                        modo={modo}
+                        overlayMode={overlayMode}
                         onVote={() => {
                           const cur = (v.verdict ?? null) as (typeof CYCLE)[number];
                           const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length] ?? null;
@@ -657,8 +657,8 @@ export default function TreePage() {
           Copia scelte
         </button>
         <span className="font-mono text-xs text-neutral-400 truncate">
-          {all.filter((v) => v.verdict === "forse").length} forse ·{" "}
-          {all.filter((v) => v.verdict === "scarta").length} scartate ·{" "}
+          {all.filter((v) => v.verdict === "maybe").length} forse ·{" "}
+          {all.filter((v) => v.verdict === "discard").length} scartate ·{" "}
           {all.filter((v) => v.note).length} note
         </span>
       </div>
@@ -682,7 +682,7 @@ function Leaf({
   gap,
   rif,
   opacita,
-  modo,
+  overlayMode,
   onVote,
   onNote,
   onZoom,
@@ -696,7 +696,7 @@ function Leaf({
   opacita?: number;
   /** "sopra" giudica la somiglianza, "differenza" mostra DOVE differiscono:
    *  le zone che combaciano restano nere. */
-  modo?: "sopra" | "differenza";
+  overlayMode?: "over" | "difference";
   onVote: () => void;
   onNote: (t: string) => void;
   onZoom: () => void;
@@ -705,20 +705,20 @@ function Leaf({
   const [text, setText] = useState(v.note ?? "");
   useEffect(() => setText(v.note ?? ""), [v.note]);
 
-  const ring = v.verdict === "tieni" || v.verdict === "forse";
-  const cross = v.verdict === "scarta";
+  const ring = v.verdict === "keep" || v.verdict === "maybe";
+  const cross = v.verdict === "discard";
   const [hover, setHover] = useState(false);
 
   return (
     <figure
       className={
         "m-0 bg-neutral-900 border " +
-        (v.verdict === "tieni"
+        (v.verdict === "keep"
           ? "border-amber-500"
-          : v.verdict === "forse"
+          : v.verdict === "maybe"
             ? "border-amber-500/50 border-dashed"
             : "border-neutral-800") +
-        (v.verdict === "scarta" ? " opacity-50" : "")
+        (v.verdict === "discard" ? " opacity-50" : "")
       }
     >
       <div
@@ -754,7 +754,7 @@ function Leaf({
             style={{ opacity: hover ? (opacita ?? 0.5) : 0, transition: "opacity 150ms" }}
             className={
               "absolute inset-0 w-full h-full object-cover pointer-events-none " +
-              (modo === "differenza" ? "mix-blend-difference" : "")
+              (overlayMode === "difference" ? "mix-blend-difference" : "")
             }
           />
         )}
@@ -817,7 +817,7 @@ function Leaf({
               rx="50"
               ry="44"
               transform="rotate(-7 60 60)"
-              strokeDasharray={v.verdict === "forse" ? "14 12" : undefined}
+              strokeDasharray={v.verdict === "maybe" ? "14 12" : undefined}
             />
           )}
           {cross && <path d="M18 20 L102 100 M102 22 L20 98" />}
@@ -882,11 +882,11 @@ function Leaf({
             onClick={onVote}
             title="Clic per cambiare: da giudicare → tieni → forse → scarta"
           >
-            {v.verdict === "tieni"
+            {v.verdict === "keep"
               ? "● tieni"
-              : v.verdict === "forse"
+              : v.verdict === "maybe"
                 ? "? forse"
-                : v.verdict === "scarta"
+                : v.verdict === "discard"
                   ? "✕ scarta"
                   : "giudica"}
           </button>

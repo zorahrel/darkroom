@@ -12,14 +12,14 @@ type WithVerdict = { verdict: string | null };
 type WithVariants<V> = { variants: V[] };
 type WithGroups<G> = { groups: G[] };
 
-export const VERDICTS = ["tutte", "tieni", "forse", "scarta", "da-vedere"] as const;
+export const VERDICTS = ["all", "keep", "maybe", "discard", "unseen"] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
-/** `da-vedere` = mai giudicata. E' il filtro che serve per riprendere in mano
+/** `unseen` = mai giudicata. E' il filtro che serve per riprendere in mano
  *  un lavoro lasciato a meta', ed e' diverso da "scartata". */
 export function keepsVariant(v: WithVerdict, verdict: Verdict): boolean {
-  if (verdict === "tutte") return true;
-  if (verdict === "da-vedere") return !v.verdict;
+  if (verdict === "all") return true;
+  if (verdict === "unseen") return !v.verdict;
   return v.verdict === verdict;
 }
 
@@ -27,9 +27,9 @@ export function filterTree<
   V extends WithVerdict,
   G extends WithVariants<V>,
   N extends WithGroups<G>,
->(nodi: N[], verdict: Verdict): N[] {
-  if (verdict === "tutte") return nodi;
-  return nodi
+>(nodes: N[], verdict: Verdict): N[] {
+  if (verdict === "all") return nodes;
+  return nodes
     .map((n) => ({
       ...n,
       groups: n.groups
@@ -43,17 +43,17 @@ export function filterTree<
  *  una pagina vuota va saputo prima di cliccarlo. */
 export function countVerdicts(variants: WithVerdict[]): Record<Verdict, number> {
   const c: Record<Verdict, number> = {
-    tutte: variants.length,
-    tieni: 0,
-    forse: 0,
-    scarta: 0,
-    "da-vedere": 0,
+    all: variants.length,
+    keep: 0,
+    maybe: 0,
+    discard: 0,
+    unseen: 0,
   };
   for (const v of variants) {
-    if (v.verdict === "tieni") c.tieni++;
-    else if (v.verdict === "forse") c.forse++;
-    else if (v.verdict === "scarta") c.scarta++;
-    else c["da-vedere"]++;
+    if (v.verdict === "keep") c.keep++;
+    else if (v.verdict === "maybe") c.maybe++;
+    else if (v.verdict === "discard") c.discard++;
+    else c.unseen++;
   }
   return c;
 }

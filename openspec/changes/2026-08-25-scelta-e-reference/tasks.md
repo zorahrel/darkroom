@@ -2,7 +2,7 @@
 
 Convenzione: `[ ]` da fare, `[x]` fatto+verificato.
 
-**Stato: in attesa di approvazione di Attilio.** Nessun codice prima dell'approvazione.
+**Stato: in attesa di approvazione.** Nessun codice prima dell'approvazione.
 
 ## Barra (si scrive ora, si esegue sempre uguale)
 

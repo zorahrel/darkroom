@@ -2,7 +2,7 @@
 
 Convenzione: `[ ]` da fare, `[x]` fatto+verificato.
 
-**Stato: approvato da Attilio il 2026-07-26 con scope allargato** rispetto alla proposal
+**Stato: approvato il 2026-07-26 con scope allargato** rispetto alla proposal
 originale, su quattro decisioni esplicite:
 
 1. **UI piena** — non solo backend+MCP: una route `/storyboard` con pannelli riordinabili,

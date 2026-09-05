@@ -50,7 +50,7 @@ function read(key: string, difetto: number, min: number): number {
  * *cosa* si stia misurando, e chi apre la pagina non deve andarselo a cercare
  * nel sorgente. Qui c'e' la frase; il numero resta quello che dice il Python.
  */
-const COSA_CONTROLLA: Record<string, string> = {
+const WHAT_IT_CHECKS: Record<string, string> = {
   "1": "ogni taglio cade su un battito della canzone",
   "2": "nessuna ripresa viene rallentata più di quanto regga",
   "3": "le luci dei piani sono confrontabili fra loro",
@@ -67,7 +67,7 @@ const COSA_CONTROLLA: Record<string, string> = {
  * fuori da quella testa non vuol dire niente. Adesso dice quante verifiche
  * passano su quante, e aperto dice cosa verifica ognuna.
  */
-function State({ gate, onRedo }: { gate: VideoGate | null; onRedo: () => void }) {
+function State({ gate, master, onRedo }: { gate: VideoGate | null; master: string | null; onRedo: () => void }) {
   const [aperta, setAperta] = useState(false);
   const rows = gate?.rows ?? [];
   const cadute = gate?.failed.length ?? 0;
@@ -94,7 +94,7 @@ function State({ gate, onRedo }: { gate: VideoGate | null; onRedo: () => void })
           <div className="flex items-baseline gap-2 mb-2">
             <span className="text-[12px] text-neutral-100">controlli sul video costruito</span>
             <span className="text-[10.5px] text-neutral-400">
-              girano su <span className="text-neutral-300">LUNGOMARE.mp4</span>, non sul piano
+              girano su <span className="text-neutral-300">{master ?? "il master"}</span>, non sul piano
             </span>
             <button onClick={onRedo} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">
               ricontrolla
@@ -110,7 +110,7 @@ function State({ gate, onRedo }: { gate: VideoGate | null; onRedo: () => void })
                 {r.ok === false ? "✕" : "✓"}
               </span>
               <div className="min-w-0">
-                <div className="text-neutral-200">{COSA_CONTROLLA[r.n] ?? `controllo ${r.n}`}</div>
+                <div className="text-neutral-200">{WHAT_IT_CHECKS[r.n] ?? `controllo ${r.n}`}</div>
                 <div className="text-neutral-400 leading-snug">{r.text}</div>
               </div>
             </div>
@@ -631,7 +631,8 @@ export default function Video() {
         <span className="text-[10.5px] text-neutral-400 tabular-nums">
           {cuts.length} tagli · {shots.length} piani{bpm ? ` · ${bpm.toFixed(1)} BPM` : ""} · {mmss(duration)}
         </span>
-        <State gate={gate} onRedo={() => api.videoGate(true).then(setGate).catch(() => {})} />
+        <State gate={gate} master={assets?.master ?? null}
+               onRedo={() => api.videoGate(true).then(setGate).catch(() => {})} />
         {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
         {spola !== 0 && (
           <span className="text-[10.5px] text-sky-300 tabular-nums">
@@ -831,7 +832,7 @@ export default function Video() {
       </div>
 
       {/* ---- maniglia ---- */}
-      <Handle toward="riga" value={hTimeline} title="quanto spazio prende la timeline"
+      <Handle toward="row" value={hTimeline} title="quanto spazio prende la timeline"
                 compute={(v0, d) => timelineLimit(v0 - d)}
                 onChange={setHTimeline} onEnd={save(KEY_HEIGHT)} />
 

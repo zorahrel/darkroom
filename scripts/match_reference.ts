@@ -17,11 +17,11 @@ const PASSES = Number(process.argv[3] ?? 3);
 // il percorso di casa di chi ha scritto lo script non è un default.
 const DATA = process.env.DARKROOM_DATA ?? "data";
 
-type Metriche = { luce: number; soggetto: number; p5: number; p95: number; neri: number };
+type Metrics = { light: number; subject: number; p5: number; p95: number; blacks: number };
 
 /** Le metriche si leggono dai pixel: un VLM descriveva come "hard light from
  *  the side" sia il target sia una resa piatta a -3.4. */
-function measure(file: string): Metriche {
+function measure(file: string): Metrics {
   const py = `
 from PIL import Image
 import numpy as np, json
@@ -34,22 +34,22 @@ print(json.dumps({
  "neri": round(float((a<30).mean()*100),1)}))`;
   const r = spawnSync("python3", ["-c", py], { encoding: "utf8" });
   if (r.status !== 0) throw new Error(`misura fallita: ${r.stderr?.slice(0, 200)}`);
-  return JSON.parse(r.stdout) as Metriche;
+  return JSON.parse(r.stdout) as Metrics;
 }
 
 /** Le correzioni sono in inglese e descrivono la GEOMETRIA, non l'atmosfera:
  *  gradi, direzione, presenza o assenza di fill. */
-function correzioni(t: Metriche, c: Metriche): string[] {
+function correzioni(t: Metrics, c: Metrics): string[] {
   const out: string[] = [];
-  const dLuce = c.luce - t.luce;
-  if (Math.abs(dLuce) > 6) {
+  const dLight = c.light - t.light;
+  if (Math.abs(dLight) > 6) {
     out.push(
-      dLuce < 0
+      dLight < 0
         ? `The key light is TOO extreme and the shadow side too dark. Move the key light closer to the camera axis (about 40 degrees off-axis instead of 90) and add a soft fill on the shadow side so the dark side of the face keeps visible detail.`
         : `The lighting is TOO FLAT. Move the key light further to the side (about 70 degrees off-axis, camera right, above eye level) and remove any fill, so the far side of the face falls into clear shadow.`,
     );
   }
-  const dSog = c.soggetto - t.soggetto;
+  const dSog = c.subject - t.subject;
   if (Math.abs(dSog) > 0.05) {
     out.push(
       dSog < 0
@@ -58,7 +58,7 @@ function correzioni(t: Metriche, c: Metriche): string[] {
     );
   }
   if (c.p95 < t.p95 - 20) out.push(`The background must be clean bright white, not grey.`);
-  if (c.neri < t.neri - 5) out.push(`Deepen the blacks: the shadow side and background corners should reach true black.`);
+  if (c.blacks < t.blacks - 5) out.push(`Deepen the blacks: the shadow side and background corners should reach true black.`);
   return out;
 }
 
@@ -77,10 +77,10 @@ const refs = [
 ];
 
 const target = measure(REF);
-console.log(`TARGET: luce=${target.luce} soggetto=${target.soggetto} p95=${target.p95} neri=${target.neri}%`);
+console.log(`TARGET: luce=${target.light} soggetto=${target.subject} p95=${target.p95} neri=${target.blacks}%`);
 
 let prompt = BASE;
-let migliore: { file: string; dist: number; m: Metriche } | null = null;
+let migliore: { file: string; dist: number; m: Metrics } | null = null;
 
 for (let pass = 1; pass <= PASSES; pass++) {
   const out = `/tmp/match_giro${pass}.png`;
@@ -92,9 +92,9 @@ for (let pass = 1; pass <= PASSES; pass++) {
   const m = measure(out);
   // Distanza normalizzata: la luce vale quanto l'inquadratura, altrimenti si
   // ottimizza il numero piu' grande e si perde l'altro.
-  const dist = Math.abs(m.luce - target.luce) / 10 + Math.abs(m.soggetto - target.soggetto) * 20;
+  const dist = Math.abs(m.light - target.light) / 10 + Math.abs(m.subject - target.subject) * 20;
   console.log(
-    `giro ${pass}: luce=${m.luce} (t ${target.luce}) soggetto=${m.soggetto} (t ${target.soggetto}) dist=${dist.toFixed(2)}`,
+    `giro ${pass}: luce=${m.light} (t ${target.light}) soggetto=${m.subject} (t ${target.subject}) dist=${dist.toFixed(2)}`,
   );
   if (!migliore || dist < migliore.dist) migliore = { file: out, dist, m };
 

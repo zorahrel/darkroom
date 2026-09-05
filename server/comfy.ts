@@ -14,7 +14,7 @@ import { COMFY_HOST, RENDER_BASH, RENDER_DIR, RENDER_OUT_DIR, RENDER_SSH } from 
  * se il grafo divergesse, la differenza fra due riprese non direbbe piu' niente
  * sul prompt.
  *
- * Il Mac non tocca un fotogramma. ComfyUI scrive su `D:\video_out`, e
+ * Il Mac non tocca un fotogramma. ComfyUI scrive in `RENDER_OUT_DIR`, e
  * `raccogli.sh` — che gira sul PC — porta quei PNG dentro al progetto, li
  * interpola e ne fa la clip leggera. Di qui passa solo quella clip, che pesa
  * un megabyte. Prima si codificava a crf 10 sul PC, si scaricava, si

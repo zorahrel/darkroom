@@ -344,7 +344,7 @@ lineageRoutes.patch("/api/versions/:id/verdict", async (c) => {
   if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);
 
   const body = (await c.req.json().catch(() => ({}))) as { verdict?: unknown; note?: unknown };
-  const allowed = ["tieni", "forse", "scarta"];
+  const allowed = ["keep", "maybe", "discard"];
   let verdict: string | null | undefined;
   if ("verdict" in body) {
     // Stringa vuota e null significano entrambi "torna a non giudicata": e' il

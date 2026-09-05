@@ -66,8 +66,8 @@ type Outcome = { route: string; project: string; done: string; data?: unknown };
  * un progetto nuovo a ogni generazione al volo lascerebbe sul disco una fila
  * di cartelle che nessuno ha chiesto.
  */
-function projectOf(dato?: string): string {
-  if (dato && getProject(dato)) return dato;
+function projectOf(given?: string): string {
+  if (given && getProject(given)) return given;
   return currentProjectId();
 }
 

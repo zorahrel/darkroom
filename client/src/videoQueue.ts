@@ -22,7 +22,7 @@ export type PickFilter =
   | "scartate"
   | "annotate"
   | "in montaggio"
-  | "tutte";
+  | "all";
 
 /** true se la scena, dopo questo verdetto, sparisce dall'elenco filtrato. */
 export function leavesQueue(filter: PickFilter, kept: boolean): boolean {

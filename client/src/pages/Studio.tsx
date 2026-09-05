@@ -23,15 +23,15 @@ import { VIEWS, view } from "../views";
  */
 /** Come si guarda l'elenco: per cosa sa fare un progetto, o per come sta. */
 type State = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
-type Ordine = "recenti" | "nome" | "grandi";
+type SortOrder = "recenti" | "nome" | "grandi";
 
 export default function StudioPage() {
   const [data, setData] = useState<StudioOverview | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<ProjectKind | "tutte">("tutte");
+  const [view, setView] = useState<ProjectKind | "all">("all");
   const [state, setState] = useState<State>("tutti");
-  const [ordine, setOrdine] = useState<Ordine>("recenti");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recenti");
   const navigate = useNavigate();
 
   async function refresh() {
@@ -68,7 +68,7 @@ export default function StudioPage() {
   const visibili = useMemo(() => {
     const q = search.trim().toLowerCase();
     const inside = tutti.filter((p) => {
-      if (view !== "tutte" && !p.views.includes(view)) return false;
+      if (view !== "all" && !p.views.includes(view)) return false;
       if (state === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
       if (state === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
       if (state === "pausa" && p.active) return false;
@@ -78,16 +78,16 @@ export default function StudioPage() {
     });
     const weight = (p: StudioProject) => p.stats?.photos ?? p.video?.cuts ?? 0;
     return inside.sort((a, b) =>
-      ordine === "nome"
+      sortOrder === "nome"
         ? a.name.localeCompare(b.name)
-        : ordine === "grandi"
+        : sortOrder === "grandi"
           ? weight(b) - weight(a)
           // "Recenti" è l'ultima versione generata, non la data di creazione:
           // il progetto su cui si stava lavorando è quello che ha prodotto
           // qualcosa per ultimo, non quello aperto per ultimo.
           : (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
     );
-  }, [tutti, search, view, state, ordine]);
+  }, [tutti, search, view, state, sortOrder]);
 
   return (
     <div className="space-y-4">
@@ -114,7 +114,7 @@ export default function StudioPage() {
       <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
         <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
         <div className="flex items-center gap-1">
-          <Filter active={view === "tutte"} onClick={() => setView("tutte")} n={count.tutte}>tutti</Filter>
+          <Filter active={view === "all"} onClick={() => setView("all")} n={count.tutte}>tutti</Filter>
           {VIEWS.map((v) => (
             <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
                     n={count[v.id]} title={v.spiega}>
@@ -136,9 +136,9 @@ export default function StudioPage() {
         <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
           ordina
           {([["recenti", "recenti"], ["nome", "nome"], ["grandi", "più grandi"]] as const).map(([id, text]) => (
-            <button key={id} type="button" onClick={() => setOrdine(id)} aria-pressed={ordine === id}
+            <button key={id} type="button" onClick={() => setSortOrder(id)} aria-pressed={sortOrder === id}
                     className={"px-1.5 py-0.5 rounded-sm border transition-colors " +
-                      (ordine === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
+                      (sortOrder === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
               {text}
             </button>
           ))}
@@ -152,7 +152,7 @@ export default function StudioPage() {
             : "Niente con questi filtri. "}
           {tutti.length > 0 && (
             <button className="underline hover:text-neutral-100"
-                    onClick={() => { setSearch(""); setView("tutte"); setState("tutti"); }}>
+                    onClick={() => { setSearch(""); setView("all"); setState("tutti"); }}>
               Rimettili a posto
             </button>
           )}
@@ -305,7 +305,7 @@ function Card({
         {(q.running ?? 0) > 0 && <Badge tone="info">{q.running} in corso</Badge>}
         {(q.pending ?? 0) > 0 && <Badge>{q.pending} in coda</Badge>}
         {(q.failed ?? 0) > 0 && (
-          <Badge tone="male" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
+          <Badge tone="bad" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
             {q.failed} falliti
           </Badge>
         )}
@@ -313,7 +313,7 @@ function Card({
             strano. In pausa invece è un'eccezione — i lavori ci sono e nessuno
             li tocca — e quella va detta. */}
         {!p.active && (
-          <Badge tone="attesa" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
+          <Badge tone="waiting" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
             in pausa
           </Badge>
         )}

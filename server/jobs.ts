@@ -3,7 +3,7 @@ import { db, nextVersionNumber,
 } from "./db.ts";
 import type { JobRow, VersionRow } from "./db.ts";
 import { genDir, listProjects, withProject } from "./project.ts";
-import { mkdirSync, existsSync, statSync } from "node:fs";
+import { mkdirSync, existsSync, statSync, renameSync } from "node:fs";
 import { acquireRunnerLock } from "./runnerLock.ts";
 import { RUNNER_LOCK, BACKEND_USES_BROWSER } from "./config.ts";
 import { join } from "node:path";
@@ -193,6 +193,15 @@ let runnerStopping = false;
 // zero in esecuzione, e il server apparentemente vivo. Il watchdog qui sotto lo
 // rileva e lo fa ripartire invece di aspettare che qualcuno guardi.
 let loopBeatMs = Date.now();
+/** Quale ciclo e' quello buono. Il watchdog fa ripartire il ciclo, ma non puo'
+ *  uccidere quello vecchio: se e' appeso dentro `processJob` sta aspettando il
+ *  browser, non un flag. Senza un'epoca i cicli si SOMMANO — dopo due
+ *  interventi del watchdog erano tre a pescare dalla stessa coda, cioe'
+ *  esattamente la concorrenza che il lock fra processi esiste per impedire
+ *  (osservato il 05/09: tre job della stessa foto lavorati insieme su un
+ *  server su da 19 ore). Con l'epoca il vecchio esce da solo appena il job
+ *  che lo teneva fermo finisce. */
+let loopEpoch = 0;
 
 // Rate-limit handling: after N consecutive "no image" timeouts (silent ChatGPT
 // image-gen cap) we pause the queue and auto-resume after a cooldown.
@@ -393,7 +402,8 @@ export function stopRunner() {
 }
 
 async function loop() {
-  while (!runnerStopping) {
+  const mia = ++loopEpoch;
+  while (!runnerStopping && mia === loopEpoch) {
     loopBeatMs = Date.now();
     const now = loopBeatMs;
     if (now < pausedUntilMs) {
@@ -445,6 +455,29 @@ function setProgress(jobId: number, text: string) {
   db().run("UPDATE jobs SET progress=? WHERE id=?", [text.slice(0, 200), jobId]);
 }
 
+/** Il file su cui un job scrive MENTRE genera.
+ *
+ *  Porta il numero del job, non quello della versione, per una ragione precisa:
+ *  il numero di versione si puo' sapere solo all'insert, perche' fra l'inizio e
+ *  la fine della generazione passano minuti e possono nascere altre versioni
+ *  della stessa foto. Sceglierlo in anticipo faceva puntare due job della
+ *  stessa foto allo stesso `vNN.png`: il secondo sovrascriveva il primo e
+ *  restavano due righe che citavano un file solo. */
+export function workingFile(photoGenDir: string, jobId: number): string {
+  return join(photoGenDir, `.job-${jobId}.png`);
+}
+
+/** Porta il file di lavoro sul nome definitivo e restituisce quel percorso.
+ *
+ *  Va chiamata DOPO aver calcolato il numero di versione e PRIMA di scriverlo
+ *  nella riga: e' cio' che garantisce che `image_path` indichi un file che
+ *  esiste e che contiene proprio quella generazione. */
+export function finalizzaFile(workPath: string, photoGenDir: string, n: number): string {
+  const finale = join(photoGenDir, versionFileName(n));
+  renameSync(workPath, finale);
+  return finale;
+}
+
 const HIGGSFIELD_STEP_LABELS: Record<string, string> = {
   upload: "Carico immagine…",
   generate: "Genero…",
@@ -486,10 +519,17 @@ async function processJob(job: JobRow) {
   // Edit input: an override (bake multi-pass working image) wins over the source.
   const editInput = job.input_path ?? photo.original_path;
 
-  const versionNumber = nextVersionNumber(photo.id);
   const photoGenDir = join(genDir(), photo.id);
   if (!existsSync(photoGenDir)) mkdirSync(photoGenDir, { recursive: true });
-  const outputPath = join(photoGenDir, versionFileName(versionNumber));
+  // Il file di lavoro porta il numero del JOB, non quello della versione.
+  // Il numero di versione si conosce solo all'insert (fra la scelta e la fine
+  // passano minuti), e sceglierlo qui significa che due job della stessa foto
+  // che generano insieme puntano allo STESSO vNN.png: il secondo sovrascrive
+  // il primo e restano tre righe che citano un file solo. Misurato il 05/09
+  // sull'ablazione occhiali: job 235/236/237, versioni 71/72/73, un unico
+  // v71.png su disco e due render persi.
+  const outputPath = workingFile(photoGenDir, job.id);
+  const finalizza = (n: number): string => finalizzaFile(outputPath, photoGenDir, n);
 
   // Higgsfield provider: own pipeline (MCP), no CDP/rate-limit logic.
   if (job.provider === "higgsfield") {
@@ -522,11 +562,12 @@ async function processJob(job: JobRow) {
       // sulla UNIQUE. Il job falliva DOPO aver già speso i crediti e scritto il
       // file, quindi il lavoro c'era ma risultava fallito.
       const finalNumber = nextVersionNumber(photo.id);
+      const finalPath = finalizza(finalNumber);
       const ins = db().run(
         `INSERT INTO versions
           (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
          VALUES (?, ?, ?, ?, ?, 'higgsfield', ?, ?, 'generated', ?)`,
-        [photo.id, finalNumber, outputPath, job.prompt, job.config, job.provider_params, hfResult.credits, Date.now()],
+        [photo.id, finalNumber, finalPath, job.prompt, job.config, job.provider_params, hfResult.credits, Date.now()],
       );
       db().run(
         "UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?",
@@ -718,6 +759,7 @@ async function processJob(job: JobRow) {
     // Come sul ramo Higgsfield: il numero si ricalcola al momento dell'insert,
     // perché fra la scelta e la fine della generazione passano minuti.
     const finalNumber = nextVersionNumber(photo.id);
+    const finalPath = finalizza(finalNumber);
     // Il provider viene registrato per quello che e': dire 'chatgpt' anche
     // quando ha generato l'Images API rendeva impossibile sapere quanto e'
     // costato un progetto. `credits` resta NULL per i backend a quota, dove
@@ -734,7 +776,7 @@ async function processJob(job: JobRow) {
       [
         photo.id,
         finalNumber,
-        outputPath,
+        finalPath,
         job.prompt,
         job.config,
         provider,
@@ -759,7 +801,7 @@ async function processJob(job: JobRow) {
     if (photo.kind === "generated" && !photo.original_path) {
       db().run(
         "UPDATE photos SET original_path=?, original_ext='.png', updated_at=? WHERE id=?",
-        [outputPath, Date.now(), photo.id],
+        [finalPath, Date.now(), photo.id],
       );
     }
 

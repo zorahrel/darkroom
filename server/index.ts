@@ -20,7 +20,7 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 // `portGuard.ts` per il guasto reale che questo controllo evita.
 if (process.env.DARKROOM_PORT_FORCE !== "1") {
   const outcome = checkPort(PORT, { listeners: realListeners, ourPid: process.pid });
-  if (outcome.state === "occupata") {
+  if (outcome.state === "busy") {
     console.error(busyMessage(PORT, outcome.occupants));
     process.exit(1);
   }

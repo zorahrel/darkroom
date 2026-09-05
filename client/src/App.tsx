@@ -307,7 +307,7 @@ export default function App() {
               </Bott>
             )}
             {jobs?.runner?.paused && jobs.runner.paused_until && (
-              <Badge tone="attesa"
+              <Badge tone="waiting"
                      title={`Limite ChatGPT raggiunto. Riparte da sola alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}>
                 ⏸ coda ferma fino alle{" "}
                 {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -335,7 +335,7 @@ export default function App() {
                 inventato in barra sarebbe peggio di nessun numero. */}
             {spend && spend.images > 0 && (
               <Badge
-                tone={spend.usd >= 5 ? "attesa" : "neutro"}
+                tone={spend.usd >= 5 ? "waiting" : "neutral"}
                 title={
                   `${spend.images} chiamate a ${spend.model}, sommando i token che l'API riporta a ogni richiesta. ` +
                   `E' una STIMA DAL BASSO: conta le chiamate passate da Darkroom, non quelle fatte da script esterni ` +

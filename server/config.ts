@@ -223,6 +223,17 @@ export const renderConfigured = (): boolean =>
 export const VIDEO_AUDIO = process.env.VIDEO_AUDIO ?? "";
 
 /**
+ * The assembled master the quality bar is measured on.
+ *
+ * Same defect the music had, and it survived that fix: the filename of one
+ * person's edit was written into the code in three places, so the bar looked
+ * for a file nobody else would ever have and reported "unknown" forever,
+ * without saying why. The default is a neutral name; a project that calls its
+ * master something else sets this.
+ */
+export const VIDEO_MASTER = process.env.VIDEO_MASTER ?? "MASTER.mp4";
+
+/**
  * La CLI di Moondream per i controlli che guardano l'immagine.
  *
  * Una funzione, non una costante: i test sostituiscono il binario con un finto

@@ -293,11 +293,11 @@ function Descrizione({ shot, text, manual, onSave }: {
  * una costante sarebbe muta proprio sulle riprese generate a lunghezza
  * diversa (2.5s contro 3.4s).
  */
-function Transport({ video, fotogrammi }: {
+function Transport({ video, frameCount }: {
   video: React.RefObject<HTMLVideoElement | null>;
-  fotogrammi: number | null;
+  frameCount: number | null;
 }) {
-  const [tempo, setTempo] = useState(0);
+  const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [gira, setGira] = useState(true);
   const [velocita, setVelocita] = useState(1);
@@ -309,7 +309,7 @@ function Transport({ video, fotogrammi }: {
   useEffect(() => {
     const v = video.current;
     if (!v) return;
-    const t = () => setTempo(v.currentTime);
+    const t = () => setTime(v.currentTime);
     const d = () => setDuration(Number.isFinite(v.duration) ? v.duration : 0);
     const p = () => setGira(true);
     const f = () => setGira(false);
@@ -331,14 +331,14 @@ function Transport({ video, fotogrammi }: {
   useEffect(() => { if (video.current) video.current.playbackRate = velocita; }, [velocita, video]);
   useEffect(() => { if (video.current) video.current.loop = ciclo; }, [ciclo, video]);
 
-  const step = fotogrammi && duration ? duration / fotogrammi : 1 / 24;
-  const vaiA = (t: number) => {
+  const step = frameCount && duration ? duration / frameCount : 1 / 24;
+  const seekTo = (t: number) => {
     const v = video.current;
     if (!v || !duration) return;
     v.currentTime = Math.min(duration - 1e-3, Math.max(0, t));
-    setTempo(v.currentTime);
+    setTime(v.currentTime);
   };
-  const scatto = (n: number) => { video.current?.pause(); vaiA((video.current?.currentTime ?? 0) + n * step); };
+  const nudge = (n: number) => { video.current?.pause(); seekTo((video.current?.currentTime ?? 0) + n * step); };
   const startStop = () => {
     const v = video.current;
     if (!v) return;
@@ -351,8 +351,8 @@ function Transport({ video, fotogrammi }: {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable)) return;
-      if (e.key === ",") { e.preventDefault(); scatto(-1); }
-      else if (e.key === ".") { e.preventDefault(); scatto(1); }
+      if (e.key === ",") { e.preventDefault(); nudge(-1); }
+      else if (e.key === ".") { e.preventDefault(); nudge(1); }
       else if (e.key === "k") { e.preventDefault(); startStop(); }
     };
     window.addEventListener("keydown", onKey);
@@ -361,9 +361,9 @@ function Transport({ video, fotogrammi }: {
 
   // Tosato all'ultimo fotogramma: a clip finita `tempo` vale esattamente la
   // durata, e la divisione dava "f82/81" — un fotogramma che non esiste.
-  const n = step > 0 && fotogrammi
-    ? Math.min(fotogrammi, Math.floor(tempo / step) + 1)
-    : step > 0 ? Math.floor(tempo / step) + 1 : 0;
+  const n = step > 0 && frameCount
+    ? Math.min(frameCount, Math.floor(time / step) + 1)
+    : step > 0 ? Math.floor(time / step) + 1 : 0;
   return (
     <div className="mt-1.5 flex items-center gap-2 text-[10.5px] text-neutral-400">
       <button onClick={startStop} title="ferma o riparti (k)"
@@ -371,21 +371,21 @@ function Transport({ video, fotogrammi }: {
                          hover:border-neutral-600 text-neutral-200 text-[11px]">
         {gira ? "❚❚" : "▶"}
       </button>
-      <button onClick={() => scatto(-1)} title="un fotogramma indietro (,)"
+      <button onClick={() => nudge(-1)} title="un fotogramma indietro (,)"
               className="px-1 h-6 shrink-0 rounded-sm border border-neutral-800 hover:border-neutral-600">◀|</button>
-      <button onClick={() => scatto(1)} title="un fotogramma avanti (.)"
+      <button onClick={() => nudge(1)} title="un fotogramma avanti (.)"
               className="px-1 h-6 shrink-0 rounded-sm border border-neutral-800 hover:border-neutral-600">|▶</button>
       <input
-        type="range" min={0} max={Math.max(duration, 0.001)} step={step} value={tempo}
-        onChange={(e) => { video.current?.pause(); vaiA(Number(e.currentTarget.value)); }}
+        type="range" min={0} max={Math.max(duration, 0.001)} step={step} value={time}
+        onChange={(e) => { video.current?.pause(); seekTo(Number(e.currentTarget.value)); }}
         className="dr-hue flex-1 min-w-0"
         aria-label="posizione nella clip"
       />
       <span className="shrink-0 tabular-nums text-neutral-300">
-        {tempo.toFixed(2)}<span className="text-neutral-500">/{duration.toFixed(2)}s</span>
+        {time.toFixed(2)}<span className="text-neutral-500">/{duration.toFixed(2)}s</span>
       </span>
-      {fotogrammi ? (
-        <span className="shrink-0 tabular-nums text-neutral-500">f{n}/{fotogrammi}</span>
+      {frameCount ? (
+        <span className="shrink-0 tabular-nums text-neutral-500">f{n}/{frameCount}</span>
       ) : null}
       <span className="shrink-0 flex gap-px">
         {[0.25, 0.5, 1].map((x) => (
@@ -798,7 +798,7 @@ export default function VideoPick() {
         )}
         <div className="ml-auto flex gap-1.5 items-center overflow-x-auto max-w-full
                         [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {(["da giudicare", "sospette", "tenute", "scartate", "annotate", "in montaggio", "tutte"] as const).map((k) => (
+        {(["da giudicare", "sospette", "tenute", "scartate", "annotate", "in montaggio", "all"] as const).map((k) => (
           <button
             key={k}
             onClick={() => { setFilter(k); setI(0); }}
@@ -851,7 +851,7 @@ export default function VideoPick() {
                     // piu' rapido per far credere che la mappa sia decorativa.
                     const where = queue.findIndex((c) => c.origine === s.origine);
                     if (where >= 0) setI(where);
-                    else { setFilter("tutte"); setAct(""); setI(scenes.indexOf(s)); }
+                    else { setFilter("all"); setAct(""); setI(scenes.indexOf(s)); }
                   }}
                   className={`flex-1 min-w-0 rounded-[1px] transition-colors ${color} ${
                     suo ? "ring-1 ring-neutral-100 ring-inset" : ""}`}
@@ -919,7 +919,7 @@ export default function VideoPick() {
                 className="max-h-full max-w-full bg-black border border-neutral-800 rounded-sm cursor-pointer"
               />
             </div>
-            <Transport video={video} fotogrammi={current.takes[0]?.frames ?? null} />
+            <Transport video={video} frameCount={current.takes[0]?.frames ?? null} />
             {scene.pezzi.length > 1 && (
               <div className="mt-2 flex gap-1.5">
                 {scene.pezzi.map((p, k) => (
@@ -1178,7 +1178,7 @@ export default function VideoPick() {
                       else await annota();
                     }}
                   >
-                    {note === "scarto" ? "scarta" : "annota"}
+                    {note === "scarto" ? "discard" : "annota"}
                     <Shortcut>⌘↵</Shortcut>
                   </button>
                   <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400

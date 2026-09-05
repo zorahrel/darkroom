@@ -76,7 +76,7 @@ export default function Home() {
 
 function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProject[] }) {
   const [search, setSearch] = useState("");
-  const [area, setArea] = useState<ToolArea | "tutte">("tutte");
+  const [area, setArea] = useState<ToolArea | "all">("all");
   const [onlyReady, setOnlyReady] = useState(false);
   const navigate = useNavigate();
 
@@ -105,7 +105,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
   const visibili = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (cat?.tools ?? []).filter((s) => {
-      if (area !== "tutte" && s.area !== area) return false;
+      if (area !== "all" && s.area !== area) return false;
       if (onlyReady && !s.ready) return false;
       if (!q) return true;
       // Si cerca anche fra i nomi MCP: chi arriva dalla chat conosce quelli,
@@ -138,7 +138,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
         <div className="flex flex-wrap items-center gap-2">
           <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…" />
           <div className="flex items-center gap-1 flex-wrap">
-            <Filter active={area === "tutte"} onClick={() => setArea("tutte")} n={counts.tutte ?? 0}>
+            <Filter active={area === "all"} onClick={() => setArea("all")} n={counts.tutte ?? 0}>
               tutti
             </Filter>
             {cat?.areas.map((a) => (
@@ -201,7 +201,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
           {cat && (
             <div className="ml-auto flex items-center gap-1.5">
               {Object.entries(cat.requirements).map(([name, r]) => (
-                <Badge key={name} tone={r.ok ? "buono" : "attesa"} title={r.how}>
+                <Badge key={name} tone={r.ok ? "good" : "waiting"} title={r.how}>
                   {r.ok ? "●" : "○"} {name}
                 </Badge>
               ))}
@@ -217,7 +217,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
           Niente con questi filtri.{" "}
           <button
             className="underline hover:text-neutral-100"
-            onClick={() => { setSearch(""); setArea("tutte"); setOnlyReady(false); }}
+            onClick={() => { setSearch(""); setArea("all"); setOnlyReady(false); }}
           >
             Rimettili a posto
           </button>

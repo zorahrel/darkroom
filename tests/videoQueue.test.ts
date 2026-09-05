@@ -26,7 +26,7 @@ describe("dopo un verdetto la scena resta nell'elenco, o no", () => {
   });
 
   test("gli elenchi che non guardano il verdetto tengono la riga dov'e'", () => {
-    for (const f of ["annotate", "in montaggio", "tutte"] as PickFilter[]) {
+    for (const f of ["annotate", "in montaggio", "all"] as PickFilter[]) {
       expect(leavesQueue(f, true)).toBe(false);
       expect(leavesQueue(f, false)).toBe(false);
     }

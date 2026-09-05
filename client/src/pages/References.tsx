@@ -26,8 +26,8 @@ export default function ReferencesPage() {
    *  reference a zero e' una passata intera andata nella direzione sbagliata
    *  senza che nessuno lo vedesse (su profilo e' successo 12 volte su 12), e
    *  con dodici miniature in griglia l'ambra da sola non basta a trovarle. */
-  const [filter, setFilter] = useViewState<"tutte" | "usate" | "mai">("mostra", "tutte", {
-    read: readOneOf(["tutte", "usate", "mai"] as const),
+  const [filter, setFilter] = useViewState<"all" | "usate" | "mai">("mostra", "all", {
+    read: readOneOf(["all", "usate", "mai"] as const),
     memory: "darkroom.refs.mostra",
   });
 
@@ -169,14 +169,14 @@ export default function ReferencesPage() {
             </h3>
             <Pills
               items={[
-                { id: "tutte" as const, name: "tutte" },
+                { id: "all" as const, name: "all" },
                 { id: "usate" as const, name: "usate" },
                 { id: "mai" as const, name: "mai usate" },
               ]}
               pick={filter}
               onChoose={setFilter}
               counts={counts}
-              neutra="tutte"
+              neutra="all"
             />
             <label className="ml-auto text-[11px] text-neutral-400 hover:text-amber-500 cursor-pointer">
               <input
@@ -201,7 +201,7 @@ export default function ReferencesPage() {
                stesso messaggio del caso «non c'e' niente». */
             <p className="text-xs text-neutral-500 py-4 text-center">
               Nessuna reference in questo gruppo.{" "}
-              <button onClick={() => setFilter("tutte")} className="text-amber-500 hover:underline">
+              <button onClick={() => setFilter("all")} className="text-amber-500 hover:underline">
                 mostra tutte
               </button>
             </p>

@@ -36,7 +36,7 @@ const arg = (k: string) => {
 const giri = Math.max(1, Number(arg("--giri") ?? 1));
 
 /** Il blocco che descrive la forma degli occhiali a parole: e' la leva. */
-const PAROLE =
+const WORDS =
   /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
 /** Cosa lo sostituisce quando la forma arriva dall'immagine invece che dal testo. */
 const RINVIO =
@@ -54,7 +54,7 @@ withProject(PID, () => {
     )
     .get(PHOTO, BASE);
   if (!base) throw new Error(`v${BASE} non trovata: senza la scena di partenza non e' un'ablazione`);
-  if (!PAROLE.test(base.prompt_used))
+  if (!WORDS.test(base.prompt_used))
     throw new Error("il blocco OCCHIALI non e' nel prompt di v63: la leva non e' dove credo, mi fermo");
 
   const refDir = join(dirsFor(PID).DATA_DIR, "refs");
@@ -64,10 +64,10 @@ withProject(PID, () => {
   const celle = [
     { key: "occhiali-A-controllo", prompt: base.prompt_used, refs: [] as string[] },
     { key: "occhiali-B-ref-piu-parole", prompt: base.prompt_used + RUOLO, refs: [REF] },
-    { key: "occhiali-C-solo-ref", prompt: base.prompt_used.replace(PAROLE, RINVIO) + RUOLO, refs: [REF] },
+    { key: "occhiali-C-solo-ref", prompt: base.prompt_used.replace(WORDS, RINVIO) + RUOLO, refs: [REF] },
   ];
 
-  const sorgenti = db()
+  const sources = db()
     .query<{ original_path: string }, []>("SELECT original_path FROM photos ORDER BY id")
     .all()
     .map((r) => r.original_path);
@@ -78,7 +78,7 @@ withProject(PID, () => {
         recipe: c.key,
         refset: c.refs.length ? "3 sorgenti + occhiali (reference)" : "3 sorgenti, occhiali a parole",
         preamble: `ablazione occhiali su scena v${BASE}: la forma dal testo, dall'immagine, o da entrambi`,
-        sources: sorgenti.map((s) => s.split("/").pop()),
+        sources: sources.map((s) => s.split("/").pop()),
         refs: c.refs.map((r) => r.split("/").pop()),
         backend: "cdp",
       });

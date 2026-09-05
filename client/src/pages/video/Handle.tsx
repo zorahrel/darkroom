@@ -12,7 +12,7 @@ import { useCallback } from "react";
 
 type Props = {
   /** "col" separa due colonne (si trascina in orizzontale), "riga" due fasce. */
-  toward: "col" | "riga";
+  toward: "col" | "row";
   /** Il valore corrente in pixel. */
   value: number;
   /** Quanto vale dopo aver trascinato di `d` pixel: il segno lo decide chi

@@ -177,18 +177,18 @@ export function VerdictButton({
 }
 
 export function Badge({
-  children, tone = "neutro", title, className = "",
+  children, tone = "neutral", title, className = "",
 }: {
   children: React.ReactNode;
-  tone?: "neutro" | "buono" | "attesa" | "male" | "info";
+  tone?: "neutral" | "good" | "waiting" | "bad" | "info";
   title?: string;
   className?: string;
 }) {
   const t = {
-    neutro: "border-neutral-700 text-neutral-300",
-    buono: "border-emerald-800 text-emerald-300 bg-emerald-950/40",
-    attesa: "border-amber-800 text-amber-200 bg-amber-950/40",
-    male: "border-rose-900 text-rose-200 bg-rose-950/40",
+    neutral: "border-neutral-700 text-neutral-300",
+    good: "border-emerald-800 text-emerald-300 bg-emerald-950/40",
+    waiting: "border-amber-800 text-amber-200 bg-amber-950/40",
+    bad: "border-rose-900 text-rose-200 bg-rose-950/40",
     info: "border-sky-800 text-sky-200 bg-sky-950/40",
   }[tone];
   return (

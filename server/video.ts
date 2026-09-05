@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { rootDir } from "./project.ts";
-import { RENDER_DIR, RENDER_SSH, VIDEO_AUDIO } from "./config.ts";
+import { RENDER_DIR, RENDER_SSH, VIDEO_AUDIO, VIDEO_MASTER } from "./config.ts";
 
 /**
  * Video projects. A video project is a folder produced by the beat-locked
@@ -766,7 +766,7 @@ export function assets() {
   return {
     preview: pick("ANTEPRIMA.mp4"),
     reel: pick("REEL.mp4"),
-    master: pick("LUNGOMARE.mp4"),
+    master: pick(VIDEO_MASTER),
   };
 }
 
@@ -821,7 +821,7 @@ let gateRunning: string | null = null;
 /** Il risultato se c'e', altrimenti lo mette in cantiere e torna subito. */
 export function gate(force = false): Gate {
   const check = at("check.py");
-  const master = at("LUNGOMARE.mp4");
+  const master = at(VIDEO_MASTER);
   if (!existsSync(check)) {
     return { rows: [], outcome: "sconosciuto", failed: [], quando: null, computing: false };
   }
@@ -851,7 +851,7 @@ export function gate(force = false): Gate {
  */
 async function measure(key: string): Promise<Gate> {
   const proc = Bun.spawn(
-    ["ssh", "-o", "ConnectTimeout=20", PC, `cd /d ${REMOTO} && python check.py LUNGOMARE.mp4`],
+    ["ssh", "-o", "ConnectTimeout=20", PC, `cd /d ${REMOTO} && python check.py ${VIDEO_MASTER}`],
     { stdout: "pipe", stderr: "pipe" },
   );
   const [so, se] = await Promise.all([

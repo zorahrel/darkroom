@@ -14,7 +14,7 @@ const deps = (found: Occupant[] | null, ourPid = 999) => ({
 
 describe("non partire su una porta gia' servita da un altro progetto", () => {
   test("nessuno in ascolto: si parte", () => {
-    expect(checkPort(3535, deps([]))).toEqual({ state: "libera" });
+    expect(checkPort(3535, deps([]))).toEqual({ state: "free" });
   });
 
   test("il caso reale: Topics su *:3333 e noi che stiamo per legarci a 127.0.0.1", () => {
@@ -23,12 +23,12 @@ describe("non partire su una porta gia' servita da un altro progetto", () => {
     // dell'errore di listen, che non arriva.
     const topics: Occupant = { pid: 52898, command: "bun", address: "*:3333" };
     const outcome = checkPort(3333, deps([topics]));
-    expect(outcome).toEqual({ state: "occupata", occupants: [topics] });
+    expect(outcome).toEqual({ state: "busy", occupants: [topics] });
   });
 
   test("un hot-reload di noi stessi non e' un intruso", () => {
     const noi: Occupant = { pid: 999, command: "bun", address: "127.0.0.1:3535" };
-    expect(checkPort(3535, deps([noi], 999))).toEqual({ state: "libera" });
+    expect(checkPort(3535, deps([noi], 999))).toEqual({ state: "free" });
   });
 
   test("lsof assente non blocca il boot: un controllo che non sa non decide", () => {
@@ -98,7 +98,7 @@ describe("lsof vero, sulla macchina che esegue il test", () => {
       expect(checkPort(port, {
         listeners: realListeners,
         ourPid: process.pid,
-      })).toEqual({ state: "libera" });
+      })).toEqual({ state: "free" });
     } finally {
       server.stop(true);
     }

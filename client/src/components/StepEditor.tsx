@@ -247,7 +247,7 @@ function summaryBody(s: GradeStep): string {
       const active = bands.filter(
         (b) => num(p[`hue_${b}`]) || num(p[`sat_${b}`]) || num(p[`lum_${b}`]),
       );
-      return active.length ? `${active.length} bande` : "neutro";
+      return active.length ? `${active.length} bande` : "neutral";
     }
     case "curve": {
       if (Array.isArray(p.points) && p.points.length >= 2) return `curva · ${p.points.length} punti`;
@@ -258,7 +258,7 @@ function summaryBody(s: GradeStep): string {
     }
     case "split_tone": {
       const active = ["shadows", "midtones", "highlights"].filter((r) => num(p[`${r}_sat`]));
-      return active.length ? `${active.length} tinte` : "neutro";
+      return active.length ? `${active.length} tinte` : "neutral";
     }
     case "color": {
       const keys: [string, string][] = [
@@ -277,7 +277,7 @@ function summaryBody(s: GradeStep): string {
       const active = keys
         .filter(([k]) => num(p[k], 0) !== 0)
         .map(([k, lbl]) => `${lbl} ${num(p[k]) > 0 ? "+" : ""}${num(p[k])}`);
-      return active.length ? active.join(" · ") : "neutro";
+      return active.length ? active.join(" · ") : "neutral";
     }
     case "ai": {
       const prov = p.provider === "higgsfield" ? "Higgsfield" : "ChatGPT";
