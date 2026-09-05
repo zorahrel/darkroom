@@ -101,7 +101,7 @@ export default function Home() {
           griglia non salta di larghezza quando il pannello si riempie. */}
       <aside
         className={
-          "relative hidden flex-col shrink-0 sticky top-[var(--h-testata,57px)] rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 h-[calc(100vh-var(--h-testata,57px)-1rem)] " +
+          "relative hidden flex-col shrink-0 sticky top-[var(--h-header,57px)] rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 h-[calc(100vh-var(--h-header,57px)-1rem)] " +
           (railOpen ? "lg:flex w-[340px]" : "w-0 border-0")
         }
       >

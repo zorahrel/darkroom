@@ -665,7 +665,7 @@ export default function GridPage({
         ref={barRef}
         // No horizontal overhang: `-mx-4` made the bar end up UNDER the
         // pipeline column, and the zoom "+" disappeared.
-        className="sticky top-[var(--h-testata,57px)] z-20 border-b border-neutral-800
+        className="sticky top-[var(--h-header,57px)] z-20 border-b border-neutral-800
                    bg-neutral-950/95 py-1.5 backdrop-blur"
       >
       {selectMode && (

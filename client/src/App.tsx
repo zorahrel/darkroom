@@ -15,7 +15,8 @@ export type OutletCtx = {
   activeJobs: number;
   flush: boolean;
   setFlush: (v: boolean) => void;
-  /** Colonna della pipeline aperta. Vive qui perché il comando sta nell'header. */
+  /** Pipeline column open. It lives here because the control is in the
+ *  header. */
   railOpen: boolean;
   setRailOpen: (v: boolean) => void;
 };
@@ -29,11 +30,11 @@ export default function App() {
   const [jobs, setJobs] = useState<JobsPayload | null>(null);
   const [orphanCount, setOrphanCount] = useState<number>(0);
   const [showJobs, setShowJobs] = useState(false);
-  /** Le pagine che si prendono tutta l'altezza (editor video, banco colore)
-   *  disegnano fino al bordo: lo spazio sopra glielo toglierebbe. */
+  /** The pages that take the full height (video editor, colour bench) draw to
+   *  the edge: the space above would take it away from them. */
   const [flush, setFlush] = useState(false);
-  // Preferenza di layout: sopravvive al reload, perché è una scelta sulla
-  // propria scrivania, non uno stato della sessione.
+  // Layout preference: it survives a reload, because it is a choice about
+  // one's own desk, not a state of the session.
   const [railOpen, setRailOpen] = useState(
     () => localStorage.getItem("darkroom.rail") !== "0",
   );
@@ -42,13 +43,13 @@ export default function App() {
   }, [railOpen]);
   const [launching, setLaunching] = useState(false);
   const [projects, setProjects] = useState<StudioProject[]>([]);
-  /** Spesa dei backend a pagamento: sta accanto agli altri stati "connessi"
-   *  della barra, perche' e' la stessa domanda ("posso generare?") a cui
-   *  rispondono il browser vivo e la coda dei lavori. */
+  /** Spend on the paid backends: it sits beside the bar's other "connected"
+   *  states, because it is the same question ("can I generate?") that the live
+   *  browser and the job queue answer. */
   const [spend, setSpend] = useState<StudioOverview["worker"]["spend"]>(null);
-  // Avviso "stai guardando una dashboard vecchia". Nasce da un caso reale: per
-  // nove giorni il dist servito era piu' vecchio del codice, e ogni modifica
-  // alla UI sembrava non essere stata fatta.
+  // A "you are looking at an old dashboard" warning. Born of a real case: for
+  // nine days the dist being served was older than the code, and every UI
+  // change looked like it had not been made.
   const [staleDist, setStaleDist] = useState<string | null>(null);
   const [gradeWarns, setGradeWarns] = useState<string[]>([]);
   const navigate = useNavigate();
@@ -81,8 +82,9 @@ export default function App() {
         })
         .catch(() => {});
     load();
-    // La spesa cambia a ogni generazione: senza ripolling resterebbe ferma al
-    // valore del caricamento, cioe' sbagliata proprio mentre si sta spendendo.
+    // The spend changes on every generation: without re-polling it would stay
+    // stuck at the value from page load, i.e. wrong exactly while you are
+    // spending.
     const t = setInterval(load, 20000);
     return () => clearInterval(t);
   }, []);
@@ -139,12 +141,12 @@ export default function App() {
   const activeProject = projects.find((p) => p.id === pid);
 
   /**
-   * La radice di un progetto video porta al montaggio.
+   * The root of a video project leads to the cut.
    *
-   * `/p/:pid` e' la griglia delle foto: su un progetto video mostrava un elenco
-   * vuoto, il bottone "aggiungi una cartella di foto" e il pannello di sviluppo
-   * — cioe' l'interfaccia di un altro mestiere. Un progetto sa di che tipo e',
-   * quindi la sua pagina d'ingresso lo sa anche lei.
+   * `/p/:pid` is the photo grid: on a video project it showed an empty list,
+   * the "add a photo folder" button and the develop panel — i.e. the interface
+   * of another craft. A project knows what type it is, so its entry page knows
+   * it too.
    */
   useEffect(() => {
     if (!pid || !activeProject || activeProject.kind === "photo") return;
@@ -153,20 +155,20 @@ export default function App() {
   }, [pid, activeProject, location.pathname, navigate]);
 
   /**
-   * L'altezza della testata, misurata e messa in una variabile CSS.
+   * The header's height, measured and put into a CSS variable.
    *
-   * Chi si appiccica sotto di lei — la barra dei filtri della griglia, la
-   * colonna della pipeline — aveva ognuno il suo numero scritto a mano (57, 68,
-   * 88): tre numeri che dicevano la stessa cosa e che al primo ritocco della
-   * testata smettevano di coincidere. Con `--h-testata` c'e' una fonte sola, e
-   * si aggiorna quando la testata va a capo su una finestra stretta.
+   * Whoever sticks underneath it — the grid's filter bar, the pipeline column —
+   * each had their own hand-written number (57, 68, 88): three numbers saying
+   * the same thing that stopped agreeing at the first tweak to the header. With
+   * `--h-header` there is one source, and it updates when the header wraps on a
+   * narrow window.
    */
   const header = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const el = header.current;
     if (!el) return;
     const measure = () =>
-      document.documentElement.style.setProperty("--h-testata", `${Math.round(el.getBoundingClientRect().height)}px`);
+      document.documentElement.style.setProperty("--h-header", `${Math.round(el.getBoundingClientRect().height)}px`);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -181,14 +183,14 @@ export default function App() {
             "mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
           }
         >
-          {/* La navigazione ha due piani, e si vedono.
+          {/* Navigation has two floors, and they are visible.
 
-              STRUMENTI è cosa Darkroom sa fare; PROGETTI è su cosa lo stai
-              facendo. Prima esisteva solo il secondo — l'app si apriva
-              sull'ultimo progetto — e le capacità (montaggio, storyboard,
-              controlli qualità) si scoprivano solo se già sapevi che c'erano.
-              Le due aree stanno sempre in barra: da dentro un progetto si
-              torna agli strumenti con un clic, non tornando indietro. */}
+              TOOLS is what Darkroom can do; PROJECTS is what you are doing it
+              to. Before, only the second existed — the app opened on the last
+              project — and the capabilities (edit, storyboard, quality checks)
+              were discovered only if you already knew they were there. The two
+              areas are always in the bar: from inside a project you go back to
+              the tools with one click, not by going back. */}
           <div className="flex items-center gap-2 min-w-0">
             <Link to="/" className="font-semibold tracking-tight shrink-0" title="Darkroom">
               Darkroom
@@ -212,12 +214,12 @@ export default function App() {
             )}
           </div>
 
-          {/* Le viste del progetto.
-              Prima discendevano dal tipo — un progetto "foto" non poteva
-              mostrare il montaggio — mentre un lavoro vero comincia con le foto
-              di un sopralluogo e finisce in un video. Adesso compaiono le viste
-              accese, piu' quelle di cui esistono gia' i dati: una vista non si
-              nasconde mai davanti a roba che c'e'. */}
+          {/* The project's views.
+              They used to descend from the type — a "photo" project could not
+              show the edit — while real work starts with the photos of a site
+              visit and ends in a video. Now the enabled views appear, plus
+              those whose data already exists: a view never hides in front of
+              something that is there. */}
           {pid && activeProject && (
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
               {VIEWS.filter((v) =>
@@ -277,18 +279,17 @@ export default function App() {
               )}
             </nav>
           )}
-          {/* Questo gruppo prende una riga sua finche' non c'e' spazio VERO.
-              Era `sm:` (640px), cioe' da tablet in su tornava sulla stessa riga
-              della navigazione: e li' non ci sta, quindi si spezzava a meta' in
-              un modo storto. A `lg:` (1024px) o si sta comodi su una riga, o si
-              hanno due righe pulite. */}
+          {/* This group takes a row of its own until there is REAL room. It was
+              `sm:` (640px), i.e. from tablet up it went back onto the same row
+              as the navigation: and it does not fit there, so it broke in half
+              in a crooked way. At `lg:` (1024px) either you sit comfortably on
+              one row, or you get two clean ones. */}
           <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto">
-            {/* La gerarchia della barra: gli allarmi per primi perché
-                cambiano cosa puoi fare, poi gli interruttori della finestra,
-                poi i lavori, e in fondo l'unica azione piena — che esiste solo
-                dove ha senso. "Esporta favorite" su un progetto video non
-                voleva dire niente, e nonostante questo era la cosa più
-                appariscente dello schermo. */}
+            {/* The bar's hierarchy: the alarms first because they change what
+                you can do, then the window's switches, then the jobs, and last
+                the only filled action — which exists only where it makes sense.
+                "Export favourites" on a video project meant nothing, and
+                despite that it was the most conspicuous thing on screen. */}
             {health && !health.browser && (
               <Bott weight="pericolo" size="m" disabled={launching}
                     title={health.hint ?? ""}
@@ -330,9 +331,9 @@ export default function App() {
               </span>
             </Bott>
 
-            {/* Speso, non "residuo": il saldo non e' leggibile con una chiave di
-                progetto (403, manca lo scope api.usage.read), e un numero
-                inventato in barra sarebbe peggio di nessun numero. */}
+            {/* Spent, not "remaining": the balance is not readable with a project
+                key (403, the api.usage.read scope is missing), and an invented
+                number in the bar would be worse than no number. */}
             {spend && spend.images > 0 && (
               <Badge
                 tone={spend.usd >= 5 ? "waiting" : "neutral"}
@@ -374,17 +375,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Niente limite di larghezza: incolonnare a 1280px e' giusto per una
-          pagina di testo e sbagliato per tutto quello che si fa qui — una
-          griglia di foto, una timeline — dove il risultato erano due bande
-          vuote ai lati di un monitor largo. C'era un interruttore per
-          toglierlo, e stava sempre su.
+      {/* No width limit: columnising at 1280px is right for a page of text
+          and wrong for everything done here — a photo grid, a timeline — where
+          the result was two empty bands at the sides of a wide monitor. There
+          was a switch to remove it, and it was always on.
 
-          Lo spazio sopra e' stato a zero per tutte le pagine perche' UNA ne
-          aveva bisogno: nella griglia il padding scorreva sopra la barra dei
-          filtri appiccicata. Il risultato e' che ogni altra pagina cominciava
-          attaccata alla barra del titolo. Adesso lo spazio c'e', e chi non lo
-          vuole — chi si prende tutta l'altezza — lo dichiara. */}
+          The space above was at zero for every page because ONE needed it that
+          way: in the grid the padding scrolled over the sticky filter bar. The
+          result was that every other page began glued to the title bar. Now the
+          space is there, and whoever does not want it — whoever takes the full
+          height — declares so. */}
       <main className={`flex-1 w-full max-w-none px-4 pb-4 ${flush ? "pt-0" : "pt-4"}`}>
         <Outlet context={{ jobs, activeJobs, flush, setFlush, railOpen, setRailOpen }} />
       </main>
@@ -511,9 +511,9 @@ function ViewTab({
   to: string;
   current: boolean;
   children: React.ReactNode;
-  /** L'icona sta sulla prima scheda di una famiglia: "Montaggio" e "Scelta"
-   *  sono la stessa vista in due momenti, e due icone uguali di fila non
-   *  aiutano a distinguerle. */
+  /** The icon sits on the first tab of a family: "Cut" and "Pick" are the same
+   *  view at two moments, and two identical icons in a row do not help tell
+   *  them apart. */
   icon?: LucideIcon;
 }) {
   return (

@@ -133,7 +133,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       {/* La barra: cerca, mestieri, e — una volta sola — su quale progetto.
           I numeri non sono decorazione: un filtro senza conteggio non dice se
           vale la pena aprirlo. */}
-      <div className="sticky top-[var(--h-testata,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
+      <div className="sticky top-[var(--h-header,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
                       border-y border-neutral-800 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…" />

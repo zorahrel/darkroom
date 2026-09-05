@@ -104,9 +104,9 @@ function Take({ shot, take, onVaiA }: {
         <img src={pq(`/api/video/provino/${shot}/${take}`)} alt=""
              onError={() => setBroken(true)}
              className="w-full h-[104px] object-cover object-left select-none" draggable={false} />
-        {/* Le caselle stanno sopra l'immagine invece di essere ritagliate:
-            una sola richiesta al server, e il bersaglio resta esatto anche se
-            il provino cambia numero di istanti. */}
+        {/* The cells sit ON TOP of the image instead of being cropped:
+            one request to the server, and the target stays exact even if the
+            strip changes its number of instants. */}
         <div className="absolute inset-0 flex">
           {Array.from({ length: N }, (_, k) => (
             <button key={k} onClick={() => onVaiA((k + 0.5) / N)}
@@ -500,7 +500,8 @@ export default function VideoPick() {
   const panel = useRef<HTMLDivElement>(null);
   const trascino = useRef<{ x0: number; w0: number } | null>(null);
 
-  /** Quanto e' larga la clip, in pixel. La sceglie chi guarda, trascinando. */
+  /** How wide the clip is, in pixels. Whoever is watching picks it, by
+ *  dragging. */
   const [wantedWidth, setWantedWidth] = useState<number | null>(() => {
     const g = localStorage.getItem(KEY_WIDTH);
     const n = Number(g);
@@ -773,9 +774,9 @@ export default function VideoPick() {
 
   return (
     <div ref={shell} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: shellHeight }}>
-      {/* Altezza AUTO e non 24px fissi: su tablet dentro 24px non ci sta
-          niente e la barra si sfascia. Va a capo in modo pulito, e il gruppo
-          dei filtri scorre di lato invece di spingere fuori il resto. */}
+      {/* AUTO height, not a fixed 24px: on a tablet nothing fits inside
+          24px and the bar falls apart. It wraps cleanly, and the filter group
+          scrolls sideways instead of pushing the rest out. */}
       <div className="shrink-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-1
                       border-b border-neutral-900">
         <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">SCELTA</span>
@@ -818,22 +819,22 @@ export default function VideoPick() {
         </div>
       </div>
 
-      {/* La mappa di TUTTE le prese, una tacca ciascuna, nell'ordine in cui
-          cadono nel montaggio.
-          I numeri in testa dicono QUANTE sono tenute e quante scartate; questa
-          dice QUALI, e sono due domande diverse. Serve soprattutto a vedere i
-          buchi — un tratto di grigio e' un pezzo di brano su cui non ha ancora
-          guardato nessuno, e con il filtro "da giudicare" quel tratto e'
-          invisibile perche' li' dentro c'e' solo cio' che manca, mai dove
-          manca. */}
+      {/* The map of ALL the takes, one tick each, in the order they fall in
+          the cut.
+          The numbers at the top say HOW MANY are kept and how many discarded;
+          this says WHICH, and those are two different questions. It is mostly
+          for seeing the holes — a stretch of grey is a piece of track nobody
+          has looked at yet, and with the "to judge" filter that stretch is
+          invisible, because in there is only what is missing, never where it is
+          missing. */}
       {scenes.length > 0 && (
         <div className="shrink-0 flex items-center gap-2 px-1 py-1 border-b border-neutral-900">
-          {/* `overflow-hidden` e tacche senza larghezza minima, e non e' una
-              rifinitura: con `min-w-[2px]` 274 tacche chiedono 820px, che su un
-              tablet non ci sono. La riga sbordava dalla sua scatola e i numeri
-              della legenda finivano stampati SOPRA le tacche (visto a 834px).
-              Senza pavimento le tacche si stringono e la mappa resta intera e
-              in proporzione a ogni larghezza — che e' cio' per cui esiste. */}
+          {/* `overflow-hidden` and ticks with no minimum width, and this is not
+              a finishing touch: with `min-w-[2px]` 274 ticks ask for 820px,
+              which a tablet does not have. The row overflowed its box and the
+              legend's numbers ended up printed OVER the ticks (seen at 834px).
+              With no floor the ticks squeeze and the map stays whole and in
+              proportion at every width — which is what it exists for. */}
           <div className="flex-1 min-w-0 flex gap-px h-3.5 overflow-hidden">
             {scenes.map((s) => {
               const color =
@@ -878,34 +879,33 @@ export default function VideoPick() {
       ) : (
         <div ref={panel} className="flex-1 min-h-0 flex flex-col md:flex-row gap-1 pt-2 pb-1">
           <div className="shrink-0 flex flex-col min-w-0">
-            {/* Il fotogramma non sta MAI dentro un riquadro con una forma
-                decisa da noi, e i due difetti visti oggi spiegano perche':
+            {/* The frame is NEVER inside a box with a shape we decided for it,
+                and the two defects seen today explain why:
 
-                - `aspect-[9/16]` lo deformava. Le anteprime non sono tutte
-                  9:16 — misurate, stanno fra 360x648 (0.556) e 360x654
-                  (0.550) — e qui si giudica proprio la forma della figura:
-                  una donna piu' magra del 2% e' esattamente l'errore che non
-                  ci si puo' permettere;
-                - `object-contain` dentro un riquadro largo metteva le bande
-                  nere, perche' in una colonna flex `align-items` vale
-                  `stretch` e il video veniva allargato a tutta la colonna.
+                - `aspect-[9/16]` deformed it. The previews are not all 9:16 —
+                  measured, they sit between 360x648 (0.556) and 360x654
+                  (0.550) — and what is judged here is precisely the shape of
+                  the figure: a woman 2% thinner is exactly the error you
+                  cannot afford;
+                - `object-contain` inside a wide box added black bars, because
+                  in a flex column `align-items` is `stretch` and the video was
+                  widened to the whole column.
 
-                Quindi: nessun `object-fit`, larghezza esplicita, altezza
-                `auto`. La larghezza la decide il ridimensionatore, ma viene
-                tosata a `altezza * rapporto` — cosi' il fotogramma non puo'
-                ne' deformarsi ne' sbordare, e non resta mai avanzo da
-                riempire di nero.
+                So: no `object-fit`, explicit width, `auto` height. The resizer
+                decides the width, but it is clamped to `height * ratio` — so
+                the frame can neither deform nor overflow, and there is never
+                any leftover to fill with black.
 
-                Il `max-h-full` sul video NON e' ridondante rispetto alla
-                tosatura: e' la stessa cosa detta al browser invece che a un
-                calcolo mio. Se la mia misura arriva tardi — al primo
-                fotogramma, mentre la finestra si ridimensiona, o se il
-                rapporto non e' ancora stato letto — la tosatura sbaglia per un
-                istante e il video sborda. Il `max-h-full` no, e per un
-                elemento sostituito con larghezza data e altezza `auto` il
-                browser ricalcola ANCHE la larghezza, quindi il rapporto resta
-                giusto. Due difese contro lo stesso sbordamento, e quella che
-                non dipende da me e' l'ultima parola. */}
+                The `max-h-full` on the video is NOT redundant with the clamp:
+                it is the same thing said to the browser instead of to a
+                calculation of mine. If my measurement arrives late — on the
+                first frame, while the window resizes, or if the ratio has not
+                been read yet — the clamp is wrong for an instant and the video
+                overflows. `max-h-full` is not, and for a replaced element with
+                a given width and `auto` height the browser recomputes the width
+                TOO, so the ratio stays right. Two defences against the same
+                overflow, and the one that does not depend on me has the last
+                word. */}
             <div ref={snapArea} className="flex-1 min-h-0 grid place-items-center overflow-hidden">
               <video
                 ref={video}
@@ -943,11 +943,11 @@ export default function VideoPick() {
             )}
           </div>
 
-          {/* Il ridimensionatore. Non e' un vezzo: la stessa passata di
-              giudizio vuole due larghezze diverse — larga per vedere se la
-              figura si disfa, stretta quando si sta leggendo il prompt o si
-              guarda il provino. Trascinare costa meno che rimpicciolire la
-              finestra. La misura resta fra una sessione e l'altra. */}
+          {/* The resizer. Not an indulgence: the same judging pass wants two
+              different widths — wide to see whether the figure comes undone,
+              narrow when you are reading the prompt or looking at the strip.
+              Dragging costs less than shrinking the window. The size survives
+              between sessions. */}
           <div
             role="separator"
             aria-orientation="vertical"
@@ -980,9 +980,9 @@ export default function VideoPick() {
           <div className="flex-1 min-w-0 overflow-y-auto">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <div className="text-[15px] text-neutral-200">{scene.origine}</div>
-              {/* Lo stato e' una SCELTA fra tre, non una frase da leggere: si
-                  vede dov'e' messo adesso e si sposta da qui senza tornare in
-                  fondo ai tasti. */}
+              {/* The state is a CHOICE between three, not a sentence to read: you
+                  see where it is set now and you move it from here without
+                  going back down to the keys. */}
               <State
                 value={scene.verdict}
                 onChange={async (v) => {
@@ -1000,9 +1000,10 @@ export default function VideoPick() {
               )}
             </div>
 
-            {/* Cosa si vede, in una riga. E' la prima cosa che serve e non
-                c'era: si aveva il nome, i numeri e il prompt intero, cioe'
-                tutto tranne la risposta a "che roba e' questa". */}
+            {/* What you see, in one line. It is the first thing needed and it
+                was not there: you had the name, the numbers and the whole
+                prompt, i.e. everything except the answer to "what is this
+                thing". */}
             <Descrizione
               shot={current.id}
               text={current.descrizione}
@@ -1031,11 +1032,11 @@ export default function VideoPick() {
                 <div className="text-[10.5px] text-neutral-400 leading-snug mt-0.5">
                   Su materiale nuovo sbaglia 4 volte su 5: è un avviso, non un verdetto.
                 </div>
-                {/* Fra "tieni" e "scarta" manca la terza cosa che si vuole fare
-                    davvero quando una ripresa e' segnalata: aggiustarla. Il
-                    pannello del prompt c'era gia' ma stava chiuso in fondo alla
-                    colonna, quindi la strada era: leggo il problema, scorro,
-                    apro, cerco il prompt. Da qui e' un tasto. */}
+                {/* Between "keep" and "discard" is missing the third thing you
+                    actually want to do when a shot is flagged: fix it. The
+                    prompt panel already existed but sat closed at the bottom of
+                    the column, so the road was: read the problem, scroll, open,
+                    find the prompt. From here it is one key. */}
                 <button
                   onClick={() => { setPromptMod(current.prompt ?? ""); setRigen(true); }}
                   className="mt-1.5 px-2 py-0.5 rounded-sm border border-amber-700/70 text-amber-200/90
@@ -1056,9 +1057,10 @@ export default function VideoPick() {
               onChange={async (v) => setShots((await api.videoIntensity(current.id, v)).shots)}
             />
 
-            {/* «in scena 6.6s a 1:10» nascondeva la cosa piu' utile: quante
-                volte entra. Una ripresa mediocre che passa tre volte pesa piu'
-                di una bella che passa una volta sola, e il totale non lo dice. */}
+            {/* «on screen 6.6s at 1:10» hid the most useful thing: how many
+                times it comes in. A mediocre shot that passes three times
+                weighs more than a good one that passes once, and the total does
+                not say so. */}
             <div className="mt-3">
               <div className="text-[11px] text-neutral-400">
                 {scene.apparizioni.length === 0
@@ -1106,9 +1108,9 @@ export default function VideoPick() {
               </ul>
             )}
 
-            {/* Il prompt e' il posto dove si corregge cio' che la nota dice.
-                Finche' erano in due finestre diverse, il giro "questa si
-                deforma" -> prompt nuovo -> generazione si chiudeva a mano. */}
+            {/* The prompt is where you fix what the note says. As long as they
+                were in two different windows, the loop "this one deforms" ->
+                new prompt -> generation was closed by hand. */}
             <details className="mt-3" open={rigen} onToggle={(e) => {
               const open = (e.currentTarget as HTMLDetailsElement).open;
               setRigen(open);
@@ -1126,9 +1128,10 @@ export default function VideoPick() {
                 <Area value={promptMod} onChange={setPromptMod}
                       placeholder="il prompt che genererà la ripresa"
                       className="h-28 text-[11.5px] leading-relaxed" />
-                {/* Non sono costanti nascoste: a 704x1280 con 81 fotogrammi la
-                    3090 arriva a 23,9 GB su 24,5 e non scrive niente per un'ora.
-                    Chi lancia deve poter vedere il numero che decide. */}
+                {/* These are not hidden constants: at 704x1280 with 81 frames the
+                    3090 gets to 23.9 GB out of 24.5 and writes nothing for an
+                    hour. Whoever launches has to be able to see the number that
+                    decides. */}
                 <div className="flex gap-2 text-[11px]">
                   {(["width", "height", "length", "steps"] as const).map((k) => (
                     <label key={k} className="flex items-center gap-1 text-neutral-400">
@@ -1222,24 +1225,25 @@ export default function VideoPick() {
               </div>
             )}
 
-            {/* Quanto manca, e cosa arriva. Un contatore "12 / 176" dice solo
-                che la fine e' lontana; le facce dopo dicono se conviene tirare
-                dritto o cambiare filtro, e il giudizio va a raffica per questo. */}
-            {/* Il provino: dodici istanti della clip, larghi quanto la colonna.
-                Serve a rispondere a una domanda che nessuna misura di questo
-                progetto ha saputo rispondere — DOVE una ripresa si sminchia.
-                Ci hanno provato in cinque modi (bilancio tonale, area di
-                dettaglio, salto della sagoma, non-liscezza della traiettoria,
-                disaccordo fra soggetto e sfondo) e nessuno separa una figura
-                che si disfa da un'onda che esplode: i difetti veri sono
-                semantici — «scende in mezzo alle scale», «il gabbiano non e'
-                coerente fra un fotogramma e l'altro» — e un modello per
-                immagini singole quei quadri li descrive come normalissimi.
+            {/* How much is left, and what is coming. A counter "12 / 176" only
+                says the end is far off; the faces after it say whether it is
+                worth pressing on or changing filter, and judging goes at speed
+                for that reason. */}
+            {/* The strip: twelve instants of the clip, as wide as the column.
+                It answers a question no measurement in this project has managed
+                to answer — WHERE a shot falls apart. Five ways were tried
+                (tonal balance, detail area, silhouette jump, trajectory
+                non-smoothness, disagreement between subject and background) and
+                none separates a figure coming undone from a wave exploding: the
+                real defects are semantic — «she goes down in the middle of the
+                stairs», «the seagull is not consistent from one frame to the
+                next» — and a single-image model describes those frames as
+                perfectly normal.
 
-                Quindi non si automatizza il giudizio, si rende istantaneo: il
-                punto in cui la figura cambia identita' si vede in un secondo, e
-                cliccando ci si va. A trenta pixel per casella non si vedeva
-                niente, quindi sta qui e non nella colonna della clip. */}
+                So the judgement is not automated, it is made instant: the point
+                where the figure changes identity is seen in a second, and a
+                click takes you there. At thirty pixels a cell nothing was
+                visible, so it lives here and not in the clip's column. */}
             <Take
               shot={current.id}
               take={current.takes[0]?.take ?? "a"}
