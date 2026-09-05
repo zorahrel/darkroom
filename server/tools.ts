@@ -11,24 +11,25 @@ import {
 import type { ProjectKind } from "./project.ts";
 
 /**
- * Che cosa sa fare Darkroom, scritto una volta sola.
+ * What Darkroom can do, written once.
  *
- * Le stesse capacità erano dichiarate in tre posti che non si parlavano: i 37
- * strumenti dell'MCP, le schede della barra in alto, e il README. Tre elenchi
- * che dicono la stessa cosa divergono al primo ritocco — ed è già successo: il
- * colore e le sorgenti foto si guidavano dall'interfaccia e non esistevano via
- * MCP, quindi «Darkroom lo sa fare» era vero o falso a seconda di da dove
- * chiedevi.
+ * The same capabilities used to be declared in three places that did not talk
+ * to each other: the MCP's 37 tools, the tabs in the top bar, and the README.
+ * Three lists saying the same thing diverge at the first tweak — and it already
+ * happened: colour and photo sources were driven from the interface and did not
+ * exist over MCP, so «Darkroom can do it» was true or false depending on where
+ * you asked from.
  *
- * Qui uno strumento è un mestiere, non una chiamata: «sviluppa il colore» sta
- * sopra le quattro rotte che lo realizzano. Ognuno dichiara le rotte HTTP che
- * lo eseguono, i nomi MCP che lo guidano, di cosa ha bisogno per funzionare, e
- * i MODI in cui si comincia — aprirlo dentro un progetto, farne uno nuovo, o
- * usarlo subito. Un test verifica che rotte e nomi MCP esistano davvero: un
- * catalogo che promette roba inesistente sarebbe peggio del non averlo.
+ * Here a tool is a craft, not a call: «develop the colour» sits above the four
+ * routes that carry it out. Each one declares the HTTP routes that run it, the
+ * MCP names that drive it, what it needs in order to work, and the WAYS it is
+ * begun — opening it inside a project, making a new one, or using it right
+ * away. A test verifies that the routes and MCP names really exist: a catalogue
+ * promising things that are not there would be worse than not having one.
  *
- * Lo leggono: l'interfaccia (la home), l'MCP (`list_tools`/`start_tool`) e —
- * quando ci sarà — la chat interna. Nessuno dei tre ha una lista propria.
+ * Its readers: the interface (the home), the MCP (`list_tools`/`start_tool`)
+ * and — when it exists — the in-app chat. None of the three has a list of its
+ * own.
  */
 
 export type ToolArea =
@@ -40,7 +41,7 @@ export type ToolArea =
   | "edit"
   | "system";
 
-/** Le aree in ordine di lettura, con la riga che le spiega. */
+/** The areas in reading order, with the line that explains them. */
 export const AREAS: { id: ToolArea; name: string; what: string }[] = [
   { id: "images", name: "Immagini", what: "Generare e rifare fotogrammi." },
   { id: "color", name: "Colore", what: "Un look solo per tutto il set, e l'uscita." },
@@ -51,10 +52,10 @@ export const AREAS: { id: ToolArea; name: string; what: string }[] = [
   { id: "system", name: "Sistema", what: "Progetti, generatore, stato della macchina." },
 ];
 
-/** Cosa serve perché uno strumento funzioni davvero, non solo si apra. */
+/** What a tool needs in order to really work, not merely to open. */
 export type Requirement = "generator" | "ffmpeg" | "moondream" | "comfy";
 
-/** Un campo del modulo di avvio rapido. Il client lo disegna, il server lo legge. */
+/** A field of the quick-start form. The client draws it, the server reads it. */
 export type StartField = {
   name: string;
   label: string;
@@ -62,16 +63,16 @@ export type StartField = {
   placeholder?: string;
   required?: boolean;
   fallback?: string | number;
-  /** Una riga sotto al campo: dice cosa succede, non come si compila. */
+  /** A line under the field: it says what happens, not how to fill it in. */
   note?: string;
 };
 
 /**
- * Come si comincia.
+ * How it begins.
  *
- * - `apri` — lo strumento vive dentro un progetto: si sceglie quale e si entra.
- * - `nuovo` — fa un progetto nuovo già acceso sulla vista giusta.
- * - `subito` — si usa senza preparare niente: i campi bastano a partire.
+ * - `open` — the tool lives inside a project: you choose which and go in.
+ * - `new` — makes a new project already switched to the right view.
+ * - `now` — used without preparing anything: the fields are enough to start.
  */
 export type Start =
   | { mode: "open"; label: string; route: string; view: ProjectKind }
@@ -81,16 +82,16 @@ export type Start =
 export type Tool = {
   id: string;
   name: string;
-  /** Una riga: cosa fa, in modo che si capisca se è quello che serve. */
+  /** One line: what it does, so you can tell whether it is what you need. */
   what: string;
   area: ToolArea;
-  /** Chiave dell'icona; la mappa string→icona sta nel client. */
+  /** The icon's key; the string→icon map lives in the client. */
   icon: string;
   /** Le viste di progetto in cui compare. Vuoto = vale ovunque. */
   views: ProjectKind[];
-  /** Le rotte HTTP che lo eseguono. Sono la sua definizione operativa. */
+  /** The HTTP routes that run it. They are its operational definition. */
   api: string[];
-  /** I nomi degli strumenti MCP che lo guidano da fuori. */
+  /** The names of the MCP tools that drive it from outside. */
   mcp: string[];
   needs: Requirement[];
   starters: Start[];
@@ -466,11 +467,12 @@ export const tool = (id: string): Tool | undefined =>
 
 export type RequirementState = {
   ok: boolean;
-  /** Perché non è pronto e cosa si fa — non «errore», ma il gesto che manca. */
+  /** Why it is not ready and what to do — not «error», but the missing gesture. */
   how: string;
 };
 
-/** Un binario c'è? Risposta cara (~30ms a colpo), quindi si misura di rado. */
+/** Is a binary there? An expensive answer (~30ms a shot), so it is measured
+ *  rarely. */
 function hasBinary(bin: string): boolean {
   if (bin.includes("/")) return existsSync(bin);
   try {
@@ -481,11 +483,11 @@ function hasBinary(bin: string): boolean {
 }
 
 /**
- * Lo stato dei requisiti, tenuto per quindici secondi.
+ * The state of the requirements, kept for fifteen seconds.
  *
- * La home ripolla; senza cache ogni giro pagava tre `which` e una sonda di
- * rete — cioè il costo di scoprire ogni volta la stessa cosa che cambia una
- * volta al giorno.
+ * The home re-polls; without a cache every round paid for three `which` calls
+ * and a network probe — i.e. the cost of discovering, every time, the same
+ * thing that changes once a day.
  */
 let cache: { t: number; v: Record<Requirement, RequirementState> } | null = null;
 
@@ -536,7 +538,7 @@ export async function requirements(
   return v;
 }
 
-/** Solo per i test: rimette a zero la cache dei requisiti. */
+/** Tests only: resets the requirements cache. */
 export function forgetRequirements(): void {
   cache = null;
 }

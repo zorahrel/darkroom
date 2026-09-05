@@ -12,16 +12,16 @@ import { Altro, Bott, Field, Search, Confirm, Filter, Badge, Header, useCloseMen
 import { VIEWS, view } from "../views";
 
 /**
- * L'elenco dei progetti: il banco di lavoro da cui si entra.
+ * The project list: the workbench you enter from.
  *
- * Ogni scheda risponde a tre domande nell'ordine in cui uno se le fa: che
- * roba è, a che punto sta, ci entro. Le azioni seguono lo stesso ordine di
- * peso — «Apri» è piena perché è il motivo per cui la pagina esiste; il
- * generatore è un interruttore perché è uno stato, non un comando; togliere un
- * progetto è quieto e chiede conferma, perché è l'unica cosa qui che non si
- * annulla da sola.
+ * Each card answers three questions in the order you ask them: what kind of
+ * thing is it, how far along is it, do I go in. The actions follow the same
+ * order of weight — «Open» is filled because it is why the page exists; the
+ * generator is a switch because it is a state, not a command; removing a
+ * project is quiet and asks for confirmation, because it is the only thing here
+ * that does not undo itself.
  */
-/** Come si guarda l'elenco: per cosa sa fare un progetto, o per come sta. */
+/** How the list is viewed: by what a project can do, or by how it is. */
 type State = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
 type SortOrder = "recenti" | "nome" | "grandi";
 
@@ -48,8 +48,9 @@ export default function StudioPage() {
   const pausa = data?.worker.runner;
   const tutti = data?.projects ?? [];
 
-  /** Quanti progetti cadrebbero in ogni filtro. Un filtro senza numero non
-   *  dice se vale la pena aprirlo, e a zero si spegne da solo. */
+  /** How many projects would fall into each filter. A filter with no number
+   *  does not say whether it is worth opening, and at zero it switches itself
+   *  off. */
   const count = useMemo(() => {
     const q = (f: (p: StudioProject) => boolean) => tutti.filter(f).length;
     return {
@@ -82,9 +83,9 @@ export default function StudioPage() {
         ? a.name.localeCompare(b.name)
         : sortOrder === "grandi"
           ? weight(b) - weight(a)
-          // "Recenti" è l'ultima versione generata, non la data di creazione:
-          // il progetto su cui si stava lavorando è quello che ha prodotto
-          // qualcosa per ultimo, non quello aperto per ultimo.
+          // "Recent" is the last version generated, not the creation date: the
+          // project being worked on is the one that produced something last,
+          // not the one opened last.
           : (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
     );
   }, [tutti, search, view, state, sortOrder]);
@@ -108,9 +109,9 @@ export default function StudioPage() {
         </div>
       )}
 
-      {/* La barra dei filtri: prima COSA sa fare un progetto, poi COME sta.
-          Due domande diverse, quindi due gruppi, non un elenco unico in cui
-          «video» e «in pausa» si escludono a vicenda senza motivo. */}
+      {/* The filter bar: first WHAT a project can do, then HOW it is. Two
+          different questions, so two groups, not one single list in which
+          «video» and «paused» exclude each other for no reason. */}
       <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
         <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
         <div className="flex items-center gap-1">
@@ -202,8 +203,8 @@ function Card({
       ? [["foto", s.photos], ["preferite", s.favorites], ["versioni", s.versions]] as const
       : null;
 
-  /** Accendere e spegnere una vista. La principale non si spegne: sarebbe un
-   *  progetto che si apre su una pagina che non c'è. */
+  /** Switching a view on and off. The main one cannot be switched off: it
+   *  would be a project that opens on a page that is not there. */
   const changeView = (id: ProjectKind) => {
     if (id === p.kind) return;
     const inside = new Set(p.views);
@@ -212,9 +213,9 @@ function Card({
   };
 
   return (
-    // La scheda intera è il tasto per entrare: il rettangolo bianco su ogni
-    // riquadro gridava più forte del nome del progetto, e la cosa che si vuole
-    // cliccare è il progetto, non un bottone dentro il progetto.
+    // The whole card is the button to go in: the white rectangle on every box
+    // shouted louder than the project's name, and the thing you want to click
+    // is the project, not a button inside the project.
     <div className="group relative rounded-lg border border-neutral-800 bg-neutral-950/60 p-3
                     flex flex-col gap-2.5 transition-colors hover:border-neutral-600">
       <button type="button" onClick={onOpen} aria-label={`Apri ${p.name}`}
@@ -271,9 +272,9 @@ function Card({
         </div>
       )}
 
-      {/* Che cosa sa fare questo progetto. Si accendono e si spengono da qui:
-          un lavoro comincia con delle foto e finisce in un montaggio, e non
-          deve diventare due progetti sulla stessa cartella. */}
+      {/* What this project can do. They are switched on and off from here: a job
+          starts with photos and ends in an edit, and it must not become two
+          projects on the same folder. */}
       <div className="relative z-10 flex flex-wrap items-center gap-1"
            title="Le viste di questo progetto: accendile e spegnile da qui.">
         {VIEWS.map((v) => {
@@ -298,8 +299,8 @@ function Card({
         })}
       </div>
 
-      {/* Altezza fissa: questa riga c'è solo su alcune schede, e senza, i piedi
-          delle schede della stessa fila finivano a tre pixel di scarto. */}
+      {/* Fixed height: this row is only on some cards, and without it the feet of
+          the cards in the same row ended up three pixels apart. */}
       <div className="relative z-10 flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]
                       pointer-events-none">
         {(q.running ?? 0) > 0 && <Badge tone="info">{q.running} in corso</Badge>}
@@ -309,9 +310,9 @@ function Card({
             {q.failed} falliti
           </Badge>
         )}
-        {/* Lo stato normale non si scrive: si vede che non c'è niente di
-            strano. In pausa invece è un'eccezione — i lavori ci sono e nessuno
-            li tocca — e quella va detta. */}
+        {/* The normal state is not written out: you can see there is nothing
+            strange. Paused is instead an exception — the jobs are there and
+            nobody is touching them — and that has to be said. */}
         {!p.active && (
           <Badge tone="waiting" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
             in pausa

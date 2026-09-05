@@ -16,32 +16,32 @@ import { ICONS } from "../iconNames";
 import { Wrench } from "lucide-react";
 
 /**
- * La home: cosa sa fare Darkroom.
+ * The home: what Darkroom can do.
  *
- * Due piani, e questa pagina è solo il primo: **Strumenti** («cosa so fare»)
- * qui, **Progetti** («su cosa lo faccio») in `/studio`. La divisione la fanno
- * le due schede nella testata in alto, che ci sono sempre — quindi qui non se
- * ne rimettono altre due uguali sotto: due navigazioni identiche una sull'altra
- * si leggono come due cose diverse e non lo sono.
+ * Two floors, and this page is only the first: **Tools** («what I can do»)
+ * here, **Projects** («what I do it to») in `/studio`. The division is made by
+ * the two tabs in the header, which are always there — so two more identical
+ * ones are not put back underneath here: two identical navigations on top of
+ * each other read as two different things, and they are not.
  *
- * Prima le due metà erano schiacciate insieme: ventun schede tutte uguali e,
- * in mezzo, quattro riquadri di progetti. Il risultato era che nessuna delle
- * due si leggeva, e il montaggio video — che esiste ed è completo — era la
- * sedicesima scheda di un muro, cioè invisibile.
+ * The two halves used to be crushed together: twenty-one identical tabs and,
+ * in the middle, four project boxes. The result was that neither of the two
+ * could be read, and the video edit — which exists and is complete — was the
+ * sixteenth tab of a wall, i.e. invisible.
  *
- * Tre regole che questa pagina si tiene:
+ * Three rules this page keeps:
  *
- * 1. **Il progetto si sceglie una volta.** Prima ogni scheda aveva il suo menu
- *    «in quale progetto»: ventun tendine che chiedevano ventun volte la stessa
- *    cosa, e che allargavano le schede a caso. Ora la scelta sta in cima, una
- *    sola, e tutte le schede parlano di quel progetto.
- * 2. **Gli strumenti stanno nei loro mestieri.** Le aree sono titoli, non solo
- *    filtri: si vede che esiste un reparto Montaggio anche senza cercarlo.
- * 3. **Le schede finiscono tutte alla stessa altezza.** I comandi sono
- *    ancorati in fondo, così una riga di schede è una riga e non una scalinata.
+ * 1. **The project is chosen once.** Every card used to have its own «in which
+ *    project» menu: twenty-one drop-downs asking the same thing twenty-one
+ *    times, and widening the cards at random. Now the choice sits at the top,
+ *    just one, and every card talks about that project.
+ * 2. **The tools sit in their crafts.** The areas are titles, not just filters:
+ *    you can see there is an Edit department without looking for it.
+ * 3. **The cards all end at the same height.** The controls are anchored at the
+ *    bottom, so a row of cards is a row and not a staircase.
  *
- * L'elenco non è scritto qui: arriva dal catalogo del server, lo stesso che
- * risponde all'MCP. Una capacità nuova compare qui il giorno in cui esiste.
+ * The list is not written here: it comes from the server's catalogue, the same
+ * one that answers the MCP. A new capability appears here the day it exists.
  */
 
 export default function Home() {
@@ -81,12 +81,12 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
   const navigate = useNavigate();
 
   /**
-   * Il progetto su cui lavorano tutte le schede. Vive nell'URL, così una home
-   * mandata a qualcuno apre lo stesso lavoro e non «l'ultimo che avevi tu».
+   * The project every card works on. It lives in the URL, so a home sent to
+   * somebody opens the same work and not «the last one you had».
    */
-  const [pickedPid, setPid] = useViewState<string>("progetto", "", {
+  const [pickedPid, setPid] = useViewState<string>("project", "", {
     read: (s) => s.trim() || null,
-    memory: "darkroom.home.progetto",
+    memory: "darkroom.home.project",
   });
   const pid = useMemo(() => {
     if (pickedPid && projects.some((p) => p.id === pickedPid)) return pickedPid;
@@ -108,8 +108,8 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       if (area !== "all" && s.area !== area) return false;
       if (onlyReady && !s.ready) return false;
       if (!q) return true;
-      // Si cerca anche fra i nomi MCP: chi arriva dalla chat conosce quelli,
-      // non i nomi che abbiamo dato ai mestieri.
+      // The MCP names are searched too: whoever arrives from the chat knows
+      // those, not the names we gave the crafts.
       return (
         s.name.toLowerCase().includes(q) ||
         s.what.toLowerCase().includes(q) ||
@@ -119,7 +119,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
     });
   }, [cat, search, area, onlyReady]);
 
-  /** Gli strumenti raggruppati nei loro mestieri, nell'ordine del catalogo. */
+  /** The tools grouped into their crafts, in the catalogue's order. */
   const reparti = useMemo(() => {
     return (cat?.areas ?? [])
       .map((a) => ({ area: a, tools: visibili.filter((s) => s.area === a.id) }))
@@ -130,9 +130,9 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
 
   return (
     <>
-      {/* La barra: cerca, mestieri, e — una volta sola — su quale progetto.
-          I numeri non sono decorazione: un filtro senza conteggio non dice se
-          vale la pena aprirlo. */}
+      {/* The bar: search, crafts, and — once only — which project.
+          The numbers are not decoration: a filter without a count does not say
+          whether it is worth opening. */}
       <div className="sticky top-[var(--h-header,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
                       border-y border-neutral-800 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -254,11 +254,11 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
 // ---------------------------------------------------------------------------
 
 /**
- * Uno strumento e le sue vie d'ingresso.
+ * A tool and its ways in.
  *
- * La scheda è alta quanto le sue sorelle: intestazione in cima, comandi
- * ancorati in fondo (`mt-auto`). Prima ogni scheda finiva dove finiva il suo
- * testo e una riga di schede era una scalinata.
+ * The card is as tall as its sisters: header at the top, controls anchored at
+ * the bottom (`mt-auto`). Every card used to end where its text ended and a row
+ * of cards was a staircase.
  */
 function ToolCard({
   s, project, projects, onDone,
@@ -291,8 +291,8 @@ function ToolCard({
         </div>
       </div>
 
-      {/* Non pronto non è «rotto»: è una cosa che manca, con il gesto che la
-          sistema. Uno strumento grigio senza spiegazione è una porta chiusa. */}
+      {/* Not ready is not «broken»: it is something missing, with the gesture
+          that fixes it. A grey tool with no explanation is a closed door. */}
       {!s.ready && (
         <div className="mt-2 rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5 space-y-0.5">
           {s.missing.map((m) => (
@@ -303,10 +303,10 @@ function ToolCard({
         </div>
       )}
 
-      {/* Il piede: comandi e riferimenti, sempre nello stesso posto su ogni
-          scheda. I nomi MCP erano una pastiglia «mcp ×3» il cui contenuto si
-          leggeva solo col mouse fermo sopra: un riferimento che non si legge
-          non è un riferimento. */}
+      {/* The foot: controls and references, always in the same place on every
+          card. The MCP names used to be an «mcp ×3» pill whose contents could
+          only be read by holding the mouse still over it: a reference that
+          cannot be read is not a reference. */}
       <div className="mt-auto pt-3 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {s.starters.map((a, i) =>
@@ -330,10 +330,10 @@ function ToolCard({
           )}
         </div>
 
-        {/* I nomi MCP, per chi guida Darkroom dalla chat. Erano una riga sola
-            tagliata a metà da `truncate`: «check_photo · verification_summ…»
-            non è un riferimento, è un indovinello. Vanno a capo, uno per
-            pastiglia, e si leggono tutti. */}
+        {/* The MCP names, for whoever drives Darkroom from the chat. They were a
+            single line cut in half by `truncate`: «check_photo ·
+            verification_summ…» is not a reference, it is a riddle. They wrap,
+            one per pill, and they can all be read. */}
         {s.mcp.length > 0 && (
           <div className="flex flex-wrap items-center gap-1" title="I nomi con cui Claude chiama questo strumento via MCP">
             <span className="text-[10.5px] text-neutral-600 shrink-0">da Claude</span>
@@ -364,16 +364,16 @@ function ToolCard({
 }
 
 /**
- * «Apri»: sul progetto scelto in cima, senza chiedere di nuovo.
+ * «Open»: on the project chosen at the top, without asking again.
  *
- * Se quel progetto non ha la vista che serve, il tasto NON si spegne: cerca il
- * primo progetto che ce l'ha e lo dice nell'etichetta. È il motivo per cui il
- * montaggio video sembrava non esistere — chi apriva la home con una galleria
- * di foto selezionata trovava quattro tasti grigi e nessun indizio che
- * «Lungomare» fosse lì, pronto, a un clic.
+ * If that project does not have the view needed, the button does NOT go dead:
+ * it looks for the first project that has it and says so in the label. It is
+ * why the video edit looked like it did not exist — whoever opened the home
+ * with a photo gallery selected found four grey buttons and no clue that
+ * «Lungomare» was there, ready, one click away.
  *
- * Si spegne solo quando davvero non c'è nessun progetto con quella vista, e
- * allora lo dice con il gesto che lo sistema.
+ * It goes dead only when there really is no project with that view, and then it
+ * says so with the gesture that fixes it.
  */
 function Open({
   start, tool, project, projects, onVai,
@@ -411,11 +411,11 @@ function Open({
 }
 
 /**
- * Il modulo d'avvio, costruito dai campi che il catalogo dichiara.
+ * The start form, built from the fields the catalogue declares.
  *
- * Un modulo scritto a mano per strumento sarebbe stato ventun moduli da
- * tenere allineati a ventuno handler: il primo campo aggiunto lato server
- * sarebbe rimasto invisibile qui, e nessuno se ne sarebbe accorto.
+ * A hand-written form per tool would have been twenty-one forms to keep aligned
+ * with twenty-one handlers: the first field added on the server side would have
+ * stayed invisible here, and nobody would have noticed.
  */
 function Form({
   tool, start, project, onCancel, onDone,
@@ -440,8 +440,8 @@ function Form({
     setErr(null);
     try {
       const r = await api.startTool(tool.id, {
-        // Un avvio che CREA il progetto non ne riceve uno: mandarglielo
-        // sarebbe un'istruzione che non guarda nessuno.
+        // A start that CREATES the project does not receive one: sending it
+        // would be an instruction nobody is looking at.
         project: start.mode === "now" ? project?.id : undefined,
         values,
       });
@@ -471,9 +471,9 @@ function Form({
     <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
       {start.note && <p className="text-[11px] text-neutral-400 leading-snug">{start.note}</p>}
 
-      {/* Su quale progetto non si chiede più: è quello scelto in cima. Detto,
-          non taciuto — altrimenti «Genera adesso» è un tasto che non dice dove
-          finisce la roba. */}
+      {/* Which project is no longer asked: it is the one chosen at the top.
+          Stated, not left unsaid — otherwise «Generate now» is a button that
+          does not say where the stuff ends up. */}
       {start.mode === "now" && (
         <p className="text-[11px] text-neutral-500">
           {project ? <>Va in coda su <span className="text-neutral-300">{project.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}

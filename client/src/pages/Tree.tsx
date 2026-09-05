@@ -238,6 +238,22 @@ function Recipe({
 }
 const GLYPH: Record<string, string> = { "": "○", keep: "●", maybe: "?", discard: "✕" };
 
+/**
+ * The overlay modes: the id that travels in the URL and the word on screen.
+ *
+ * They come from ONE array because the two used to be written separately, and
+ * they drifted: the type said `"over" | "difference"` while the `<option>`
+ * still said `value="sopra"`. Choosing «differenza» therefore set a value that
+ * `overlayMode === "difference"` never matched, so difference mode silently did
+ * nothing -- and an unchecked `as` cast on the change handler is what let it
+ * compile.
+ */
+const OVERLAY_MODES = [
+  { id: "over", label: "sopra" },
+  { id: "difference", label: "differenza" },
+] as const;
+type OverlayMode = (typeof OVERLAY_MODES)[number]["id"];
+
 /** What the filters are called in here. The logic lives in `treeFilter`. */
 const VERDICT_LABEL: Record<Verdict, string> = {
   all: "tutte",
@@ -272,26 +288,26 @@ export default function TreePage() {
    * Always optional: on by default it would cover the variants exactly while
    * they are being browsed, which is this page's normal use.
    */
-  const [overlay, setOverlay] = useViewState("rif", false, {
+  const [overlay, setOverlay] = useViewState("ref", false, {
     read: readBool,
-    memory: "darkroom.albero.rif",
+    memory: "darkroom.tree.ref",
   });
   const [opacita, setOpacita] = useViewState("op", 0.5, {
     read: readNumber(0, 1),
-    memory: "darkroom.albero.op",
+    memory: "darkroom.tree.op",
   });
-  const [overlayMode, setOverlayMode] = useViewState<"over" | "difference">("modo", "over", {
-    read: readOneOf(["over", "difference"] as const),
-    memory: "darkroom.albero.modo",
+  const [overlayMode, setOverlayMode] = useViewState<OverlayMode>("mode", "over", {
+    read: readOneOf(OVERLAY_MODES.map((m) => m.id)),
+    memory: "darkroom.tree.mode",
   });
   /**
    * The filter by verdict. In the URL and not only in memory: after marking
    * thirty variants, "show me only the kept ones" is what you were looking at,
    * and reloading the page must not bring everything back into the middle.
    */
-  const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "all", {
+  const [verdict, setVerdict] = useViewState<Verdict>("verdict", "all", {
     read: readOneOf(VERDICTS),
-    memory: "darkroom.albero.giudizio",
+    memory: "darkroom.tree.verdict",
   });
   /**
    * Distance from the reference, by variant id. Computed on demand and not at
@@ -430,7 +446,7 @@ export default function TreePage() {
                 </span>
                 <select
                   value={overlayMode}
-                  onChange={(e) => setOverlayMode(e.target.value as "over" | "difference")}
+                  onChange={(e) => setOverlayMode(e.target.value as OverlayMode)}
                   title={
                     overlayMode === "difference"
                       ? "Le zone che combaciano restano nere"
@@ -438,8 +454,9 @@ export default function TreePage() {
                   }
                   className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 text-[10px]"
                 >
-                  <option value="sopra">sopra</option>
-                  <option value="differenza">differenza</option>
+                  {OVERLAY_MODES.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
                 </select>
               </span>
             )}
@@ -699,7 +716,7 @@ function Leaf({
   opacita?: number;
   /** "over" judges the resemblance, "difference" shows WHERE they differ:
    *  the areas that match stay black. */
-  overlayMode?: "over" | "difference";
+  overlayMode?: OverlayMode;
   onVote: () => void;
   onNote: (t: string) => void;
   onZoom: () => void;

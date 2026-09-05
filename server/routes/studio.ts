@@ -18,18 +18,18 @@ import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, launchChatgptBrowser } from 
 /** Worker health and the multi-project overview. */
 export const studioRoutes = new Hono();
 
-/** Spesa registrata sulle versioni, in dollari. Somma cio' che i job hanno
- *  riportato davvero: le versioni dei backend a quota hanno `credits` NULL e
- *  non entrano nel conto. */
+/** Spend recorded on the versions, in dollars. It sums what the jobs really
+ *  reported: versions from quota backends have `credits` NULL and do not enter
+ *  the count. */
 function spent(): { usd: number; images: number; model: string; quality: string } {
   let usd = 0;
   let images = 0;
   for (const p of listProjects()) {
     withProject(p.id, () => {
-      // Si contano le CHIAMATE, non le versioni salvate. Contare `versions`
-      // dava $1.26 su 6 immagini dove le chiamate erano 21 per ~$4.47: le
-      // prove di calibrazione, gli scarti e i fallimenti si pagano e non
-      // lasciavano una versione da contare.
+      // The CALLS are counted, not the versions saved. Counting `versions` gave
+      // $1.26 over 6 images where the calls were 21 for ~$4.47: the calibration
+      // attempts, the discards and the failures are paid for and left no
+      // version to count.
       const r = db()
         .query<{ tot: number | null; n: number }, []>(
           "SELECT SUM(cost_usd) AS tot, COUNT(*) AS n FROM api_calls WHERE provider='openai'",
@@ -47,8 +47,8 @@ function spent(): { usd: number; images: number; model: string; quality: string 
   };
 }
 
-/** Se un progetto qualsiasi ha gia' generato con OpenAI, la spesa si mostra
- *  anche quando il backend attivo e' un altro: quei soldi restano spesi. */
+/** If any project has already generated with OpenAI, the spend is shown even
+ *  when the active backend is another one: that money stays spent. */
 function hasOpenAiVersions(): boolean {
   for (const p of listProjects()) {
     let found = false;
@@ -86,13 +86,13 @@ studioRoutes.post("/api/browser/launch", async (c) => {
 // ChatGPT browser) is global, so its health/runner status is reported once.
 
 /**
- * I numeri di un progetto video.
+ * A video project's numbers.
  *
- * Le tre colonne di un progetto foto — foto, preferite, versioni — su un video
- * valgono zero tutte e tre, perche' quelle tabelle qui non si riempiono mai.
- * Tre zeri non dicono "questo progetto e' vuoto": dicono che si sta guardando
- * la cosa sbagliata. I numeri di un montaggio sono altri, e stanno nei file che
- * la catena scrive.
+ * A photo project's three columns — photos, favourites, versions — are all zero
+ * on a video, because those tables are never filled here. Three zeros do not
+ * say "this project is empty": they say you are looking at the wrong thing. An
+ * edit's numbers are different ones, and they live in the files the chain
+ * writes.
  */
 function statsVideo(root: string) {
   const read = <T,>(name: string, altrimenti: T): T => {
@@ -101,8 +101,8 @@ function statsVideo(root: string) {
   };
   const plan = read<{ segments?: unknown[] }>("plan.json", {});
   const edl = read<{ total_s?: number }>("edl.json", {});
-  // durezza.json non e' una mappa di piani: e' { musica_per_battuta, piani }.
-  // Contare le sue chiavi dava 2.
+  // durezza.json is not a map of shots: it is { musica_per_battuta, piani }.
+  // Counting its keys gave 2.
   const intensity = read<{ shots?: Record<string, unknown> }>("durezza.json", {});
   return {
     cuts: plan.segments?.length ?? 0,
@@ -153,10 +153,10 @@ studioRoutes.get("/api/studio/projects", async (c) => {
   const browserAlive =
     BACKEND_USES_BROWSER ? await checkChatgptBrowserAlive().catch(() => false) : null;
 
-  // Quanto e' costato finora, sommato dai job. Il SALDO non si puo' leggere:
-  // gli endpoint /organization/costs e /dashboard/billing rispondono 403
-  // "Missing scopes: api.usage.read" con una normale chiave di progetto.
-  // Mostrare la spesa misurata e' onesto; mostrare un saldo inventato no.
+  // How much it has cost so far, summed from the jobs. The BALANCE cannot be
+  // read: the /organization/costs and /dashboard/billing endpoints answer 403
+  // "Missing scopes: api.usage.read" with an ordinary project key. Showing the
+  // measured spend is honest; showing an invented balance is not.
   const spend =
     WORKER_BACKEND === "openai" || hasOpenAiVersions()
       ? spent()
@@ -167,8 +167,9 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       backend: WORKER_BACKEND,
       browser_alive: browserAlive,
       runner: getRunnerStatus(),
-      /** Presente solo per i backend a pagamento. `chiave` dice se e'
-       *  configurata: senza, il backend non parte e va detto prima. */
+      /** Present only for the paid backends. `key` says whether it is
+       *  configured: without it the backend does not start, and that has to be
+       *  said in advance. */
       spend,
       openai_key: WORKER_BACKEND === "openai" ? !!openaiKey() : null,
     },

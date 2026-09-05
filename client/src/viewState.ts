@@ -2,29 +2,28 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
- * Stato di una vista che sopravvive al ricaricamento e si puo' incollare a
- * qualcuno.
+ * The state of a view that survives a reload and can be pasted to somebody.
  *
- * La griglia lo faceva gia' a mano (URL come sorgente di verita', localStorage
- * come ripiego quando l'URL e' nudo), l'albero no: ogni volta che si tornava
- * sull'albero l'interruttore del riferimento era spento e la misura andava
- * rifatta. Erano due modi diversi di trattare la stessa cosa nella stessa
- * applicazione, quindi la regola ora sta scritta una volta sola.
+ * The grid already did it by hand (URL as the source of truth, localStorage as
+ * the fallback when the URL is bare), the tree did not: every time you came
+ * back to the tree the reference toggle was off and the measurement had to be
+ * redone. They were two different ways of treating the same thing in the same
+ * application, so the rule is now written once.
  *
- * Perche' l'URL prima di localStorage: un filtro e' parte di *cosa stai
- * guardando*. Se vive solo nel browser, un link mandato a qualcun altro apre
- * una pagina diversa da quella che si aveva davanti.
+ * Why the URL before localStorage: a filter is part of *what you are looking
+ * at*. If it lives only in the browser, a link sent to somebody else opens a
+ * different page from the one you had in front of you.
  *
- * Il valore di default non finisce mai nell'URL: una barra degli indirizzi
- * piena di `?overlay=0&modo=sopra` quando e' tutto come appena aperto e' rumore
- * che nasconde i parametri che contano davvero.
+ * The default value never ends up in the URL: an address bar full of
+ * `?overlay=0&mode=over` when everything is as just-opened is noise that hides
+ * the parameters that really matter.
  */
 
 /**
- * Coda di scrittura condivisa fra tutti gli usi dell'hook.
+ * A write queue shared between all uses of the hook.
  *
- * `null` come valore significa «togli questa chiave»: e' cio' che serve per non
- * lasciare i valori di default nell'URL.
+ * `null` as a value means «remove this key»: it is what is needed to keep the
+ * default values out of the URL.
  */
 const held = new Map<string, string | null>();
 let flushProgrammato = false;
@@ -37,8 +36,8 @@ function enqueue(
   held.set(key, value);
   if (flushProgrammato) return;
   flushProgrammato = true;
-  // Un microtask, non un timer: si applica alla fine di questo giro di
-  // rendering, prima che il browser dipinga, cosi' l'URL non "lampeggia".
+  // A microtask, not a timer: it applies at the end of this render pass,
+  // before the browser paints, so the URL does not "flash".
   queueMicrotask(() => {
     flushProgrammato = false;
     if (held.size === 0) return;
@@ -62,19 +61,19 @@ export function useViewState<T extends string | number | boolean>(
   key: string,
   fallback: T,
   options: {
-    /** Da stringa a valore. Torna `null` se la stringa non e' accettabile:
-     *  un `?zoom=banana` deve tornare al default, non rompere la vista. */
+    /** From string to value. Returns `null` if the string is not acceptable:
+     *  a `?zoom=banana` must fall back to the default, not break the view. */
     read: (s: string) => T | null;
-    /** Con che nome ricordarlo fra una sessione e l'altra. Assente = non si
-     *  ricorda: giusto per le cose legate a *questo* elenco e non al modo in
-     *  cui si lavora (una selezione, una ricerca). */
+    /** Under what name to remember it between sessions. Absent = it is not
+     *  remembered: right for the things tied to *this* list and not to the way
+     *  you work (a selection, a search). */
     memory?: string;
   },
 ): [T, (v: T) => void] {
   const { read, memory } = options;
   const [searchParams, setSearchParams] = useSearchParams();
-  // Solo alla prima resa: dopo, la sorgente di verita' e' lo stato di React.
-  // Rileggere l'URL a ogni giro farebbe combattere due scritture in corsa.
+  // Only on the first render: after that, the source of truth is React's
+  // state. Re-reading the URL every round would set two writes racing.
   const [value, setValue] = useState<T>(() => {
     const daUrl = searchParams.get(key);
     if (daUrl !== null) {
@@ -91,18 +90,18 @@ export function useViewState<T extends string | number | boolean>(
     return fallback;
   });
 
-  // Le scritture di piu' hook nello stesso istante vanno RIUNITE prima di
-  // toccare l'URL.
+  // Writes from several hooks in the same instant must be JOINED before the
+  // URL is touched.
   //
-  // Ognuno scriveva per conto suo con l'aggiornamento funzionale, che sembra
-  // sicuro e non lo e': React Router propaga la nuova location in modo
-  // asincrono, quindi due hook che si svegliano nello stesso ciclo ricevono
-  // entrambi lo STESSO `prev` e il secondo cancella la modifica del primo.
-  // Osservato: aprendo `?zoom=180&group=scene`, tutti e due i valori sono
-  // quelli di default e vanno tolti, ma ne spariva uno solo.
+  // Each one used to write on its own with the functional update, which looks
+  // safe and is not: React Router propagates the new location asynchronously,
+  // so two hooks waking in the same cycle both receive the SAME `prev` and the
+  // second erases the first one's change. Observed: opening
+  // `?zoom=180&group=scene`, both values are defaults and should be removed,
+  // but only one disappeared.
   //
-  // Qui le modifiche si accumulano in una coda condivisa e si applicano in una
-  // volta sola alla fine del giro.
+  // Here the changes accumulate in a shared queue and are applied all at once
+  // at the end of the pass.
   const setParams = useRef(setSearchParams);
   setParams.current = setSearchParams;
 
@@ -117,7 +116,7 @@ export function useViewState<T extends string | number | boolean>(
   return [value, change];
 }
 
-/** Letture pronte, cosi' ogni vista non si riscrive il suo parser. */
+/** Ready-made readers, so each view does not rewrite its own parser. */
 export const readBool = (s: string): boolean | null =>
   s === "1" || s === "true" ? true : s === "0" || s === "false" ? false : null;
 

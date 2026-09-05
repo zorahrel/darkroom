@@ -11,17 +11,17 @@ import { createPanels } from "../storyboard.ts";
 import { checkChatgptBrowserAlive, launchChatgptBrowser } from "../worker.ts";
 
 /**
- * Il catalogo degli strumenti, e il modo di cominciarne uno.
+ * The tool catalogue, and the way to begin one.
  *
- * Due rotte sole. `GET /api/tools` dice cosa Darkroom sa fare e cosa di
- * quello è pronto adesso su questa macchina; `POST /api/tools/:id/start`
- * lo comincia — facendo il progetto che serve, se serve — e risponde con la
- * pagina su cui atterrare.
+ * Two routes only. `GET /api/tools` says what Darkroom can do and which of that
+ * is ready right now on this machine; `POST /api/tools/:id/start` begins it —
+ * making the project it needs, if it needs one — and answers with the page to
+ * land on.
  *
- * La seconda è il motivo per cui la prima non è una brochure: "usa subito" non
- * è un link a una pagina dove poi bisogna capire cosa fare, è la cosa fatta.
- * E siccome vive nel server, la fanno allo stesso modo l'interfaccia, l'MCP e
- * la chat che verrà — con un cammino solo da tenere funzionante.
+ * The second is why the first is not a brochure: "use it now" is not a link to
+ * a page where you then have to work out what to do, it is the thing done. And
+ * because it lives in the server, the interface, the MCP and the chat to come
+ * all do it the same way — with a single path to keep working.
  */
 export const toolRoutes = new Hono();
 
@@ -35,9 +35,9 @@ toolRoutes.get("/api/tools", async (c) => {
       const missing = s.needs.filter((r) => !req[r].ok);
       return {
         ...s,
-        // "Pronto" è una cosa sola: puoi usarlo adesso. Ciò che manca è detto
-        // per nome, con il gesto che lo sistema, perché uno strumento grigio
-        // senza motivo è solo una porta chiusa.
+        // "Ready" means one thing: you can use it now. What is missing is named,
+        // with the gesture that fixes it, because a grey tool with no reason is
+        // just a closed door.
         ready: missing.length === 0,
         missing: missing.map((r) => ({ requirement: r, how: req[r].how })),
       };
@@ -55,16 +55,16 @@ const number = (v: Values, k: string, d: number): number => {
   return Number.isFinite(n) ? n : d;
 };
 
-/** L'esito di un avvio: dove si atterra, su quale progetto, e cosa è successo. */
+/** The outcome of a start: where you land, on which project, and what happened. */
 type Outcome = { route: string; project: string; done: string; data?: unknown };
 
 /**
- * Il progetto su cui lavorare.
+ * The project to work on.
  *
- * Se ne arriva uno, quello. Altrimenti si usa l'attivo — la stessa regola
- * dell'MCP, dove `project` assente vuol dire "quello predefinito". Inventare
- * un progetto nuovo a ogni generazione al volo lascerebbe sul disco una fila
- * di cartelle che nessuno ha chiesto.
+ * If one arrives, that one. Otherwise the active one — the same rule as the
+ * MCP, where an absent `project` means "the default one". Inventing a new
+ * project on every generation on the fly would leave a row of folders on disk
+ * that nobody asked for.
  */
 function projectOf(given?: string): string {
   if (given && getProject(given)) return given;
@@ -197,9 +197,9 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
   },
 };
 
-/** Gli id che hanno un motore. Esportato per il test che verifica la
- *  corrispondenza col catalogo senza dover CHIAMARE gli avvii — chiamarli
- *  vorrebbe dire far partire Chrome dentro una suite. */
+/** The ids that have an engine. Exported for the test that verifies the
+ *  correspondence with the catalogue without having to CALL the starts —
+ *  calling them would mean launching Chrome inside a suite. */
 export const STARTABLE = new Set(Object.keys(STARTERS));
 
 toolRoutes.post("/api/tools/:id/start", async (c) => {
@@ -221,9 +221,9 @@ toolRoutes.post("/api/tools/:id/start", async (c) => {
 
   const req = await requirements(checkChatgptBrowserAlive);
   const missing = s.needs.filter((r: Requirement) => !req[r].ok);
-  // Un requisito che manca si dice PRIMA di fare metà del lavoro: creare il
-  // progetto e poi scoprire che il generatore è spento lascia una cartella
-  // vuota e nessuna spiegazione.
+  // A missing requirement is stated BEFORE half the work is done: creating the
+  // project and then discovering the generator is off leaves an empty folder
+  // and no explanation.
   if (missing.length && id !== "stato") {
     return c.json(
       { error: missing.map((r) => req[r].how).join(" "), missing },
@@ -239,7 +239,7 @@ toolRoutes.post("/api/tools/:id/start", async (c) => {
   }
 });
 
-/** Quali progetti può servire uno strumento: quelli con la vista accesa. */
+/** Which projects a tool can serve: the ones with the view switched on. */
 toolRoutes.get("/api/tools/:id/projects", (c) => {
   const s = tool(c.req.param("id"));
   if (!s) return c.json({ error: "strumento sconosciuto" }, 404);
