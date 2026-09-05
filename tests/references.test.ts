@@ -6,14 +6,13 @@ import { db } from "../server/db.ts";
 import { refsDir } from "../server/project.ts";
 
 /**
- * La sezione Riferimenti mostrava zero immagini: chiedeva di incollare un
- * percorso per un file che stava già dentro il progetto.
+ * The References section showed zero images: it asked you to paste a path for a
+ * file that was already inside the project.
  *
- * Il costo non è l'attrito, è quello che l'attrito nasconde. Su `profilo` una
- * reference è rimasta inutilizzata su 12 generazioni su 12 mentre il refset
- * continuava a promettere "+ stile", e non c'era nessun posto dove quel numero
- * si potesse leggere: dodici immagini pagate hanno preso la direzione
- * sbagliata prima che qualcuno se ne accorgesse guardandole.
+ * The cost is not the friction, it is what the friction hides. On `profilo` a
+ * reference went unused on 12 generations out of 12 while the refset kept
+ * promising "+ style", and there was nowhere that number could be read: twelve
+ * paid images went the wrong way before anybody noticed by looking at them.
  */
 
 const PNG = Buffer.from(
@@ -34,99 +33,100 @@ function variant(n: number, refs: string[]): void {
   );
 }
 
-async function list(): Promise<{ file: string; usata_in: number }[]> {
+async function list(): Promise<{ file: string; used_in: number }[]> {
   const r = (await (await app.request("/api/references")).json()) as {
-    references: { file: string; usata_in: number }[];
+    references: { file: string; used_in: number }[];
   };
   return r.references;
 }
 
 beforeEach(() => {
-  // La cartella dei riferimenti e' condivisa fra i test: senza svuotarla, i
-  // file di un test precedente entrano nell'elenco del successivo e
-  // l'ordinamento si giudica su dati che nessuno ha messo li' apposta.
+  // The references folder is shared between tests: without emptying it, a
+  // previous test's files enter the next one's list and the ordering is judged
+  // on data nobody put there on purpose.
   rmSync(refsDir(), { recursive: true, force: true });
   db().run("DELETE FROM versions");
   db().run("DELETE FROM photos");
   db().run("INSERT INTO photos (id,original_path,original_ext,created_at,updated_at) VALUES ('p','/p.png','.png',1,1)");
 });
 
-describe("i riferimenti del progetto si vedono", () => {
-  test("l'elenco mostra i file che stanno nella cartella", async () => {
-    put("stile.png");
+describe("the project's references are visible", () => {
+  test("the list shows the files in the folder", async () => {
+    put("style.png");
     const refs = await list();
-    expect(refs.some((r) => r.file === "stile.png")).toBe(true);
+    expect(refs.some((r) => r.file === "style.png")).toBe(true);
   });
 
-  test("i file che non sono immagini restano fuori", async () => {
-    put("stile.png");
+  test("files that are not images stay out", async () => {
+    put("style.png");
     mkdirSync(refsDir(), { recursive: true });
-    writeFileSync(join(refsDir(), "appunti.txt"), "non sono un'immagine");
+    writeFileSync(join(refsDir(), "notes.txt"), "I am not an image");
     const refs = await list();
-    expect(refs.some((r) => r.file === "appunti.txt")).toBe(false);
+    expect(refs.some((r) => r.file === "notes.txt")).toBe(false);
   });
 });
 
-describe("una reference mai usata si vede che è mai usata", () => {
-  test("zero varianti quando nessuna generazione l'ha allegata", async () => {
-    put("mai-usata.png");
+describe("a reference never used shows that it was never used", () => {
+  test("zero variants when no generation attached it", async () => {
+    put("never-used.png");
     variant(1, []);
     variant(2, []);
-    const r = (await list()).find((x) => x.file === "mai-usata.png");
-    expect(r!.usata_in).toBe(0);
+    const r = (await list()).find((x) => x.file === "never-used.png");
+    expect(r!.used_in).toBe(0);
   });
 
-  test("il conteggio segue le varianti che l'hanno davvero allegata", async () => {
-    put("usata.png");
-    variant(1, ["usata.png"]);
-    variant(2, ["usata.png"]);
+  test("the count follows the variants that really attached it", async () => {
+    put("used.png");
+    variant(1, ["used.png"]);
+    variant(2, ["used.png"]);
     variant(3, []);
-    const r = (await list()).find((x) => x.file === "usata.png");
-    expect(r!.usata_in).toBe(2);
+    const r = (await list()).find((x) => x.file === "used.png");
+    expect(r!.used_in).toBe(2);
   });
 
-  test("il caso di profilo: promessa nel refset, assente nei file", async () => {
-    // Dodici varianti che dichiarano uno stile e non allegano niente. Prima di
-    // questa vista il numero non esisteva da nessuna parte.
-    put("stile-promesso.png");
+  test("the profilo case: promised in the refset, absent from the files", async () => {
+    // Twelve variants declaring a style and attaching nothing. Before this view
+    // the number existed nowhere.
+    put("promised-style.png");
     for (let n = 1; n <= 12; n++) variant(n, []);
-    const r = (await list()).find((x) => x.file === "stile-promesso.png");
-    expect(r!.usata_in).toBe(0);
+    const r = (await list()).find((x) => x.file === "promised-style.png");
+    expect(r!.used_in).toBe(0);
   });
 
-  test("le mai usate stanno in cima: sono quelle su cui decidere", async () => {
-    // I nomi sono scelti perche' l'ordine alfabetico dia il risultato
-    // OPPOSTO: se l'ordinamento per uso sparisse, 'a-mai-usata' verrebbe
-    // comunque prima e il test passerebbe senza controllare niente.
-    put("a-usata-tanto.png");
-    put("z-mai-usata.png");
-    variant(1, ["a-usata-tanto.png"]);
+  test("the never-used ones come first: they are the ones to decide about", async () => {
+    // The names are chosen so that alphabetical order gives the OPPOSITE
+    // result: if the ordering by usage disappeared, 'a-used-a-lot' would come
+    // first and the test would fail — instead of passing while checking
+    // nothing.
+    put("a-used-a-lot.png");
+    put("z-never-used.png");
+    variant(1, ["a-used-a-lot.png"]);
     const refs = await list();
-    expect(refs.map((r) => r.file)).toEqual(["z-mai-usata.png", "a-usata-tanto.png"]);
+    expect(refs.map((r) => r.file)).toEqual(["z-never-used.png", "a-used-a-lot.png"]);
   });
 
   test("un lineage illeggibile non fa sparire l'elenco", async () => {
-    put("stile.png");
+    put("style.png");
     db().run(
       `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
        VALUES ('p',9,'/gen/v9.png','x',NULL,'{rotto',  'openai','generated',?)`,
       [Date.now()],
     );
     const refs = await list();
-    expect(refs.some((r) => r.file === "stile.png")).toBe(true);
+    expect(refs.some((r) => r.file === "style.png")).toBe(true);
   });
 });
 
-describe("dalla galleria si estrae senza ricostruire il percorso", () => {
-  test("un nome nudo si risolve dentro i riferimenti del progetto", async () => {
-    put("stile.png");
+describe("from the gallery it is extracted without rebuilding the path", () => {
+  test("a bare name resolves inside the project's references", async () => {
+    put("style.png");
     const r = await app.request("/api/reference/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: "stile.png" }),
+      body: JSON.stringify({ path: "style.png" }),
     });
-    // Il file esiste: qualunque sia l'esito dell'estrazione, NON deve essere
-    // "immagine non trovata".
+    // The file exists: whatever the outcome of the extraction, it must NOT be
+    // "image not found".
     const body = (await r.json()) as { error?: string };
     expect(body.error ?? "").not.toBe("immagine non trovata");
     // Timeout generoso: questa rotta interroga il modello di visione, che gira
@@ -135,7 +135,7 @@ describe("dalla galleria si estrae senza ricostruire il percorso", () => {
     // rosso, che e' peggio del test mancante.
   }, 60_000);
 
-  test("un nome che non esiste resta un errore", async () => {
+  test("a name that does not exist stays an error", async () => {
     const r = await app.request("/api/reference/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,7 +145,7 @@ describe("dalla galleria si estrae senza ricostruire il percorso", () => {
   });
 });
 
-describe("una reference si carica da dentro Darkroom", () => {
+describe("a reference is uploaded from inside Darkroom", () => {
   // Prima un file entrava in data/refs solo copiandocelo dal Finder: la
   // galleria mostrava i riferimenti ma non c'era modo di aggiungerne uno.
   async function load(name: string, bytes: Buffer, contentType = "image/png") {
@@ -154,37 +154,37 @@ describe("una reference si carica da dentro Darkroom", () => {
     return app.request("/api/references", { method: "POST", body: fd });
   }
 
-  test("un png caricato compare nell'elenco", async () => {
+  test("an uploaded png appears in the list", async () => {
     const r = await load("nuovo.png", PNG);
     expect(r.status).toBe(200);
     expect((await list()).some((x) => x.file === "nuovo.png")).toBe(true);
   });
 
-  test("un formato non ammesso viene rifiutato", async () => {
-    const r = await load("appunti.txt", Buffer.from("ciao"), "text/plain");
+  test("a format that is not allowed is refused", async () => {
+    const r = await load("notes.txt", Buffer.from("ciao"), "text/plain");
     expect(r.status).toBe(400);
-    // E non deve restare niente sul disco.
-    expect((await list()).some((x) => x.file === "appunti.txt")).toBe(false);
+    // And nothing must be left on disk.
+    expect((await list()).some((x) => x.file === "notes.txt")).toBe(false);
   });
 
-  test("un file vuoto viene rifiutato", async () => {
+  test("an empty file is refused", async () => {
     const r = await load("vuoto.png", Buffer.alloc(0));
     expect(r.status).toBe(400);
   });
 
-  test("un nome con separatori non esce dalla cartella", async () => {
+  test("a name with separators does not leave the folder", async () => {
     const r = await load("../../fuga.png", PNG);
     expect(r.status).toBe(200);
     const refs = await list();
-    // Il file c'e', ma col nome bonificato: nessuna risalita di directory.
+    // The file is there, but with a sanitised name: no directory traversal.
     expect(refs.some((x) => x.file.includes("/") || x.file.includes(".."))).toBe(false);
     expect(refs.some((x) => x.file.endsWith("fuga.png"))).toBe(true);
   });
 
-  test("un nome piu' lungo del filesystem viene accorciato, non fa esplodere", async () => {
-    // 300 caratteri: oltre i 255 byte che i filesystem accettano. Prima la
-    // scrittura falliva con ENAMETOOLONG e la rotta moriva invece di
-    // rispondere.
+  test("a name longer than the filesystem allows is shortened, it does not blow up", async () => {
+    // 300 characters: beyond the 255 bytes filesystems accept. Before, the
+    // write failed with ENAMETOOLONG and the route died instead of
+    // answering.
     const r = await load("a".repeat(300) + ".png", PNG);
     expect(r.status).toBe(200);
     const body = (await r.json()) as { file: string };
@@ -193,31 +193,31 @@ describe("una reference si carica da dentro Darkroom", () => {
   });
 
   test("un doppio suffisso non aggira il controllo sul formato", async () => {
-    // "x.png.exe" ha .png nel nome ma l'estensione vera e' .exe.
+    // "x.png.exe" has .png in the name but the real extension is .exe.
     const r = await load("x.png.exe", PNG, "image/png");
     expect(r.status).toBe(400);
   });
 
-  test("un nome già preso non sovrascrive la reference esistente", async () => {
-    // Sovrascrivere cambierebbe il significato del lineage delle varianti già
-    // generate con quel file, senza dirlo a nessuno.
-    await load("stile.png", PNG);
-    variant(1, ["stile.png"]);
-    const r = await load("stile.png", PNG);
-    const body = (await r.json()) as { file: string; rinominato: boolean };
-    expect(body.rinominato).toBe(true);
-    expect(body.file).toBe("stile-2.png");
-    // L'originale conserva il suo conteggio.
-    const orig = (await list()).find((x) => x.file === "stile.png");
-    expect(orig!.usata_in).toBe(1);
+  test("a name already taken does not overwrite the existing reference", async () => {
+    // Overwriting would change the meaning of the lineage of variants already
+    // generated with that file, without telling anybody.
+    await load("style.png", PNG);
+    variant(1, ["style.png"]);
+    const r = await load("style.png", PNG);
+    const body = (await r.json()) as { file: string; renamed: boolean };
+    expect(body.renamed).toBe(true);
+    expect(body.file).toBe("style-2.png");
+    // The original keeps its count.
+    const orig = (await list()).find((x) => x.file === "style.png");
+    expect(orig!.used_in).toBe(1);
   });
 });
 
-describe("quanto una variante si discosta dalla reference", () => {
-  // La misura esisteva come script ma restava fuori dalla pagina dove si
-  // guardano le varianti: la domanda "mi sto avvicinando?" si poteva porre solo
-  // da terminale, e le calibrazioni sono andate avanti tre giri su un'ipotesi
-  // sbagliata proprio per quello.
+describe("how far a variant strays from the reference", () => {
+  // The measurement existed as a script but stayed outside the page where the
+  // variants are looked at: the question "am I getting closer?" could only be
+  // asked from a terminal, and the calibrations went on for three rounds on a
+  // wrong hypothesis for exactly that reason.
   function version(n: number, refs: string[], imagePath: string): number {
     const r = db().run(
       `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
@@ -227,19 +227,19 @@ describe("quanto una variante si discosta dalla reference", () => {
     return Number(r.lastInsertRowid);
   }
 
-  test("una variante senza reference lo dichiara invece di inventare un numero", async () => {
+  test("a variant with no reference says so instead of inventing a number", async () => {
     const id = version(1, [], join(refsDir(), "qualsiasi.png"));
     put("qualsiasi.png");
     const r = (await (await app.request(`/api/versions/${id}/gap`)).json()) as {
       reference: string | null;
       gap: unknown;
     };
-    // È il caso che è costato 12 generazioni su profilo: nessun bersaglio.
+    // This is the case that cost 12 generations on profilo: no target.
     expect(r.reference).toBeNull();
     expect(r.gap).toBeNull();
   });
 
-  test("una reference sparita non fa passare la misura per riuscita", async () => {
+  test("a vanished reference does not let the measurement pass as successful", async () => {
     const id = version(2, ["mai-esistita.png"], join(refsDir(), "x.png"));
     put("x.png");
     const r = (await (await app.request(`/api/versions/${id}/gap`)).json()) as {
@@ -249,25 +249,26 @@ describe("quanto una variante si discosta dalla reference", () => {
     };
     expect(r.reference).toBe("mai-esistita.png");
     expect(r.gap).toBeNull();
-    // Il messaggio deve dire CHE COSA manca: senza il controllo esplicito
-    // l'errore arriva comunque, ma come sputo di uno stack python che non
-    // spiega niente a chi legge la pagina.
+    // The message must say WHAT is missing: without the explicit check the
+    // error arrives anyway, but as the spit of a python stack that explains
+    // nothing to whoever is reading the page.
     expect(r.error).toBe("reference mancante");
   });
 
-  test("una versione inesistente è un 404, non un errore di misura", async () => {
+  test("a non-existent version is a 404, not a measurement error", async () => {
     const r = await app.request("/api/versions/999999/gap");
     expect(r.status).toBe(404);
   });
 
-  test("un id non numerico viene rifiutato", async () => {
+  test("a non-numeric id is refused", async () => {
     const r = await app.request("/api/versions/pippo/gap");
     expect(r.status).toBe(400);
   });
 
-  test("misurare un'immagine contro se stessa dà distanza zero", async () => {
-    // Il controllo che la misura sia una misura: se una cosa non dista da sé
-    // stessa, la scala ha un punto fisso e i numeri sopra vogliono dire qualcosa.
+  test("measuring an image against itself gives distance zero", async () => {
+    // The check that the measurement is a measurement: if a thing is not
+    // distant from itself, the scale has a fixed point and the numbers above it
+    // mean something.
     put("uguale.png");
     const p = join(refsDir(), "uguale.png");
     const id = version(3, ["uguale.png"], p);
@@ -279,10 +280,10 @@ describe("quanto una variante si discosta dalla reference", () => {
   }, 30_000);
 });
 
-describe("la distanza si comporta come una distanza", () => {
-  // Un numero che sale ordina; un numero che a volte scende quando le cose
-  // peggiorano non ordina niente, e sarebbe peggio di nessun numero perche'
-  // sembra un giudizio.
+describe("the distance behaves like a distance", () => {
+  // A number that rises orders things; a number that sometimes falls when
+  // things get worse orders nothing, and would be worse than no number because
+  // it looks like a judgement.
   const py = (a: string, b: string) => {
     const r = Bun.spawnSync(["python3", "scripts/ref_match.py", a, b], { cwd: process.cwd() });
     return JSON.parse(new TextDecoder().decode(r.stdout)) as {
@@ -294,7 +295,7 @@ describe("la distanza si comporta come una distanza", () => {
   test("degradare progressivamente non fa MAI scendere la distanza", async () => {
     const src = join(refsDir(), "base.png");
     put("base.png");
-    // Si degrada la reference contro se stessa: ogni passo e' piu' lontano.
+    // The reference is degraded against itself: every step is further away.
     const steps = [1.0, 0.85, 0.7, 0.55];
     const done: string[] = [];
     for (const f of steps) {
@@ -315,13 +316,13 @@ describe("la distanza si comporta come una distanza", () => {
     }
   }, 60_000);
 
-  test("un'immagine dista zero da se stessa", () => {
+  test("an image is distance zero from itself", () => {
     put("identica.png");
     const p = join(refsDir(), "identica.png");
     expect(py(p, p).distance).toBe(0);
   }, 30_000);
 
-  test("quando la sagoma sparisce nel fondo, la misura lo dichiara", async () => {
+  test("when the silhouette vanishes into the background, the measurement says so", async () => {
     const src = join(refsDir(), "sat.png");
     put("sat.png");
     const out = "/tmp/darkroom-saturo.png";
@@ -331,8 +332,8 @@ describe("la distanza si comporta come una distanza", () => {
       `from PIL import Image, ImageEnhance; ImageEnhance.Contrast(Image.open(${JSON.stringify(src)}).convert("RGB")).enhance(0.3).save(${JSON.stringify(out)})`,
     ]);
     const r = py(out, src);
-    // Oltre questa soglia la distanza e' un limite inferiore, non il valore
-    // esatto: senza il flag due degradi diversi leggerebbero uguale.
+    // Past this threshold the distance is a lower bound, not the exact value:
+    // without the flag two different degradations would read the same.
     expect(r.saturated).toBe(true);
   }, 30_000);
 });

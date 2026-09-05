@@ -60,12 +60,12 @@ describe("collections API", () => {
     expect(json.collections).toHaveLength(1);
     expect(json.collections[0].photo_count).toBe(3);
     expect(json.collections[0].caption).toBe("Atterrati di notte");
-    // L'ordine è quello dato, non quello alfabetico o di scatto: un carosello
-    // ha una prima slide.
+    // The order is the one given, not alphabetical or by capture time: a
+    // carousel has a first slide.
     expect(json.photos["tokyo-il-primo-colpo"]).toEqual(["c", "a", "b"]);
   });
 
-  test("un titolo ripetuto non collide: l'id viene disambiguato", async () => {
+  test("a repeated title does not collide: the id is disambiguated", async () => {
     const first = await call("POST", "/api/collections", { title: "Nara" });
     const second = await call("POST", "/api/collections", { title: "Nara" });
     expect(first.json.id).toBe("nara");
@@ -77,7 +77,7 @@ describe("collections API", () => {
     expect(status).toBe(400);
   });
 
-  test("assegnare una foto la toglie dal post precedente", async () => {
+  test("assigning a photo removes it from the previous post", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     await call("POST", "/api/collections", { id: "due", title: "Due", photo_ids: ["c"] });
 
@@ -88,12 +88,13 @@ describe("collections API", () => {
     expect(moved.json.moved).toBe(1);
 
     const { json } = await call("GET", "/api/collections");
-    // Appartenenza esclusiva: 'a' sta in "due" e NON è rimasta anche in "uno".
+    // Exclusive membership: 'a' is in "due" and has NOT stayed in "uno" as
+    // well.
     expect(json.photos["uno"]).toEqual(["b"]);
     expect(json.photos["due"]).toEqual(["c", "a"]);
   });
 
-  test("assegnare a null toglie dal post senza cancellare la foto", async () => {
+  test("assigning to null removes it from the post without deleting the photo", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     await call("POST", "/api/collections/assign", { photo_ids: ["a"], collection_id: null });
 
@@ -110,7 +111,7 @@ describe("collections API", () => {
     expect(json.photos["uno"]).toEqual(["d", "c", "a"]);
   });
 
-  test("assegnare a un post inesistente è 404, non una riga orfana", async () => {
+  test("assigning to a non-existent post is a 404, not an orphan row", async () => {
     const { status } = await call("POST", "/api/collections/assign", {
       photo_ids: ["a"],
       collection_id: "fantasma",
@@ -129,7 +130,7 @@ describe("collections API", () => {
     expect(db().query("SELECT COUNT(*) AS n FROM photos").get()).toEqual({ n: 4 });
   });
 
-  test("cancellare una foto la toglie dal post (cascade)", async () => {
+  test("deleting a photo removes it from the post (cascade)", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     db().run("DELETE FROM photos WHERE id = 'a'");
 
@@ -148,7 +149,7 @@ describe("collections API", () => {
 });
 
 describe("filtro non assegnate", () => {
-  test("il filtro separa le foto già in un post da quelle da curare", async () => {
+  test("the filter separates photos already in a post from those to curate", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
@@ -180,7 +181,8 @@ describe("mi piace", () => {
 
     const liked = await (await grid.request("/api/photos?filter=picked")).json();
     expect(liked.photos.map((p: any) => p.id).sort()).toEqual(["a", "b"]);
-    // Il campo viaggia nella lista: la griglia disegna il cuore senza un giro extra.
+    // The field travels in the list: the grid draws the heart without an extra
+    // round trip.
     expect(liked.photos.every((p: any) => p.picked === 1)).toBe(true);
 
     const todo = await (await grid.request("/api/photos?filter=not_picked")).json();
@@ -195,7 +197,7 @@ describe("mi piace", () => {
     expect(counts.not_picked).toBe(3);
   });
 
-  test("il mi piace è indipendente dal post e dalla versione preferita", async () => {
+  test("the like is independent of the post and of the favourite version", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     await grid.request("/api/photos/a/picked", {
@@ -210,7 +212,7 @@ describe("mi piace", () => {
     expect(row.favorite_version_id).toBeNull();
   });
 
-  test("mi piace su una foto inesistente è 404", async () => {
+  test("a like on a non-existent photo is a 404", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     const res = await grid.request("/api/photos/fantasma/picked", {
@@ -222,20 +224,20 @@ describe("mi piace", () => {
   });
 });
 
-describe("ordine del carosello", () => {
+describe("carousel order", () => {
   test("riordinare non perde né duplica foto, e la prima resta la prima", async () => {
     await call("POST", "/api/collections", {
       id: "uno",
       title: "Uno",
       photo_ids: ["a", "b", "c", "d"],
     });
-    // Sposta 'c' in testa: è il gesto del drag & drop sulla copertina.
+    // Moves 'c' to the front: it is the drag-and-drop gesture on the cover.
     await call("PUT", "/api/collections/uno/photos", { photo_ids: ["c", "a", "b", "d"] });
 
     const { json } = await call("GET", "/api/collections");
     expect(json.photos["uno"]).toEqual(["c", "a", "b", "d"]);
     expect(json.collections[0].photo_count).toBe(4);
-    // Nessuna riga orfana: il PUT sostituisce, non accumula.
+    // No orphan rows: the PUT replaces, it does not accumulate.
     expect(db().query("SELECT COUNT(*) AS n FROM collection_photos").get()).toEqual({ n: 4 });
   });
 });
@@ -245,7 +247,7 @@ describe("collage", () => {
     return call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ids });
   }
 
-  test("unire due foto crea una slide sola, e le foto restano nel post", async () => {
+  test("merging two photos creates a single slide, and the photos stay in the post", async () => {
     await post(["a", "b", "c", "d"]);
     const made = await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["b", "c"],
@@ -254,16 +256,17 @@ describe("collage", () => {
     expect(made.status).toBe(200);
 
     const { json } = await call("GET", "/api/collections");
-    // Il collage NON consuma le foto: restano membri del post, così scioglierlo
-    // le rimette in fila senza doversi ricordare dov'erano.
+    // The collage does NOT consume the photos: they stay members of the post,
+    // so dissolving it puts them back in line without anybody having to
+    // remember where they were.
     expect(json.photos["uno"]).toEqual(["a", "b", "c", "d"]);
     expect(json.collages).toHaveLength(1);
     expect(json.collages[0].photo_ids).toEqual(["b", "c"]);
-    // Prende il posto della sua prima foto, non va in fondo.
+    // It takes the place of its first photo, it does not go to the end.
     expect(json.collages[0].position).toBe(1);
   });
 
-  test("una composizione che non tiene tutte le foto è rifiutata", async () => {
+  test("a composition that does not hold all the photos is refused", async () => {
     await post(["a", "b", "c", "d"]);
     // «split» sta a due: con quattro perderebbe due scatti in silenzio.
     const r = await call("POST", "/api/collections/uno/collages", {
@@ -273,7 +276,7 @@ describe("collage", () => {
     expect(r.status).toBe(400);
     expect(r.json.error).toContain("tiene 2 foto");
 
-    // E nemmeno in PATCH, dove il controllo va fatto sulla combinazione finale.
+    // Nor in PATCH, where the check has to be made on the final combination.
     await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["a", "b", "c", "d"],
       mode: "hero",
@@ -281,11 +284,11 @@ describe("collage", () => {
     const id = (await call("GET", "/api/collections")).json.collages[0].id;
     expect((await call("PATCH", `/api/collages/${id}`, { mode: "split" })).status).toBe(400);
     expect((await call("PATCH", `/api/collages/${id}`, { mode: "grid", layout: "1x2" })).status).toBe(400);
-    // Una combinazione capiente passa.
+    // A combination with room passes.
     expect((await call("PATCH", `/api/collages/${id}`, { mode: "grid", layout: "2x2" })).status).toBe(200);
   });
 
-  test("una composizione inventata è rifiutata", async () => {
+  test("an invented composition is refused", async () => {
     await post(["a", "b"]);
     const r = await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["a", "b"],
@@ -294,7 +297,7 @@ describe("collage", () => {
     expect(r.status).toBe(400);
   });
 
-  test("foto fuori dal post, o già in un collage, non si uniscono", async () => {
+  test("photos outside the post, or already in a collage, are not merged", async () => {
     await post(["a", "b"]);
     const outside = await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["a", "c"],
@@ -312,7 +315,7 @@ describe("collage", () => {
     expect(again.json.error).toContain("già in un collage");
   });
 
-  test("una foto sola non è un collage", async () => {
+  test("a single photo is not a collage", async () => {
     await post(["a", "b"]);
     const r = await call("POST", "/api/collections/uno/collages", { photo_ids: ["a"] });
     expect(r.status).toBe(400);
@@ -332,7 +335,7 @@ describe("collage", () => {
     expect(db().query("SELECT COUNT(*) AS n FROM collage_photos").get()).toEqual({ n: 0 });
   });
 
-  test("sciogliere il post porta via anche i suoi collage", async () => {
+  test("dissolving the post takes its collages with it", async () => {
     await post(["a", "b"]);
     await call("POST", "/api/collections/uno/collages", { photo_ids: ["a", "b"], mode: "split" });
     await call("DELETE", "/api/collections/uno");
@@ -343,8 +346,8 @@ describe("collage", () => {
   });
 });
 
-describe("riferimento cromatico del post", () => {
-  test("si imposta e viene restituito", async () => {
+describe("the post's colour reference", () => {
+  test("it is set and it comes back", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     const r = await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
     expect(r.status).toBe(200);
@@ -352,10 +355,10 @@ describe("riferimento cromatico del post", () => {
     expect(json.collections[0].reference_photo_id).toBe("a");
   });
 
-  test("una foto fuori dal post non può essere il riferimento", async () => {
+  test("a photo outside the post cannot be the reference", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
-    // 'c' esiste ma sta altrove: userebbe il colore di un'altra scena senza
-    // che si capisca da dove arriva.
+    // 'c' exists but lives elsewhere: it would use the colour of another scene
+    // with no way of telling where it came from.
     const r = await call("PATCH", "/api/collections/uno", { reference_photo_id: "c" });
     expect(r.status).toBe(400);
   });
@@ -372,24 +375,25 @@ describe("riferimento cromatico del post", () => {
     const { colorReferenceFor } = await import("../server/colorReference.ts");
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
-    // La reference stessa non deve allegarsi a sé: inseguirebbe la propria coda.
+    // The reference itself must not attach to itself: it would chase its own
+    // tail.
     expect(colorReferenceFor("a")).toBeNull();
   });
 });
 
 describe("copertina con un click", () => {
-  test("porta la foto in testa senza scombinare le altre", async () => {
+  test("it brings the photo to the front without disturbing the others", async () => {
     await call("POST", "/api/collections", {
       id: "uno", title: "Uno", photo_ids: ["a", "b", "c", "d"],
     });
     const r = await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
     expect(r.status).toBe(200);
     const { json } = await call("GET", "/api/collections");
-    // 'c' passa prima; a, b, d restano nel loro ordine relativo.
+    // 'c' moves in front; a, b, d keep their relative order.
     expect(json.photos["uno"]).toEqual(["c", "a", "b", "d"]);
   });
 
-  test("una foto fuori dal post non può diventarne la copertina", async () => {
+  test("a photo outside the post cannot become its cover", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     const r = await call("POST", "/api/collections/uno/cover", { photo_id: "d" });
     expect(r.status).toBe(400);
@@ -403,16 +407,16 @@ describe("copertina con un click", () => {
   });
 });
 
-describe("la copertina è una scelta, non una posizione", () => {
-  test("sopravvive a un riordino completo del post", async () => {
+describe("the cover is a choice, not a position", () => {
+  test("it survives a complete reordering of the post", async () => {
     await call("POST", "/api/collections", {
       id: "uno", title: "Uno", photo_ids: ["a", "b", "c", "d"],
     });
     await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
 
-    // Un riordino cronologico riscrive TUTTE le posizioni. Prima questo
-    // cancellava silenziosamente la copertina scelta a mano — è successo per
-    // davvero, e le scelte dell'utente sono andate perse.
+    // A chronological reorder rewrites ALL the positions. This used to silently
+    // erase the hand-picked cover — it really happened, and the user's choices
+    // were lost.
     await call("PUT", "/api/collections/uno/photos", { photo_ids: ["a", "b", "c", "d"] });
 
     const { json } = await call("GET", "/api/collections");
@@ -420,10 +424,11 @@ describe("la copertina è una scelta, non una posizione", () => {
     expect(json.collections[0].cover_photo_id).toBe("c");
   });
 
-  test("se la copertina esce dal post, l'ordine dato viene rispettato", async () => {
+  test("if the cover leaves the post, the given order is respected", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
     await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
-    // 'c' non è più fra i membri: non ha senso forzarla in testa.
+    // 'c' is no longer among the members: forcing it to the front makes no
+    // sense.
     await call("PUT", "/api/collections/uno/photos", { photo_ids: ["b", "a"] });
     const { json } = await call("GET", "/api/collections");
     expect(json.photos["uno"]).toEqual(["b", "a"]);
@@ -440,11 +445,11 @@ describe("la copertina è una scelta, non una posizione", () => {
 });
 
 describe("filtro pro", () => {
-  test("separa le foto che hanno un master pro dalle sole bozze web", async () => {
+  test("it separates photos that have a pro master from web drafts alone", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     const now = Date.now();
-    // 'a' ha un render dal modello a pagamento, 'b' solo dalla versione web.
+    // 'a' has a render from the paid model, 'b' only from the web version.
     db().run(
       `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
        VALUES ('a', 1, '/x/a.png', 'p', 'generated', 'higgsfield', ?)`,
@@ -466,8 +471,8 @@ describe("filtro pro", () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     const now = Date.now();
-    // Una foto può AVERE un master pro ma mostrare ancora la bozza web,
-    // se la preferita è quella: il badge segue ciò che si vede.
+    // A photo can HAVE a pro master and still show the web draft, if that is
+    // the favourite: the badge follows what you see.
     db().run(
       `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, provider, created_at)
        VALUES ('c', 1, '/x/c1.png', 'p', 'generated', 'chatgpt', ?)`,
@@ -488,7 +493,7 @@ describe("filtro pro", () => {
   });
 });
 
-describe("un post dice quante foto usciranno davvero", () => {
+describe("a post says how many photos will really go out", () => {
   test("publishable_count esclude le foto saltate", async () => {
     const cid = "pub_test";
     db().run("INSERT INTO collections (id, title, position, created_at) VALUES (?, 'T', 99, ?)", [cid, Date.now()]);
@@ -502,8 +507,9 @@ describe("un post dice quante foto usciranno davvero", () => {
     const r = await app.request("/api/collections");
     const body = (await r.json()) as { collections: { id: string; photo_count: number; publishable_count: number }[] };
     const col = body.collections.find((c) => c.id === cid)!;
-    // 3 nel post, ma una e' rifiutata da ChatGPT e non avra' mai un render:
-    // annunciare 3 slide e pubblicarne 2 e' una sorpresa al momento sbagliato.
+    // 3 in the post, but one is refused by ChatGPT and will never have a
+    // render: announcing 3 slides and publishing 2 is a surprise at the wrong
+    // moment.
     expect(col.photo_count).toBe(3);
     expect(col.publishable_count).toBe(2);
   });

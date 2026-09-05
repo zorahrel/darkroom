@@ -6,56 +6,56 @@ import { useViewState, readOneOf } from "../viewState";
 // Dal riferimento alla ricetta (REF-02).
 //
 // L'estrazione e' una PROPOSTA, non un risultato: il modello locale a volte si
-// contraddice nella stessa frase ("pori visibili e pelle levigata"), e una
+// contraddice nella stessa frase ("pori visible e pelle levigata"), e una
 // ricetta sbagliata si paga su ogni variante generata dopo. Per questo il testo
 // arriva in un campo modificabile e si salva solo con un gesto esplicito.
 
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
-type Reference = { file: string; bytes: number; modified_at: number; usata_in: number };
+type Reference = { file: string; bytes: number; modified_at: number; used_in: number };
 
 export default function ReferencesPage() {
   const [path, setPath] = useState("");
   const [text, setText] = useState("");
   const [name, setName] = useState("");
-  const [origine, setOrigine] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
   const [state, setState] = useState<{ kind: "waiting" | "error" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [refs, setRefs] = useState<Reference[]>([]);
   const [above, setAbove] = useState(false);
-  /** Quali reference mostrare. «mai usate» e' il filtro che conta: una
-   *  reference a zero e' una passata intera andata nella direzione sbagliata
-   *  senza che nessuno lo vedesse (su profilo e' successo 12 volte su 12), e
-   *  con dodici miniature in griglia l'ambra da sola non basta a trovarle. */
-  const [filter, setFilter] = useViewState<"all" | "usate" | "mai">("mostra", "all", {
-    read: readOneOf(["all", "usate", "mai"] as const),
-    memory: "darkroom.refs.mostra",
+  /** Which references to show. «never used» is the filter that matters: a
+   *  reference at zero is a whole pass that went the wrong way without anybody
+   *  seeing it (on profilo it happened 12 times out of 12), and with twelve
+   *  thumbnails in a grid the amber alone is not enough to find them. */
+  const [filter, setFilter] = useViewState<"all" | "used" | "never">("show", "all", {
+    read: readOneOf(["all", "used", "never"] as const),
+    memory: "darkroom.refs.show",
   });
 
   const counts = useMemo(
     () => ({
-      tutte: refs.length,
-      usate: refs.filter((r) => r.usata_in > 0).length,
-      mai: refs.filter((r) => r.usata_in === 0).length,
+      all: refs.length,
+      used: refs.filter((r) => r.used_in > 0).length,
+      never: refs.filter((r) => r.used_in === 0).length,
     }),
     [refs],
   );
-  /** Le mai usate in cima anche dentro il filtro «tutte»: sono quelle su cui
-   *  c'e' qualcosa da decidere. */
-  const visibili = useMemo(() => {
+  /** The never-used ones first even inside the «all» filter: they are the ones
+   *  with something to decide. */
+  const visible = useMemo(() => {
     const picks =
-      filter === "usate"
-        ? refs.filter((r) => r.usata_in > 0)
-        : filter === "mai"
-          ? refs.filter((r) => r.usata_in === 0)
+      filter === "used"
+        ? refs.filter((r) => r.used_in > 0)
+        : filter === "never"
+          ? refs.filter((r) => r.used_in === 0)
           : refs;
-    return [...picks].sort((a, b) => (a.usata_in === 0 ? 0 : 1) - (b.usata_in === 0 ? 0 : 1));
+    return [...picks].sort((a, b) => (a.used_in === 0 ? 0 : 1) - (b.used_in === 0 ? 0 : 1));
   }, [refs, filter]);
 
   const load = useCallback(async () => {
     const r = await jsonFetch<{ recipes: Recipe[] }>("/api/recipes");
     setRecipes(r.recipes);
-    // Le reference del progetto: senza questa lista la pagina chiedeva di
-    // incollare un percorso per un file che era gia' li' dentro.
+    // The project's references: without this list the page asked you to paste
+    // a path for a file that was already in there.
     const q = await jsonFetch<{ references: Reference[] }>("/api/references").catch(() => ({
       references: [],
     }));
@@ -106,7 +106,7 @@ export default function ReferencesPage() {
         },
       );
       setText(r.text);
-      setOrigine(r.from_reference);
+      setSource(r.from_reference);
       setName((n) => n || r.from_reference.replace(/\.[^.]+$/, ""));
       // Cio' che non e' stato descritto va detto: e' la parte che dovra'
       // scrivere una persona, e se resta implicita non la scrive nessuno.
@@ -126,7 +126,7 @@ export default function ReferencesPage() {
       await jsonFetch("/api/recipes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name, body: text, from_reference: origine }),
+        body: JSON.stringify({ name: name, body: text, from_reference: source }),
       });
       setState({ kind: "ok", msg: `Ricetta "${name}" salvata.` });
       load();
@@ -169,9 +169,9 @@ export default function ReferencesPage() {
             </h3>
             <Pills
               items={[
-                { id: "all" as const, name: "all" },
-                { id: "usate" as const, name: "usate" },
-                { id: "mai" as const, name: "mai usate" },
+                { id: "all" as const, name: "tutte" },
+                { id: "used" as const, name: "usate" },
+                { id: "never" as const, name: "mai usate" },
               ]}
               pick={filter}
               onChoose={setFilter}
@@ -196,7 +196,7 @@ export default function ReferencesPage() {
             <p className="text-xs text-neutral-500 py-4 text-center">
               Trascina qui un'immagine di stile, oppure scegli un file.
             </p>
-          ) : visibili.length === 0 ? (
+          ) : visible.length === 0 ? (
             /* Cartella piena ma filtro a vuoto: dirlo, invece di mostrare lo
                stesso messaggio del caso «non c'e' niente». */
             <p className="text-xs text-neutral-500 py-4 text-center">
@@ -207,7 +207,7 @@ export default function ReferencesPage() {
             </p>
           ) : null}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-            {visibili.map((r) => (
+            {visible.map((r) => (
               <figure key={r.file} className="m-0 border border-neutral-800 bg-neutral-900">
                 <img
                   src={refUrl(r.file)}
@@ -227,12 +227,12 @@ export default function ReferencesPage() {
                   <div
                     className={
                       "font-mono text-[10px] " +
-                      (r.usata_in === 0 ? "text-amber-500" : "text-neutral-500")
+                      (r.used_in === 0 ? "text-amber-500" : "text-neutral-500")
                     }
                   >
-                    {r.usata_in === 0
+                    {r.used_in === 0
                       ? "mai usata"
-                      : `usata in ${r.usata_in} ${r.usata_in === 1 ? "variante" : "varianti"}`}
+                      : `usata in ${r.used_in} ${r.used_in === 1 ? "variante" : "varianti"}`}
                   </div>
                 </figcaption>
               </figure>
@@ -286,8 +286,8 @@ export default function ReferencesPage() {
               placeholder="nome della ricetta"
               className="bg-transparent border border-neutral-700 px-3 py-2 text-sm"
             />
-            {origine && (
-              <span className="font-mono text-[11px] text-neutral-400">da {origine}</span>
+            {source && (
+              <span className="font-mono text-[11px] text-neutral-400">da {source}</span>
             )}
             <button
               onClick={save}

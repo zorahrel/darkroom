@@ -32,26 +32,26 @@ referenceRoutes.get("/api/references", (c) => {
     ? readdirSync(dir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
     : [];
 
-  // Si contano le VERSIONI, non i job: un job fallito non ha prodotto niente da
-  // guardare, e contarlo direbbe "usata" di una reference che non ha ancora
-  // mostrato nessun risultato.
-  const usi = new Map<string, number>();
+  // VERSIONS are counted, not jobs: a failed job produced nothing to look at,
+  // and counting it would call a reference "used" when it has not yet shown any
+  // result.
+  const uses = new Map<string, number>();
   for (const row of db()
     .query<{ lineage: string | null; config: string | null }, []>(
       "SELECT lineage, config FROM versions WHERE source='generated'",
     )
     .all()) {
-    const letti = new Set<string>();
+    const seen = new Set<string>();
     for (const raw of [row.lineage, row.config]) {
       if (!raw) continue;
       try {
         const refs = (JSON.parse(raw) as { refs?: unknown }).refs;
-        if (Array.isArray(refs)) for (const r of refs) letti.add(String(r).split("/").pop() ?? String(r));
+        if (Array.isArray(refs)) for (const r of refs) seen.add(String(r).split("/").pop() ?? String(r));
       } catch {
-        // una riga illeggibile non deve far sparire l'elenco
+        // an unreadable row must not make the list disappear
       }
     }
-    for (const f of letti) usi.set(f, (usi.get(f) ?? 0) + 1);
+    for (const f of seen) uses.set(f, (uses.get(f) ?? 0) + 1);
   }
 
   const references = files.map((f) => {
@@ -60,12 +60,12 @@ referenceRoutes.get("/api/references", (c) => {
       file: f,
       bytes: st.size,
       modified_at: st.mtimeMs,
-      /** Quante varianti sono nate con questa reference allegata. */
-      usata_in: usi.get(f) ?? 0,
+      /** How many variants were born with this reference attached. */
+      used_in: uses.get(f) ?? 0,
     };
   });
-  // Le mai usate in cima: sono quelle su cui c'e' una decisione da prendere.
-  references.sort((a, b) => a.usata_in - b.usata_in || a.file.localeCompare(b.file));
+  // The never-used ones first: they are the ones with a decision to make.
+  references.sort((a, b) => a.used_in - b.used_in || a.file.localeCompare(b.file));
   return c.json({ references });
 });
 
@@ -185,7 +185,7 @@ referenceRoutes.post("/api/references", async (c) => {
     name = `${base}-${i}.${ext}`;
   }
   writeFileSync(join(dir, name), Buffer.from(await file.arrayBuffer()));
-  return c.json({ file: name, rinominato: name !== safeName || tooLong });
+  return c.json({ file: name, renamed: name !== safeName || tooLong });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>
