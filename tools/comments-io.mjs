@@ -33,8 +33,14 @@ const IT = new RegExp(`(?<![${W}])(${WORDS})(?![${W}])`, "i");
  * whole file as untranslated: server/video.ts came up as 88 lines of work and
  * was already done. Code spans and quoted strings are stripped before asking.
  */
-function isItalian(text) {
-  const prose = text
+function isItalian(text, kind) {
+  // A test NAME is entirely a quoted string: stripping quoted spans (which is
+  // what kills `"griglia.py"` inside an English comment) deleted the whole
+  // name, so every Italian test name looked already translated. 45 of them in
+  // jobs.test.ts alone.
+  const prose = kind === "name"
+    ? text
+    : text
     .replace(/`[^`]*`/g, " ")
     .replace(/"[^"]*"/g, " ")
     .replace(/\b[\w./-]+\.(py|json|ts|tsx|sh|md|mjs)\b/gi, " ");
@@ -89,7 +95,7 @@ function ranges(file) {
       const key = `${a.getStart(src)}:${a.getEnd()}`;
       if (!seen.has(key)) {
         seen.add(key);
-        out.push({ pos: a.getStart(src), end: a.getEnd(), text: text.slice(a.getStart(src), a.getEnd()) });
+        out.push({ pos: a.getStart(src), end: a.getEnd(), text: text.slice(a.getStart(src), a.getEnd()), kind: "name" });
       }
     }
     ts.forEachChild(n, walk);
@@ -107,7 +113,7 @@ function ranges(file) {
       prev.text = text.slice(prev.pos, r.end);
     } else merged.push({ ...r });
   }
-  return merged.filter((r) => isItalian(r.text));
+  return merged.filter((r) => isItalian(r.text, r.kind));
 }
 
 const [cmd, ...args] = process.argv.slice(2);
