@@ -39,7 +39,7 @@ describe("the paid backend is not chosen on its own", () => {
 describe("only the cdp backend drives a browser", () => {
   // The guard excluded only "codex" by name: with codex-http and openai
   // Darkroom launched Chrome to watch a window it does not use.
-  test("cdp sì, gli altri no", async () => {
+  test("cdp yes, the others no", async () => {
     expect((await loadConfig(undefined)).BACKEND_USES_BROWSER).toBe(true);
     expect((await loadConfig("codex")).BACKEND_USES_BROWSER).toBe(false);
     expect((await loadConfig("codex-http")).BACKEND_USES_BROWSER).toBe(false);
@@ -63,8 +63,8 @@ describe("the cost is computed on the real tokens", () => {
   });
 });
 
-describe("gpt-image-1-mini è la via economica", () => {
-  test("costa meno di gpt-image-2 a parità di token", () => {
+describe("gpt-image-1-mini is the cheap road", () => {
+  test("it costs less than gpt-image-2 for the same tokens", () => {
     expect(costUsd("gpt-image-1-mini", 7024)).toBeLessThan(costUsd("gpt-image-2", 7024));
   });
 });

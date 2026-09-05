@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { finalizzaFile, workingFile } from "../server/jobs.ts";
+import { finalizeFile, workingFile } from "../server/jobs.ts";
 import { versionFileName } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
@@ -44,7 +44,7 @@ describe("handing the file over to the version number", () => {
     const d = dirDiProva("c");
     const work = workingFile(d, 900);
     writeFileSync(work, "render");
-    const finale = finalizzaFile(work, d, 71);
+    const finale = finalizeFile(work, d, 71);
     expect(finale).toBe(join(d, "v71.png"));
     expect(existsSync(finale)).toBe(true);
     // The working file is not left behind: two copies of the same image would
@@ -62,10 +62,10 @@ describe("handing the file over to the version number", () => {
 
     // Le consegne avvengono in ordine di arrivo, ognuna col numero calcolato
     // in quel momento — come fa `processJob`.
-    const finali = jobs.map((id, i) => finalizzaFile(workingFile(d, id), d, 71 + i));
+    const finals = jobs.map((id, i) => finalizeFile(workingFile(d, id), d, 71 + i));
 
-    expect(new Set(finali).size).toBe(3);
-    for (const [i, f] of finali.entries()) {
+    expect(new Set(finals).size).toBe(3);
+    for (const [i, f] of finals.entries()) {
       expect(existsSync(f)).toBe(true);
       expect(readFileSync(f, "utf8")).toBe(contenuti[i]!);
     }

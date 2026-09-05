@@ -39,7 +39,7 @@ print(json.dumps({
 
 /** The corrections are in English and describe the GEOMETRY, not the
  *  atmosphere: degrees, direction, presence or absence of fill. */
-function correzioni(t: Metrics, c: Metrics): string[] {
+function corrections(t: Metrics, c: Metrics): string[] {
   const out: string[] = [];
   const dLight = c.light - t.light;
   if (Math.abs(dLight) > 6) {
@@ -80,7 +80,7 @@ const target = measure(REF);
 console.log(`TARGET: luce=${target.light} soggetto=${target.subject} p95=${target.p95} neri=${target.blacks}%`);
 
 let prompt = BASE;
-let migliore: { file: string; dist: number; m: Metrics } | null = null;
+let best: { file: string; dist: number; m: Metrics } | null = null;
 
 for (let pass = 1; pass <= PASSES; pass++) {
   const out = `/tmp/match_giro${pass}.png`;
@@ -96,9 +96,9 @@ for (let pass = 1; pass <= PASSES; pass++) {
   console.log(
     `giro ${pass}: luce=${m.light} (t ${target.light}) soggetto=${m.subject} (t ${target.subject}) dist=${dist.toFixed(2)}`,
   );
-  if (!migliore || dist < migliore.dist) migliore = { file: out, dist, m };
+  if (!best || dist < best.dist) best = { file: out, dist, m };
 
-  const fix = correzioni(target, m);
+  const fix = corrections(target, m);
   if (fix.length === 0) {
     console.log(`  dentro tolleranza al giro ${pass}`);
     break;
@@ -106,4 +106,4 @@ for (let pass = 1; pass <= PASSES; pass++) {
   prompt = `${BASE}\n\nIMPORTANT CORRECTIONS to apply:\n${fix.map((f) => `- ${f}`).join("\n")}`;
 }
 
-console.log(`\nMIGLIORE: ${migliore?.file} dist=${migliore?.dist.toFixed(2)}`);
+console.log(`\nMIGLIORE: ${best?.file} dist=${best?.dist.toFixed(2)}`);

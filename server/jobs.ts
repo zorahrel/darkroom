@@ -473,7 +473,7 @@ export function workingFile(photoGenDir: string, jobId: number): string {
  *  It has to be called AFTER computing the version number and BEFORE writing it
  *  into the row: that is what guarantees `image_path` points at a file that
  *  exists and holds exactly that generation. */
-export function finalizzaFile(workPath: string, photoGenDir: string, n: number): string {
+export function finalizeFile(workPath: string, photoGenDir: string, n: number): string {
   const finale = join(photoGenDir, versionFileName(n));
   renameSync(workPath, finale);
   return finale;
@@ -530,7 +530,7 @@ async function processJob(job: JobRow) {
   // the sunglasses ablation: jobs 235/236/237, versions 71/72/73, a single
   // v71.png on disk and two renders lost.
   const outputPath = workingFile(photoGenDir, job.id);
-  const finalizza = (n: number): string => finalizzaFile(outputPath, photoGenDir, n);
+  const finalizza = (n: number): string => finalizeFile(outputPath, photoGenDir, n);
 
   // Higgsfield provider: own pipeline (MCP), no CDP/rate-limit logic.
   if (job.provider === "higgsfield") {

@@ -276,7 +276,7 @@ async function run(job: VideoJob): Promise<void> {
     }
     if (await queuedOnComfy(job.prompt_id)) {
       append(job.id, `ripreso: ${job.prompt_id} sta ancora girando, torno ad aspettarlo`);
-      await aspetta(job, job.prompt_id, prefix, p);
+      await waitFor(job, job.prompt_id, prefix, p);
       return await collect(job, prefix);
     }
     append(job.id, `${job.prompt_id} non e' ne' finito ne' in coda: lo rimando`);
@@ -292,7 +292,7 @@ async function run(job: VideoJob): Promise<void> {
   write(job.id, { prompt_id: promptId });
   append(job.id, `in coda su ComfyUI: ${promptId}`);
 
-  await aspetta(job, promptId, prefix, p);
+  await waitFor(job, promptId, prefix, p);
   return await collect(job, prefix);
 }
 
@@ -310,7 +310,7 @@ async function queuedOnComfy(promptId: string): Promise<boolean> {
  * anything, and a fixed-time timeout cannot tell that case from a generation
  * that is slow but alive. What gets watched is how many PNGs have appeared.
  */
-async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ComfyParams): Promise<void> {
+async function waitFor(job: VideoJob, promptId: string, prefix: string, p: ComfyParams): Promise<void> {
   const t0 = Date.now();
   const LIMIT_WITHOUT_FRAMES = 15 * 60_000;
   let lastCount = 0, lastMove = t0;

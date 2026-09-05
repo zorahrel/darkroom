@@ -83,7 +83,7 @@ describe("listJobs: an error that was overcome is no longer an error", () => {
   });
 });
 
-describe("strategia anti-saturazione di ChatGPT", () => {
+describe("ChatGPT anti-saturation strategy", () => {
   test("the pause between jobs is configurable and has a sensible default", async () => {
     // The value cannot be read from a test (it is an already-loaded module), but
     // the contract can: a pause must exist, and it must be overridable when the
@@ -115,7 +115,7 @@ describe("strategia anti-saturazione di ChatGPT", () => {
   });
 });
 
-describe("cap esplicito di ChatGPT", () => {
+describe("ChatGPT's explicit cap", () => {
   test("a hint in hours is not truncated to half an hour", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
     // The real case: reset_hint="in 13 hour" was cut down to 30 minutes, so we
@@ -238,7 +238,7 @@ describe("the worker script must at least compile", () => {
 });
 
 describe("ChatGPT's image limit has to be read in full", () => {
-  test("il worker riconosce 'You've hit the Plus plan limit'", async () => {
+  test("the worker recognises 'You've hit the Plus plan limit'", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
     // Real message: "You've hit the Plus plan limit for image generations
     // requests... resets in 3 hours and 36 minutes." It does not contain
@@ -250,7 +250,7 @@ describe("ChatGPT's image limit has to be read in full", () => {
     expect(py).toContain("resets? in");
   });
 
-  test("'3 hours and 36 minutes' non diventa 3 ore secche", async () => {
+  test("'3 hours and 36 minutes' does not become a flat 3 hours", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
     // Losing the 36 minutes means turning up before the reset and burning
     // another attempt: it is the same defect already fixed for "13 hour".

@@ -15,7 +15,7 @@ const style = (n: string, take?: string): Attachment => ({ path: `/refs/${n}`, r
 const object = (n: string, take?: string): Attachment => ({ path: `/refs/${n}`, role: "object", take });
 
 describe("the order of the attachments and the sentence that describes them", () => {
-  test("identita' prima, poi stile, poi oggetti", () => {
+  test("identity first, then style, then objects", () => {
     const { sorted } = prepareAttachments([object("occhiali.jpg"), style("luce.jpg"), io("me.png")]);
     expect(sorted.map((a) => a.role)).toEqual(["identity", "style", "object"]);
   });

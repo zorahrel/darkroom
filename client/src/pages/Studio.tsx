@@ -168,7 +168,7 @@ export default function StudioPage() {
             onOpen={() => navigate(`/p/${p.id}`)}
             onGenerate={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
             onViews={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
-            onTogli={async () => { await api.studioRemoveProject(p.id); refresh(); }}
+            onRemove={async () => { await api.studioRemoveProject(p.id); refresh(); }}
           />
         ))}
       </div>
@@ -184,13 +184,13 @@ const shortDuration = (s: number) =>
   s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}s`;
 
 function Card({
-  p, onOpen, onGenerate, onViews, onTogli,
+  p, onOpen, onGenerate, onViews, onRemove,
 }: {
   p: StudioProject;
   onOpen: () => void;
   onGenerate: (v: boolean) => void;
   onViews: (v: ProjectKind[]) => void;
-  onTogli: () => void;
+  onRemove: () => void;
 }) {
   const s = p.stats;
   const q = s?.queue ?? {};
@@ -242,7 +242,7 @@ function Card({
           <div className="border-t border-neutral-800 my-1" />
           <Confirm size="s" className="w-full justify-start"
                     question={`Tolgo «${p.name}»? I file restano dove sono.`}
-                    confirm="togli" onConfirm={onTogli}>
+                    confirm="togli" onConfirm={onRemove}>
             Togli dall'elenco
           </Confirm>
         </Altro>
@@ -384,7 +384,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
 
       <Row label="Come si chiama">
         <Field value={name} onChange={setName} placeholder="es. Kyoto 2026" autoFocus
-               size="m" className="w-full" onInvio={() => { if (name.trim()) void create(); }} />
+               size="m" className="w-full" onEnter={() => { if (name.trim()) void create(); }} />
       </Row>
 
       <Row label="Che cosa ci fai">

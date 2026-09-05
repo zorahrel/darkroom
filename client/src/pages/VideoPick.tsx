@@ -51,7 +51,7 @@ type Scene = {
   suspect: string | null;
   /** Every time it enters the cut. A total in seconds does not say whether it
    *  is one block or three scattered flashes, and those judge differently. */
-  apparizioni: { t: number; dur: number; act: string | null }[];
+  appearances: { t: number; dur: number; act: string | null }[];
 };
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -80,7 +80,7 @@ function group(shots: VideoShot[]): Scene[] {
         annotated: pieces.some((p) => p.problems.length > 0),
         // The take's suspicion is that of the first piece that has one.
         suspect: pieces.find((p) => p.suspect)?.suspect ?? null,
-        apparizioni: pieces.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
+        appearances: pieces.flatMap((p) => p.appearances ?? []).sort((x, y) => x.t - y.t),
       };
     })
     .sort((a, b) => (a.minute ?? 1e9) - (b.minute ?? 1e9) || a.origin.localeCompare(b.origin));
@@ -133,13 +133,13 @@ function Take({ shot, take, onVaiA }: {
  * thrashing about. Without the slider the only remedy was discarding the shot,
  * i.e. throwing it away instead of putting it back in the right place.
  */
-function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }: {
+function Intensity({ shot, value, measured, manual, moto, detail, onChange }: {
   shot: string;
   value: number | null; measured: number | null; manual: number | null;
-  moto: number | null; dettaglio: number | null;
+  moto: number | null; detail: number | null;
   onChange: (v: number | null) => void;
 }) {
-  const [tocco, setTocco] = useState<number | null>(null);
+  const [touch, setTouch] = useState<number | null>(null);
 
   /**
    * It saves ONCE, when the slider settles.
@@ -158,9 +158,9 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
   useEffect(() => () => { if (attesa.current) clearTimeout(attesa.current); }, []);
   useEffect(() => {
     if (attesa.current) { clearTimeout(attesa.current); attesa.current = null; }
-    setTocco(null);
+    setTouch(null);
   }, [shot]);
-  const shown = tocco ?? value;
+  const shown = touch ?? value;
 
   if (shown === null) {
     return (
@@ -187,7 +187,7 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
       </div>
       <input
         type="range" min={0} max={1} step={0.01} value={shown}
-        onChange={(e) => { const v = Number(e.currentTarget.value); setTocco(v); save(v); }}
+        onChange={(e) => { const v = Number(e.currentTarget.value); setTouch(v); save(v); }}
         className="dr-hue w-full mt-1"
       />
       <div className="flex justify-between text-[9.5px] text-neutral-400">
@@ -195,10 +195,10 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
       </div>
       <p className="mt-1 text-[10.5px] text-neutral-400 leading-snug">
         Decide <b>dove</b> cade nel brano, non se è bella: dura sui colpi, molle sui respiri.
-        {(moto !== null || dettaglio !== null) && (
+        {(moto !== null || detail !== null) && (
           <span className="tabular-nums">
             {" "}Da movimento {moto?.toFixed(1) ?? "—"} · dettaglio{" "}
-            {dettaglio !== null ? `${Math.round(dettaglio * 100)}%` : "—"}.
+            {detail !== null ? `${Math.round(detail * 100)}%` : "—"}.
           </span>
         )}
       </p>
@@ -219,18 +219,18 @@ function Description({ shot, text, manual, onSave }: {
   shot: string; text: string | null; manual: boolean; onSave: (t: string) => void;
 }) {
   const [edit, setEdit] = useState(false);
-  const [bozza, setBozza] = useState("");
-  useEffect(() => { setEdit(false); setBozza(""); }, [shot]);
+  const [draft, setDraft] = useState("");
+  useEffect(() => { setEdit(false); setDraft(""); }, [shot]);
 
   if (edit) {
     return (
       <div className="mt-1.5">
         <textarea
-          autoFocus value={bozza} onChange={(e) => setBozza(e.currentTarget.value)}
+          autoFocus value={draft} onChange={(e) => setDraft(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") { e.preventDefault(); setEdit(false); }
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault(); onSave(bozza); setEdit(false);
+              e.preventDefault(); onSave(draft); setEdit(false);
             }
           }}
           placeholder="cosa si vede, in una riga"
@@ -238,7 +238,7 @@ function Description({ shot, text, manual, onSave }: {
                      text-[12px] outline-none focus:border-neutral-500"
         />
         <div className="flex gap-2 text-[11px] mt-1">
-          <button onClick={() => { onSave(bozza); setEdit(false); }}
+          <button onClick={() => { onSave(draft); setEdit(false); }}
                   className="px-2 py-0.5 rounded-sm border border-neutral-600 text-neutral-200
                              inline-flex items-center gap-1.5">
             salva <Shortcut>⌘↵</Shortcut>
@@ -264,7 +264,7 @@ function Description({ shot, text, manual, onSave }: {
         {text ?? "nessuna descrizione"}
       </p>
       <button
-        onClick={() => { setBozza(manual ? (text ?? "") : ""); setEdit(true); }}
+        onClick={() => { setDraft(manual ? (text ?? "") : ""); setEdit(true); }}
         title="scrivi cosa si vede"
         className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-sm border border-neutral-800
                    text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
@@ -300,7 +300,7 @@ function Transport({ video, frameCount }: {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [gira, setGira] = useState(true);
-  const [velocita, setVelocita] = useState(1);
+  const [speed, setSpeed] = useState(1);
   const [ciclo, setCiclo] = useState(true);
 
   // The listeners re-attach on every clip change: `key` on the <video> makes
@@ -328,7 +328,7 @@ function Transport({ video, frameCount }: {
     };
   });
 
-  useEffect(() => { if (video.current) video.current.playbackRate = velocita; }, [velocita, video]);
+  useEffect(() => { if (video.current) video.current.playbackRate = speed; }, [speed, video]);
   useEffect(() => { if (video.current) video.current.loop = ciclo; }, [ciclo, video]);
 
   const step = frameCount && duration ? duration / frameCount : 1 / 24;
@@ -389,9 +389,9 @@ function Transport({ video, frameCount }: {
       ) : null}
       <span className="shrink-0 flex gap-px">
         {[0.25, 0.5, 1].map((x) => (
-          <button key={x} onClick={() => setVelocita(x)}
+          <button key={x} onClick={() => setSpeed(x)}
                   className={`px-1 h-6 rounded-sm border tabular-nums ${
-                    velocita === x ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
+                    speed === x ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
             {x}×
           </button>
         ))}
@@ -467,7 +467,7 @@ export default function VideoPick() {
   /** Here too the height is measured: the clip must take the screen there is,
    *  and the page must not scroll while you judge at speed. */
   const shell = useRef<HTMLDivElement>(null);
-  const [shellHeight, setHGuscio] = useState(700);
+  const [shellHeight, setShellHeight] = useState(700);
   useLayoutEffect(() => {
     // This page takes the full height too: the space the app shell puts above
     // the others is, here, height stolen from the clip.
@@ -477,7 +477,7 @@ export default function VideoPick() {
       if (!el) return;
       const parent = el.parentElement;
       const below = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
-      setHGuscio(Math.max(360, window.innerHeight - el.getBoundingClientRect().top - below));
+      setShellHeight(Math.max(360, window.innerHeight - el.getBoundingClientRect().top - below));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -496,9 +496,9 @@ export default function VideoPick() {
   const video = useRef<HTMLVideoElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const area = useRef<HTMLDivElement | null>(null);
-  const osservatore = useRef<ResizeObserver | null>(null);
+  const observer = useRef<ResizeObserver | null>(null);
   const panel = useRef<HTMLDivElement>(null);
-  const trascino = useRef<{ x0: number; w0: number } | null>(null);
+  const drag = useRef<{ x0: number; w0: number } | null>(null);
 
   /** How wide the clip is, in pixels. Whoever is watching picks it, by
  *  dragging. */
@@ -540,7 +540,7 @@ export default function VideoPick() {
    * exactly the thing to follow.
    */
   const snapArea = useCallback((el: HTMLDivElement | null) => {
-    osservatore.current?.disconnect();
+    observer.current?.disconnect();
     area.current = el;
     if (!el) return;
     const measure = () => {
@@ -552,7 +552,7 @@ export default function VideoPick() {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     if (panel.current) ro.observe(panel.current);
-    osservatore.current = ro;
+    observer.current = ro;
   }, []);
 
   /** How much room is left to the right-hand panel, at minimum. Below this
@@ -603,9 +603,9 @@ export default function VideoPick() {
    *  the shot falls on. Without them a shot's hardness is a number with no
    *  yardstick — is 0.95 a lot or a little? It depends on what the track asks
    *  for there, and that is exactly the hook the cut is built on. */
-  const [cuts, setTagli] = useState<VideoCut[]>([]);
+  const [cuts, setCuts] = useState<VideoCut[]>([]);
   useEffect(() => {
-    api.videoCuts().then((r) => { setFullActs(r.acts ?? []); setTagli(r.cuts ?? []); }).catch(() => {});
+    api.videoCuts().then((r) => { setFullActs(r.acts ?? []); setCuts(r.cuts ?? []); }).catch(() => {});
   }, []);
   /** The hardness of the sound at second `t`, from the cut that lands on it. */
   const suonoA = useCallback(
@@ -645,7 +645,7 @@ export default function VideoPick() {
     let alive = true;
     const pass = async () => {
       try {
-        const r = await api.videoGenerazioni();
+        const r = await api.videoGenerations();
         if (!alive) return;
         setJobs(r.jobs);
         if (r.jobs.some((j) => j.status === "running" || j.status === "pending")) setTimeout(pass, 3000);
@@ -958,15 +958,15 @@ export default function VideoPick() {
               // Start from the VISIBLE width, not the wanted one: until
               // somebody has dragged, the wanted one is `null`, and the drag
               // has to continue from where the clip is now, not from a number.
-              trascino.current = { x0: e.clientX, w0: wantedWidth ?? clipHeight * rapporto };
+              drag.current = { x0: e.clientX, w0: wantedWidth ?? clipHeight * rapporto };
             }}
             onPointerMove={(e) => {
-              const t = trascino.current;
+              const t = drag.current;
               if (!t) return;
               setWantedWidth(Math.max(160, Math.min(1200, t.w0 + (e.clientX - t.x0))));
             }}
             onPointerUp={(e) => {
-              trascino.current = null;
+              drag.current = null;
               (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
             }}
             onDoubleClick={() => setWantedWidth(null)}
@@ -1053,7 +1053,7 @@ export default function VideoPick() {
               measured={current.measuredIntensity}
               manual={current.manualIntensity}
               moto={current.moto}
-              dettaglio={current.dettaglio}
+              detail={current.detail}
               onChange={async (v) => setShots((await api.videoIntensity(current.id, v)).shots)}
             />
 
@@ -1063,15 +1063,15 @@ export default function VideoPick() {
                 not say so. */}
             <div className="mt-3">
               <div className="text-[11px] text-neutral-400">
-                {scene.apparizioni.length === 0
+                {scene.appearances.length === 0
                   ? "non è nel montaggio"
-                  : scene.apparizioni.length === 1
+                  : scene.appearances.length === 1
                   ? "entra una volta"
-                  : `entra ${scene.apparizioni.length} volte · ${scene.inEdit.toFixed(1)}s in tutto`}
+                  : `entra ${scene.appearances.length} volte · ${scene.inEdit.toFixed(1)}s in tutto`}
               </div>
-              {scene.apparizioni.length > 0 && (
+              {scene.appearances.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
-                  {scene.apparizioni.map((ap, k) => (
+                  {scene.appearances.map((ap, k) => (
                     <li key={k} className="text-[12px] flex flex-wrap items-baseline gap-x-2">
                       <span className="tabular-nums text-neutral-200">{mmss(ap.t)}</span>
                       <span className="tabular-nums text-neutral-400">{ap.dur.toFixed(1)}s</span>
@@ -1149,7 +1149,7 @@ export default function VideoPick() {
                   onClick={async () => {
                     try {
                       await api.videoGenerate(current.id, promptMod, current.takes[0]?.take ?? "a", par);
-                      setJobs((await api.videoGenerazioni()).jobs);
+                      setJobs((await api.videoGenerations()).jobs);
                     } catch (err) { alert(String(err)); }
                   }}
                 >
@@ -1170,7 +1170,7 @@ export default function VideoPick() {
               <div className="mt-4">
                 <Area
                   autoFocus value={text} onChange={setText}
-                  onEsc={() => setNota(null)} onInvia={() => void annota()}
+                  onEsc={() => setNota(null)} onSubmit={() => void annota()}
                   placeholder={note === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
                   className="h-20 text-[12px]"
                 />

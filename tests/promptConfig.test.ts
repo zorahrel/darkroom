@@ -211,7 +211,7 @@ describe("optics and sky: options that name the result", () => {
     expect(p).toContain("no fisheye bulge");
   });
 
-  test("tele isola comprimendo lo sfondo", () => {
+  test("a telephoto isolates by compressing the background", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "tele-isolate" })).toContain(
       "go telephoto",
     );

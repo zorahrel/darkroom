@@ -139,9 +139,9 @@ describe("the write queue on the URL", () => {
       url = next;
     } else {
       // Each starts from the same snapshot: that is the bug.
-      const istantanea = new URLSearchParams(url);
+      const snapshot = new URLSearchParams(url);
       for (const [k, v] of edits) {
-        const next = new URLSearchParams(istantanea);
+        const next = new URLSearchParams(snapshot);
         v === null ? next.delete(k) : next.set(k, v);
         url = next;
       }

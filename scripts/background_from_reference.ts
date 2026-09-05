@@ -34,14 +34,14 @@ const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 /** The block that describes the PLACE in words: it is what gets replaced. */
 const LUOGO = /LUOGO:.*?(?=OCCHIALI DA SOLE)/s;
 /** The block that describes the shape of the sunglasses in words. */
-const OCCHIALI = /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
+const SUNGLASSES = /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
 
 const SFONDO_DA_REF =
   "SFONDO: esattamente quello dell'immagine di riferimento allegata (quella senza persone). " +
   "Copiane il colore, il gradiente, la texture e la direzione della luce, e mettimi davanti a quello. " +
   "Non e' un posto in cui sono: e' il fondo dietro di me. Niente strade, niente citta', niente esterni notturni. ";
 
-const OCCHIALI_DA_REF =
+const SUNGLASSES_FROM_REF =
   "OCCHIALI DA SOLE: indosso ESATTAMENTE gli occhiali dell'immagine allegata su fondo grigio. " +
   "Copiane forma, proporzioni, spessore della montatura e curvatura: sono i miei, non un modello simile. ";
 
@@ -58,25 +58,25 @@ withProject(PID, () => {
     )
     .get(PHOTO, BASE);
   if (!base) throw new Error(`v${BASE} non trovata: senza la scena di partenza non c'e' niente da variare`);
-  for (const [nome, re] of [["LUOGO", LUOGO], ["OCCHIALI", OCCHIALI]] as const) {
+  for (const [nome, re] of [["LUOGO", LUOGO], ["OCCHIALI", SUNGLASSES]] as const) {
     if (!re.test(base.prompt_used))
       throw new Error(`il blocco ${nome} non e' nel prompt di v${BASE}: la leva non e' dove credo, mi fermo`);
   }
 
   const refDir = join(dirsFor(PID).DATA_DIR, "refs");
-  const OCCHIALI_REF = join(refDir, "occhiali-gascan-ritagliato.jpg");
-  if (!existsSync(OCCHIALI_REF)) throw new Error(`reference occhiali mancante: ${OCCHIALI_REF}`);
+  const SUNGLASSES_REF = join(refDir, "occhiali-gascan-ritagliato.jpg");
+  if (!existsSync(SUNGLASSES_REF)) throw new Error(`reference occhiali mancante: ${SUNGLASSES_REF}`);
 
   // The backgrounds: the ones asked for, or every file named `fondo-*`.
   const chiesti = arg("--fondi")?.split(",").map((s) => s.trim()).filter(Boolean);
-  const disponibili = readdirSync(refDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f));
-  const fondi = chiesti ?? disponibili.filter((f) => f.startsWith("fondo-"));
-  const mancanti = fondi.filter((f) => !disponibili.includes(f));
+  const available = readdirSync(refDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f));
+  const fondi = chiesti ?? available.filter((f) => f.startsWith("fondo-"));
+  const mancanti = fondi.filter((f) => !available.includes(f));
   if (mancanti.length) throw new Error(`fondi inesistenti: ${mancanti.join(", ")}`);
   if (!fondi.length) throw new Error("nessun fondo da provare");
 
   const prompt =
-    base.prompt_used.replace(LUOGO, SFONDO_DA_REF).replace(OCCHIALI, OCCHIALI_DA_REF) + RUOLI;
+    base.prompt_used.replace(LUOGO, SFONDO_DA_REF).replace(SUNGLASSES, SUNGLASSES_FROM_REF) + RUOLI;
 
   const sorgenti = db()
     .query<{ original_path: string }, []>("SELECT original_path FROM photos ORDER BY id")
@@ -84,10 +84,10 @@ withProject(PID, () => {
     .map((r) => r.original_path.split("/").pop());
 
   for (let g = 1; g <= rounds; g++) {
-    for (const fondo of fondi) {
-      const refs = [OCCHIALI_REF, join(refDir, fondo)];
+    for (const background of fondi) {
+      const refs = [SUNGLASSES_REF, join(refDir, background)];
       const lineage = JSON.stringify({
-        recipe: `fondo-ref-${fondo.replace(/\.[a-z]+$/i, "")}`,
+        recipe: `fondo-ref-${background.replace(/\.[a-z]+$/i, "")}`,
         refset: "3 sorgenti + occhiali (ref) + fondo (ref)",
         preamble: "sfondo e occhiali presi dalle immagini invece che descritti: la citta' non piace e le parole non producono un luogo",
         sources: sorgenti,
@@ -95,7 +95,7 @@ withProject(PID, () => {
         backend: "cdp",
       });
       const job = enqueueJob(PHOTO, prompt, null, "chatgpt", null, "edit", null, JSON.stringify(refs), lineage, "cdp");
-      console.log(`[fondo] job ${job.id}  ${fondo}  giro ${g}`);
+      console.log(`[fondo] job ${job.id}  ${background}  giro ${g}`);
     }
   }
 });

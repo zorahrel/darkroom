@@ -334,7 +334,7 @@ export default function PipelineBar({
             </button>
             {run.msg && <span className="text-xs text-neutral-400">{run.msg}</span>}
           </div>
-          <Checkbox segnata={gradedView} onChange={setGradedView}>
+          <Checkbox checked={gradedView} onChange={setGradedView}>
             Anteprima gradata nella griglia
           </Checkbox>
         </div>
@@ -446,7 +446,7 @@ export default function PipelineBar({
         )}
         {saving && <span className="text-amber-400">salvo…</span>}
         <div className="flex-1" />
-        <Checkbox segnata={gradedView} onChange={setGradedView}
+        <Checkbox checked={gradedView} onChange={setGradedView}
                 title="Mostra le foto della griglia già passate dalla pipeline, invece che grezze">
           anteprima gradata nella griglia
         </Checkbox>

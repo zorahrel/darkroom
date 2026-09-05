@@ -104,7 +104,7 @@ export default function StepEditor({
               </button>
             </div>
             <span className="text-[10px] tabular-nums text-neutral-400 w-4">{i + 1}</span>
-            <Checkbox segnata={s.enabled} onChange={(v) => patchStep(i, { enabled: v })}
+            <Checkbox checked={s.enabled} onChange={(v) => patchStep(i, { enabled: v })}
                     title={s.enabled ? "Questo passo è acceso" : "Questo passo è spento"}>
               <span className={`text-[13px] font-medium ${s.enabled ? "text-neutral-100" : "text-neutral-400"}`}>
                 {STEP_LABELS[s.type]}
@@ -325,10 +325,10 @@ function StepBody({
   if (step.type === "white_balance") {
     return (
       <div className="space-y-2.5 text-sm">
-        <Checkbox segnata={bool(p.awb)} onChange={(v) => onParams({ awb: v })}>
+        <Checkbox checked={bool(p.awb)} onChange={(v) => onParams({ awb: v })}>
           AWB robusto (cast stimato dai grigi)
         </Checkbox>
-        <Checkbox segnata={bool(p.scene_match)} onChange={(v) => onParams({ scene_match: v })}>
+        <Checkbox checked={bool(p.scene_match)} onChange={(v) => onParams({ scene_match: v })}>
           Scene-match (WB uniforme fra scatti gemelli)
         </Checkbox>
         <p className="text-[11px] text-neutral-400 leading-snug">
@@ -362,7 +362,7 @@ function StepBody({
           format={(v) => v.toFixed(1)}
           resetTo={99.6}
         />
-        <Checkbox segnata={bool(p.soft)} onChange={(v) => onParams({ soft: v })}>
+        <Checkbox checked={bool(p.soft)} onChange={(v) => onParams({ soft: v })}>
           <span className="block">
             Proteggi le alte luci
             <span className="block text-[11px] text-neutral-400 leading-snug">
@@ -549,7 +549,7 @@ function StepBody({
           format={(v) => `${v}%`}
           resetTo={80}
         />
-        <Checkbox segnata={autoDose} onChange={(v) => onParams({ auto_dose: v })}>
+        <Checkbox checked={autoDose} onChange={(v) => onParams({ auto_dose: v })}>
           Auto-dose sulle notturne/rosso-dominanti
         </Checkbox>
         {autoDose && (
@@ -1019,7 +1019,7 @@ function MaskControls({
 
         {mask && (
           <div className="pt-0.5">
-            <Checkbox segnata={bool(mask.invert)} onChange={(v) => set({ invert: v })}>
+            <Checkbox checked={bool(mask.invert)} onChange={(v) => set({ invert: v })}>
               Inverti maschera
             </Checkbox>
           </div>

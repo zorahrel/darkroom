@@ -520,7 +520,7 @@ export type VideoShot = {
   description: string | null;
   descriptionByHand: boolean;
   moto: number | null;
-  dettaglio: number | null;
+  detail: number | null;
   inEdit: number;
   kept: boolean;
   why: string | null;
@@ -535,14 +535,14 @@ export type VideoShot = {
   /** Second of the film it first appears at, null if it is not in the cut. */
   minute: number | null;
   /** EVERY time it enters the cut, in order. Empty if it is not cut in. */
-  apparizioni: { t: number; dur: number; act: string | null }[];
+  appearances: { t: number; dur: number; act: string | null }[];
   /** Why the planner excluded it, when it was not discarded by hand. */
   excluded: string | null;
 };
 export type VideoCut = {
   t: number; dur: number; bar: number; shot: string;
   soundIntensity: number; shotIntensity: number | null;
-  velocita: number; rovescio: boolean;
+  speed: number; reversed: boolean;
   act: string | null; origin: string;
 };
 export type VideoAct = { da: number; a: number; name: string; t0: number; t1: number; why?: string };
@@ -558,7 +558,7 @@ export type VideoGate = {
 };
 export type VideoRebuild = {
   active: boolean; log: string;
-  iniziata: number | null; finita: number | null; output: number | null;
+  startedAt: number | null; finishedAt: number | null; output: number | null;
 };
 
 /** A generation on the 3090. How long it takes depends on the parameters, not

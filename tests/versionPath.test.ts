@@ -109,7 +109,7 @@ describe("instants are written in milliseconds", () => {
   });
 });
 
-describe("il lineage viaggia dal job alla versione", () => {
+describe("the lineage travels from the job to the version", () => {
   // The queue did not write it before: generations made the correct way ended
   // up under "origin not recorded" in the tree, while those launched by hand
   // from a script had the right grouping. The perverse effect is that writing
@@ -186,7 +186,7 @@ describe("the channel is chosen per job, not per process", () => {
     expect(backendDi({ backend: "OpenAI" })).toBe("openai");
   });
 
-  test("enqueueJob conserva il canale scelto", async () => {
+  test("enqueueJob preserves the chosen channel", async () => {
     const { withProject } = await import("../server/project.ts");
     const { initSchema, db } = await import("../server/db.ts");
     const { enqueueJob } = await import("../server/jobs.ts");

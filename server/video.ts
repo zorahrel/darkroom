@@ -47,7 +47,7 @@ export type Shot = {
   /** Measured, from durezza.json: 0 = calmest shot of the set, 1 = hardest. */
   intensity: number | null;
   moto: number | null;
-  dettaglio: number | null;
+  detail: number | null;
   /** Seconds of screen time the current plan gives it. */
   inEdit: number;
   kept: boolean;
@@ -82,8 +82,8 @@ export type Cut = {
   /** The shot's own measured hardness: the other half of the pairing. Seeing
    *  the two side by side is what tells "ugly shot" from "wrong place". */
   shotIntensity: number | null;
-  velocita: number;
-  rovescio: boolean;
+  speed: number;
+  reversed: boolean;
   act: string | null;
   origin: string;
 };
@@ -547,7 +547,7 @@ export function shots(): Shot[] {
    *  not say whether it is one block or three flashes scattered through the
    *  track, and those are two different things to judge: a mediocre shot that
    *  passes three times weighs more than a beautiful one passing once. */
-  const apparizioni: Record<string, { t: number; dur: number; act: string | null }[]> = {};
+  const appearances: Record<string, { t: number; dur: number; act: string | null }[]> = {};
   for (const seg of plan.segments ?? []) {
     const [b0, b1] = seg.bars;
     const dur = t(b1) - t(b0);
@@ -555,7 +555,7 @@ export function shots(): Shot[] {
     if (firstTime[seg.shot] === undefined) firstTime[seg.shot] = t(b0);
     const a = actOf(b0, as);
     if (a && !actOfShot[seg.shot]) actOfShot[seg.shot] = a;
-    (apparizioni[seg.shot] ??= []).push({
+    (appearances[seg.shot] ??= []).push({
       t: Math.round(t(b0) * 10) / 10,
       dur: Math.round(dur * 10) / 10,
       act: a ?? null,
@@ -625,7 +625,7 @@ export function shots(): Shot[] {
         measuredIntensity: m.durezza ?? null,
         manualIntensity: manualIntensity[id] ?? null,
         moto: m.moto ?? null,
-        dettaglio: m.dettaglio ?? null,
+        detail: m.detail ?? null,
         inEdit: Math.round((inEdit[id] ?? 0) * 10) / 10,
         kept: !(id in discarded),
         why: discarded[id] ?? null,
@@ -636,7 +636,7 @@ export function shots(): Shot[] {
         origin: origin(id),
         act: actOfShot[id] ?? null,
         minute: firstTime[id] ?? null,
-        apparizioni: apparizioni[id] ?? [],
+        appearances: appearances[id] ?? [],
         // Discarded by hand and excluded by the planner are two different things:
         // the first is undone from here, the second has a written reason.
         excluded: id in discarded ? null : (esclusi.esclusi?.[id] ?? null),
@@ -670,8 +670,8 @@ export function cuts(): {
       shot: s.shot,
       soundIntensity: s.durezza ?? 0,
       shotIntensity: dz.piani?.[s.shot]?.intensity ?? null,
-      velocita: s.velocita ?? 1,
-      rovescio: !!s.rovescio,
+      speed: s.speed ?? 1,
+      reversed: !!s.reversed,
       act: actOf(s.bars[0], as),
       origin: origin(s.shot),
     };
@@ -800,7 +800,7 @@ export type Gate = {
   rows: GateRow[];
   outcome: "verde" | "rosso" | "sconosciuto";
   failed: string[];
-  quando: number | null;
+  when: number | null;
   /** True while `check.py` is running: the page draws immediately and the bar
    *  arrives afterwards. Measuring it costs a minute and a half of ffmpeg, and
    *  making the page wait for that is the sure way never to look at it again. */
@@ -829,16 +829,16 @@ export function gate(force = false): Gate {
   const check = at("check.py");
   const master = at(VIDEO_MASTER);
   if (!existsSync(check)) {
-    return { rows: [], outcome: "sconosciuto", failed: [], quando: null, computing: false };
+    return { rows: [], outcome: "sconosciuto", failed: [], when: null, computing: false };
   }
   const key = existsSync(master) ? String(statSync(master).mtimeMs) : "senza-video";
   if (!force && gateCache?.key === key) return gateCache.gate;
   if (gateRunning === key) {
-    return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], quando: null }), computing: true };
+    return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], when: null }), computing: true };
   }
   gateRunning = key;
   void measure(key).finally(() => { gateRunning = null; });
-  return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], quando: null }), computing: true };
+  return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], when: null }), computing: true };
 }
 
 /**
@@ -904,7 +904,7 @@ async function measure(key: string): Promise<Gate> {
     const keys = (r2.text.match(/[a-zà-ù]{5,}/gi) ?? []).slice(0, 3);
     r2.ok = !failed.some((f) => keys.some((k) => f.toLowerCase().includes(k.toLowerCase())));
   }
-  const b: Gate = { rows, outcome, failed, quando: Date.now(), computing: false };
+  const b: Gate = { rows, outcome, failed, when: Date.now(), computing: false };
   gateCache = { key, gate: b };
   return b;
 }
@@ -912,12 +912,12 @@ async function measure(key: string): Promise<Gate> {
 export type Rebuild = {
   active: boolean;
   log: string;
-  iniziata: number | null;
-  finita: number | null;
+  startedAt: number | null;
+  finishedAt: number | null;
   output: number | null;
 };
 
-let rebuild: Rebuild = { active: false, log: "", iniziata: null, finita: null, output: null };
+let rebuild: Rebuild = { active: false, log: "", startedAt: null, finishedAt: null, output: null };
 
 export const rebuildState = () => rebuild;
 
@@ -927,7 +927,7 @@ export function startRebuild(): { ok: boolean; error?: string } {
   if (rebuild.active) return { ok: false, error: "una ricostruzione e' gia' in corso" };
   const sh = at("master.sh");
   if (!existsSync(sh)) return { ok: false, error: "master.sh non trovato nel progetto" };
-  rebuild = { active: true, log: "", iniziata: Date.now(), finita: null, output: null };
+  rebuild = { active: true, log: "", startedAt: Date.now(), finishedAt: null, output: null };
   const proc = Bun.spawn([sh], { cwd: videoRoot(), stdout: "pipe", stderr: "pipe" });
 
   const bevi = async (stream: ReadableStream<Uint8Array> | null) => {
@@ -940,7 +940,7 @@ export function startRebuild(): { ok: boolean; error?: string } {
   void Promise.all([bevi(proc.stdout as any), bevi(proc.stderr as any)]);
   void proc.exited.then((code) => {
     rebuild.active = false;
-    rebuild.finita = Date.now();
+    rebuild.finishedAt = Date.now();
     rebuild.output = code;
     gateCache = null;            // the video changed: the bar has to be redone
   });

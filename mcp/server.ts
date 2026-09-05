@@ -522,7 +522,7 @@ export const tools: Tool[] = [
     },
     handler: async (a) => {
       const d = (await call("GET", "/api/video/rebuild", undefined, a.project)) as {
-        active?: boolean; log?: string; output?: number | null; iniziata?: number | null;
+        active?: boolean; log?: string; output?: number | null; startedAt?: number | null;
       };
       const rows = typeof a.rows === "number" ? a.rows : 20;
       const log = (d.log ?? "").replace(/\r/g, "");
@@ -538,9 +538,9 @@ export const tools: Tool[] = [
         active: d.active,
         output: d.output ?? null,
         progress: attese ? `${done}/${attese} riprese montate` : null,
-        minuti: d.iniziata ? +((Date.now() - d.iniziata) / 60000).toFixed(1) : null,
+        minuti: d.startedAt ? +((Date.now() - d.startedAt) / 60000).toFixed(1) : null,
         log: rows > 0 ? tutte.slice(-rows).join("\n") : log,
-        log_troncato: rows > 0 && tutte.length > rows ? `${tutte.length - rows} righe prima` : null,
+        log_truncated: rows > 0 && tutte.length > rows ? `${tutte.length - rows} righe prima` : null,
       };
     },
   },

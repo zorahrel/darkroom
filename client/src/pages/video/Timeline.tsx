@@ -206,7 +206,7 @@ export default function Timeline(p: Props) {
    * is undone with ⌘Z. The plan stays derived: what changes is written down,
    * not hidden.
    */
-  const [trascino, setTrascino] = useState<
+  const [drag, setDrag] = useState<
     { kind: "move"; da: number; a: number | null } |
     { kind: "stretch"; i: number; bars: number } | null
   >(null);
@@ -236,17 +236,17 @@ export default function Timeline(p: Props) {
     // A threshold, because a pressing finger is never still: without it a
     // click that slipped by one pixel became a swap, and the cut changed
     // because of a tremor. Under six pixels it stays a click.
-    const SOGLIA = 6;
+    const THRESHOLD = 6;
     let mosso = false;
     const move = (ev: PointerEvent) => {
-      if (!mosso && Math.abs(ev.clientX - x0) < SOGLIA) return;
+      if (!mosso && Math.abs(ev.clientX - x0) < THRESHOLD) return;
       mosso = true;
-      setTrascino({ kind: "move", da: i, a: which(ev.clientX, box) });
+      setDrag({ kind: "move", da: i, a: which(ev.clientX, box) });
     };
     const su = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
-      setTrascino(null);
+      setDrag(null);
       if (!mosso) { open(i, { estendi: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
       const a = which(ev.clientX, box);
       if (a === null || a === i) return;
@@ -272,12 +272,12 @@ export default function Timeline(p: Props) {
       // Half a beat is the plan's step: between one and the next there is
       // nothing the cut can represent.
       const b = Math.max(0.5, Math.min(4, Math.round((b0 + db) * 2) / 2));
-      setTrascino({ kind: "stretch", i, bars: b });
+      setDrag({ kind: "stretch", i, bars: b });
     };
     const su = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
-      setTrascino((t2) => {
+      setDrag((t2) => {
         if (mosso && t2?.kind === "stretch" && t2.bars !== b0) onDuration(c.bar, t2.bars);
         return null;
       });
@@ -329,13 +329,13 @@ export default function Timeline(p: Props) {
                     onClick={() => p.setInOut(null)}>×</button>
           </>
         )}
-        {trascino?.kind === "move" && trascino.a !== null && trascino.a !== trascino.da && (
+        {drag?.kind === "move" && drag.a !== null && drag.a !== drag.da && (
           <span className="text-sky-300">
-            {cuts[trascino.da]?.shot} ⇄ {cuts[trascino.a]?.shot}
+            {cuts[drag.da]?.shot} ⇄ {cuts[drag.a]?.shot}
           </span>
         )}
-        {trascino?.kind === "stretch" && (
-          <span className="text-sky-300">{cuts[trascino.i]?.shot}: {trascino.bars} battute</span>
+        {drag?.kind === "stretch" && (
+          <span className="text-sky-300">{cuts[drag.i]?.shot}: {drag.bars} battute</span>
         )}
         <span className="ml-auto text-neutral-400 tabular-nums">
           <span className="text-neutral-100">{timecode(above ?? t)}</span>
@@ -368,7 +368,7 @@ export default function Timeline(p: Props) {
                      left: `${(c.t / duration) * 100}%`,
                      width: `${Math.max(0.12, (c.dur / duration) * 100)}%`,
                      height: `${25 + c.soundIntensity * 75}%`,
-                     background: selection.has(i) ? "#e8974a" : c.rovescio ? "#8a5a3a" : "#3f6076",
+                     background: selection.has(i) ? "#e8974a" : c.reversed ? "#8a5a3a" : "#3f6076",
                    }} />
             ))}
             {markers.map((m) => (
@@ -492,25 +492,25 @@ export default function Timeline(p: Props) {
                    if (shot && i !== null) onPose(i, shot);
                  }}>
               {cuts.map((c, i) => {
-                const sposto = trascino?.kind === "move" && trascino.da === i;
-                const bersaglio = trascino?.kind === "move" && trascino.a === i && trascino.da !== i;
-                const wide = trascino?.kind === "stretch" && trascino.i === i
-                  ? Math.max(1, x(c.dur * (trascino.bars / Math.max(0.5, barsOf(i)))))
+                const sposto = drag?.kind === "move" && drag.da === i;
+                const target = drag?.kind === "move" && drag.a === i && drag.da !== i;
+                const wide = drag?.kind === "stretch" && drag.i === i
+                  ? Math.max(1, x(c.dur * (drag.bars / Math.max(0.5, barsOf(i)))))
                   : Math.max(1, x(c.dur));
                 return (
                   <div key={i}
                        onPointerDown={startDrag(i)}
-                       title={`${c.shot} · ${mmss(c.t)} · ${c.dur.toFixed(2)}s · ${c.velocita.toFixed(2)}x
+                       title={`${c.shot} · ${mmss(c.t)} · ${c.dur.toFixed(2)}s · ${c.speed.toFixed(2)}x
 trascina per scambiarlo · tira il bordo destro per la durata`}
                        className={`absolute bottom-0 border-r border-black/60 cursor-grab active:cursor-grabbing
                                    ${sposto ? "opacity-40" : "hover:brightness-150"}
-                                   ${bersaglio ? "outline outline-2 -outline-offset-2 outline-sky-400 z-20" : ""}
-                                   ${picked === i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}
-                                   ${selection.has(i) && picked !== i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10" : ""}`}
+                                   ${target ? "outline outline-2 -outline-offset-2 outline-sky-400 z-20" : ""}
+                                   ${picked === i && !target ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}
+                                   ${selection.has(i) && picked !== i && !target ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10" : ""}`}
                        style={{
                          left: x(c.t), width: wide,
                          height: `${18 + c.soundIntensity * 82}%`,
-                         background: c.rovescio ? "#8a5a3a" : "#3f6076",
+                         background: c.reversed ? "#8a5a3a" : "#3f6076",
                        }}>
                     {/* The duration handle. Six pixels wide: narrower and it cannot
                         be grabbed, wider and it steals clicks from the
@@ -590,21 +590,21 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                 A block being lengthened stops on the nearest half bar: if the
                 landing point is invisible, you pull blind and only find out
                 where it went by letting go. */}
-            {trascino?.kind === "stretch" && cuts[trascino.i] && (
+            {drag?.kind === "stretch" && cuts[drag.i] && (
               <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
                    style={{
-                     left: x(cuts[trascino.i]!.t)
-                       + x(cuts[trascino.i]!.dur * (trascino.bars / Math.max(0.5, barsOf(trascino.i)))),
+                     left: x(cuts[drag.i]!.t)
+                       + x(cuts[drag.i]!.dur * (drag.bars / Math.max(0.5, barsOf(drag.i)))),
                    }}>
                 <div className="absolute top-0 left-1 text-[9px] text-sky-200 bg-sky-950/90 px-1 rounded-sm leading-4
                                 whitespace-nowrap">
-                  {trascino.bars} {trascino.bars === 1 ? "battuta" : "battute"}
+                  {drag.bars} {drag.bars === 1 ? "battuta" : "battute"}
                 </div>
               </div>
             )}
-            {trascino?.kind === "move" && trascino.a !== null && cuts[trascino.a] && (
+            {drag?.kind === "move" && drag.a !== null && cuts[drag.a] && (
               <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
-                   style={{ left: x(cuts[trascino.a]!.t) }} />
+                   style={{ left: x(cuts[drag.a]!.t) }} />
             )}
 
             {/* dove passa il dito, prima di premere */}

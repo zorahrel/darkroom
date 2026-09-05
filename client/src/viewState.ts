@@ -26,7 +26,7 @@ import { useSearchParams } from "react-router-dom";
  * default values out of the URL.
  */
 const held = new Map<string, string | null>();
-let flushProgrammato = false;
+let flushScheduled = false;
 
 function enqueue(
   key: string,
@@ -34,12 +34,12 @@ function enqueue(
   applica: (fn: (prev: URLSearchParams) => URLSearchParams, opt: { replace: boolean }) => void,
 ) {
   held.set(key, value);
-  if (flushProgrammato) return;
-  flushProgrammato = true;
+  if (flushScheduled) return;
+  flushScheduled = true;
   // A microtask, not a timer: it applies at the end of this render pass,
   // before the browser paints, so the URL does not "flash".
   queueMicrotask(() => {
-    flushProgrammato = false;
+    flushScheduled = false;
     if (held.size === 0) return;
     const edits = [...held.entries()];
     held.clear();

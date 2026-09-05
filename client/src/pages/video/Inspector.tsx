@@ -23,12 +23,12 @@ type Props = {
   candidati: VideoShot[];
   close: () => void;
   /** Called after every forcing, so the list on the page stays true. */
-  onForzato: () => void;
+  onForced: () => void;
 };
 
 type Done = { text: string; undo: () => Promise<unknown> };
 
-export default function Ispettore({ sel, shots, candidati, close, onForzato }: Props) {
+export default function Inspector({ sel, shots, candidati, close, onForced }: Props) {
   const [done, setDone] = useState<Done | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The candidate being looked at. Choosing it changes nothing: only the
@@ -43,16 +43,16 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
   /** Ordered the way the plan ordered them: by the distance between the
    *  image's hardness and the sound's on this bar. */
   const sorted = useMemo(() => {
-    const bersaglio = sel.soundIntensity;
+    const target = sel.soundIntensity;
     return [...candidati]
-      .map((s) => ({ s, d: Math.abs((s.intensity ?? 0.5) - bersaglio) }))
+      .map((s) => ({ s, d: Math.abs((s.intensity ?? 0.5) - target) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 24);
   }, [candidati, sel.soundIntensity]);
 
-  const agisci = async (text: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>) => {
+  const act = async (text: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>) => {
     setError(null);
-    try { await fa(); setDone({ text, undo }); onForzato(); }
+    try { await fa(); setDone({ text, undo }); onForced(); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -65,8 +65,8 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
         <button onClick={close} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-300">chiudi</button>
       </div>
       <div className="mt-0.5 text-[10px] text-neutral-400 tabular-nums leading-relaxed">
-        batt {sel.bar} · {mmss(sel.t)} · {sel.dur.toFixed(2)}s · {sel.velocita.toFixed(2)}x
-        {sel.rovescio ? " · rovescio" : ""}<br />
+        batt {sel.bar} · {mmss(sel.t)} · {sel.dur.toFixed(2)}s · {sel.speed.toFixed(2)}x
+        {sel.reversed ? " · rovescio" : ""}<br />
         presa {sel.origin}{sel.act ? ` · atto ${sel.act}` : ""}
       </div>
 
@@ -142,7 +142,7 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
               <span className="text-neutral-100">{trying.id}</span><br />
               durezza {(trying.intensity ?? 0).toFixed(2)} · il suono qui chiede {sel.soundIntensity.toFixed(2)}
               <button
-                onClick={() => agisci(
+                onClick={() => act(
                   `battuta ${sel.bar}: ${trying.id} al posto di ${sel.shot}`,
                   () => api.videoPin(sel.bar, trying.id),
                   () => api.videoPin(sel.bar, null),
@@ -164,7 +164,7 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
         <span className="text-neutral-400">durata</span>
         {[0.5, 1, 1.5, 2].map((b) => (
           <button key={b}
-            onClick={() => agisci(
+            onClick={() => act(
               `battuta ${sel.bar}: ${b} battute — ricostruisci per vederlo`,
               () => api.videoDuration(sel.bar, b),
               () => api.videoDuration(sel.bar, null),
@@ -174,12 +174,12 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
           </button>
         ))}
         <button
-          onClick={() => agisci("durata riportata a quella derivata", () => api.videoDuration(sel.bar, null), async () => {})}
+          onClick={() => act("durata riportata a quella derivata", () => api.videoDuration(sel.bar, null), async () => {})}
           className="px-1.5 py-0.5 rounded-sm border border-neutral-800 text-neutral-400">auto</button>
       </div>
 
       <button
-        onClick={() => agisci(
+        onClick={() => act(
           `${sel.shot} fuori dal montaggio — ricostruisci per vederlo`,
           () => api.videoPick(sel.shot, false, "tolto dalla timeline"),
           () => api.videoPick(sel.shot, true),

@@ -61,10 +61,10 @@ describe("the tool catalogue does not promise things that are not there", () => 
 
   test("areas, ids and starts are well formed", () => {
     const areas = new Set(AREAS.map((a) => a.id));
-    const visti = new Set<string>();
+    const seen = new Set<string>();
     for (const s of TOOLS) {
-      expect(visti.has(s.id), `id doppio: ${s.id}`).toBe(false);
-      visti.add(s.id);
+      expect(seen.has(s.id), `id doppio: ${s.id}`).toBe(false);
+      seen.add(s.id);
       expect(areas.has(s.area), `area sconosciuta in ${s.id}: ${s.area}`).toBe(true);
       expect(s.what.length, `${s.id} non dice cosa fa`).toBeGreaterThan(20);
       for (const a of s.starters) {
@@ -182,7 +182,7 @@ describe("POST /api/tools/:id/start", () => {
   });
 });
 
-test("strumento() trova per id", () => {
+test("tool() finds by id", () => {
   expect(tool("color")?.name).toBe("Sviluppo colore");
   expect(tool("boh")).toBeUndefined();
 });

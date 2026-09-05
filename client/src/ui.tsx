@@ -256,7 +256,7 @@ export function Choose<T extends string>({
   size?: Size;
 }) {
   const [open, setOpen] = useState(false);
-  const [evidenziato, setEvidenziato] = useState(0);
+  const [highlighted, setHighlighted] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
   const pick = items.find((x) => x.v === value);
@@ -264,7 +264,7 @@ export function Choose<T extends string>({
 
   useEffect(() => {
     if (!open) return;
-    setEvidenziato(Math.max(0, items.findIndex((x) => x.v === value)));
+    setHighlighted(Math.max(0, items.findIndex((x) => x.v === value)));
     const outside = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -279,13 +279,13 @@ export function Choose<T extends string>({
     }
     e.stopPropagation();
     if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); setEvidenziato((i) => Math.min(items.length - 1, i + 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setEvidenziato((i) => Math.max(0, i - 1)); }
-    else if (e.key === "Home") { e.preventDefault(); setEvidenziato(0); }
-    else if (e.key === "End") { e.preventDefault(); setEvidenziato(items.length - 1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setHighlighted((i) => Math.min(items.length - 1, i + 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlighted((i) => Math.max(0, i - 1)); }
+    else if (e.key === "Home") { e.preventDefault(); setHighlighted(0); }
+    else if (e.key === "End") { e.preventDefault(); setHighlighted(items.length - 1); }
     else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      const v = items[evidenziato];
+      const v = items[highlighted];
       if (v) { onChange(v.v); setOpen(false); }
     }
   };
@@ -314,10 +314,10 @@ export function Choose<T extends string>({
               )}
               <button
                 type="button"
-                onPointerEnter={() => setEvidenziato(i)}
+                onPointerEnter={() => setHighlighted(i)}
                 onClick={() => { onChange(x.v); setOpen(false); }}
                 className={`w-full flex items-baseline gap-2 px-1.5 py-1 text-left text-[10.5px]
-                            ${i === evidenziato ? "bg-neutral-800 text-neutral-100" : "text-neutral-300"}`}>
+                            ${i === highlighted ? "bg-neutral-800 text-neutral-100" : "text-neutral-300"}`}>
                 <span className="truncate flex-1">{x.text}</span>
                 {x.note && <span className="text-neutral-400 tabular-nums shrink-0">{x.note}</span>}
                 {x.v === value && <span className="text-emerald-400 shrink-0">✓</span>}
@@ -333,12 +333,12 @@ export function Choose<T extends string>({
 /** A text field without the system's shell. `onEnter`/`onEsc` are the two
  *  keys that matter in an editor. */
 export function Field({
-  value, onChange, placeholder, onInvio, onEsc, autoFocus, size = "s", className = "",
+  value, onChange, placeholder, onEnter, onEsc, autoFocus, size = "s", className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  onInvio?: () => void;
+  onEnter?: () => void;
   onEsc?: () => void;
   autoFocus?: boolean;
   size?: Size;
@@ -355,7 +355,7 @@ export function Field({
         // The page listens for single letters (space, m, z…): while typing, those
         // are text, not commands.
         e.stopPropagation();
-        if (e.key === "Enter") onInvio?.();
+        if (e.key === "Enter") onEnter?.();
         if (e.key === "Escape") onEsc?.();
       }}
       className={`appearance-none bg-neutral-950 border border-neutral-700 rounded-sm
@@ -367,14 +367,14 @@ export function Field({
 
 /** A text area, same treatment as the field. */
 export function Area({
-  value, onChange, placeholder, onEsc, onInvia, autoFocus, className = "",
+  value, onChange, placeholder, onEsc, onSubmit, autoFocus, className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   onEsc?: () => void;
   /** ⌘enter: a newline has to be possible, so plain enter is not it. */
-  onInvia?: () => void;
+  onSubmit?: () => void;
   autoFocus?: boolean;
   className?: string;
 }) {
@@ -387,7 +387,7 @@ export function Area({
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === "Escape") onEsc?.();
-        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onInvia?.();
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSubmit?.();
       }}
       className={`appearance-none w-full bg-neutral-950 border border-neutral-700 rounded-sm p-2
                   text-neutral-100 placeholder:text-neutral-400 outline-none resize-none
@@ -404,26 +404,26 @@ export function NumberField({
   value: number; onChange: (v: number) => void;
   min?: number; max?: number; step?: number; width?: number; title?: string;
 }) {
-  const limita = (v: number) => Math.max(min, Math.min(max, v));
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
   return (
     <div className="flex items-center rounded-sm border border-neutral-700 bg-neutral-950"
          style={{ width: width }} title={title}>
       <input
         value={value}
         onChange={(e) => { const n = Number(e.target.value.replace(/[^0-9.]/g, "")); if (Number.isFinite(n)) onChange(n); }}
-        onBlur={() => onChange(limita(value))}
+        onBlur={() => onChange(clamp(value))}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "ArrowUp") { e.preventDefault(); onChange(limita(value + step)); }
-          if (e.key === "ArrowDown") { e.preventDefault(); onChange(limita(value - step)); }
+          if (e.key === "ArrowUp") { e.preventDefault(); onChange(clamp(value + step)); }
+          if (e.key === "ArrowDown") { e.preventDefault(); onChange(clamp(value - step)); }
         }}
         className="appearance-none w-full bg-transparent px-1.5 py-0.5 text-[10.5px] text-neutral-100
                    tabular-nums outline-none"
       />
       <div className="flex flex-col border-l border-neutral-800">
-        <button type="button" onClick={() => onChange(limita(value + step))}
+        <button type="button" onClick={() => onChange(clamp(value + step))}
                 className="px-1 text-[7px] leading-[9px] text-neutral-400 hover:text-neutral-100">▲</button>
-        <button type="button" onClick={() => onChange(limita(value - step))}
+        <button type="button" onClick={() => onChange(clamp(value - step))}
                 className="px-1 text-[7px] leading-[9px] text-neutral-400 hover:text-neutral-100">▼</button>
       </div>
     </div>
@@ -439,32 +439,32 @@ export function NumberField({
  * looks like the rest.
  */
 export function Checkbox({
-  segnata, onChange, children, title, disabilitata,
+  checked, onChange, children, title, disabled,
 }: {
-  segnata: boolean;
+  checked: boolean;
   onChange: (v: boolean) => void;
   children?: React.ReactNode;
   title?: string;
-  disabilitata?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
-      type="button" role="checkbox" aria-checked={segnata} title={title} disabled={disabilitata}
-      onClick={() => onChange(!segnata)}
+      type="button" role="checkbox" aria-checked={checked} title={title} disabled={disabled}
+      onClick={() => onChange(!checked)}
       className={`inline-flex items-center gap-1.5 text-left text-[11px] group
                   focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2
                   focus-visible:outline-neutral-300 rounded-sm
-                  ${disabilitata ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
       <span className={`w-3.5 h-3.5 shrink-0 rounded-sm border grid place-items-center transition-colors ${
-        segnata ? "bg-neutral-100 border-neutral-100" : "border-neutral-600 group-hover:border-neutral-400"}`}>
-        {segnata && (
+        checked ? "bg-neutral-100 border-neutral-100" : "border-neutral-600 group-hover:border-neutral-400"}`}>
+        {checked && (
           <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 text-neutral-900" aria-hidden>
             <path d="M1 5.2 L3.8 8 L9 2" fill="none" stroke="currentColor" strokeWidth="1.8"
                   strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
       </span>
-      {children && <span className={segnata ? "text-neutral-200" : "text-neutral-400"}>{children}</span>}
+      {children && <span className={checked ? "text-neutral-200" : "text-neutral-400"}>{children}</span>}
     </button>
   );
 }
@@ -504,11 +504,11 @@ export function Altro({
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("pointerdown", outside); window.removeEventListener("keydown", esc); };
   }, [open]);
-  const visibilita = !discreto || open
+  const visibility = !discreto || open
     ? "opacity-100"
     : "opacity-0 group-hover:opacity-100 focus-within:opacity-100";
   return (
-    <div ref={box} className={`relative ${open ? "z-40" : "z-20"} transition-opacity ${visibilita} ${className}`}>
+    <div ref={box} className={`relative ${open ? "z-40" : "z-20"} transition-opacity ${visibility} ${className}`}>
       <button type="button" title={title} aria-haspopup="menu" aria-expanded={open}
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((a) => !a); }}
               className={`px-1 py-0.5 rounded-sm leading-none transition-colors

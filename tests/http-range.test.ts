@@ -62,7 +62,7 @@ describe("serveFile and byte ranges", () => {
 });
 
 describe("the types that decide whether a thing is displayed or downloaded", () => {
-  test("i video hanno il loro tipo", () => {
+  test("videos get their own type", () => {
     expect(guessMime("/a/b.mp4")).toBe("video/mp4");
     expect(guessMime("/a/b.webm")).toBe("video/webm");
     expect(guessMime("/a/b.mp3")).toBe("audio/mpeg");

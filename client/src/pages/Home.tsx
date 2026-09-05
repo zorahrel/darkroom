@@ -387,24 +387,24 @@ function Open({
   const fits = (p: StudioProject) => tool.views.length === 0 || p.views.includes(start.view);
   const onPicked = !!project && fits(project);
   const fallback = onPicked ? null : projects.find(fits) ?? null;
-  const bersaglio = onPicked ? project : fallback;
+  const target = onPicked ? project : fallback;
 
   return (
     <Bott
       size="m"
-      disabled={!bersaglio}
+      disabled={!target}
       title={
-        bersaglio
+        target
           ? onPicked
-            ? `Apre «${bersaglio.name}»`
-            : `«${project?.name ?? "il progetto scelto"}» non ha la vista «${start.view}»: questo apre «${bersaglio.name}», che ce l'ha.`
+            ? `Apre «${target.name}»`
+            : `«${project?.name ?? "il progetto scelto"}» non ha la vista «${start.view}»: questo apre «${target.name}», che ce l'ha.`
           : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
       }
-      onClick={() => bersaglio && onVai(start.route.replace(":pid", encodeURIComponent(bersaglio.id)))}
+      onClick={() => target && onVai(start.route.replace(":pid", encodeURIComponent(target.id)))}
     >
       {start.label}
-      {bersaglio && !onPicked && (
-        <span className="ml-1 text-neutral-400">in {bersaglio.name}</span>
+      {target && !onPicked && (
+        <span className="ml-1 text-neutral-400">in {target.name}</span>
       )}
     </Bott>
   );
@@ -486,7 +486,7 @@ function Form({
           field={c}
           value={values[c.name] ?? ""}
           onChange={(v) => setValues((x) => ({ ...x, [c.name]: v }))}
-          onInvia={() => { if (!missing) void vai(); }}
+          onSubmit={() => { if (!missing) void vai(); }}
         />
       ))}
 
@@ -509,12 +509,12 @@ function Form({
 }
 
 function StartField({
-  field, value, onChange, onInvia,
+  field, value, onChange, onSubmit,
 }: {
   field: StartField;
   value: string | number;
   onChange: (v: string | number) => void;
-  onInvia: () => void;
+  onSubmit: () => void;
 }) {
   return (
     <label className="block space-y-1">
@@ -527,7 +527,7 @@ function StartField({
           value={String(value)}
           onChange={onChange}
           placeholder={field.placeholder}
-          onInvia={onInvia}
+          onSubmit={onSubmit}
           className="text-[12px] h-20"
         />
       ) : field.kind === "number" ? (
@@ -537,7 +537,7 @@ function StartField({
           value={String(value)}
           onChange={onChange}
           placeholder={field.placeholder}
-          onInvio={onInvia}
+          onEnter={onSubmit}
           size="m"
           className={"w-full " + (field.kind === "folder" ? "font-mono" : "")}
         />

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   cutIndex, laneHeights, tickStep,
-  H_RULER, H_ACTS, MIN_SUONO, MIN_TAGLI, MIN_QUADRI,
+  H_RULER, H_ACTS, MIN_SUONO, MIN_CUTS, MIN_QUADRI,
   timecode, shuttle,
 } from "../client/src/pages/video/time.ts";
 
@@ -37,19 +37,19 @@ describe("which cut is under the playhead", () => {
   test("it agrees with the linear search over the whole duration", () => {
     // 64 tagli come il montaggio vero, a passo irregolare come i beat.
     const molti = Array.from({ length: 64 }, (_, i) => ({ t: i * 2.1 + (i % 3) * 0.31 }));
-    const lineare = (t: number) => {
+    const linear = (t: number) => {
       let r = 0;
       for (let i = 0; i < molti.length; i++) if ((molti[i]?.t ?? 0) <= t) r = i;
       return r;
     };
-    for (let t = 0; t < 150; t += 0.37) expect(cutIndex(molti, t)).toBe(lineare(t));
+    for (let t = 0; t < 150; t += 0.37) expect(cutIndex(molti, t)).toBe(linear(t));
   });
 });
 
 describe("the lanes share out the space", () => {
   test("below the minimum they stay at their minimums, and the sum overflows: the timeline scrolls", () => {
     const c = laneHeights(80);
-    expect(c).toEqual({ suono: MIN_SUONO, cuts: MIN_TAGLI, quadri: MIN_QUADRI });
+    expect(c).toEqual({ suono: MIN_SUONO, cuts: MIN_CUTS, quadri: MIN_QUADRI });
     expect(c.suono + c.cuts + c.quadri).toBeGreaterThan(80 - H_RULER - H_ACTS);
   });
 
@@ -72,7 +72,7 @@ describe("the lanes share out the space", () => {
     for (const h of [0, 60, 130, 200, 900]) {
       const c = laneHeights(h);
       expect(c.suono).toBeGreaterThanOrEqual(MIN_SUONO);
-      expect(c.cuts).toBeGreaterThanOrEqual(MIN_TAGLI);
+      expect(c.cuts).toBeGreaterThanOrEqual(MIN_CUTS);
       expect(c.quadri).toBeGreaterThanOrEqual(MIN_QUADRI);
     }
   });
@@ -123,23 +123,23 @@ describe("time written as in an edit", () => {
   });
 });
 
-describe("la navetta J K L", () => {
+describe("the J K L shuttle", () => {
   test("K always stops", () => {
     for (const v of [-8, -1, 0, 1, 4]) expect(shuttle(v, "k")).toBe(0);
   });
 
   test("L accelerates 1, 2, 4, 8 and stops there", () => {
     let v = 0;
-    const visti: number[] = [];
-    for (let i = 0; i < 5; i++) { v = shuttle(v, "l"); visti.push(v); }
-    expect(visti).toEqual([1, 2, 4, 8, 8]);
+    const seen: number[] = [];
+    for (let i = 0; i < 5; i++) { v = shuttle(v, "l"); seen.push(v); }
+    expect(seen).toEqual([1, 2, 4, 8, 8]);
   });
 
   test("J is the mirror of L", () => {
     let v = 0;
-    const visti: number[] = [];
-    for (let i = 0; i < 5; i++) { v = shuttle(v, "j"); visti.push(v); }
-    expect(visti).toEqual([-1, -2, -4, -8, -8]);
+    const seen: number[] = [];
+    for (let i = 0; i < 5; i++) { v = shuttle(v, "j"); seen.push(v); }
+    expect(seen).toEqual([-1, -2, -4, -8, -8]);
   });
 
   test("changing direction restarts from 1x, not from the previous speed", () => {

@@ -38,7 +38,7 @@ beforeAll(() => mkdirSync(outDir, { recursive: true }));
 
 describe.skipIf(!live)("openai backend: the full round trip produces a real file", () => {
   test(
-    "generate scrive un PNG leggibile sul disco",
+    "generate writes a readable PNG to disk",
     async () => {
       const { runWorkerOpenAiGenerate } = await import("../server/worker-openai.ts");
       const out = join(outDir, "gen.png");

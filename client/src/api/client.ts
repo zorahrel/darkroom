@@ -486,10 +486,13 @@ export const api = {
     }),
   videoGate: (force = false) =>
     jsonFetch<VideoGate>(`/api/video/gate${force ? "?force=1" : ""}`),
-  videoRicostruisci: () =>
+  /** Starts the rebuild (POST). Distinct from reading its state: the two were
+   *  `videoRicostruisci` and `videoRebuild`, and one English name for both
+   *  would silently collapse "start it" into "ask how it is going". */
+  videoRebuildStart: () =>
     jsonFetch<{ ok: true }>("/api/video/rebuild", { method: "POST" }),
-  videoRebuild: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
-  videoGenerazioni: () =>
+  videoRebuildStatus: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
+  videoGenerations: () =>
     jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generations"),
   videoGenerate: (shot: string, prompt: string, take: string, params: Record<string, number | string>) =>
     jsonFetch<{ job: VideoJob }>("/api/video/generate", {

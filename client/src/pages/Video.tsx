@@ -8,7 +8,7 @@ import {
 } from "../api";
 import type { OutletCtx } from "../App";
 import Timeline from "./video/Timeline";
-import Ispettore from "./video/Inspector";
+import Inspector from "./video/Inspector";
 import Library from "./video/Library";
 import Handle from "./video/Handle";
 import { Bott, Field, Choose } from "./video/ui";
@@ -38,9 +38,9 @@ const KEY_HEIGHT = "darkroom.video.altezzaTimeline";
 const KEY_LEFT = "darkroom.video.larghezzaLibreria";
 const KEY_RIGHT = "darkroom.video.larghezzaIspettore";
 
-function read(key: string, difetto: number, min: number): number {
+function read(key: string, defect: number, min: number): number {
   const v = Number(localStorage.getItem(key));
-  return Number.isFinite(v) && v >= min ? v : difetto;
+  return Number.isFinite(v) && v >= min ? v : defect;
 }
 
 /**
@@ -75,7 +75,7 @@ function State({ gate, master, onRedo }: { gate: VideoGate | null; master: strin
   const cadute = gate?.failed.length ?? 0;
   const outcome = gate?.outcome ?? "sconosciuto";
 
-  const [text, color, pallino] =
+  const [text, color, dot] =
     gate?.computing ? ["controllo il video…", "text-neutral-400", "bg-neutral-500 animate-pulse"]
     : outcome === "verde" ? [`il video passa tutti i ${rows.length} controlli`, "text-emerald-300", "bg-emerald-500"]
     : outcome === "rosso" ? [`${cadute} ${cadute === 1 ? "controllo non passa" : "controlli non passano"}`, "text-rose-300", "bg-rose-500"]
@@ -86,7 +86,7 @@ function State({ gate, master, onRedo }: { gate: VideoGate | null; master: strin
       <button onClick={() => setAperta((a) => !a)}
               title="cosa è stato verificato sul video costruito"
               className={`flex items-center gap-1.5 text-[10.5px] ${color} hover:brightness-125`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${pallino}`} />
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
         {text}
         <span className="text-neutral-400">{aperta ? "▴" : "▾"}</span>
       </button>
@@ -204,7 +204,7 @@ export default function Video() {
   const [gira, setGira] = useState(false);
   const [ciclo, setCiclo] = useState(false);
   const [appunto, setAppunto] = useState<{ t: number; text: string } | null>(null);
-  const [aiuto, setAiuto] = useState(false);
+  const [help, setHelp] = useState(false);
   const [vediForz, setVediForz] = useState(false);
   const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
   /** The shuttle's speed: 0 stopped, negative backwards. Backwards the browser
@@ -222,7 +222,7 @@ export default function Video() {
 
   // ---- shell measurements --------------------------------------------------
   const shell = useRef<HTMLDivElement>(null);
-  const [shellHeight, setHGuscio] = useState(700);
+  const [shellHeight, setShellHeight] = useState(700);
   const [hTimeline, setHTimeline] = useState(() => read(KEY_HEIGHT, 300, 140));
   const [wSx, setWSx] = useState(() => read(KEY_LEFT, 218, 150));
   const [wDx, setWDx] = useState(() => read(KEY_RIGHT, 336, 220));
@@ -241,7 +241,7 @@ export default function Video() {
       // exactly what this shell exists to prevent.
       const parent = el.parentElement;
       const below = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
-      setHGuscio(Math.max(360, window.innerHeight - top - below));
+      setShellHeight(Math.max(360, window.innerHeight - top - below));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -346,7 +346,7 @@ export default function Video() {
     if (!ric?.active) return;
     const h = setInterval(async () => {
       try {
-        const r = await api.videoRebuild();
+        const r = await api.videoRebuildStatus();
         setRic(r);
         if (!r.active) { ricarica(); api.videoGate(true).then(setGate).catch(() => {}); }
       } catch { /* nothing */ }
@@ -597,7 +597,7 @@ export default function Video() {
       else if (k === "o") { e.preventDefault(); setInOut([inOut?.[0] ?? 0, t]); }
       else if (k === "r") { e.preventDefault(); setCiclo((c) => !c); }
       else if (k === "m") { e.preventDefault(); v.pause(); setAppunto({ t: v.currentTime, text: "" }); }
-      else if (k === "?") { e.preventDefault(); setAiuto((a) => !a); }
+      else if (k === "?") { e.preventDefault(); setHelp((a) => !a); }
       else if (k === "z") { e.preventDefault(); void cancel(); }
       else if (k === "Z") { e.preventDefault(); void redoLast(); }
       else if (k === "F") {
@@ -617,14 +617,14 @@ export default function Video() {
       }
       else if (k === "j" || k === "l") { e.preventDefault(); setSpola((v2) => shuttle(v2, k)); }
       else if (k === "k") { e.preventDefault(); setSpola(0); v.pause(); }
-      else if (k === "Escape") { setPicked(null); setSelection(new Set()); setAiuto(false); setAppunto(null); }
+      else if (k === "Escape") { setPicked(null); setSelection(new Set()); setHelp(false); setAppunto(null); }
     };
     window.addEventListener("keydown", su);
     return () => window.removeEventListener("keydown", su);
   }, [cuts, t, duration, vaiA, inOut, openCut, cancel, redoLast, tratto, active, selection, discardSelection]);
 
   const launch = async () => {
-    try { await api.videoRicostruisci(); setRic(await api.videoRebuild()); }
+    try { await api.videoRebuildStart(); setRic(await api.videoRebuildStatus()); }
     catch (e) { alert(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -676,7 +676,7 @@ export default function Video() {
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => setAiuto((a) => !a)} className="text-[10.5px] text-neutral-400 hover:text-neutral-200">tasti ?</button>
+          <button onClick={() => setHelp((a) => !a)} className="text-[10.5px] text-neutral-400 hover:text-neutral-200">tasti ?</button>
           <button onClick={launch} disabled={!!ric?.active}
                   className={`text-[10.5px] px-2 py-0.5 rounded-sm border ${
                     ric?.active ? "border-neutral-800 text-neutral-400" : "border-neutral-600 text-neutral-200 hover:bg-neutral-900"}`}>
@@ -716,8 +716,8 @@ export default function Video() {
           <Transport v={vEl} t={t} duration={duration} cuts={cuts} vaiA={vaiA} />
           {active && (
             <div className="text-[10px] text-neutral-400 tabular-nums">
-              {active.shot} · {active.dur.toFixed(2)}s · {active.velocita.toFixed(2)}x
-              {active.rovescio ? " · rovescio" : ""}{active.act ? ` · ${active.act}` : ""}
+              {active.shot} · {active.dur.toFixed(2)}s · {active.speed.toFixed(2)}x
+              {active.reversed ? " · rovescio" : ""}{active.act ? ` · ${active.act}` : ""}
             </div>
           )}
 
@@ -730,7 +730,7 @@ export default function Video() {
                 autoFocus value={appunto.text}
                 onChange={(v) => setAppunto({ ...appunto, text: v })}
                 onEsc={() => setAppunto(null)}
-                onInvio={async () => {
+                onEnter={async () => {
                   if (!appunto.text.trim()) return;
                   const r = await api.videoMarker(appunto.t, appunto.text.trim()).catch(() => null);
                   if (r) setMarkers(r.markers);
@@ -796,8 +796,8 @@ export default function Video() {
               </div>
             </div>
           ) : sel ? (
-            <Ispettore sel={sel} shots={shots} candidati={candidati} close={() => setPicked(null)}
-                       onForzato={readOverrides} />
+            <Inspector sel={sel} shots={shots} candidati={candidati} close={() => setPicked(null)}
+                       onForced={readOverrides} />
           ) : (
             <div className="p-2.5 space-y-2.5">
               <div className="text-[11px] text-neutral-400 leading-relaxed">
@@ -821,7 +821,7 @@ export default function Video() {
                   </div>
                 </div>
               )}
-              {ric && (ric.active || ric.finita) && (
+              {ric && (ric.active || ric.finishedAt) && (
                 <div>
                   <div className="text-[10px] text-neutral-400 mb-1">
                     ricostruzione {ric.output !== null && `(uscita ${ric.output})`}
@@ -950,8 +950,8 @@ export default function Video() {
         </div>
       )}
 
-      {aiuto && (
-        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setAiuto(false)}>
+      {help && (
+        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setHelp(false)}>
           <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 max-w-[640px]"
                onClick={(e) => e.stopPropagation()}>
             <div className="text-[12px] text-neutral-300 mb-2">tasti</div>

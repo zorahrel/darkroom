@@ -23,7 +23,7 @@ export function cutIndex(cuts: Pick<VideoCut, "t">[], t: number): number {
 export const H_RULER = 20;
 export const H_ACTS = 16;
 export const MIN_SUONO = 34;
-export const MIN_TAGLI = 44;
+export const MIN_CUTS = 44;
 export const MIN_QUADRI = 40;
 
 export type LaneHeights = { suono: number; cuts: number; quadri: number };
@@ -38,20 +38,20 @@ export type LaneHeights = { suono: number; cuts: number; quadri: number };
  */
 export function laneHeights(height: number): LaneHeights {
   const remains = Math.max(0, height - H_RULER - H_ACTS - 2);
-  const minimums = MIN_SUONO + MIN_TAGLI + MIN_QUADRI;
-  if (remains <= minimums) return { suono: MIN_SUONO, cuts: MIN_TAGLI, quadri: MIN_QUADRI };
+  const minimums = MIN_SUONO + MIN_CUTS + MIN_QUADRI;
+  if (remains <= minimums) return { suono: MIN_SUONO, cuts: MIN_CUTS, quadri: MIN_QUADRI };
   const extra = remains - minimums;
   return {
     suono: Math.round(MIN_SUONO + extra * 0.24),
-    cuts: Math.round(MIN_TAGLI + extra * 0.40),
+    cuts: Math.round(MIN_CUTS + extra * 0.40),
     quadri: Math.round(MIN_QUADRI + extra * 0.36),
   };
 }
 
 /** How often to put a tick so the ruler stays readable: from far away one
  *  every ten seconds, close up one a second. */
-export function tickStep(pxAlSecondo: number): number {
-  for (const s of [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60]) if (s * pxAlSecondo >= 58) return s;
+export function tickStep(pxPerSecond: number): number {
+  for (const s of [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60]) if (s * pxPerSecond >= 58) return s;
   return 60;
 }
 

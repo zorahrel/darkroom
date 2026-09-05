@@ -190,7 +190,7 @@ async function saveResult(
   output: string,
   startedAt: number,
   model: string = OPENAI_IMAGE_MODEL,
-  qualitaUsata: string = OPENAI_IMAGE_QUALITY,
+  qualityUsed: string = OPENAI_IMAGE_QUALITY,
 ): Promise<WorkerResult> {
   const duration_s = Math.round((Date.now() - startedAt) / 1000);
   if (json.error) return { status: "error", error: json.error.message ?? "errore sconosciuto", duration_s };
@@ -219,7 +219,7 @@ async function saveResult(
     status: "ok",
     output,
     model,
-    quality: qualitaUsata,
+    quality: qualityUsed,
     output_tokens: tok,
     duration_s,
     size_kb,

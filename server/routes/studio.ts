@@ -95,9 +95,9 @@ studioRoutes.post("/api/browser/launch", async (c) => {
  * writes.
  */
 function statsVideo(root: string) {
-  const read = <T,>(name: string, altrimenti: T): T => {
+  const read = <T,>(name: string, otherwise: T): T => {
     try { return JSON.parse(readFileSync(join(root, name), "utf8")) as T; }
-    catch { return altrimenti; }
+    catch { return otherwise; }
   };
   const plan = read<{ segments?: unknown[] }>("plan.json", {});
   const edl = read<{ total_s?: number }>("edl.json", {});

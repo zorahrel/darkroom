@@ -293,7 +293,7 @@ export default function TreePage() {
     read: readBool,
     memory: "darkroom.tree.ref",
   });
-  const [opacita, setOpacita] = useViewState("op", 0.5, {
+  const [opacity, setOpacity] = useViewState("op", 0.5, {
     read: readNumber(0, 1),
     memory: "darkroom.tree.op",
   });
@@ -370,10 +370,10 @@ export default function TreePage() {
    *  running the generation to its knees. */
   async function measure() {
     setMeasuring(true);
-    const daFare = nodes.flatMap((n) =>
+    const toDo = nodes.flatMap((n) =>
       n.groups.flatMap((g) => ((g.refs?.length ?? 0) > 0 ? g.variants.map((v) => v.id) : [])),
     );
-    for (const id of daFare) {
+    for (const id of toDo) {
       try {
         const r = await jsonFetch<{ gap: { distance: number; saturated?: boolean } | null }>(
           `/api/versions/${id}/gap`,
@@ -437,13 +437,13 @@ export default function TreePage() {
                   min={0}
                   max={1}
                   step={0.05}
-                  value={opacita}
-                  onChange={(e) => setOpacita(Number(e.target.value))}
-                  title={`Opacita' del riferimento: ${Math.round(opacita * 100)}%`}
+                  value={opacity}
+                  onChange={(e) => setOpacity(Number(e.target.value))}
+                  title={`Opacita' del riferimento: ${Math.round(opacity * 100)}%`}
                   className="w-20 shrink-0 accent-amber-500"
                 />
                 <span className="font-mono text-neutral-500 tabular-nums w-7">
-                  {Math.round(opacita * 100)}%
+                  {Math.round(opacity * 100)}%
                 </span>
                 <select
                   value={overlayMode}
@@ -619,7 +619,7 @@ export default function TreePage() {
                         v={v}
                         gap={gaps[v.id]}
                         rif={overlay ? (g.refs?.[0] ?? null) : null}
-                        opacita={opacita}
+                        opacity={opacity}
                         overlayMode={overlayMode}
                         onVote={() => {
                           const cur = (v.verdict ?? null) as (typeof CYCLE)[number];
@@ -701,7 +701,7 @@ function Leaf({
   v,
   gap,
   rif,
-  opacita,
+  opacity,
   overlayMode,
   onVote,
   onNote,
@@ -714,7 +714,7 @@ function Leaf({
   gap?: number | null;
   /** Reference to overlay, or null when the overlay is off. */
   rif?: string | null;
-  opacita?: number;
+  opacity?: number;
   /** "over" judges the resemblance, "difference" shows WHERE they differ:
    *  the areas that match stay black. */
   overlayMode?: OverlayMode;
@@ -772,7 +772,7 @@ function Leaf({
             // utilities at build time by reading the source, so
             // `opacity-[var(--op)]` compiled without errors and produced no
             // rule at all -- the class was in the DOM and did nothing.
-            style={{ opacity: hover ? (opacita ?? 0.5) : 0, transition: "opacity 150ms" }}
+            style={{ opacity: hover ? (opacity ?? 0.5) : 0, transition: "opacity 150ms" }}
             className={
               "absolute inset-0 w-full h-full object-cover pointer-events-none " +
               (overlayMode === "difference" ? "mix-blend-difference" : "")

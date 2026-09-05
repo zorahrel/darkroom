@@ -163,7 +163,7 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
 /** Allowed extensions: they are the ones the generation backends accept as an
  *  attachment. A .heic or a .tiff would land in the folder and then fail at
  *  generation time, i.e. at the most expensive point. */
-const ESTENSIONI = new Set(["png", "jpg", "jpeg", "webp"]);
+const EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 /** 20 MB: above that, uploading a file by mistake (a video, a RAW) fills the
  *  disk without anybody noticing. */
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -196,7 +196,7 @@ referenceRoutes.post("/api/references", async (c) => {
     ? `${clean.slice(0, 180)}.${clean.split(".").pop()}`
     : clean;
   const ext = safeName.split(".").pop()?.toLowerCase() ?? "";
-  if (!ESTENSIONI.has(ext)) {
+  if (!EXTENSIONS.has(ext)) {
     return c.json({ error: `formato non ammesso (.${ext}): servono png, jpg o webp` }, 400);
   }
   if (file.size === 0) return c.json({ error: "file vuoto" }, 400);

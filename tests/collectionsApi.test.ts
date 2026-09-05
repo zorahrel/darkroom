@@ -72,7 +72,7 @@ describe("collections API", () => {
     expect(second.json.id).toBe("nara-2");
   });
 
-  test("un titolo vuoto è rifiutato", async () => {
+  test("an empty title is refused", async () => {
     const { status } = await call("POST", "/api/collections", { title: "   " });
     expect(status).toBe(400);
   });
@@ -148,7 +148,7 @@ describe("collections API", () => {
   });
 });
 
-describe("filtro non assegnate", () => {
+describe("unassigned filter", () => {
   test("the filter separates photos already in a post from those to curate", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
@@ -434,7 +434,7 @@ describe("the cover is a choice, not a position", () => {
     expect(json.photos["uno"]).toEqual(["b", "a"]);
   });
 
-  test("cambiare copertina aggiorna sia l'ordine sia il campo", async () => {
+  test("changing the cover updates both the order and the field", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
     await call("POST", "/api/collections/uno/cover", { photo_id: "b" });
     await call("POST", "/api/collections/uno/cover", { photo_id: "c" });
