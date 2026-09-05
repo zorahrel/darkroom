@@ -6,6 +6,7 @@ import {
   gradedPreviewUrl,
   gradedUrl,
   newStep,
+  thumbGenUrl,
   type ColorGrade,
   type GradeStepType,
   type Lut,
@@ -135,9 +136,11 @@ export function PhotoPipeline({
   // renders (not one per pixel) and never flashes blank between frames.
   const { shown: previewShown, loading: previewLoading } = useDebouncedImage(previewSrc || null, 150);
   const displaySrc = previewShown ?? previewSrc;
-  const baseSrc = hasVersion
-    ? `/thumb/gen/${encodeURIComponent(photoId)}/v${String(versionNumber).padStart(2, "0")}.png?w=${W}`
-    : "";
+  // Via thumbGenUrl, not hand-built: the URL has to carry `?project=`, which
+  // images can't send as a header. Without it the request lands on the
+  // server's default project, where this photo doesn't exist — the base layer
+  // of the compare slider was a broken image on every project but the default.
+  const baseSrc = hasVersion ? thumbGenUrl(photoId, versionNumber, W) : "";
   const dirty = JSON.stringify(draft) !== effSig;
   // While loading the graded render (or switching photo) show the ungraded base
   // underneath + a spinner, so it's clear something is happening.

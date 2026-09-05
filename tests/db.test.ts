@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { copyFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { db, initSchemaOn } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
@@ -239,7 +239,18 @@ const REAL_DB = join(import.meta.dir, "..", "photos.db");
 describe.skipIf(!existsSync(REAL_DB))("real gallery DB", () => {
   test("migrating a copy preserves every row", () => {
     const copy = join(TEST_ROOT, "real-copy.db");
-    copyFileSync(REAL_DB, copy);
+    // `VACUUM INTO`, not copyFileSync. The real DB is the one the dev server is
+    // writing right now, in WAL mode, and a plain file copy is wrong twice:
+    // it takes no lock (a write landing mid-copy yields a torn snapshot — this
+    // test failed on ~2 runs out of 3 with the server up) and it leaves the
+    // -wal file behind (everything not yet checkpointed is simply missing).
+    // VACUUM INTO holds a read transaction and writes one consistent file.
+    const src = new Database(REAL_DB, { readonly: true });
+    try {
+      src.run("VACUUM INTO ?", [copy]);
+    } finally {
+      src.close();
+    }
     const d = new Database(copy);
 
     const before = Object.fromEntries(
