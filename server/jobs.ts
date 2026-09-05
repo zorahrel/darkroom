@@ -16,22 +16,22 @@ import { generateEdit } from "./higgsfield.ts";
 // Backend selection: WORKER_BACKEND=codex uses Codex CLI (OAuth, no Chrome/CDP,
 // no ban risk); anything else keeps the original ChatGPT-web CDP worker.
 const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
-// Quattro backend: "codex" lancia il binario Codex e scarta i reference,
-// "codex-http" parla all'endpoint della CLI e li allega (è ciò che tiene la
-// coerenza fra le varianti), "openai" chiama l'Images API a pagamento (per le
-// passate lunghe, dove la quota di un account interattivo finisce), "cdp" guida
-// il browser.
+// Four backends: "codex" launches the Codex binary and drops the references,
+// "codex-http" talks to the CLI's endpoint and attaches them (which is what
+// holds coherence across variants), "openai" calls the paid Images API (for the
+// long passes, where an interactive account's quota runs out), "cdp" drives the
+// browser.
 /**
- * Quale canale usa QUESTO job.
+ * Which channel THIS job uses.
  *
- * Era una costante calcolata all'import: il canale si fissava all'avvio del
- * processo, quindi per generare con un backend diverso bisognava riavviare il
- * servizio — e riavviarlo cambia il comportamento di ogni progetto, non solo di
- * quello su cui si sta lavorando. Una scelta che riguarda una singola
- * generazione non deve costare un riavvio globale.
+ * It was a constant computed at import: the channel was fixed when the process
+ * started, so generating with a different backend meant restarting the service
+ * — and restarting it changes the behaviour of every project, not just the one
+ * being worked on. A choice concerning a single generation must not cost a
+ * global restart.
  *
- * Ora si risolve quando il job parte, e il job puo' portarsi il proprio
- * canale: `null` significa "usa quello di sistema", che resta il default.
+ * It is now resolved when the job starts, and a job can carry its own channel:
+ * `null` means "use the system one", which stays the default.
  */
 export type Backend = "cdp" | "codex" | "codex-http" | "openai";
 
@@ -52,8 +52,9 @@ function workerPer(b: Backend) {
         : runWorker;
 }
 
-// Il text-to-image passava sempre dal browser, anche con un altro backend
-// scelto: con "openai" la quota che si voleva evitare tornava dalla finestra.
+// Text-to-image always went through the browser, even with another backend
+// selected: with "openai" the quota you wanted to avoid came back in through
+// the window.
 function generatePer(b: Backend) {
   return b === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
 }
@@ -68,12 +69,12 @@ export function enqueueJob(
   inputPath: string | null = null,
   /** JSON array of extra reference images to attach (storyboard characters). */
   refPaths: string | null = null,
-  /** Da dove nasce: `{recipe, refset, sources, refs, preamble}`. Viaggia con il
-   *  job e finisce sulla versione prodotta, cosi' l'albero puo' raggruppare le
-   *  varianti anche quando la generazione passa dalla coda invece che da uno
-   *  script scritto a mano. */
+  /** Where it came from: `{recipe, refset, sources, refs, preamble}`. It travels
+   *  with the job and ends up on the version produced, so the tree can group
+   *  variants even when the generation goes through the queue instead of a
+   *  hand-written script. */
   lineage: string | null = null,
-  /** Canale per questo job. `null` = quello di sistema. */
+  /** Channel for this job. `null` = the system one. */
   backend: string | null = null,
 ): JobRow {
   const now = Date.now();
@@ -105,12 +106,12 @@ export function listJobs(limit = 100): JobRow[] {
   // Dismissed (seen) failed/cancelled jobs stay in the DB as a log but drop out
   // of the panel so old failures don't pile up in front of the thumbnails.
   //
-  // Un fallimento SUPERATO non è più un fallimento: se per quella foto esiste
-  // un job più recente andato a buon fine (o ancora in corso), il vecchio
-  // errore non deve tornare in lista. Senza questa clausola bastava il LIMIT a
-  // mentire — i failed sono ordinati prima dei done, quindi la riga rossa
-  // entrava nella finestra e il successo che la smentiva restava fuori: la
-  // griglia marcava come "fallita" una foto in realtà rigenerata bene.
+  // A failure that has been SUPERSEDED is no longer a failure: if a more recent
+  // job for that photo succeeded (or is still running), the old error must not
+  // come back to the list. Without this clause the LIMIT alone was enough to
+  // lie — failed rows sort before done ones, so the red row made it into the
+  // window and the success that contradicted it stayed out: the grid marked as
+  // "failed" a photo that had in fact been regenerated properly.
   return db()
     .query<JobRow, [number]>(
       `SELECT * FROM jobs j
@@ -170,12 +171,12 @@ export function listJobsForPhoto(photoId: string, limit = 30): JobRow[] {
     .all(photoId, limit);
 }
 
-/** Annulla un job in coda O in esecuzione.
+/** Cancels a job that is queued OR running.
  *
- *  Prima toccava solo 'pending', e un job bloccato — quello che si vuole
- *  fermare davvero — restava 'running' e teneva il lock del browser: la coda
- *  non avanzava piu'. Il runner, quando finisce il tentativo, controlla lo
- *  stato prima di riaccodare, cosi' un cancellato non risorge. */
+ *  It used to touch only 'pending', and a stuck job — the one you actually want
+ *  to stop — stayed 'running' and held the browser lock: the queue stopped
+ *  advancing. The runner, when it finishes the attempt, checks the state before
+ *  requeueing, so a cancelled job does not rise again. */
 export function cancelPending(jobId: number): boolean {
   const r = db().run(
     "UPDATE jobs SET status='cancelled', finished_at=? WHERE id=? AND status IN ('pending','running')",
@@ -188,29 +189,29 @@ export function cancelPending(jobId: number): boolean {
 
 let runnerStarted = false;
 let runnerStopping = false;
-// Battito del ciclo: serve a distinguere "la coda è ferma perché è vuota" da
-// "il ciclo è morto e nessuno se ne accorge". È già successo: 22 job pending,
-// zero in esecuzione, e il server apparentemente vivo. Il watchdog qui sotto lo
-// rileva e lo fa ripartire invece di aspettare che qualcuno guardi.
+// Heartbeat of the loop: it is there to tell "the queue is idle because it is
+// empty" from "the loop is dead and nobody noticed". It has happened: 22
+// pending jobs, none running, and the server apparently alive. The watchdog
+// below detects it and restarts it instead of waiting for somebody to look.
 let loopBeatMs = Date.now();
-/** Quale ciclo e' quello buono. Il watchdog fa ripartire il ciclo, ma non puo'
- *  uccidere quello vecchio: se e' appeso dentro `processJob` sta aspettando il
- *  browser, non un flag. Senza un'epoca i cicli si SOMMANO — dopo due
- *  interventi del watchdog erano tre a pescare dalla stessa coda, cioe'
- *  esattamente la concorrenza che il lock fra processi esiste per impedire
- *  (osservato il 05/09: tre job della stessa foto lavorati insieme su un
- *  server su da 19 ore). Con l'epoca il vecchio esce da solo appena il job
- *  che lo teneva fermo finisce. */
+/** Which loop is the good one. The watchdog restarts the loop, but it cannot
+ *  kill the old one: if that is hanging inside `processJob` it is waiting on
+ *  the browser, not on a flag. Without an epoch the loops ADD UP — after two
+ *  watchdog interventions three of them were pulling from the same queue, which
+ *  is exactly the concurrency the cross-process lock exists to prevent
+ *  (observed on 05/09: three jobs for the same photo worked on together on a
+ *  server up for 19 hours). With the epoch the old one leaves by itself as soon
+ *  as the job holding it finishes. */
 let loopEpoch = 0;
 
 // Rate-limit handling: after N consecutive "no image" timeouts (silent ChatGPT
 // image-gen cap) we pause the queue and auto-resume after a cooldown.
 const RATE_LIMIT_THRESHOLD = 3;
 const RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
-// Pausa fra due generazioni riuscite. Una generazione ne impiega ~160s, quindi
-// 20-35s di respiro allungano un batch da 40 foto di ~15 minuti: poco, rispetto
-// ai 30 minuti di cooldown che costa UN cap raggiunto. Regolabile via env per
-// alzarla quando l'account è già stato spremuto nella stessa giornata.
+// Pause between two successful generations. A generation takes ~160s, so 20-35s
+// of breathing room stretch a 40-photo batch by ~15 minutes: little, compared
+// with the 30 minutes of cooldown ONE cap costs. Tunable via env to raise it
+// when the account has already been squeezed on the same day.
 const JOB_GAP_MS = Number(process.env.JOB_GAP_MS ?? 20000);
 const JOB_GAP_JITTER_MS = Number(process.env.JOB_GAP_JITTER_MS ?? 15000);
 let consecutiveTimeouts = 0;
@@ -244,14 +245,14 @@ function looksLikeRateLimit(error: string): boolean {
 }
 
 /** Browser/CDP/worker-process transient failures — not the job's fault, retry. */
-/** ChatGPT ha rifiutato la foto (copyright, somiglianza di terzi).
- *  Distinguerlo da un errore vero e' quello che permette di smettere di
- *  riprovare: un guasto passa, un "no" di policy no. */
+/** ChatGPT refused the photo (copyright, likeness of third parties).
+ *  Telling this apart from a real error is what allows us to stop retrying: a
+ *  fault passes, a policy "no" does not. */
 export function looksLikePolicyRefusal(err: string): boolean {
   return /content-policy refusal/i.test(err);
 }
 
-/** Segna la foto come da saltare, con la ragione accanto. */
+/** Marks the photo as one to skip, with the reason beside it. */
 function markSkipped(photoId: string, reason: string) {
   db().run(
     "UPDATE photos SET skipped = 1, skip_reason = ?, updated_at = ? WHERE id = ?",
@@ -279,9 +280,9 @@ function parseResetHint(error: string): number | null {
   const hint = m[1].trim();
   const now = new Date();
 
-  // "in 3 hours and 36 minutes": va letto per primo, altrimenti la regola
-  // generica sotto prende solo "3 hours" e ci si ripresenta 36 minuti prima
-  // del reset, bruciando un altro tentativo contro il muro.
+  // "in 3 hours and 36 minutes": this has to be read first, otherwise the
+  // generic rule below picks up only "3 hours" and we come back 36 minutes
+  // before the reset, burning another attempt against the wall.
   const hm = hint.match(/(\d+)\s*(?:hours?|ore|ora)\s*(?:and|e)\s*(\d+)\s*(?:minutes?|minuti|min)/i);
   if (hm && hm[1] && hm[2]) {
     return now.getTime() + (Number(hm[1]) * 60 + Number(hm[2])) * 60 * 1000;
@@ -343,11 +344,11 @@ function forEachProject(fn: () => void) {
 
 export function startRunner() {
   if (runnerStarted) return;
-  // Un solo runner per installazione. Due servizi launchd hanno girato per
-  // settimane sullo stesso DB e sullo stesso account ChatGPT: nessuno dei due
-  // sbagliava, ma insieme acceleravano il cap e si contendevano le scritture.
-  // Chi arriva secondo serve comunque l'HTTP (una seconda finestra in sola
-  // lettura e' legittima), ma NON apre una seconda coda.
+  // One runner per installation. Two launchd services ran for weeks over the
+  // same DB and the same ChatGPT account: neither was wrong, but together they
+  // sped up the cap and fought over writes. Whoever arrives second still serves
+  // HTTP (a second read-only window is legitimate), but does NOT open a second
+  // queue.
   const lock = acquireRunnerLock(RUNNER_LOCK);
   if (!lock.ok) {
     console.warn(
@@ -373,11 +374,11 @@ export function startRunner() {
   // Re-run retention hourly while the server is alive.
   setInterval(() => forEachProject(cleanupJobs), 60 * 60 * 1000).unref?.();
 
-  // Watchdog: se il ciclo non batte da 20 minuti mentre ci sono job in attesa,
-  // è morto (eccezione non gestita, worker appeso). Un batch da un'ora ne perde
-  // 20 al massimo invece di fermarsi del tutto finché qualcuno non se ne accorge.
-  // 20 min > del job più lungo osservato (~9 min di timeout + retry), quindi non
-  // scatta su un lavoro semplicemente lento.
+  // Watchdog: if the loop has not beaten for 20 minutes while jobs are waiting,
+  // it is dead (unhandled exception, hung worker). An hour-long batch loses 20
+  // minutes at most instead of stopping entirely until somebody notices. 20 min
+  // is longer than the longest job observed (~9 min of timeout + retry), so it
+  // does not fire on work that is merely slow.
   setInterval(() => {
     if (runnerStopping) return;
     const stale = Date.now() - loopBeatMs;
@@ -418,12 +419,12 @@ async function loop() {
     // Process the job in ITS project's context so db()/genDir() resolve there.
     await withProject(next.pid, () => processJob(next.job));
 
-    // Respiro fra un job e l'altro. Non è cortesia: una raffica di generazioni
-    // back-to-back sullo stesso account è ciò che fa scattare il cap silenzioso
-    // di ChatGPT — quello che non dà un errore, restituisce "waiting" e basta,
-    // e ci costa 9 minuti di timeout per capirlo. Il jitter evita di ripresentarsi
-    // sempre con lo stesso ritmo, che è il modo più semplice per farsi
-    // riconoscere come automazione.
+    // Breathing room between one job and the next. It is not politeness: a burst
+    // of back-to-back generations on the same account is what trips ChatGPT's
+    // silent cap — the one that gives no error, just returns "waiting", and
+    // costs us 9 minutes of timeout to work out. The jitter avoids turning up
+    // always at the same rhythm, which is the simplest way to be recognised as
+    // automation.
     if (!runnerStopping && Date.now() >= pausedUntilMs) {
       await sleep(JOB_GAP_MS + Math.floor(Math.random() * JOB_GAP_JITTER_MS));
     }
@@ -455,23 +456,23 @@ function setProgress(jobId: number, text: string) {
   db().run("UPDATE jobs SET progress=? WHERE id=?", [text.slice(0, 200), jobId]);
 }
 
-/** Il file su cui un job scrive MENTRE genera.
+/** The file a job writes to WHILE generating.
  *
- *  Porta il numero del job, non quello della versione, per una ragione precisa:
- *  il numero di versione si puo' sapere solo all'insert, perche' fra l'inizio e
- *  la fine della generazione passano minuti e possono nascere altre versioni
- *  della stessa foto. Sceglierlo in anticipo faceva puntare due job della
- *  stessa foto allo stesso `vNN.png`: il secondo sovrascriveva il primo e
- *  restavano due righe che citavano un file solo. */
+ *  It carries the job number, not the version number, for a precise reason: the
+ *  version number can only be known at insert time, because minutes pass
+ *  between the start and the end of a generation and other versions of the same
+ *  photo can appear. Choosing it in advance made two jobs for the same photo
+ *  point at the same `vNN.png`: the second overwrote the first and two rows
+ *  were left citing a single file. */
 export function workingFile(photoGenDir: string, jobId: number): string {
   return join(photoGenDir, `.job-${jobId}.png`);
 }
 
-/** Porta il file di lavoro sul nome definitivo e restituisce quel percorso.
+/** Moves the working file onto its final name and returns that path.
  *
- *  Va chiamata DOPO aver calcolato il numero di versione e PRIMA di scriverlo
- *  nella riga: e' cio' che garantisce che `image_path` indichi un file che
- *  esiste e che contiene proprio quella generazione. */
+ *  It has to be called AFTER computing the version number and BEFORE writing it
+ *  into the row: that is what guarantees `image_path` points at a file that
+ *  exists and holds exactly that generation. */
 export function finalizzaFile(workPath: string, photoGenDir: string, n: number): string {
   const finale = join(photoGenDir, versionFileName(n));
   renameSync(workPath, finale);
@@ -521,13 +522,13 @@ async function processJob(job: JobRow) {
 
   const photoGenDir = join(genDir(), photo.id);
   if (!existsSync(photoGenDir)) mkdirSync(photoGenDir, { recursive: true });
-  // Il file di lavoro porta il numero del JOB, non quello della versione.
-  // Il numero di versione si conosce solo all'insert (fra la scelta e la fine
-  // passano minuti), e sceglierlo qui significa che due job della stessa foto
-  // che generano insieme puntano allo STESSO vNN.png: il secondo sovrascrive
-  // il primo e restano tre righe che citano un file solo. Misurato il 05/09
-  // sull'ablazione occhiali: job 235/236/237, versioni 71/72/73, un unico
-  // v71.png su disco e due render persi.
+  // The working file carries the JOB number, not the version number.
+  // The version number is known only at insert time (minutes pass between the
+  // choice and the end), and choosing it here means two jobs for the same photo
+  // generating together point at the SAME vNN.png: the second overwrites the
+  // first and three rows are left citing a single file. Measured on 05/09 on
+  // the sunglasses ablation: jobs 235/236/237, versions 71/72/73, a single
+  // v71.png on disk and two renders lost.
   const outputPath = workingFile(photoGenDir, job.id);
   const finalizza = (n: number): string => finalizzaFile(outputPath, photoGenDir, n);
 
@@ -556,11 +557,11 @@ async function processJob(job: JobRow) {
         fail(job.id, `output missing or too small: ${outputPath}`);
         return;
       }
-      // Il numero si RICALCOLA qui, non si riusa quello scelto prima della
-      // generazione: fra i due momenti passano minuti, e se nel frattempo è
-      // arrivata un'altra versione della stessa foto l'insert va in conflitto
-      // sulla UNIQUE. Il job falliva DOPO aver già speso i crediti e scritto il
-      // file, quindi il lavoro c'era ma risultava fallito.
+      // The number is RECOMPUTED here, not reused from before the generation:
+      // minutes pass between the two moments, and if another version of the
+      // same photo has arrived meanwhile the insert conflicts on the UNIQUE.
+      // The job failed AFTER having already spent the credits and written the
+      // file, so the work existed but was reported as failed.
       const finalNumber = nextVersionNumber(photo.id);
       const finalPath = finalizza(finalNumber);
       const ins = db().run(
@@ -584,13 +585,13 @@ async function processJob(job: JobRow) {
     // Generation has no source image (skips upload). Both paths honor the
     // selected backend (cdp | codex | codex-http | openai).
     const refs = parseRefPaths(job.ref_paths);
-    // Risolto ORA, non all'avvio del processo: il job puo' portarsi il proprio
-    // canale, e cambiarlo per una generazione non deve costare il riavvio di un
-    // servizio che serve tutti i progetti.
+    // Resolved NOW, not at process start: a job can carry its own channel, and
+    // changing it for one generation must not cost the restart of a service
+    // that serves every project.
     const backend = backendDi(job);
-    // La resa dichiarata dal job. Senza, il worker leggeva solo l'ambiente del
-    // servizio: un job che chiedeva `low` veniva prodotto in `high`, e una
-    // prova da mezzo centesimo ne costava 21.
+    // The quality declared by the job. Without it the worker read only the
+    // service's environment: a job asking for `low` was produced in `high`, and
+    // a half-cent trial cost 21.
     let wantedQuality: string | undefined;
     try {
       wantedQuality = job.provider_params
@@ -622,9 +623,9 @@ async function processJob(job: JobRow) {
         // (page eval) fails we hard-restart: kill + relaunch. Profile is
         // persistent, so after the first login this is unattended.
         let recovered = false;
-        // Solo il canale di QUESTO job decide se c'e' un browser da resuscitare:
-        // la costante globale faceva riavviare Chrome anche per un job che
-        // parlava all'API e non aveva mai aperto una finestra.
+        // Only THIS job's channel decides whether there is a browser to revive:
+        // the global constant restarted Chrome even for a job that talked to
+        // the API and had never opened a window.
         if (backend === "cdp" && !(await checkChatgptBrowserAlive())) {
           if (consecutiveBrowserRestarts >= MAX_BROWSER_RESTARTS) {
             // Repeated restarts aren't helping (login lost, Cloudflare wall,
@@ -662,11 +663,11 @@ async function processJob(job: JobRow) {
         if (explicit) {
           consecutiveTimeouts++;
           const explicitReset = parseResetHint(err);
-          // Quando ChatGPT dice ESPLICITAMENTE quando riapre, gli si crede.
-          // Troncare l'attesa a 30 minuti sembrava prudente, ma è il contrario:
-          // con un hint di 13 ore significa ripresentarsi 26 volte a bussare a
-          // una porta chiusa, bruciando un job (e ~6 minuti di timeout) ogni
-          // volta. L'unica cosa da limitare è un hint palesemente assurdo.
+          // When ChatGPT says EXPLICITLY when it reopens, we believe it.
+          // Truncating the wait to 30 minutes looked prudent, but it is the
+          // opposite: with a 13-hour hint it means turning up 26 times to knock
+          // on a closed door, burning a job (and ~6 minutes of timeout) each
+          // time. The only thing to cap is a plainly absurd hint.
           const cap = Date.now() + RATE_LIMIT_COOLDOWN_MS;
           const MAX_EXPLICIT_PAUSE_MS = 24 * 60 * 60 * 1000;
           if (explicitReset && explicitReset > Date.now()) {
@@ -736,9 +737,9 @@ async function processJob(job: JobRow) {
         );
         return;
       }
-      // Rifiuto di policy: non e' un guasto, e' un no definitivo. Marcare la
-      // foto la toglie dagli accodamenti di massa, cosi' non torna in coda a
-      // ogni giro a raccogliere lo stesso no.
+      // Policy refusal: not a fault, a definitive no. Marking the photo takes it
+      // out of the bulk enqueues, so it does not come back to the queue every
+      // round to collect the same no.
       if (looksLikePolicyRefusal(err)) {
         markSkipped(job.photo_id, err);
       }
@@ -756,17 +757,17 @@ async function processJob(job: JobRow) {
     consecutiveBrowserRestarts = 0;
     consecutiveSkips = 0;
 
-    // Come sul ramo Higgsfield: il numero si ricalcola al momento dell'insert,
-    // perché fra la scelta e la fine della generazione passano minuti.
+    // As on the Higgsfield branch: the number is recomputed at insert time,
+    // because minutes pass between the choice and the end of the generation.
     const finalNumber = nextVersionNumber(photo.id);
     const finalPath = finalizza(finalNumber);
-    // Il provider viene registrato per quello che e': dire 'chatgpt' anche
-    // quando ha generato l'Images API rendeva impossibile sapere quanto e'
-    // costato un progetto. `credits` resta NULL per i backend a quota, dove
-    // uno zero direbbe "gratis" invece di "non misurabile".
-    // Il canale di QUESTO job, non quello di sistema: con un backend per-job
-    // la costante globale avrebbe registrato 'chatgpt' su una versione uscita
-    // dall'API, e il costo del progetto sarebbe tornato illeggibile.
+    // The provider is recorded for what it is: saying 'chatgpt' even when the
+    // Images API generated it made it impossible to know what a project had
+    // cost. `credits` stays NULL for the quota backends, where a zero would say
+    // "free" instead of "not measurable".
+    // THIS job's channel, not the system one: with a per-job backend the global
+    // constant would have recorded 'chatgpt' on a version that came out of the
+    // API, and the project's cost would have gone unreadable again.
     const provider = backendDi(job) === "openai" ? "openai" : "chatgpt";
     const cost = result.status === "ok" ? (result.cost_usd ?? null) : null;
     const versionInsert = db().run(
@@ -780,15 +781,15 @@ async function processJob(job: JobRow) {
         job.prompt,
         job.config,
         provider,
-        // Modello e resa: due varianti della stessa ricetta uscite da `low` e
-        // da `high` sono esperimenti diversi, e senza questo dato l'albero le
-        // mostrava come se fossero la stessa cosa.
+        // Model and quality: two variants of the same recipe produced at `low` and
+        // at `high` are different experiments, and without this the tree showed
+        // them as if they were the same thing.
         result.status === "ok" && result.model
           ? JSON.stringify({ model: result.model, quality: result.quality ?? null })
           : null,
-        // Da dove nasce. Passa dal job cosi' anche le generazioni della coda
-        // si raggruppano nell'albero: prima ce l'avevano solo quelle scritte a
-        // mano, e la strada corretta dava il risultato peggiore.
+        // Where it came from. It travels through the job so queue generations get
+        // grouped in the tree too: before, only the hand-written ones had it,
+        // and the correct route gave the worse result.
         job.lineage,
         Date.now(),
         cost,
@@ -815,9 +816,9 @@ async function processJob(job: JobRow) {
 }
 
 function fail(jobId: number, error: string) {
-  // Un job annullato mentre girava resta annullato: sovrascriverlo con
-  // 'failed' lo farebbe ricomparire come errore da guardare, quando invece
-  // la sua fine e' stata decisa.
+  // A job cancelled while running stays cancelled: overwriting it with
+  // 'failed' would make it reappear as an error to look at, when its ending has
+  // in fact been decided.
   db().run(
     "UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=? AND status <> 'cancelled'",
     [error.slice(0, 500), Date.now(), jobId],

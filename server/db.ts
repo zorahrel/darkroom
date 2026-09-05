@@ -51,16 +51,15 @@ export function db(): Database {
   const path = dirsFor(pid).DB_PATH;
   mkdirSync(dirname(path), { recursive: true });
   const d = new Database(path, { create: true });
-  // PRIMA di ogni altro PRAGMA. WAL lascia convivere lettori e scrittore ma non
-  // due scrittori, e il default di SQLite e' zero attesa: qualsiasi contesa
-  // diventa un errore immediato invece di una pausa di millisecondi.
+  // BEFORE every other PRAGMA. WAL lets readers and a writer coexist but not two
+  // writers, and SQLite's default is zero wait: any contention becomes an
+  // immediate error instead of a pause of milliseconds.
   //
-  // L'ordine non e' un dettaglio di stile: `journal_mode = WAL` e' esso stesso
-  // una scrittura, e con un altro processo in mezzo falliva con
-  // SQLITE_BUSY_RECOVERY *prima* che il timeout venisse impostato — il server
-  // non partiva proprio, morendo all'import di app.ts. Visto davvero, non
-  // teorizzato: il backend e' andato giu' cosi' mentre un secondo processo
-  // apriva lo stesso DB.
+  // The order is not a matter of style: `journal_mode = WAL` is itself a write,
+  // and with another process in the way it failed with SQLITE_BUSY_RECOVERY
+  // *before* the timeout was set — the server did not start at all, dying while
+  // importing app.ts. Actually seen, not theorised: the backend went down this
+  // way while a second process opened the same DB.
   d.run("PRAGMA busy_timeout = 5000");
   d.run("PRAGMA journal_mode = WAL");
   d.run("PRAGMA foreign_keys = ON");
@@ -141,10 +140,10 @@ const SCHEMA_STATEMENTS = [
   // Saved color-grade templates. `grade` is a full ColorGrade JSON; `source`
   // records where it came from (manual save, or an imported Lightroom/LUT/JSON
   // template) so the UI can badge provenance.
-  // Ricette estratte da un'immagine di riferimento (REF-02). Separate dai
-  // `presets` (che sono gradazioni colore): qui il corpo e' il testo del prompt,
-  // e `from_reference` tiene il legame con l'immagine da cui e' nato — senza,
-  // fra sei mesi una ricetta e' una frase senza provenienza.
+  // Recipes extracted from a reference image (REF-02). Kept apart from
+  // `presets` (which are colour grades): here the body is the prompt text, and
+  // `from_reference` holds the link to the image it was born from — without it,
+  // six months later a recipe is a sentence with no provenance.
   `CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -206,10 +205,11 @@ const SCHEMA_STATEMENTS = [
     position INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   )`,
-  // `reference_photo_id`: la foto che detta il colore del post. Viene allegata
-  // a OGNI generazione del gruppo come seconda immagine, così il modello vede
-  // il bersaglio invece di doverlo indovinare. È la differenza fra armonizzare
-  // (correggere dopo, con un filtro sopra) e generare già coerente.
+  // `reference_photo_id`: the photo that dictates the post's colour. It is
+  // attached to EVERY generation in the group as a second image, so the model
+  // sees the target instead of having to guess it. It is the difference between
+  // harmonising (correcting afterwards, with a filter on top) and generating
+  // already coherent.
   `CREATE INDEX IF NOT EXISTS idx_collections_position ON collections(position)`,
   `CREATE TABLE IF NOT EXISTS collection_photos (
     photo_id TEXT PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
@@ -217,13 +217,13 @@ const SCHEMA_STATEMENTS = [
     position INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_collection_photos ON collection_photos(collection_id, position)`,
-  // Collage: una slide del carosello fatta di più foto. Le foto che lo
-  // compongono restano membri normali del post (stessa `collection_photos`) —
-  // il collage non le consuma, le raggruppa: scioglierlo le rimette in fila
-  // esattamente dov'erano. `position` è la posizione della SLIDE nel post, sulla
-  // stessa scala delle foto singole. `mode` è la composizione (hero, mosaic,
-  // grid, stack, split): tutte a pieno formato, senza cornici né fondo a vista.
-  // `layout` serve solo a 'grid'.
+  // Collage: one carousel slide made of several photos. The photos composing it
+  // stay ordinary members of the post (the same `collection_photos`) — the
+  // collage does not consume them, it groups them: dissolving it puts them back
+  // in line exactly where they were. `position` is the SLIDE's position in the
+  // post, on the same scale as single photos. `mode` is the composition (hero,
+  // mosaic, grid, stack, split): all full-bleed, with no frames and no visible
+  // background. `layout` is only used by 'grid'.
   `CREATE TABLE IF NOT EXISTS collages (
     id TEXT PRIMARY KEY,
     collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -282,16 +282,16 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "jobs", "progress")) {
     d.run("ALTER TABLE jobs ADD COLUMN progress TEXT");
   }
-  // Da dove nasce la versione che questo job produrra': ricetta, insieme di
-  // sorgenti, reference. Serve all'albero per raggruppare le varianti.
+  // Where the version this job will produce comes from: recipe, set of sources,
+  // references. The tree needs it to group variants.
   //
-  // Senza, le generazioni fatte dalla coda finivano tutte sotto "origine non
-  // registrata" mentre solo quelle lanciate da uno script a mano avevano il
-  // lineage: l'effetto perverso e' che la strada CORRETTA dava il risultato
-  // peggiore, e per avere un albero leggibile conveniva scrivere INSERT a mano.
-  // E' cosi' che sono nati due guasti in un giorno solo: un percorso fuori
-  // convenzione (miniature a 500) e dei timestamp in secondi invece che in
-  // millisecondi (ordine cronologico rovesciato).
+  // Without it, generations made through the queue all ended up under "origin
+  // not recorded" while only those launched from a hand-written script had a
+  // lineage: the perverse effect is that the CORRECT route gave the worse
+  // result, and to get a readable tree you were better off writing INSERTs by
+  // hand. That is how two failures were born in a single day: a path outside
+  // the convention (thumbnails at 500) and timestamps in seconds instead of
+  // milliseconds (chronological order reversed).
   if (!hasColumn(d, "jobs", "lineage")) {
     d.run("ALTER TABLE jobs ADD COLUMN lineage TEXT");
   }
@@ -304,12 +304,12 @@ export function initSchemaOn(d: Database): void {
   if (hasColumn(d, "video_jobs", "piano") && !hasColumn(d, "video_jobs", "shot")) {
     d.run("ALTER TABLE video_jobs RENAME COLUMN piano TO shot");
   }
-  // Con quale canale lavorare QUESTO job: cdp, codex, codex-http, openai.
+  // Which channel to work THIS job with: cdp, codex, codex-http, openai.
   //
-  // Era una scelta solo globale, letta all'avvio del processo: per generare con
-  // un backend diverso bisognava riavviare il servizio, e il riavvio cambia il
-  // comportamento di ogni progetto invece che della singola generazione.
-  // NULL = usa quello di sistema, che resta il default.
+  // It used to be a global-only choice, read when the process started: to
+  // generate with a different backend you had to restart the service, and the
+  // restart changes the behaviour of every project instead of the single
+  // generation. NULL = use the system one, which stays the default.
   if (!hasColumn(d, "jobs", "backend")) {
     d.run("ALTER TABLE jobs ADD COLUMN backend TEXT");
   }
@@ -338,15 +338,15 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "versions", "credits")) {
     d.run("ALTER TABLE versions ADD COLUMN credits REAL");
   }
-  // Ogni chiamata a un backend a pagamento, riuscita o no.
+  // Every call to a paid backend, successful or not.
   //
-  // Il costo stava solo su `versions`, cioe' si contava quello che finiva in
-  // galleria. Ma si paga la CHIAMATA: una generazione scartata, una fallita
-  // dopo che il modello ha gia' prodotto l'immagine, o una prova di
-  // calibrazione lanciata da uno script costano uguale e non lasciavano
-  // traccia. Misurato il 26/08: 21 immagini generate, 6 contate, $1.26
-  // mostrati contro ~$4.47 reali. Il numero in barra non era impreciso, era
-  // strutturalmente incompleto.
+  // The cost sat only on `versions`, that is, what ended up in the gallery was
+  // what got counted. But it is the CALL that is paid for: a discarded
+  // generation, one that failed after the model had already produced the image,
+  // or a calibration trial launched from a script all cost the same and left no
+  // trace. Measured on 26/08: 21 images generated, 6 counted, $1.26 shown
+  // against ~$4.47 real. The number on the bar was not imprecise, it was
+  // structurally incomplete.
   d.run(`CREATE TABLE IF NOT EXISTS api_calls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -420,10 +420,11 @@ export function initSchemaOn(d: Database): void {
   if (!hasColumn(d, "jobs", "ref_paths")) {
     d.run("ALTER TABLE jobs ADD COLUMN ref_paths TEXT");
   }
-  // Il giudizio umano su UNA VARIANTE, distinto da "mi piace" che sta sulla
-  // foto: scegliere fra varianti e scegliere fra foto sono due gesti diversi,
-  // e tenerli sullo stesso campo costringerebbe a sceglierne uno solo.
-  // NULL = non ancora giudicata, che non e' la stessa cosa di "scartata".
+  // The human judgement on ONE VARIANT, distinct from the "pick" that sits on
+  // the photo: choosing among variants and choosing among photos are two
+  // different gestures, and keeping them on the same field would force you to
+  // pick just one of them.
+  // NULL = not judged yet, which is not the same thing as "discarded".
   if (!hasColumn(d, "versions", "verdict")) {
     d.run("ALTER TABLE versions ADD COLUMN verdict TEXT"); // keep | maybe | discard
   }
@@ -435,13 +436,14 @@ export function initSchemaOn(d: Database): void {
   for (const [from, to] of [["tieni", "keep"], ["forse", "maybe"], ["scarta", "discard"]] as const) {
     d.run("UPDATE versions SET verdict = ? WHERE verdict = ?", [to, from]);
   }
-  // Il perche' della scelta. Senza, tornano indietro solo i sopravvissuti e non
-  // il motivo, che e' l'unica parte riutilizzabile per la passata successiva.
+  // The reason for the choice. Without it only the survivors come back and not
+  // the why, which is the only part reusable for the next pass.
   if (!hasColumn(d, "versions", "note")) {
     d.run("ALTER TABLE versions ADD COLUMN note TEXT");
   }
-  // Da cosa e' nata la variante: sorgenti, riferimenti, ricetta, preambolo.
-  // Sullo storico resta NULL, e la vista lo dichiara invece di inventarlo.
+  // What the variant was born from: sources, references, recipe, preamble.
+  // On historical rows it stays NULL, and the view says so instead of making it
+  // up.
   if (!hasColumn(d, "versions", "lineage")) {
     d.run("ALTER TABLE versions ADD COLUMN lineage TEXT");
   }
@@ -452,27 +454,28 @@ export function initSchemaOn(d: Database): void {
        WHERE sequence_index IS NOT NULL`,
   );
 
-  // "Mi piace": la scelta umana su UNA foto, presa scorrendo la griglia. È
-  // deliberatamente separata da favorite_version_id (quale render di quella
-  // foto è il buono) e dai post: prima si dice cosa vale, poi si raggruppa.
+  // "Pick": the human choice on ONE photo, made while scrolling the grid. It is
+  // deliberately separate from favorite_version_id (which render of that photo
+  // is the good one) and from posts: first you say what is worth keeping, then
+  // you group.
   if (!hasColumn(d, "collections", "reference_photo_id")) {
     d.run("ALTER TABLE collections ADD COLUMN reference_photo_id TEXT");
   }
-  // La copertina è una SCELTA UMANA, e come tale non può vivere nella posizione
-  // 0 di una lista che viene riordinata: un riordino cronologico la cancella
-  // senza dire niente. Qui è un campo suo, che sopravvive a qualsiasi
-  // riorganizzazione del post.
+  // The cover is a HUMAN CHOICE, and as such it cannot live at position 0 of a
+  // list that gets reordered: a chronological reorder erases it without saying
+  // anything. Here it is a field of its own, surviving any reorganisation of
+  // the post.
   if (!hasColumn(d, "collections", "cover_photo_id")) {
     d.run("ALTER TABLE collections ADD COLUMN cover_photo_id TEXT");
   }
   if (!hasColumn(d, "photos", "picked")) {
     d.run("ALTER TABLE photos ADD COLUMN picked INTEGER NOT NULL DEFAULT 0");
   }
-  // Foto che ChatGPT si rifiuta di elaborare (personaggi protetti da
-  // copyright, somiglianze di terzi). Il rifiuto non e' un errore transitorio:
-  // riprovare produce lo stesso "no" e brucia un posto in coda ogni volta.
-  // Marcata qui, la foto esce dagli accodamenti di massa e la ragione resta
-  // scritta accanto, cosi' si sa perche' e' ferma invece di trovarla vuota.
+  // Photos ChatGPT refuses to process (copyright-protected characters,
+  // likeness of third parties). The refusal is not a transient error: retrying
+  // produces the same "no" and burns a queue slot every time. Marked here, the
+  // photo drops out of the bulk enqueues and the reason stays written beside
+  // it, so you know why it is idle instead of finding it empty.
   if (!hasColumn(d, "photos", "skipped")) {
     d.run("ALTER TABLE photos ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0");
   }
@@ -522,7 +525,7 @@ export type PhotoRow = {
   feedback: string | null;
   /** "Mi piace": 1 = la tengo. Indipendente dal post e dalla versione preferita. */
   picked: number;
-  /** 1 = ChatGPT rifiuta questa foto: non riaccodarla. */
+  /** 1 = ChatGPT refuses this photo: do not enqueue it again. */
   skipped: number;
   skip_reason: string | null;
   kind: "original" | "generated";
@@ -547,7 +550,7 @@ export type CharacterRow = {
   created_at: number;
 };
 
-/** Una slide del carosello composta da più foto. */
+/** A carousel slide composed of several photos. */
 export type CollageMode = "hero" | "mosaic" | "grid" | "stack" | "split";
 
 export type CollageRow = {
@@ -565,9 +568,9 @@ export type CollectionRow = {
   title: string;
   caption: string | null;
   position: number;
-  /** Foto di riferimento cromatico: allegata a ogni generazione del post. */
+  /** Colour reference photo: attached to every generation in the post. */
   reference_photo_id: string | null;
-  /** Copertina scelta a mano: sopravvive ai riordini della lista. */
+  /** Cover chosen by hand: survives reorderings of the list. */
   cover_photo_id: string | null;
   created_at: number;
 };
@@ -597,12 +600,12 @@ export type JobRow = {
   input_path: string | null;
   /** JSON array of extra reference images attached to the request (characters). */
   ref_paths: string | null;
-  /** Da dove nasce la versione che questo job produrra': ricetta, insieme di
-   *  sorgenti, reference. Viene copiato sulla versione a fine lavorazione. */
+  /** Where the version this job will produce comes from: recipe, set of
+   *  sources, references. Copied onto the version when the work finishes. */
   lineage: string | null;
-  /** Canale di questo job: cdp, codex, codex-http, openai. NULL = quello di
-   *  sistema. Esiste perche' cambiare canale per una generazione non debba
-   *  costare il riavvio di un servizio che serve tutti i progetti. */
+  /** This job's channel: cdp, codex, codex-http, openai. NULL = the system one.
+   *  It exists so that changing channel for one generation need not cost the
+   *  restart of a service that serves every project. */
   backend: string | null;
   progress: string | null;
   seen: number;
@@ -675,9 +678,9 @@ export type GradeStep = {
   type: GradeStepType;
   enabled: boolean;
   /** Restrict the step to night or day scenes. Undefined = always.
-   *  Serve perché una correzione giusta di notte (togliere l'ambra dalla pietra
-   *  sotto i fari) di giorno spegne i colori che fanno funzionare il cibo.
-   *  Dosato sulla stessa rampa continua della LUT, non a soglia. */
+   *  It is needed because a correction that is right at night (taking the amber
+   *  off stone under floodlights) flattens by day the colours that make food
+   *  work. Dosed on the same continuous ramp as the LUT, not on a threshold. */
   only?: "night" | "day";
   /** Type-specific params. For deterministic steps these are scalars
    *  (dose/lut for 'lut', temp/tint… for 'color'…); for an 'ai' step they hold
@@ -701,9 +704,9 @@ export const DEFAULT_LUT = "CMG SUMMER 17 LUT/CMG SUMMER LUT '18.cube";
  *  confusing "repeated + disabled AI step" and matches the input→steps→output model. */
 export function defaultSteps(): GradeStep[] {
   return [
-    // AI edit = primo step della pipeline completa: rigenera l'immagine di lavoro
-    // (config vuota = eredita il "look del set"). Saltato dal display /graded,
-    // eseguito solo nel bake multi-pass. Vedi grade.ts deterministicSteps.
+    // AI edit = first step of the full pipeline: it re-renders the working image
+    // (empty config = inherits the "set look"). Skipped by the /graded display,
+    // run only in the multi-pass bake. See grade.ts deterministicSteps.
     { id: "ai", type: "ai", enabled: true, params: { provider: "chatgpt", config: {} } },
     { id: "wb", type: "white_balance", enabled: true, params: { awb: true, scene_match: true } },
     { id: "levels", type: "levels", enabled: true, params: { black: 0.4, white: 99.6 } },
@@ -872,35 +875,35 @@ export function deletePreset(id: number): void {
 }
 
 /**
- * Il nome del file di una versione. UNA regola sola, in un posto solo.
+ * A version's file name. ONE rule, in ONE place.
  *
- * Era ricostruita a mano in tre punti (`jobs.ts`, `bake.ts`, e a mano negli
- * script), e il client la ricostruisce a sua volta in `thumbGenUrl` per
- * chiedere la miniatura. Finche' tutti scrivono la stessa stringa va bene; il
- * 27/08 due cover sono state registrate come
- * `generations/cover-scena-gel-high.png` invece di `generations/1/v30.png`, e
- * il risultato e' stato il peggiore possibile: la riga nel database c'era,
- * l'API la restituiva, l'albero mostrava la variante, e al posto della foto
- * arrivava un 500. Un dato "presente ma invisibile" non si nota finche'
- * qualcuno non va a cercare proprio quella.
+ * It used to be rebuilt by hand in three places (`jobs.ts`, `bake.ts`, and by
+ * hand in the scripts), and the client rebuilds it in turn in `thumbGenUrl` to
+ * ask for the thumbnail. As long as everybody writes the same string it is
+ * fine; on 27/08 two covers were recorded as
+ * `generations/cover-scena-gel-high.png` instead of `generations/1/v30.png`,
+ * and the result was the worst possible one: the row was in the database, the
+ * API returned it, the tree showed the variant, and in place of the photo came
+ * a 500. Data that is "present but invisible" goes unnoticed until somebody
+ * goes looking for that exact one.
  */
 export function versionFileName(versionNumber: number): string {
   return `v${String(versionNumber).padStart(2, "0")}.png`;
 }
 
-/** Dove DEVE stare il file di una versione: `<gen>/<photo_id>/vNN.png`. */
+/** Where a version's file MUST be: `<gen>/<photo_id>/vNN.png`. */
 export function versionPath(photoId: string, versionNumber: number): string {
   return join(genDir(), photoId, versionFileName(versionNumber));
 }
 
 /**
- * Controlla che un percorso rispetti la convenzione, e spiega perche' no.
+ * Checks that a path respects the convention, and explains why it does not.
  *
- * Non blocca la scrittura di proposito: le versioni importate da fuori
- * (`source='imported'`) vivono legittimamente altrove, e un progetto vecchio
- * puo' avere percorsi storici che nessuno vuole rompere adesso. Serve a
- * chiamare il problema per nome nel punto in cui nasce, invece di scoprirlo
- * settimane dopo da una miniatura che non carica.
+ * It deliberately does not block the write: versions imported from elsewhere
+ * (`source='imported'`) legitimately live somewhere else, and an old project
+ * can have historical paths nobody wants to break right now. It is there to
+ * call the problem by its name at the point where it is born, instead of
+ * discovering it weeks later from a thumbnail that will not load.
  */
 export function pathOutsideConvention(
   photoId: string,
@@ -917,27 +920,27 @@ export function pathOutsideConvention(
 }
 
 /**
- * Quando e' nata una versione, in millisecondi.
+ * When a version was born, in milliseconds.
  *
- * La convenzione del progetto e' `Date.now()`, cioe' MILLISECONDI, e vale per
- * ogni tabella. Le versioni registrate a mano da uno script il 27/08 usavano
- * `Math.floor(Date.now()/1000)` — secondi — e il risultato e' stato un ordine
- * cronologico che metteva le tre piu' recenti in fondo: un numero mille volte
- * piu' piccolo di tutti gli altri sembra vecchio di cinquant'anni.
+ * The project's convention is `Date.now()`, that is MILLISECONDS, and it holds
+ * for every table. Versions recorded by hand from a script on 27/08 used
+ * `Math.floor(Date.now()/1000)` — seconds — and the result was a chronological
+ * order putting the three most recent ones at the bottom: a number a thousand
+ * times smaller than all the others looks fifty years old.
  *
- * Non si e' rotto niente e nessuno se ne e' accorto finche' l'albero non ha
- * iniziato a ordinare per data. Da qui in poi si chiama questa, invece di
- * scrivere l'espressione a mano ogni volta.
+ * Nothing broke and nobody noticed until the tree started sorting by date. From
+ * here on this is what gets called, instead of writing the expression by hand
+ * every time.
  */
 export function adesso(): number {
   return Date.now();
 }
 
-/** Un istante e' in secondi invece che in millisecondi? Serve per accorgersi
- *  dei dati gia' scritti male, che nessun controllo futuro puo' prevenire. */
+/** Is an instant in seconds instead of milliseconds? Useful for spotting data
+ *  already written wrong, which no future check can prevent. */
 export function suspectInstant(t: number): boolean {
-  // 100000000000 ms = marzo 1973; nessun dato vero sta sotto, mentre QUALSIASI
-  // timestamp in secondi di questo secolo ci sta abbondantemente sotto.
+  // 100000000000 ms = March 1973; no real data sits below that, while ANY
+  // timestamp in seconds from this century sits comfortably below it.
   return t > 0 && t < 100_000_000_000;
 }
 
