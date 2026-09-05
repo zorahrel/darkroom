@@ -6,20 +6,19 @@ import { listProjects, withProject } from "./project.ts";
 import { COMFY_HOST, RENDER_BASH, RENDER_DIR, RENDER_OUT_DIR, RENDER_SSH } from "./config.ts";
 
 /**
- * Generazione video sulla 3090.
+ * Video generation on the 3090.
  *
- * Il grafo e' quello di `gen.py`, portato nodo per nodo: stessi id, stesso
- * negativo, stessi campionatori. Non e' pigrizia, e' la ragione per cui si puo'
- * confrontare una ripresa fatta da qui con le 272 fatte dalla riga di comando —
- * se il grafo divergesse, la differenza fra due riprese non direbbe piu' niente
- * sul prompt.
+ * The graph is `gen.py`'s, ported node by node: same ids, same negative, same
+ * samplers. It is not laziness, it is the reason a shot made from here can be
+ * compared with the 272 made from the command line — if the graph diverged, the
+ * difference between two shots would no longer say anything about the prompt.
  *
- * Il Mac non tocca un fotogramma. ComfyUI scrive in `RENDER_OUT_DIR`, e
- * `raccogli.sh` — che gira sul PC — porta quei PNG dentro al progetto, li
- * interpola e ne fa la clip leggera. Di qui passa solo quella clip, che pesa
- * un megabyte. Prima si codificava a crf 10 sul PC, si scaricava, si
- * decodificava sul Mac e si reinterpolava sul Mac: un giro completo dei
- * fotogrammi per una perdita di qualita' pagata solo per attraversare il cavo.
+ * The Mac does not touch a single frame. ComfyUI writes into `RENDER_OUT_DIR`,
+ * and `raccogli.sh` — which runs on the PC — brings those PNGs into the
+ * project, interpolates them and makes the light clip. Only that clip comes
+ * across, and it weighs a megabyte. Before, it was encoded at crf 10 on the PC,
+ * downloaded, decoded on the Mac and re-interpolated on the Mac: a full round
+ * trip through the frames for a loss of quality paid purely to cross the cable.
  */
 
 const HOST = COMFY_HOST;
@@ -39,9 +38,9 @@ const remoteBash = (): string =>
   RENDER_DIR.replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, d: string) => `/${d.toLowerCase()}`);
 const remoteScp = (): string => RENDER_DIR.replace(/\\/g, "/");
 
-/** Il negativo di `gen.py`, parola per parola. Non vieta piu' il movimento di
- *  camera: vietarlo produceva cartoline. La firma dell'AI non e' la camera che
- *  si muove, e' la materia che morfa — quindi si vieta quella. */
+/** `gen.py`'s negative, word for word. It no longer forbids camera movement:
+ *  forbidding it produced postcards. The AI's signature is not the camera
+ *  moving, it is matter that morphs — so that is what gets forbidden. */
 const NEG =
   "colore, saturo, testo, scritte, watermark, logo, sottotitoli, " +
   "drone, ripresa aerea, zoom digitale, " +
@@ -50,12 +49,12 @@ const NEG =
   "immagine ferma, fotografia statica, nulla si muove";
 
 /**
- * I default stanno DENTRO la memoria della scheda, e questo e' un numero
- * misurato, non una precauzione. A 704x1280 con 81 fotogrammi e nessuna
- * immagine di partenza la 3090 arriva a 23,9 GB su 24,5: un'ora al 100% di GPU
- * e zero PNG scritti. Gli stessi 640x1152 a 61 fotogrammi, 20 passi e decodifica
- * a tasselli da 256 escono in novanta secondi. La differenza non e' il metodo,
- * e' la memoria — per questo sono campi visibili e non costanti nascoste.
+ * The defaults sit INSIDE the card's memory, and this is a measured number, not
+ * a precaution. At 704x1280 with 81 frames and no starting image the 3090
+ * reaches 23.9 GB out of 24.5: an hour at 100% GPU and zero PNGs written. The
+ * same thing at 640x1152, 61 frames, 20 steps and tiled decoding at 256 comes
+ * out in ninety seconds. The difference is not the method, it is the memory —
+ * which is why these are visible fields and not hidden constants.
  */
 export const DEFAULT_PARAMS = {
   width: 640,
@@ -119,26 +118,27 @@ export function enqueueVideoJob(shot: string, prompt: string, take = "a", params
   return r;
 }
 
-/** Il listato dei job.
- *  Era tagliato a 50 e con una coda lunga le generazioni piu' vecchie ancora in
- *  attesa sparivano dalla vista: dieci job "spariti" che in realta' erano finiti
- *  da un pezzo, e nessun modo di accorgersene dall'interfaccia. */
+/** The job listing.
+ *  It was cut at 50 and with a long queue the oldest generations still waiting
+ *  dropped out of sight: ten "vanished" jobs that had in fact finished long
+ *  before, and no way to notice it from the interface. */
 export function listVideoJobs(limit = 300): VideoJob[] {
   return getDb().query(`SELECT * FROM video_jobs ORDER BY id DESC LIMIT ?`).all(limit) as VideoJob[];
 }
 
 /**
- * Fermare una generazione.
+ * Stopping a generation.
  *
- * Una in coda si toglie e basta. Una **in corso** invece non si poteva fermare
- * per niente: restava li' finche' non finiva o finche' non scadevano i quindici
- * minuti senza fotogrammi nuovi, e nel frattempo teneva ferma tutta la coda
- * dietro. Succede: si lancia una serie, si guarda la prima e si capisce che il
- * prompt e' sbagliato — e le altre nove stanno dietro una che non si vuole piu'.
+ * A queued one is simply removed. A **running** one, on the other hand, could
+ * not be stopped at all: it sat there until it finished or until the fifteen
+ * minutes without new frames ran out, and meanwhile it held up the whole queue
+ * behind it. It happens: you launch a series, look at the first one and realise
+ * the prompt is wrong — and the other nine are stuck behind one nobody wants
+ * any more.
  *
- * Fermarla vuol dire due cose: dire a ComfyUI di interrompere (`/interrupt`
- * ferma quella che gira, `/queue delete` toglie quelle in attesa) e segnare la
- * riga, cosi' il ciclo d'attesa esce e la coda va avanti.
+ * Stopping it means two things: telling ComfyUI to interrupt (`/interrupt`
+ * stops the running one, `/queue delete` removes the waiting ones) and marking
+ * the row, so the waiting loop exits and the queue moves on.
  */
 export function cancelVideoJob(id: number): boolean {
   const db = getDb();
@@ -160,9 +160,9 @@ async function fermatiSuComfy(promptId: string | null): Promise<void> {
       body: JSON.stringify({ delete: [promptId] }),
     }).catch(() => {});
   }
-  // `/interrupt` ferma quella che sta girando ADESSO, qualunque sia: si manda
-  // dopo il delete, cosi' se il prompt era ancora in attesa non si interrompe
-  // per sbaglio quella di qualcun altro.
+  // `/interrupt` stops whatever is running RIGHT NOW, whatever it is: it is
+  // sent after the delete, so if the prompt was still waiting we do not
+  // interrupt somebody else's by mistake.
   await fetch(`${HOST}/interrupt`, { method: "POST" }).catch(() => {});
 }
 
@@ -179,22 +179,22 @@ const appendi = (id: number, row: string) => {
 let inCorso = false;
 
 /**
- * I job che il riavvio ha lasciato a meta'.
+ * The jobs a restart left half-done.
  *
- * La coda vive nel database ma chi la fa girare vive nel processo: un riavvio
- * del server lascia una riga `running` senza nessuno che la segua, e il job
- * resta li' per sempre anche quando la GPU ha finito da un pezzo. Successo
- * davvero — 61 PNG scritti, coda di ComfyUI vuota, e il log fermo a "401s — 0
- * fotogrammi".
+ * The queue lives in the database but whoever turns it lives in the process: a
+ * server restart leaves a `running` row with nobody following it, and the job
+ * stays there forever even when the GPU finished long ago. It really happened —
+ * 61 PNGs written, ComfyUI's queue empty, and the log stuck at "401s — 0
+ * frames".
  *
- * Il `prompt_id` pero' e' su disco, quindi la generazione si puo' riagganciare:
- * si torna ad aspettare quel prompt e si raccoglie come se non fosse successo
- * niente. Chi non ha un `prompt_id` non era ancora partito e torna in coda.
+ * The `prompt_id` is on disk though, so the generation can be re-attached: we
+ * go back to waiting on that prompt and collect it as if nothing had happened.
+ * Anything without a `prompt_id` had not started yet and goes back to the queue.
  */
 export function riprendiInterrotti(): void {
-  // Al boot non c'e' un progetto "corrente": il contesto vale per richiesta, e
-  // fuori da una richiesta `getDb()` cade sul primo progetto registrato — che
-  // e' un progetto foto e non ha job video. Quindi si entra in ognuno.
+  // At boot there is no "current" project: the context is per request, and
+  // outside a request `getDb()` falls back to the first registered project —
+  // which is a photo project and has no video jobs. So we step into each one.
   for (const p of listProjects().filter((x) => x.views.includes("video"))) {
     withProject(p.id, () => riprendiIn(p.id));
   }
@@ -212,7 +212,7 @@ function riprendiIn(_pid: string): void {
   if (persi.length) startQueue();
 }
 
-/** Una scheda, una generazione: la coda avanza da sola finche' c'e' lavoro. */
+/** One card, one generation: the queue advances by itself while there is work. */
 export function startQueue(): void {
   if (inCorso) return;
   const next = getDb().query(`SELECT * FROM video_jobs WHERE status='pending' ORDER BY id LIMIT 1`).get() as VideoJob | null;
@@ -221,7 +221,7 @@ export function startQueue(): void {
   void run(next)
     .catch((e) => {
       const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(next.id) as { status: string } | null;
-      if (ora?.status === "cancelled") return;   // fermata apposta, non e' un guasto
+      if (ora?.status === "cancelled") return;   // stopped on purpose, not a fault
       write(next.id, { status: "failed", error: String(e), finished_at: Date.now() });
     })
     .finally(() => { inCorso = false; startQueue(); });
@@ -240,14 +240,14 @@ async function run(job: VideoJob): Promise<void> {
   appendi(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
 
   /**
-   * Prima si svuota la scheda.
+   * First, empty the card.
    *
-   * I default stanno dentro i 24 GB *se la scheda e' libera*. ComfyUI pero'
-   * tiene in memoria i modelli dell'ultima generazione, e la richiesta dopo
-   * parte da quel che resta: misurato su questo stesso job — 640x1152, 61
-   * fotogrammi, cioe' i parametri da novanta secondi — la 3090 stava a 24.036
-   * MiB su 24.576 e dopo cinque minuti non aveva scritto un PNG. Non e' un
-   * problema di parametri, e' che il budget dipendeva da cosa era girato prima.
+   * The defaults fit inside the 24 GB *if the card is free*. ComfyUI, however,
+   * keeps the last generation's models in memory, and the next request starts
+   * from what is left: measured on this very job — 640x1152, 61 frames, that is
+   * the ninety-second parameters — the 3090 sat at 24,036 MiB out of 24,576 and
+   * after five minutes had not written a single PNG. It is not a parameter
+   * problem, it is that the budget depended on what had run before.
    */
   await fetch(`${HOST}/free`, {
     method: "POST",
@@ -256,17 +256,17 @@ async function run(job: VideoJob): Promise<void> {
   }).catch(() => { /* se non risponde lo dira' la generazione */ });
 
   /**
-   * Riagganciarsi, per davvero.
+   * Re-attaching, properly.
    *
-   * Un prompt gia' mandato puo' stare in tre posti: finito (nella cronologia),
-   * ancora vivo (nella coda di ComfyUI), o da nessuna parte. Solo il terzo caso
-   * va rimandato.
+   * A prompt already sent can be in three places: finished (in the history),
+   * still alive (in ComfyUI's queue), or nowhere. Only the third case should be
+   * sent again.
    *
-   * Il ramo "ancora vivo" mancava, e la conseguenza si e' vista: ogni riavvio
-   * del server durante una generazione ne pubblicava una copia nuova sulla
-   * scheda. Tre riavvii in una sessione, tre copie identiche dello stesso
-   * piano in coda sulla 3090 — quattro minuti e mezzo di GPU per fotogrammi
-   * che stavano gia' arrivando.
+   * The "still alive" branch was missing, and the consequence showed: every
+   * server restart during a generation published a fresh copy of it on the
+   * card. Three restarts in one session, three identical copies of the same
+   * shot queued on the 3090 — four and a half minutes of GPU for frames that
+   * were already on their way.
    */
   if (job.prompt_id) {
     const h = await fetch(`${HOST}/history/${job.prompt_id}`).then((x) => x.json() as any).catch(() => ({}));
@@ -296,7 +296,7 @@ async function run(job: VideoJob): Promise<void> {
   return await collect(job, prefix);
 }
 
-/** Quel prompt e' ancora nella coda di ComfyUI (in corso o in attesa)? */
+/** Is that prompt still in ComfyUI's queue (running or waiting)? */
 async function queuedOnComfy(promptId: string): Promise<boolean> {
   const q = await fetch(`${HOST}/queue`).then((x) => x.json() as any).catch(() => null);
   if (!q) return false;
@@ -305,10 +305,10 @@ async function queuedOnComfy(promptId: string): Promise<boolean> {
 }
 
 /**
- * L'attesa non finisce per tempo, finisce per fotogrammi. Il modo in cui questa
- * generazione fallisce non e' fermarsi: e' restare al 100% di GPU senza
- * scrivere niente, e un timeout a tempo fisso non distingue quel caso da una
- * generazione lenta ma viva. Si guarda quanti PNG sono comparsi.
+ * The wait does not end on time, it ends on frames. The way this generation
+ * fails is not by stopping: it is by staying at 100% GPU without writing
+ * anything, and a fixed-time timeout cannot tell that case from a generation
+ * that is slow but alive. What gets watched is how many PNGs have appeared.
  */
 async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ComfyParams): Promise<void> {
   const t0 = Date.now();
@@ -316,7 +316,7 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Comfy
   let lastCount = 0, lastMove = t0;
   for (;;) {
     await Bun.sleep(5000);
-    // Annullata mentre aspettava: si esce di qui, non si raccoglie niente.
+    // Cancelled while waiting: we leave here, nothing gets collected.
     const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(job.id) as { status: string } | null;
     if (ora?.status === "cancelled") throw new Error("annullata");
     const h = await fetch(`${HOST}/history/${promptId}`).then((x) => x.json() as any).catch(() => ({}));
@@ -339,14 +339,14 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Comfy
   }
 }
 
-/** Dai PNG alla ripresa: succede sul PC, e di qui passa solo l'anteprima. */
+/** From PNGs to a shot: it happens on the PC, and only the preview comes across. */
 async function collect(job: VideoJob, prefix: string): Promise<void> {
   appendi(job.id, "-> raccolta sul PC");
   const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.shot} ${job.take}"`);
   appendi(job.id, (rac.out + rac.err).trim());
   if (rac.code !== 0) throw new Error(`raccogli.sh e' uscito ${rac.code}: ${(rac.err || rac.out).slice(0, 600)}`);
 
-  // Di qui passa solo la clip leggera: e' l'unica cosa che il browser deve aprire.
+  // Only the light clip comes across: it is the only thing the browser has to open.
   const name = `${job.shot}__${job.take}`;
   for (const est of ["mp4", "jpg"]) {
     const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${name}.${est}`, join(videoRoot(), "prev", `${name}.${est}`)], { stdout: "pipe", stderr: "pipe" });
@@ -355,11 +355,11 @@ async function collect(job: VideoJob, prefix: string): Promise<void> {
   const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
 
   /**
-   * I fotogrammi restano sul PC, e va bene — ma `shots()` costruisce l'elenco
-   * dei piani leggendo `src/` **qui**, quindi una ripresa nata la' non
-   * comparirebbe da nessuna parte pur avendo la sua anteprima sul Mac. Il conto
-   * si annota accanto all'anteprima: e' l'unica cosa che di quei fotogrammi
-   * serva sapere senza attraversare la rete.
+   * The frames stay on the PC, and that is fine — but `shots()` builds the list
+   * of shots by reading `src/` **here**, so a shot born over there would not
+   * appear anywhere despite having its preview on the Mac. The count is noted
+   * beside the preview: it is the only thing about those frames we need to know
+   * without crossing the network.
    */
   const reg = join(videoRoot(), "raccolte.json");
   const prec = existsSync(reg) ? JSON.parse(readFileSync(reg, "utf8")) as Record<string, any> : {};

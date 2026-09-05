@@ -19,22 +19,22 @@ import { RENDER_DIR, RENDER_SSH, VIDEO_AUDIO, VIDEO_MASTER } from "./config.ts";
 export type Take = { take: string; frames: number; clip: string; poster: string; kept: boolean };
 
 /**
- * Da quale generazione viene una ripresa: il nome senza le cifre finali.
+ * Which generation a shot comes from: the name without its trailing digits.
  *
- * `z43_0` e `z43_1` non sono due riprese, sono due meta' della stessa presa —
- * stesso seme, stessa inquadratura. Contando i nomi il montaggio dichiarava 122
- * riprese diverse; contando le origini ne aveva 48, e quarantanove volte due
- * pezzi della stessa presa passavano a meno di otto secondi l'uno dall'altro.
+ * `z43_0` and `z43_1` are not two shots, they are two halves of the same take —
+ * same seed, same framing. Counting names, the edit declared 122 different
+ * shots; counting origins it had 48, and forty-nine times two pieces of the
+ * same take went past less than eight seconds apart.
  *
- * Si toglie UNA sola cifra finale, e solo se prima c'e' qualcosa che cifra non
- * e'. Togliendole tutte si univa troppo: `k00` e `k15` diventavano entrambi
- * `k`, cioe' sedici riprese di mare diverse trattate come pezzi della stessa
- * presa. Misurato sui descrittori: la famiglia `k` cosi' unita si somiglia
- * 0.705 e la `x` 0.761 — non sono la stessa cosa. Con una cifra sola le
- * famiglie stanno fra 0.75 e 0.99, che e' il campo giusto.
+ * ONE trailing digit is removed, and only if there is something that is not a
+ * digit before it. Removing them all merged too much: `k00` and `k15` both
+ * became `k`, that is sixteen different sea shots treated as pieces of one
+ * take. Measured on the descriptors: the `k` family merged that way resembles
+ * itself 0.705 and `x` 0.761 — they are not the same thing. With a single digit
+ * the families sit between 0.75 and 0.99, which is the right range.
  *
- * La stessa funzione vive in `pianifica.py`. E' una definizione, non una
- * politica: duplicarla costa una riga e i test dicono se le due divergono.
+ * The same function lives in `pianifica.py`. It is a definition, not a policy:
+ * duplicating it costs one line and the tests say if the two diverge.
  */
 export const origine = (shot: string) => {
   const m = /^(.*[^0-9])_?[0-9]$/.exec(shot);
@@ -53,14 +53,15 @@ export type Shot = {
   kept: boolean;
   /** Why it was dropped, when it was dropped by hand. */
   why: string | null;
-  /** Il verdetto di chi guarda, in tutt'e due i versi. `null` = mai passata
-   *  sotto gli occhi, che è diverso da "tenuta" anche se sta nel montaggio. */
+  /** The verdict of whoever is watching, in both directions. `null` = never
+   *  passed under the eyes, which is different from "kept" even when it is in
+   *  the edit. */
   verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
   /** Problems flagged from the editor. Not a verdict: a note for the next round. */
   problems: string[];
-  /** Perché questa ripresa merita di essere guardata per prima. Non è un
-   *  verdetto: vedi `sospetto()`. `null` = niente di anomalo nei numeri. */
+  /** Why this shot deserves to be looked at first. It is not a verdict: see
+   *  `suspicion()`. `null` = nothing anomalous in the numbers. */
   suspect: string | null;
   /** Which generation it comes from: two halves of one take share this. */
   origine: string;
@@ -87,10 +88,10 @@ export type Cut = {
   origine: string;
 };
 
-/** `perche` e' la riga di storia che l'atto racconta — «lei cammina», «i piedi
- *  lasciano il fondo». La scrive `pianifica.py` in atti.json: senza, in Scelta
- *  si legge "atto cammino" e basta, che a chi giudica una ripresa non dice
- *  niente. Puo' mancare sui progetti generati prima del 27/08/2026. */
+/** `perche` is the line of story the act tells — "she walks", "the feet leave
+ *  the ground". `pianifica.py` writes it into atti.json: without it, Pick shows
+ *  "act cammino" and nothing else, which says nothing to somebody judging a
+ *  shot. It can be missing on projects generated before 27/08/2026. */
 export type Act = { da: number; a: number; nome: string; t0: number; t1: number; why?: string };
 
 const readJson = <T,>(p: string, fallback: T): T => {
@@ -101,8 +102,9 @@ const readJson = <T,>(p: string, fallback: T): T => {
   }
 };
 
-/** La fonderia: dove si monta, si codifica e si misura. Gli stessi due valori
- *  che stanno in `master.sh` — il Mac e' l'autore, non il nodo di calcolo. */
+/** The foundry: where the edit is assembled, encoded and measured. The same
+ *  two values that live in `master.sh` — the Mac is the author, not the compute
+ *  node. */
 const PC = RENDER_SSH;
 const REMOTO = RENDER_DIR;
 
@@ -178,27 +180,28 @@ export function clearProblem(shot: string, i: number) {
 }
 
 /**
- * Il verdetto su una ripresa, tenuto in tutt'e due i versi.
+ * The verdict on a shot, kept in both directions.
  *
- * Prima "tieni" cancellava soltanto la riga da `scartati`, e tenere è lo stato
- * di partenza: premere il tasto su cento scene non lasciava nessuna traccia. La
- * coda "da giudicare" restava lunga uguale, e "quali ho già approvato?" era una
- * domanda senza risposta — l'unico giudizio registrato era quello negativo.
+ * "Keep" used to merely delete the row from `scartati`, and keeping is the
+ * starting state: pressing the key on a hundred scenes left no trace at all.
+ * The "to judge" queue stayed exactly as long, and "which ones have I already
+ * approved?" was a question with no answer — the only judgement recorded was
+ * the negative one.
  *
- * Ora si scrive anche il sì, con quando. `pianifica.py` legge solo `scartati`,
- * quindi il piano non se ne accorge: è memoria di chi guarda, non una scelta di
- * montaggio.
+ * Now the yes is written too, with its when. `pianifica.py` reads only
+ * `scartati`, so the plan does not notice: this is the memory of whoever
+ * watches, not an editing choice.
  */
 /**
- * `null` non è un terzo capriccio: è lo stato in cui nasce ogni ripresa, e
- * senza di lui l'annulla mente.
+ * `null` is not a third whim: it is the state every shot is born in, and
+ * without it undo lies.
  *
- * L'annulla della pagina ripristinava `kept`, che è un booleano — e una scena
- * mai giudicata ha `kept` vero, perché nessuno l'ha scartata. Disfare uno
- * scarto la scriveva quindi fra i TENUTI: premevi «annulla» su una scena che
- * non avevi mai visto e le davi un sì. Un annulla che lascia il verdetto
- * opposto è peggio del verdetto sbagliato, perché sembra di essere tornati
- * indietro. Misurato su `g_corr` il 04/09.
+ * The page's undo restored `kept`, which is a boolean — and a scene never
+ * judged has `kept` true, because nobody discarded it. Undoing a discard
+ * therefore wrote it among the KEPT ones: you pressed "undo" on a scene you had
+ * never seen and gave it a yes. An undo that leaves the opposite verdict is
+ * worse than the wrong verdict, because it feels like you went back. Measured
+ * on `g_corr` on 04/09.
  */
 export function setPick(shot: string, kept: boolean | null, why?: string) {
   const s = picks() as Picks & { tenuti?: Record<string, number> };
@@ -223,15 +226,15 @@ export function setPick(shot: string, kept: boolean | null, why?: string) {
 
 
 /**
- * La durezza decisa a mano, che vince su quella misurata.
+ * Hardness decided by hand, which wins over the measured one.
  *
- * La misura mette in fila le riprese per movimento, contrasto e luce, e
- * sbaglia quando la forza di un'immagine non sta li' dentro: una figura ferma
- * che riempie il quadro picchia piu' di un'onda lontana che si agita. Finora
- * l'unico rimedio era scartare la ripresa — cioe' buttarla invece di
- * rimetterla al posto giusto.
+ * The measurement lines the shots up by movement, contrast and light, and gets
+ * it wrong when an image's force is not in there: a still figure filling the
+ * frame hits harder than a distant wave thrashing about. Until now the only
+ * remedy was discarding the shot — that is, throwing it away instead of putting
+ * it back in the right place.
  *
- * `null` toglie la forzatura e restituisce la parola alla misura.
+ * `null` removes the override and gives the word back to the measurement.
  */
 export function setManualIntensity(shot: string, value: number | null) {
   const s = picks() as Picks & { durezze?: Record<string, number> };
@@ -242,8 +245,9 @@ export function setManualIntensity(shot: string, value: number | null) {
   return s;
 }
 
-/** La riga che dice cosa si vede, scritta a mano. Vince sul ritaglio del
- *  prompt, che e' solo un ritaglio. Stringa vuota = torna quello automatico. */
+/** The line saying what you see, written by hand. It wins over the prompt's
+ *  excerpt, which is only an excerpt. Empty string = back to the automatic
+ *  one. */
 export function setDescription(shot: string, text: string) {
   const s = picks() as Picks & { descriptions?: Record<string, string> };
   s.descriptions ??= {};
@@ -254,8 +258,8 @@ export function setDescription(shot: string, text: string) {
   return s;
 }
 
-/** Toglie ogni verdetto da una ripresa: torna in coda come se non fosse mai
- *  passata sotto gli occhi. */
+/** Removes every verdict from a shot: it goes back to the queue as if it had
+ *  never passed under the eyes. */
 export function clearVerdict(shot: string) {
   const s = picks() as Picks & { tenuti?: Record<string, number> };
   delete s.scartati[shot];
@@ -286,13 +290,13 @@ export function setPin(bar: number, shot: string | null) {
 }
 
 /**
- * I marcatori: un appunto attaccato a un istante.
+ * The markers: a note pinned to an instant.
  *
- * Guardando il montaggio si nota una cosa in un secondo e la si perde nel
- * successivo — "qui il taglio arriva tardi", "questa gia' vista". Segnarla
- * altrove vuol dire perdere il punto esatto; segnarla qui vuol dire ritrovarla
- * al secondo giusto. Vivono in `scelte.json` come tutto il resto che l'occhio
- * decide, e il Python li ignora perche' non sono una scelta di montaggio.
+ * Watching the edit you notice something in one second and lose it in the next
+ * — "the cut lands late here", "seen this one already". Noting it elsewhere
+ * means losing the exact point; noting it here means finding it again at the
+ * right second. They live in `scelte.json` like everything else the eye
+ * decides, and the Python ignores them because they are not an editing choice.
  */
 export function setMarker(t: number, note: string | null) {
   const s = picks() as any;
@@ -304,14 +308,14 @@ export function setMarker(t: number, note: string | null) {
 }
 
 /**
- * Tutto ciò che è stato forzato a mano.
+ * Everything that was forced by hand.
  *
- * Il montaggio è derivato: quello che si vede è il risultato di misure. Le
- * forzature sono le uniche cose che non lo sono, e finché restavano scritte
- * solo dentro `scelte.json` erano invisibili — un clic di troppo su un provino
- * inchiodava una battuta e nessuno se ne accorgeva fino alla ricostruzione
- * dopo. Un cambiamento che non si vede è un cambiamento che non si può
- * disfare, quindi qui si elencano.
+ * The edit is derived: what you see is the result of measurements. The
+ * overrides are the only things that are not, and as long as they stayed
+ * written only inside `scelte.json` they were invisible — one click too many on
+ * a contact strip nailed a bar down and nobody noticed until the rebuild
+ * afterwards. A change you cannot see is a change you cannot undo, so here they
+ * are listed.
  */
 export function overrides(): {
   pin: { bar: number; shot: string }[];
@@ -339,15 +343,15 @@ export function markers(): { t: number; note: string }[] {
 }
 
 /**
- * Scambiare due tagli: ognuno prende il posto dell'altro.
+ * Swapping two cuts: each takes the other's place.
  *
- * È il gesto che sulla timeline si fa trascinando un blocco sopra un altro, e
- * per come è fatto questo montaggio è anche l'unico movimento che ha senso: i
- * tagli non stanno dove capita, stanno su battute misurate, e ogni battuta ne
- * regge esattamente uno. Muovere un blocco "un po' più in là" non vorrebbe dire
- * niente — prendere il posto di un altro sì.
+ * It is the gesture you make on the timeline by dragging one block over
+ * another, and given how this edit is built it is also the only movement that
+ * makes sense: cuts do not sit wherever, they sit on measured bars, and each
+ * bar holds exactly one. Moving a block "a bit further along" would not mean
+ * anything — taking another's place does.
  *
- * Scritto in una volta sola, così un annulla rimette entrambi o nessuno.
+ * Written in one go, so an undo puts back both or neither.
  */
 export function swap(barA: number, shotA: string, barB: number, shotB: string) {
   const s = picks();
@@ -389,22 +393,22 @@ const actOf = (bar: number, as: Act[]) =>
   as.find((a) => bar >= a.da && bar < a.a)?.nome ?? null;
 
 /**
- * Il provino di una ripresa: dodici istanti in una striscia sola.
+ * A shot's contact strip: twelve instants in a single band.
  *
- * Serve a rispondere a una domanda che nessuna misura di questo progetto ha
- * saputo rispondere — *dove* una ripresa si sminchia. Ci hanno provato in
- * quattro modi: bilancio tonale, area di dettaglio, salto della sagoma, e
- * (oggi) la non-liscezza della traiettoria e il disaccordo fra soggetto e
- * sfondo. Nessuno separa una figura che si disfa da un'onda che esplode,
- * perche' i difetti veri sono semantici: «scende in mezzo alle scale», «il
- * gabbiano non e' coerente fra un fotogramma e l'altro». Un modello per
- * immagini singole quei quadri li descrive come perfettamente normali.
+ * It exists to answer a question no measurement in this project has managed to
+ * answer — *where* a shot falls apart. Four ways were tried: tonal balance,
+ * detail area, silhouette jump, and (today) trajectory non-smoothness and
+ * disagreement between subject and background. None separates a figure coming
+ * undone from a wave exploding, because the real defects are semantic: "she
+ * goes down in the middle of the stairs", "the seagull is not consistent from
+ * one frame to the next". A single-image model describes those frames as
+ * perfectly normal.
  *
- * Quindi non si automatizza il giudizio: si rende istantaneo. Su una striscia
- * l'occhio trova il punto in cui la figura cambia identita' in un secondo,
- * mentre scorrere una clip di due secondi e mezzo avanti e indietro ne costa
- * dieci. E ogni casella porta il video al suo istante, cosi' il sospetto si
- * verifica senza cercare.
+ * So the judgement is not automated: it is made instant. On a strip the eye
+ * finds the point where the figure changes identity in one second, while
+ * scrubbing a two-and-a-half-second clip back and forth costs ten. And every
+ * cell takes the video to its instant, so a suspicion is checked without
+ * searching.
  */
 export function take(shot: string, take: string, howMany = 12): string | null {
   const clip = at("prev", `${shot}__${take}.mp4`);
@@ -412,15 +416,15 @@ export function take(shot: string, take: string, howMany = 12): string | null {
   const outside = at("provini");
   if (!existsSync(outside)) mkdirSync(outside, { recursive: true });
   const dest = join(outside, `${shot}__${take}_${howMany}.jpg`);
-  // Si rifa' solo se la clip e' cambiata dopo: un provino e' un derivato, e
-  // rigenerarlo a ogni apertura vuol dire un ffmpeg per ogni scorrimento.
+  // It is remade only if the clip changed afterwards: a contact strip is a
+  // derivative, and regenerating it on every open means an ffmpeg per scroll.
   if (existsSync(dest) && statSync(dest).mtimeMs >= statSync(clip).mtimeMs) return dest;
 
   const r = Bun.spawnSync([
     "ffmpeg", "-v", "error", "-y", "-i", clip,
-    // `thumbnail=n` prende UN quadro ogni n scegliendo il piu' rappresentativo:
-    // su una clip di 61 quadri servono dodici istanti distribuiti, non i primi
-    // dodici. `-frames:v 1` chiude dopo il primo mosaico.
+    // `thumbnail=n` takes ONE frame every n, choosing the most representative:
+    // over a 61-frame clip you want twelve instants spread out, not the first
+    // twelve. `-frames:v 1` closes after the first mosaic.
     "-vf", `select='not(mod(n\,${Math.max(1, Math.floor(61 / howMany))}))',scale=180:-1,tile=${howMany}x1`,
     "-frames:v", "1", "-q:v", "4", dest,
   ]);
@@ -429,33 +433,32 @@ export function take(shot: string, take: string, howMany = 12): string | null {
 }
 
 /**
- * Perché questa ripresa va guardata per prima.
+ * Why this shot should be looked at first.
  *
- * **Non è una selezione automatica**, e non per prudenza: perché è stata
- * provata e non funziona. Metà degli scarti a mano di questo progetto ha una
- * motivazione che *sembra* misurabile — «ferma», «quasi tutto nero», «piatta e
- * grigia», «resta due fili bianchi sul nero» — e sono quindici riprese su 256.
- * La regola che ne prende di più (`moto < 2.5` oppure `contrasto < 38`) ne
- * becca dieci e ne sbaglia **quarantotto** delle 241 tenute: come cancello è
- * inservibile, perché fra le tenute ci sono riprese volutamente immobili che
- * arrivano a `moto` 0.22.
+ * **It is not an automatic selection**, and not out of caution: because it was
+ * tried and it does not work. Half the hand discards in this project have a
+ * reason that *looks* measurable — "still", "almost all black", "flat and
+ * grey", "leaves two white threads on the black" — and that is fifteen shots
+ * out of 256. The rule that catches the most of them (`moto < 2.5` or
+ * `contrasto < 38`) catches ten and gets **forty-eight** of the 241 kept ones
+ * wrong: as a gate it is useless, because among the kept ones there are
+ * deliberately motionless shots going down to `moto` 0.22.
  *
- * Lo stesso numero però è ottimo come **ordine di lettura**: guardando per
- * prime le ventisei che escono, le dieci morte si trovano in un minuto e non
- * si è buttato via niente. Un filtro, non un verdetto — e con scritto accanto
- * cosa ha fatto scattare il sospetto, così si può dargli torto in un colpo
- * d'occhio.
+ * The same number is excellent as a **reading order**, though: by looking first
+ * at the twenty-six it turns up, the ten dead ones are found in a minute and
+ * nothing has been thrown away. A filter, not a verdict — and with what raised
+ * the suspicion written beside it, so it can be overruled at a glance.
  *
- * (L'altra metà degli scarti — «scende in mezzo alle scale», «il gabbiano non
- * è coerente fra un fotogramma e l'altro» — non è misurabile per niente:
- * cinque tentativi e un VLM per fotogramma, tutti falliti. Sta in
- * `SELEZIONE.md` del progetto, coi numeri.)
+ * (The other half of the discards — "she goes down in the middle of the
+ * stairs", "the seagull is not consistent from one frame to the next" — is not
+ * measurable at all: five attempts and a VLM per frame, all failed. It is in
+ * the project's `SELEZIONE.md`, with the numbers.)
  */
-/** Le toppe bianche piatte che il generatore incolla nel nero, misurate da
- *  `artefatti.py` e lasciate in `artefatti.json`. Non si misurano qui perche'
- *  costano un ffmpeg per clip: farlo alla richiesta vorrebbe dire far aspettare
- *  chi apre la griglia. Il file e' assente finche' nessuno ha scansionato, e in
- *  quel caso questa riga semplicemente non compare. */
+/** The flat white patches the generator glues into the black, measured by
+ *  `artefatti.py` and left in `artefatti.json`. They are not measured here
+ *  because they cost an ffmpeg per clip: doing it on request would mean making
+ *  whoever opens the grid wait. The file is absent until somebody has scanned,
+ *  and in that case this line simply does not appear. */
 function artifacts(): Record<string, { sporchi: number; visti: number; dev: number }> {
   return readJson(at("artefatti.json"), {});
 }
@@ -466,7 +469,8 @@ function suspect(
 ): string | null {
   const moto = m.moto, contrasto = m.contrasto, nero = m.nero, luce = m.luce;
   const reasons: string[] = [];
-  // Per primo, perche' e' l'unico che dice "e' rotta" invece di "e' fiacca".
+  // First, because it is the only one that says "it is broken" instead of
+  // "it is weak".
   if (art && art.sporchi > 0)
     reasons.push(`macchie bianche in ${art.sporchi} fotogrammi su ${art.visti}`);
   if (typeof moto === "number" && moto < 2.5) reasons.push(`si muove poco (${moto.toFixed(1)})`);
@@ -477,16 +481,16 @@ function suspect(
 }
 
 /**
- * Una riga che dice cosa si vede, ricavata dal prompt.
+ * A line saying what you see, derived from the prompt.
  *
- * I prompt di un progetto sono quasi tutti uguali: pellicola, notte, alto
- * contrasto, la stessa donna nello stesso cappotto. Cambia una frase sola —
- * l'inquadratura — ed e' l'unica che serve a capire una ripresa in mezzo
- * secondo. Quindi non si riassume: si tolgono le frasi che hanno TUTTE, e
- * resta quella che ha solo questa.
+ * A project's prompts are nearly all the same: film stock, night, high
+ * contrast, the same woman in the same coat. One sentence changes — the framing
+ * — and it is the only one that lets you understand a shot in half a second. So
+ * it is not summarised: the sentences they ALL have are removed, and what
+ * remains is the one only this shot has.
  *
- * La soglia e' un quarto del progetto: una frase che compare in una ripresa su
- * quattro descrive lo stile, non la scena.
+ * The threshold is a quarter of the project: a sentence appearing in one shot
+ * out of four describes the style, not the scene.
  */
 function descriptions(prompts: Record<string, any>): Record<string, string> {
   const frasi = (t: string) =>
@@ -508,8 +512,8 @@ function descriptions(prompts: Record<string, any>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [id, fs] of perId) {
     const proprie = fs.filter((f) => (quante.get(f) ?? 0) < common);
-    // Se sono tutte in comune la ripresa non ha niente di suo da dire, e
-    // scrivere il boilerplate sarebbe peggio che non scrivere niente.
+    // If they are all shared the shot has nothing of its own to say, and
+    // writing the boilerplate would be worse than writing nothing.
     if (!proprie.length) continue;
     let t = proprie.slice(0, 2).join(" ");
     if (t.length > 180) t = `${t.slice(0, 177)}…`;
@@ -539,10 +543,10 @@ export function shots(): Shot[] {
   const inEdit: Record<string, number> = {};
   const firstTime: Record<string, number> = {};
   const actOfShot: Record<string, string> = {};
-  /** OGNI volta che la ripresa entra, non solo la prima. Un totale di secondi
-   *  non dice se sono un blocco unico o tre lampi sparsi nel brano, e sono due
-   *  cose diverse da giudicare: una ripresa mediocre che passa tre volte pesa
-   *  piu' di una bella che passa una volta sola. */
+  /** EVERY time the shot goes in, not just the first. A total in seconds does
+   *  not say whether it is one block or three flashes scattered through the
+   *  track, and those are two different things to judge: a mediocre shot that
+   *  passes three times weighs more than a beautiful one passing once. */
   const apparizioni: Record<string, { t: number; dur: number; act: string | null }[]> = {};
   for (const seg of plan.segments ?? []) {
     const [b0, b1] = seg.bars;
@@ -564,11 +568,12 @@ export function shots(): Shot[] {
     : [];
 
   /**
-   * I piani generati sulla GPU tengono i fotogrammi la' — passa il cavo solo
-   * l'anteprima. Elencare i piani leggendo `src/` qui li renderebbe invisibili
-   * proprio nel momento in cui c'e' da giudicarli. Quindi l'elenco e' l'unione:
-   * ciò che ha i fotogrammi qui, piu' ciò che ha almeno un'anteprima. Il conto
-   * dei fotogrammi delle remote sta in `raccolte.json`, scritto a fine job.
+   * Shots generated on the GPU keep their frames over there — only the preview
+   * crosses the cable. Listing shots by reading `src/` here would make them
+   * invisible at exactly the moment they need judging. So the list is the
+   * union: what has its frames here, plus what has at least one preview. The
+   * frame count of the remote ones is in `raccolte.json`, written when the job
+   * ends.
    */
   const collected = readJson<Record<string, { frames?: number }>>(at("raccolte.json"), {});
   const prevDir = at("prev");
@@ -585,9 +590,9 @@ export function shots(): Shot[] {
     .map((id) => {
       const here = existsSync(join(srcDir, id));
       const files = here ? readdirSync(join(srcDir, id)) : [];
-      // Le riprese erano inchiodate ad a|b|c. I piani generati da testo hanno
-      // solo la "a", ma il vincolo era comunque sbagliato nel verso opposto:
-      // si ricavano da cio' che c'e' su disco.
+      // Shots were nailed to a|b|c. Shots generated from text have only the "a",
+      // but the constraint was wrong in the opposite direction anyway: they are
+      // derived from what is on disk.
       const lettere = here
         ? [...new Set(files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[])]
         : (fromPreview.get(id) ?? []);
@@ -602,8 +607,8 @@ export function shots(): Shot[] {
           kept: !(shotsOutside[id] ?? []).includes(tk),
         }));
       const m = dz.piani?.[id] ?? {};
-      // La chiave in artefatti.json e' "<piano>__<ripresa>": basta che UNA
-      // ripresa sia sporca perche' il piano meriti un'occhiata.
+      // The key in artefatti.json is "<shot>__<take>": it takes only ONE take
+      // being dirty for the shot to deserve a look.
       const art = (["a", "b", "c"]
         .map((tk) => arte[`${id}__${tk}`])
         .filter(Boolean) as { sporchi: number; visti: number; dev: number }[])
@@ -612,7 +617,7 @@ export function shots(): Shot[] {
       return {
         id,
         prompt: prompts[id]?.prompt ?? prompts[`${id}_b`]?.prompt ?? "",
-        // Quella scritta a mano vince: e' un giudizio, l'altra e' un ritaglio.
+        // The hand-written one wins: it is a judgement, the other is an excerpt.
         descrizione: manual[id] ?? descr[id] ?? descr[`${id}_b`] ?? null,
         descrizioneAMano: manual[id] !== undefined,
         takes,
@@ -632,8 +637,8 @@ export function shots(): Shot[] {
         act: actOfShot[id] ?? null,
         minute: firstTime[id] ?? null,
         apparizioni: apparizioni[id] ?? [],
-        // Scartato a mano vs escluso dal pianificatore sono due cose diverse:
-        // la prima si annulla da qui, la seconda ha una ragione scritta.
+        // Discarded by hand and excluded by the planner are two different things:
+        // the first is undone from here, the second has a written reason.
         excluded: id in discarded ? null : (esclusi.esclusi?.[id] ?? null),
       };
     })
@@ -653,9 +658,9 @@ export function cuts(): {
   const dz = readJson<any>(at("durezza.json"), { piani: {} });
   const as = acts();
   const t = beatClock(bm);
-  // `fermo` controllava `subdiv <= 0`. Col movimento pieno subdiv vale ~51 su
-  // ogni segmento: la condizione non e' mai vera e la legenda mostrava un
-  // colore che nessun blocco poteva avere.
+  // `fermo` checked `subdiv <= 0`. With full movement subdiv is around 51 on
+  // every segment: the condition is never true and the legend showed a colour
+  // no block could have.
   const cuts: Cut[] = (plan.segments ?? []).map((s: any) => {
     const t0 = t(s.bars[0]);
     return {
@@ -683,16 +688,16 @@ export function cuts(): {
 
 /** Files the page plays. `reel` is the delivery encode, `anteprima` the light one. */
 /**
- * La forma d'onda del brano, i beat e i confini di battuta.
+ * The track's waveform, the beats and the bar boundaries.
  *
- * Questo montaggio e' agganciato ai beat: ogni taglio cade su un beat misurato
- * e la scelta della ripresa segue la durezza del suono. Senza il suono in
- * pagina, la timeline mostra il risultato e nasconde la ragione — si vede *che*
- * il taglio e' li', non *perche'*. Con l'onda sotto, un taglio fuori posto si
- * vede prima di sentirlo.
+ * This edit is locked to the beats: every cut falls on a measured beat and the
+ * choice of shot follows the hardness of the sound. Without the sound on the
+ * page, the timeline shows the result and hides the reason — you see *that* the
+ * cut is there, not *why*. With the wave underneath, a misplaced cut is seen
+ * before it is heard.
  *
- * I picchi si calcolano una volta e restano in `onda.json`: decodificare due
- * minuti e mezzo di mp3 costa un secondo, ma non a ogni apertura di pagina.
+ * The peaks are computed once and stay in `onda.json`: decoding two and a half
+ * minutes of mp3 costs a second, but not on every page open.
  */
 export type Wave = { peaks: number[]; beats: number[]; bars: number[]; duration: number; pronta: boolean };
 
@@ -702,8 +707,8 @@ export function wave(): Wave {
   const bm = readJson<any>(at("beatmap.json"), {});
   const beats: number[] = bm.beats ?? [];
   const duration = bm.duration_s ?? 0;
-  // I confini di battuta: un beat ogni quattro. E' la griglia su cui il piano
-  // ragiona (`bars`), quindi e' quella che va disegnata piu' marcata.
+  // The bar boundaries: one beat in four. It is the grid the plan reasons on
+  // (`bars`), so it is the one to draw more strongly.
   const bars = beats.filter((_, i) => i % 4 === 0);
 
   const f = at("onda.json");
@@ -738,8 +743,8 @@ function audioTrack(): string | null {
 async function computeWave(): Promise<void> {
   const audio = audioTrack();
   if (!audio) return;
-  // Mono, 8 kHz, interi con segno: per un profilo di ampiezza basta e avanza, e
-  // sono 1,2 MB invece di 25.
+  // Mono, 8 kHz, signed integers: for an amplitude profile that is plenty, and
+  // it is 1.2 MB instead of 25.
   const proc = Bun.spawn(
     ["ffmpeg", "-v", "error", "-i", audio, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"],
     { stdout: "pipe", stderr: "pipe" },
@@ -747,7 +752,7 @@ async function computeWave(): Promise<void> {
   const buf = new Int16Array((await new Response(proc.stdout).arrayBuffer()));
   await proc.exited;
   if (!buf.length) return;
-  const N = 2400;                        // un picco ogni ~60 ms su due minuti e mezzo
+  const N = 2400;                        // one peak every ~60 ms over two and a half minutes
   const per = Math.max(1, Math.floor(buf.length / N));
   const peaks: number[] = [];
   for (let i = 0; i < N; i++) {
@@ -796,24 +801,24 @@ export type Gate = {
   outcome: "verde" | "rosso" | "sconosciuto";
   failed: string[];
   quando: number | null;
-  /** Vera mentre `check.py` sta girando: la pagina si disegna subito e la
-   *  barra arriva dopo. Misurarla costa un minuto e mezzo di ffmpeg, e far
-   *  aspettare la pagina per quello e' il modo sicuro di non guardarla piu'. */
+  /** True while `check.py` is running: the page draws immediately and the bar
+   *  arrives afterwards. Measuring it costs a minute and a half of ffmpeg, and
+   *  making the page wait for that is the sure way never to look at it again. */
   computing: boolean;
 };
 
 /**
- * La barra si ESEGUE, non si reimplementa.
+ * The bar is RUN, not reimplemented.
  *
- * `check.py` e' l'unica misura. Riscriverne le condizioni qui in TypeScript
- * darebbe due implementazioni che concordano — e concordare non e' verificare.
- * Il precedente e' concreto: la condizione 5 ha misurato per due mesi la cosa
- * sbagliata (contava i fotogrammi identici e usciva 0%, ma solo perche' la
- * grana da sola superava la soglia su ogni fotogramma). Una seconda copia
- * avrebbe avuto lo stesso buco, e nessuno se ne sarebbe accorto.
+ * `check.py` is the only measurement. Rewriting its conditions here in
+ * TypeScript would give two implementations that agree — and agreeing is not
+ * verifying. The precedent is concrete: condition 5 measured the wrong thing
+ * for two months (it counted identical frames and came out at 0%, but only
+ * because grain alone passed the threshold on every frame). A second copy would
+ * have had the same hole, and nobody would have noticed.
  *
- * La condizione 2 stampa una riga per piano: e' un dettaglio da terminale, qui
- * si collassa in una riga sola col conto di quelli che non tengono.
+ * Condition 2 prints one line per shot: a terminal detail, collapsed here into
+ * a single line with the count of the ones that do not hold.
  */
 let gateCache: { key: string; gate: Gate } | null = null;
 let gateRunning: string | null = null;
@@ -836,18 +841,18 @@ export function gate(force = false): Gate {
 }
 
 /**
- * La barra si misura sul PC, in asincrono. Due difetti in una riga sola.
+ * The bar is measured on the PC, asynchronously. Two defects in a single line.
  *
- * Era `spawnSync`. Dentro un IIFE asincrono sembrava messa in cantiere, ma
- * `spawnSync` ferma l'unico thread di Bun finche' il processo non muore: per i
- * novanta secondi di `check.py` il server non rispondeva a nient'altro.
- * Misurato: `/api/video/shots` costa 45 ms da solo e oltre 60 secondi mentre la
- * barra "girava in sottofondo" — ed e' per questo che la pagina si apriva vuota.
+ * It was `spawnSync`. Inside an async IIFE it looked like it had been set going,
+ * but `spawnSync` stops Bun's only thread until the process dies: for the
+ * ninety seconds of `check.py` the server answered nothing else. Measured:
+ * `/api/video/shots` costs 45 ms on its own and over 60 seconds while the bar
+ * "ran in the background" — and that is why the page opened empty.
  *
- * E gira sul PC perche' `check.py` legge 49.000 fotogrammi per contare i quadri
- * nuovi al secondo: e' lo stesso lavoro che `master.sh` fa gia' la', sullo
- * stesso file, con gli stessi numeri (confrontati riga per riga). Se il PC non
- * risponde la barra lo dice, invece di rifarsi in silenzio addosso al Mac.
+ * And it runs on the PC because `check.py` reads 49,000 frames to count new
+ * frames per second: it is the same work `master.sh` already does over there,
+ * on the same file, with the same numbers (compared line by line). If the PC
+ * does not answer, the bar says so instead of silently redoing it on the Mac.
  */
 async function measure(key: string): Promise<Gate> {
   const proc = Bun.spawn(
@@ -875,8 +880,8 @@ async function measure(key: string): Promise<Gate> {
     const text = m[2] ?? "";
     if (n === "2") { if (/SI RIPETE/.test(text)) repeated++; continue; }
     if (n === "3") {
-      // Dump dei livelli, un piano per riga in una riga sola: in terminale
-      // serve, in pagina e' un muro di numeri. Si tiene il conto.
+      // A dump of the levels, one shot per row on a single line: useful in a
+      // terminal, a wall of numbers on a page. The count is what is kept.
       const howMany = (text.match(/=\d/g) ?? []).length;
       rows.push({ n, text: `livelli normalizzati su ${howMany} piani`, ok: true });
       continue;
@@ -892,7 +897,7 @@ async function measure(key: string): Promise<Gate> {
   });
 
   const outcome: Gate["outcome"] = /VERDE/.test(out) ? "verde" : failed.length ? "rosso" : "sconosciuto";
-  // Una riga e' rossa se il suo testo compare fra i motivi del fallimento.
+  // A row is red if its text appears among the reasons for the failure.
   for (const r2 of rows) {
     if (r2.ok !== null) continue;
     const keys = (r2.text.match(/[a-zà-ù]{5,}/gi) ?? []).slice(0, 3);
@@ -915,8 +920,8 @@ let rebuild: Rebuild = { active: false, log: "", iniziata: null, finita: null, o
 
 export const rebuildState = () => rebuild;
 
-/** Lancia `master.sh`. Uno per progetto alla volta: due giri in parallelo si
- *  contendono `_work/` e il secondo cancella i quadri del primo. */
+/** Launches `master.sh`. One per project at a time: two runs in parallel
+ *  fight over `_work/` and the second deletes the first one's frames. */
 export function startRebuild(): { ok: boolean; error?: string } {
   if (rebuild.active) return { ok: false, error: "una ricostruzione e' gia' in corso" };
   const sh = at("master.sh");

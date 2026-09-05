@@ -30,23 +30,23 @@ export type ProjectKind = "photo" | "storyboard" | "video";
 export const ALL_VIEWS: ProjectKind[] = ["photo", "storyboard", "video"];
 
 /**
- * Un progetto non è di un tipo solo.
+ * A project is not of one kind only.
  *
- * `kind` diceva "questo è un progetto foto" e da lì discendeva tutto: quali
- * schede compaiono, cosa mostra la scheda nell'elenco, dove si atterra
- * aprendolo. Ma un lavoro vero comincia con le foto di un sopralluogo, diventa
- * uno storyboard e finisce in un montaggio — e con un tipo solo bisognava
- * fare tre progetti sulla stessa cartella.
+ * `kind` said "this is a photo project" and everything followed from there:
+ * which tabs appear, what the card in the list shows, where you land when you
+ * open it. But real work starts with the photos of a location scout, becomes a
+ * storyboard and ends in an edit — and with a single kind you had to make three
+ * projects over the same folder.
  *
- * Quindi: `views` è cosa il progetto sa fare, `kind` è da dove si entra. Il
- * secondo resta perché "aprendo, dove atterro" è una domanda con una risposta
- * sola, e perché tutto ciò che è stato scritto prima continua a leggersi.
+ * So: `views` is what the project can do, `kind` is where you come in. The
+ * second one stays because "when I open it, where do I land" is a question with
+ * exactly one answer, and because everything written before keeps reading.
  */
 export type Project = {
   id: string;
   name: string;
   root: string;
-  /** La vista principale: quella su cui si atterra aprendo il progetto. */
+  /** The main view: the one you land on when opening the project. */
   kind: ProjectKind;
   /** Le viste accese. Contiene sempre `kind`. */
   views: ProjectKind[];
@@ -54,9 +54,9 @@ export type Project = {
   created_at: number;
 };
 
-/** Ripulisce un elenco di viste: solo quelle note, senza doppioni, e con
- *  `principale` sempre dentro — una vista principale spenta sarebbe un
- *  progetto che si apre su una pagina che non esiste. */
+/** Cleans up a list of views: only known ones, no duplicates, and with
+ *  `main` always in there — a main view switched off would be a project that
+ *  opens on a page that does not exist. */
 export function normalizeViews(views: unknown, principale: ProjectKind): ProjectKind[] {
   const inside = new Set<ProjectKind>([principale]);
   if (Array.isArray(views)) {
@@ -128,7 +128,7 @@ function normalize(p: unknown): Project | null {
     root: resolve(o.root),
     // Projects written before this field existed are photo projects.
     kind: o.kind === "storyboard" || o.kind === "video" ? o.kind : "photo",
-    // Un progetto scritto prima che le viste esistessero ha solo la sua.
+    // A project written before views existed has only its own.
     views: normalizeViews(
       o.views,
       o.kind === "storyboard" || o.kind === "video" ? o.kind : "photo",
@@ -248,7 +248,7 @@ export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "c
     p.kind = patch.kind;
   }
   if (patch.views !== undefined) p.views = normalizeViews(patch.views, p.kind);
-  // Cambiare la vista principale non deve mai lasciarla spenta.
+  // Changing the main view must never leave it switched off.
   p.views = normalizeViews(p.views, p.kind);
   if (typeof patch.active === "boolean") p.active = patch.active;
   persist();
@@ -330,9 +330,9 @@ export const dataDir = (): string => dirs().DATA_DIR;
 export const rawDir = (): string => dirs().RAW_DIR;
 export const test1Dir = (): string => dirs().TEST1_DIR;
 export const genDir = (): string => dirs().GEN_DIR;
-/** Le immagini di stile del progetto (`data/refs`). Esistevano gia' su disco e
- *  venivano allegate ai job, ma nessuna rotta le serviva: per confrontare una
- *  variante col riferimento bisognava aprire il Finder. */
+/** The project's style images (`data/refs`). They already existed on disk and
+ *  were attached to jobs, but no route served them: to compare a variant with
+ *  its reference you had to open the Finder. */
 export const refsDir = (): string => join(dataDir(), "refs");
 export const finalDir = (): string => dirs().FINAL_DIR;
 export const uploadsDir = (): string => dirs().UPLOADS_DIR;
