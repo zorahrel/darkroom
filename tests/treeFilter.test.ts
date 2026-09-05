@@ -5,8 +5,8 @@ import {
   keepsVariant,
 } from "../client/src/treeFilter";
 
-/** Un albero minimo ma della forma vera: due radici, la seconda con due
- *  gruppi, per poter osservare la potatura a tutti e tre i livelli. */
+/** A minimal tree but of the real shape: two roots, the second with two
+ *  groups, so the pruning can be watched at all three levels. */
 const tree = () => [
   {
     photo: "a",
@@ -35,17 +35,17 @@ const tree = () => [
   },
 ];
 
-describe("filtro dell'albero per giudizio", () => {
-  test("«tutte» restituisce esattamente l'oggetto ricevuto", () => {
-    // Identita', non uguaglianza: se ricostruisse l'albero a ogni resa,
-    // React rifarebbe da capo tutte le miniature a ogni click.
+describe("tree filter by verdict", () => {
+  test("«all» returns exactly the object it received", () => {
+    // Identity, not equality: if it rebuilt the tree on every render, React
+    // would redo all the thumbnails from scratch on every click.
     const a = tree();
     expect(filterTree(a, "all")).toBe(a);
   });
 
-  test("una radice che resta senza varianti sparisce", () => {
-    // Il vero rischio: filtrare le foglie e lasciare in piedi intestazione e
-    // miniatura di una sorgente vuota, che sembra un caricamento a meta'.
+  test("a root left with no variants disappears", () => {
+    // The real risk: filtering the leaves and leaving the header and thumbnail
+    // of an empty source standing, which looks like a half-finished load.
     const r = filterTree(tree(), "keep");
     expect(r.map((n) => n.photo)).toEqual(["a"]);
     expect(r[0]!.groups).toHaveLength(1);
@@ -65,19 +65,19 @@ describe("filtro dell'albero per giudizio", () => {
     expect(r.flatMap((n) => n.groups.flatMap((g) => g.variants.map((v) => v.id)))).toEqual([3, 5]);
   });
 
-  test("«da vedere» sono quelle mai giudicate, non quelle scartate", () => {
+  test("«to see» means never judged, not discarded", () => {
     const r = filterTree(tree(), "unseen");
     expect(r.flatMap((n) => n.groups.flatMap((g) => g.variants.map((v) => v.id)))).toEqual([2]);
   });
 
-  test("un filtro senza risultati torna vuoto invece di mostrare gusci", () => {
+  test("a filter with no results comes back empty instead of showing shells", () => {
     const onlyDiscarded = [{ photo: "x", groups: [{ variants: [{ verdict: "discard" }] }] }];
     expect(filterTree(onlyDiscarded, "keep")).toEqual([]);
   });
 
-  test("l'albero di partenza non viene modificato", () => {
-    // La pagina tiene `nodes` come sorgente di verita' e ci scrive sopra i
-    // verdetti: se il filtro mutasse, cambiare filtro perderebbe dei dati.
+  test("the input tree is not modified", () => {
+    // The page keeps `nodes` as the source of truth and writes the verdicts
+    // onto it: if the filter mutated, changing filter would lose data.
     const a = tree();
     filterTree(a, "keep");
     expect(a[1]!.groups).toHaveLength(2);
@@ -85,21 +85,21 @@ describe("filtro dell'albero per giudizio", () => {
   });
 
   test("stringa vuota conta come da vedere, non come giudizio", () => {
-    // Il DB puo' avere "" dove il codice si aspetta null.
+    // The DB can hold "" where the code expects null.
     expect(keepsVariant({ verdict: "" }, "unseen")).toBe(true);
     expect(keepsVariant({ verdict: "" }, "discard")).toBe(false);
   });
 });
 
-describe("conteggi sulle pastiglie", () => {
-  test("ogni variante cade in una casella sola e «tutte» e' il totale", () => {
+describe("counts on the pills", () => {
+  test("every variant falls into one box only and «all» is the total", () => {
     const variants = tree().flatMap((n) => n.groups.flatMap((g) => g.variants));
     const c = countVerdicts(variants);
     expect(c).toEqual({ all: 5, keep: 1, maybe: 1, discard: 2, unseen: 1 });
     expect(c.keep + c.maybe + c.discard + c.unseen).toBe(c.all);
   });
 
-  test("un albero vuoto conta zero ovunque senza esplodere", () => {
+  test("an empty tree counts zero everywhere without blowing up", () => {
     expect(countVerdicts([])).toEqual({
       all: 0,
       keep: 0,
@@ -109,23 +109,24 @@ describe("conteggi sulle pastiglie", () => {
     });
   });
 
-  test("un verdetto sconosciuto finisce fra le da vedere invece di sparire", () => {
-    // Meglio contarlo dove si guarda che perderlo: il totale deve tornare.
+  test("an unknown verdict ends up among the to-see ones instead of vanishing", () => {
+    // Better to count it where you are looking than to lose it: the total has
+    // to add up.
     const c = countVerdicts([{ verdict: "boh" }]);
     expect(c.all).toBe(1);
     expect(c.unseen).toBe(1);
   });
 });
 
-describe("la coda di scrittura sull'URL", () => {
-  // Riproduce, senza React, il meccanismo di `statoVista`: due valori che
-  // tornano al default nello stesso giro di rendering.
+describe("the write queue on the URL", () => {
+  // Reproduces, without React, the mechanism of `viewState`: two values
+  // returning to their default in the same render pass.
   //
-  // LA REGRESSIONE: ogni hook chiamava `setSearchParams` per conto suo con
-  // l'aggiornamento funzionale. Sembra sicuro, ma React Router propaga la nuova
-  // location in modo asincrono: due hook svegliati nello stesso ciclo ricevono
-  // lo STESSO `prev`, e il secondo sovrascrive il primo. Aprendo
-  // `?zoom=180&group=scene` (entrambi default) ne spariva uno solo.
+  // THE REGRESSION: each hook called `setSearchParams` on its own with the
+  // functional update. It looks safe, but React Router propagates the new
+  // location asynchronously: two hooks woken in the same cycle receive the SAME
+  // `prev`, and the second overwrites the first. Opening
+  // `?zoom=180&group=scene` (both defaults) made only one of them disappear.
   function simulate(
     edits: [string, string | null][],
     partenza: string,
@@ -137,7 +138,7 @@ describe("la coda di scrittura sull'URL", () => {
       for (const [k, v] of edits) v === null ? next.delete(k) : next.set(k, v);
       url = next;
     } else {
-      // Ognuno parte dalla stessa istantanea: e' il bug.
+      // Each starts from the same snapshot: that is the bug.
       const istantanea = new URLSearchParams(url);
       for (const [k, v] of edits) {
         const next = new URLSearchParams(istantanea);
@@ -152,7 +153,7 @@ describe("la coda di scrittura sull'URL", () => {
     expect(simulate([["zoom", null], ["group", null]], "zoom=180&group=scene", true)).toBe("");
   });
 
-  test("senza riunirle ne sopravvive una: e' il bug che si sta prevenendo", () => {
+  test("without joining them only one survives: it is the bug being prevented", () => {
     expect(simulate([["zoom", null], ["group", null]], "zoom=180&group=scene", false)).toBe("zoom=180");
   });
 

@@ -167,13 +167,13 @@ describe("parseConfig", () => {
 });
 
 describe("clausole aggiunte per il set Giappone", () => {
-  test("neutral-strict nomina l'ambra degli interni, non solo 'neutro'", () => {
+  test("neutral-strict names the amber of interiors, not just 'neutral'", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, white_balance: "neutral-strict" });
     // Un aggettivo ("neutro") non è verificabile; un riferimento sì.
     expect(p).toContain("must render truly white or neutral grey");
     expect(p).toContain("wood");
-    // Neutralizza la dominante senza spegnere le lampade: è la differenza fra
-    // una foto corretta e una foto fredda.
+    // It neutralises the cast without switching the lamps off: it is the
+    // difference between a corrected photo and a cold photo.
     expect(p).toContain("Keep the light sources themselves warm");
   });
 
@@ -181,7 +181,7 @@ describe("clausole aggiunte per il set Giappone", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, food: "strict" });
     expect(p).toContain("never grey, brown, dull or iridescent");
     expect(p).toContain("egg yolks");
-    // E non deve autorizzare a cambiare il piatto per farlo sembrare migliore.
+    // And it must not authorise changing the dish to make it look better.
     expect(p).toContain("Do NOT change the dish");
   });
 
@@ -193,8 +193,8 @@ describe("clausole aggiunte per il set Giappone", () => {
   });
 });
 
-describe("ottica e cielo: opzioni che nominano il risultato", () => {
-  test("f/1.4 chiede uno sfocato ottico, non una maschera attorno al soggetto", () => {
+describe("optics and sky: options that name the result", () => {
+  test("f/1.4 asks for optical blur, not a mask around the subject", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, dof: "wide-open" });
     expect(p).toContain("f/1.4");
     // È la differenza fra un vero diaframma e il finto-bokeh a ritaglio.
@@ -202,11 +202,12 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
     expect(p).toContain("grow gradually with distance");
   });
 
-  test("grandangolo eroico chiede la prospettiva, non solo più campo", () => {
+  test("a heroic wide angle asks for the perspective, not just more field", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
     expect(p).toContain("wide-angle hero reading");
     expect(p).toContain("its lines leading into the scene");
-    // Un grandangolo che deforma il soggetto è il modo tipico di sbagliarlo.
+    // A wide angle that deforms the subject is the typical way of getting it
+    // wrong.
     expect(p).toContain("no fisheye bulge");
   });
 
@@ -237,23 +238,24 @@ describe("ottica e cielo: opzioni che nominano il risultato", () => {
 describe("cieli e ottiche scelte per la scena", () => {
   test("il cielo notturno chiede POCHE stelle, non un firmamento", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-night" });
-    // Dicendo solo "notte" il modello riempie il vuoto con una via lattea:
-    // il numero va nominato, e va nominato anche cosa NON fare.
+    // Saying only "night" makes the model fill the void with a milky way:
+    // the number has to be named, and so does what NOT to do.
     expect(p).toContain("Stars must be clearly VISIBLE yet sparse");
     expect(p).toContain("never a milky way");
     expect(p).toContain("dramatic gradient");
-    // Le nuvole erano cadute nello stesso divieto delle stelle finte, e il
-    // cielo restava vuoto: di notte sono l'unica atmosfera disponibile, ma
-    // solo quelle già presenti, illuminate da sotto dalla città.
+    // The clouds had fallen under the same ban as the fake stars, and the sky
+    // stayed empty: at night they are the only atmosphere available, but only
+    // the ones already there, lit from below by the city.
     expect(p).toContain("lit from below by the city glow");
-    // il divieto "solo se c'erano gia'" lasciava vuoti i cieli sereni, che
-    // sono quelli che hanno piu' bisogno di atmosfera: le nuvole si aggiungono.
+    // the ban "only if they were already there" left clear skies empty, and
+    // those are the ones that most need atmosphere: clouds are added.
     expect(p).toContain("Add them even if the original sky was clear");
-    // il notturno usciva come un unico bagno ambra: il caldo deve stare dove
-    // arrivano le lampade, il resto resta freddo. E' il contrasto a fare la notte.
+    // the night shots came out as one amber bath: the warmth must sit where
+    // the lamps reach, the rest stays cold. It is the contrast that makes
+    // the night.
     expect(p).toContain("must NOT drown in one amber or yellow bath");
-    // il giallo restava sul SOGGETTO illuminato anche quando la media del
-    // frame era fredda: la pietra sotto i fari non deve tingersi d'ambra.
+    // the yellow stayed on the lit SUBJECT even when the frame's average was
+    // cold: stone under floodlights must not take on amber.
     expect(p).toContain("The lit subject itself must NOT turn amber or golden");
     expect(p).not.toContain("invented where the sky was clear");
   });
@@ -265,21 +267,22 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).toContain("every pixel of the result comes from the scene as photographed");
     expect(p).toContain("do not add any object, structure, roof");
     expect(p).toContain("Keep the subject unobstructed");
-    // Il rimedio al taglio ("base e cima dentro l'inquadratura") ORDINAVA di
-    // inventare: se le fondamenta non erano nello scatto, per obbedire il
-    // modello deve disegnarle. Un soggetto incompleto e' un fatto della foto.
+    // The remedy for the crop ("base and top inside the frame") ORDERED
+    // invention: if the foundations were not in the shot, the model has to
+    // draw them to obey. An incomplete subject is a fact of the photo.
     expect(p).toContain("Missing is left missing; present is kept present");
     expect(p).not.toContain("its base and top clearly INSIDE the picture");
-    // Il rimedio ("intero e centrato") aveva prodotto il difetto opposto: un
-    // ritaglio piatto, che e' proprio lo snapshot vietato dal prompt base.
+    // The remedy ("whole and centred") had produced the opposite defect: a
+    // flat crop, which is exactly the snapshot the base prompt forbids.
     expect(p).toContain("not a rectangle cut out of a snapshot");
     expect(p).toContain("Never a flat, dead-centre crop");
     expect(p).not.toContain("either centred or on a thirds line");
   });
 
-  test("il cielo diurno chiede una superficie sola, senza chiazze", () => {
+  test("the daytime sky asks for a single surface, without patches", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "even-blue" });
-    // È il difetto misurato sul set: zone più sature accanto a zone slavate.
+    // It is the defect measured on the set: more saturated areas next to
+    // washed-out ones.
     expect(p).toContain("ONE single continuous surface");
     expect(p).toContain("no patches");
     expect(p).toContain("no halo around buildings");
@@ -307,8 +310,8 @@ describe("cieli e ottiche scelte per la scena", () => {
   });
 });
 
-describe("il cielo segue l'ora dello scatto", () => {
-  test("una foto serale prende il cielo notturno, una diurna quello uniforme", async () => {
+describe("the sky follows the time the photo was taken", () => {
+  test("an evening photo takes the night sky, a daytime one the uniform sky", async () => {
     const { withSkyForTime } = await import("../server/photos.ts");
     const base = { ...DEFAULT_CONFIG };
     const at = (h: number) => new Date(2026, 2, 13, h, 0).getTime();
@@ -320,10 +323,10 @@ describe("il cielo segue l'ora dello scatto", () => {
     expect(withSkyForTime(base, photo(11)).sky).toBe("even-blue");
   });
 
-  test("una scelta esplicita per-foto vince sull'orario", async () => {
+  test("an explicit per-photo choice beats the time of day", async () => {
     const { withSkyForTime } = await import("../server/photos.ts");
-    // Chi ha scelto il cielo a mano sa cosa sta facendo: l'automatismo non
-    // deve sovrascriverlo.
+    // Whoever chose the sky by hand knows what they are doing: the automatic
+    // rule must not overwrite it.
     const photo = {
       taken_at: new Date(2026, 2, 13, 20, 0).getTime(),
       config_override: '{"sky":"deep-blue"}',
@@ -331,18 +334,18 @@ describe("il cielo segue l'ora dello scatto", () => {
     expect(withSkyForTime({ ...DEFAULT_CONFIG, sky: "deep-blue" }, photo).sky).toBe("deep-blue");
   });
 
-  test("senza data si assume giorno invece di indovinare", async () => {
+  test("with no date it assumes day instead of guessing", async () => {
     const { withSkyForTime } = await import("../server/photos.ts");
     const photo = { taken_at: null, config_override: null } as never;
     expect(withSkyForTime({ ...DEFAULT_CONFIG }, photo).sky).toBe("even-blue");
   });
 });
 
-describe("muovere la camera non e' inventare la scena", () => {
-  // La distinzione che mancava: cambiare da DOVE si guarda deve restare
-  // libero (e' il cuore dell'edit editoriale), cambiare COSA c'e' no. Il
-  // permesso di estendere i bordi veniva letto come licenza di riempire, e su
-  // IMG_2906 sono comparsi un tetto inesistente e dettagli del tempio inventati.
+describe("moving the camera is not inventing the scene", () => {
+  // The distinction that was missing: changing WHERE you look from must stay
+  // free (it is the heart of an editorial edit), changing WHAT is there must
+  // not. Permission to extend the edges was read as a licence to fill, and on
+  // IMG_2906 a non-existent roof and invented temple details appeared.
   const OTTICHE = ["recompose", "wide-hero", "hero-object", "tunnel", "tele-isolate"] as const;
 
   for (const c of OTTICHE) {
@@ -350,8 +353,9 @@ describe("muovere la camera non e' inventare la scena", () => {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
       // Il taglio resta libero e deciso...
       expect(p).toContain("recompose the frame decisively");
-      // ...ma dentro l'immagine che esiste: finche' si poteva estendere il
-      // bordo, ogni divieto e' stato aggirato — il vuoto va pur riempito.
+      // ...but inside the image that exists: as long as the edge could be
+      // extended, every ban was worked around — the void has to be filled
+      // somehow.
       expect(p).toContain("must be a crop of the source, never wider than it");
       expect(p).toContain("Do not extend, expand, out-paint or fill beyond the original edges");
       expect(p).toContain("do not add any object, structure, roof");
@@ -361,18 +365,18 @@ describe("muovere la camera non e' inventare la scena", () => {
     });
   }
 
-  test("la regola e' scritta una volta sola, non copiata in ogni ottica", async () => {
+  test("the rule is written once, not copied into every optic", async () => {
     const src = await Bun.file(new URL("../server/promptConfig.ts", import.meta.url)).text();
-    // Cinque copie della stessa frase divergono al primo ritocco: e' gia'
-    // successo con "reframing may extend or alter the edges".
+    // Five copies of the same sentence diverge at the first tweak: it has
+    // already happened with "reframing may extend or alter the edges".
     expect(src).toContain("const REFRAME_FREEDOM =");
     expect(src).not.toContain('"recompose the frame freely — reframing may extend or alter the edges — and "');
   });
 
-  test("nessuna ottica chiede di spostarsi fisicamente", () => {
-    // "get low and close", "move back": chiedere alla camera di stare dove non
-    // era e' chiedere di inventare quello che da li' si vedrebbe. Le ottiche
-    // devono descrivere un TAGLIO, non uno spostamento.
+  test("no optic asks to physically move", () => {
+    // "get low and close", "move back": asking the camera to be where it was
+    // not is asking it to invent what would be seen from there. The optics must
+    // describe a CROP, not a move.
     for (const c of OTTICHE) {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
       expect(p).not.toContain("get low and close to the subject");
@@ -382,9 +386,9 @@ describe("muovere la camera non e' inventare la scena", () => {
     }
   });
 
-  test("il prompt base non invita a un angolo che non c'era", () => {
+  test("the base prompt does not invite an angle that was not there", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG });
-    // "an unexpected angle" e' un invito a inventare il punto di vista.
+    // "an unexpected angle" is an invitation to invent the point of view.
     expect(p).not.toContain("an unexpected angle");
     expect(p).toContain("hidden INSIDE this photograph");
     expect(p).toContain("never widen, extend or invent scene that was not photographed");
@@ -392,16 +396,17 @@ describe("muovere la camera non e' inventare la scena", () => {
 });
 
 describe("un soggetto incompleto resta incompleto", () => {
-  test("nessuna ottica chiede di completare cio' che la foto non ha ripreso", () => {
-    // Su IMG_2906 la pagoda e' fotografata dal basso e le fondamenta non ci
-    // sono: chiedere "il soggetto intero" e' un ordine di inventarle, e
-    // infatti ogni render ridisegnava il tempio.
+  test("no optic asks to complete what the photo did not capture", () => {
+    // On IMG_2906 the pagoda is shot from below and the foundations are not
+    // there: asking for "the whole subject" is an order to invent them, and
+    // indeed every render redrew the temple.
     for (const c of ["recompose", "wide-hero", "hero-object", "tunnel", "tele-isolate"] as const) {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
       expect(p).toContain("an incomplete subject is a fact of this photograph");
       expect(p).toContain("Never invent the missing base, steps, plinth, ground or lower structure");
-      // ...ma la simmetria opposta va detta, altrimenti il rimedio diventa
-      // "taglio via il lato del tempio pur di stringere": su v90 e' successo.
+      // ...but the opposite symmetry has to be stated, otherwise the remedy
+      // becomes "I crop off the temple's side just to tighten": on v90 that
+      // happened.
       expect(p).toContain("never TAKE AWAY what the photograph did capture");
       expect(p).toContain("the crop must not cut a side off it");
     }
