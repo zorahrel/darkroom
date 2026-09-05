@@ -28,17 +28,17 @@ export default function Home() {
   const [gradedView, setGradedView] = useState(true);
   const [reload, setReload] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
-  // La pipeline è uno strumento di regolazione: mentre si scelgono le foto
-  // occupa 340px di griglia per niente. Richiudibile, e la scelta resta.
+  // The pipeline is an adjustment tool: while you are choosing photos it takes
+  // up 340px of grid for nothing. Closable, and the choice sticks.
   const { railOpen, setRailOpen, setFlush } = useOutletContext<OutletCtx>();
 
   /**
-   * La griglia comincia dal bordo.
+   * The grid starts at the edge.
    *
-   * Con lo spazio sopra, la barra dei filtri scorreva di sedici pixel prima di
-   * incollarsi sotto la testata: un salto a ogni scorrimento, e la stessa cosa
-   * per il pannello del colore. Qui la barra È l'intestazione della pagina —
-   * ha il suo bordo e il suo spazio interno — quindi non serve altro sopra.
+   * With the space above, the filter bar scrolled sixteen pixels before
+   * sticking under the header: a jump on every scroll, and the same for the
+   * colour panel. Here the bar IS the page's heading — it has its own border
+   * and its own padding — so nothing else is needed above it.
    */
   useEffect(() => {
     setFlush?.(true);
@@ -86,9 +86,9 @@ export default function Home() {
   return (
     <div className="lg:flex lg:items-start lg:gap-4">
       <div className="flex-1 min-w-0 pb-20 lg:pb-4">
-        {/* Gli interruttori di layout sono passati nell'header dell'app: sono
-            preferenze sulla finestra, non comandi della griglia, e occupavano
-            una fascia intera sopra le foto. */}
+        {/* The layout switches have moved into the app header: they are
+            preferences about the window, not commands of the grid, and they
+            took up a whole band above the photos. */}
         <Library
           graded={gradedView && (grade?.enabled ?? false)}
           gradeReady={grade !== null}
@@ -97,18 +97,18 @@ export default function Home() {
         />
       </div>
 
-      {/* Prende la sua colonna subito (non quando arriva `grade`), cosi' la
-          griglia non salta di larghezza quando il pannello si riempie. */}
+      {/* It takes its column immediately (not when `grade` arrives), so the
+          grid does not jump in width when the panel fills up. */}
       <aside
         className={
           "relative hidden flex-col shrink-0 sticky top-[var(--h-header,57px)] rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 h-[calc(100vh-var(--h-header,57px)-1rem)] " +
           (railOpen ? "lg:flex w-[340px]" : "w-0 border-0")
         }
       >
-        {/* Chiudere il pannello si fa dal pannello.
-            Il comando c'era — un glifo ⌸ senza etichetta in mezzo alla barra in
-            alto — ma nessuno lo cerca li': una finestra la si chiude da dentro,
-            all'angolo. */}
+        {/* Closing the panel is done from the panel.
+            The control existed — an unlabelled ⌸ glyph in the middle of the top
+            bar — but nobody looks for it there: a window is closed from inside,
+            at the corner. */}
         {railOpen && (
           <button
             onClick={() => setRailOpen(false)}
@@ -135,8 +135,8 @@ export default function Home() {
         )}
       </aside>
 
-      {/* Desktop, pipeline chiusa: un bottone flottante per riaprirla senza
-          dover risalire in cima alla pagina. */}
+      {/* Desktop, pipeline closed: a floating button to reopen it without
+          having to go back to the top of the page. */}
       {grade && !railOpen && (
         <button
           onClick={() => setRailOpen(true)}

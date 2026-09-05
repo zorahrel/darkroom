@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { serveFile, guessMime } from "../server/http.ts";
 
 /**
- * Un video che non si puo' cercare non sembra un difetto del server: sembra un
- * player rotto. `currentTime = 120` senza `Range` riporta la testina a zero, e
- * il clic sulla striscia, il passo a fotogramma e il trascinamento sulla
- * timeline falliscono tutti insieme senza un errore da nessuna parte — l'unica
- * traccia e' un 200 dove doveva esserci un 206.
+ * A video that cannot be seeked does not look like a server defect: it looks
+ * like a broken player. `currentTime = 120` without `Range` takes the playhead
+ * back to zero, and the click on the strip, the frame step and the drag on the
+ * timeline all fail together with an error nowhere — the only trace is a 200
+ * where there should have been a 206.
  */
 const dir = mkdtempSync(join(tmpdir(), "dk-range-"));
 const f = join(dir, "clip.mp4");
@@ -20,14 +20,14 @@ const ask = (range?: string) =>
   serveFile(f, undefined, new Request("http://x/clip.mp4", range ? { headers: { range } } : {}));
 
 describe("serveFile e i pezzi di file", () => {
-  test("senza Range: tutto il file, ma dichiara di saperli fare", async () => {
+  test("without Range: the whole file, but it declares it can do them", async () => {
     const r = ask();
     expect(r.status).toBe(200);
     expect(r.headers.get("accept-ranges")).toBe("bytes");
     expect(await r.text()).toBe(BODY);
   });
 
-  test("un pezzo in mezzo torna 206 con il content-range giusto", async () => {
+  test("a chunk in the middle returns 206 with the right content-range", async () => {
     const r = ask("bytes=4-7");
     expect(r.status).toBe(206);
     expect(r.headers.get("content-range")).toBe(`bytes 4-7/${BODY.length}`);
@@ -35,33 +35,33 @@ describe("serveFile e i pezzi di file", () => {
     expect(await r.text()).toBe("4567");
   });
 
-  test("senza fine: da li' fino in fondo", async () => {
+  test("with no end: from there to the bottom", async () => {
     const r = ask("bytes=12-");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("CDEF");
   });
 
-  test("il suffisso sono gli ULTIMI byte, non i primi", async () => {
+  test("the suffix is the LAST bytes, not the first", async () => {
     const r = ask("bytes=-4");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("CDEF");
     expect(r.headers.get("content-range")).toBe(`bytes 12-15/${BODY.length}`);
   });
 
-  test("una fine oltre il file si accorcia, non esplode", async () => {
+  test("an end beyond the file is shortened, it does not blow up", async () => {
     const r = ask("bytes=10-9999");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("ABCDEF");
   });
 
-  test("un inizio oltre il file e' 416, non un corpo vuoto qualsiasi", async () => {
+  test("a start beyond the file is a 416, not just any empty body", async () => {
     const r = ask("bytes=99-");
     expect(r.status).toBe(416);
     expect(r.headers.get("content-range")).toBe(`bytes */${BODY.length}`);
   });
 });
 
-describe("i tipi che decidono se una cosa si vede o si scarica", () => {
+describe("the types that decide whether a thing is displayed or downloaded", () => {
   test("i video hanno il loro tipo", () => {
     expect(guessMime("/a/b.mp4")).toBe("video/mp4");
     expect(guessMime("/a/b.webm")).toBe("video/webm");

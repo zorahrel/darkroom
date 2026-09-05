@@ -3,12 +3,13 @@ import { jsonFetch, refUrl, pq } from "../api";
 import { Pills } from "../ui";
 import { useViewState, readOneOf } from "../viewState";
 
-// Dal riferimento alla ricetta (REF-02).
+// From the reference to the recipe (REF-02).
 //
-// L'estrazione e' una PROPOSTA, non un risultato: il modello locale a volte si
-// contraddice nella stessa frase ("pori visible e pelle levigata"), e una
-// ricetta sbagliata si paga su ogni variante generata dopo. Per questo il testo
-// arriva in un campo modificabile e si salva solo con un gesto esplicito.
+// The extraction is a PROPOSAL, not a result: the local model sometimes
+// contradicts itself in the same sentence ("visible pores and smoothed skin"),
+// and a wrong recipe is paid for on every variant generated afterwards. That is
+// why the text arrives in an editable field and is saved only by an explicit
+// gesture.
 
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
 type Reference = { file: string; bytes: number; modified_at: number; used_in: number };
@@ -65,9 +66,9 @@ export default function ReferencesPage() {
     load();
   }, [load]);
 
-  /** Carica i file scelti, uno per volta: un errore sul terzo non deve far
-   *  perdere i primi due, e dirlo su quale e' fallito serve piu' di un
-   *  "caricamento fallito" collettivo. */
+  /** Uploads the chosen files one at a time: an error on the third must not
+   *  lose the first two, and saying which one failed is worth more than a
+   *  collective "upload failed". */
   async function loadFiles(chosen: FileList | File[]) {
     const files = [...chosen];
     if (files.length === 0) return;
@@ -108,8 +109,8 @@ export default function ReferencesPage() {
       setText(r.text);
       setSource(r.from_reference);
       setName((n) => n || r.from_reference.replace(/\.[^.]+$/, ""));
-      // Cio' che non e' stato descritto va detto: e' la parte che dovra'
-      // scrivere una persona, e se resta implicita non la scrive nessuno.
+      // What was not described has to be said: it is the part a person will
+      // have to write, and if it stays implicit nobody writes it.
       setState({
         kind: "ok",
         msg: r.missing.length
@@ -145,8 +146,8 @@ export default function ReferencesPage() {
         </p>
       </div>
 
-      {/* La zona di rilascio c'e' anche a cartella vuota: e' proprio quando non
-          c'e' niente che serve sapere come metterci qualcosa. */}
+      {/* The drop zone is there even with an empty folder: it is exactly when
+          there is nothing that you need to know how to put something in. */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -197,8 +198,8 @@ export default function ReferencesPage() {
               Trascina qui un'immagine di stile, oppure scegli un file.
             </p>
           ) : visible.length === 0 ? (
-            /* Cartella piena ma filtro a vuoto: dirlo, invece di mostrare lo
-               stesso messaggio del caso «non c'e' niente». */
+            /* Full folder but an empty filter: say so, instead of showing the
+               same message as the «there is nothing» case. */
             <p className="text-xs text-neutral-500 py-4 text-center">
               Nessuna reference in questo gruppo.{" "}
               <button onClick={() => setFilter("all")} className="text-amber-500 hover:underline">
@@ -221,9 +222,9 @@ export default function ReferencesPage() {
                   <div className="text-[11px] truncate text-neutral-300" title={r.file}>
                     {r.file}
                   </div>
-                  {/* Una reference a zero non e' un dettaglio: e' una passata
-                      intera andata nella direzione sbagliata senza che nessuno
-                      lo vedesse. Su profilo e' successo 12 volte su 12. */}
+                  {/* A reference at zero is not a detail: it is a whole pass that
+                      went the wrong way without anybody seeing it. On profilo
+                      it happened 12 times out of 12. */}
                   <div
                     className={
                       "font-mono text-[10px] " +

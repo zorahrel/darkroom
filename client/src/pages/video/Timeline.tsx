@@ -48,7 +48,7 @@ type Props = {
   onSwap: (i: number, j: number) => void;
   /** Tirare il bordo destro di un blocco: quante battute dura. */
   onDuration: (bar: number, bars: number) => void;
-  /** Un piano lasciato cadere sopra un taglio dalla libreria. */
+  /** A shot dropped onto a cut from the library. */
   onPose: (i: number, shot: string) => void;
   /** Durations declared but not yet rebuilt: beat -> beats. */
   forcedDuration: Map<number, number>;
@@ -344,11 +344,11 @@ export default function Timeline(p: Props) {
       </div>
 
 
-      {/* La mappa d'insieme.
-          Da vicino la finestra vede pochi secondi su due minuti e mezzo: senza
-          una vista intera non si sa piu' dove si e' ne' quanto manca, e ci si
-          muove a tentoni con la barra di scorrimento. Il rettangolo chiaro e'
-          la finestra: si trascina, e la timeline la segue. */}
+      {/* The overview map.
+          Close up the window sees a few seconds out of two and a half minutes:
+          without a whole view you no longer know where you are or how much is
+          left, and you move around by feel with the scrollbar. The light
+          rectangle is the window: it is dragged, and the timeline follows. */}
       {zoom > 0 && (
         <div className="flex shrink-0 border-b border-neutral-900">
           <div className="shrink-0 w-[68px] border-r border-neutral-900 px-1.5
@@ -386,8 +386,8 @@ export default function Timeline(p: Props) {
         </div>
       )}
       <div ref={body} className="flex flex-1 min-h-0 overflow-y-auto">
-        {/* La colonna dei nomi resta ferma: a 128x sotto passa un secondo di
-            brano, e senza il nome la corsia e' una riga di grigio. */}
+        {/* The name column stays fixed: at 128x a second of track passes
+            underneath, and without the name the lane is a grey line. */}
         <div className="shrink-0 w-[68px] border-r border-neutral-900 text-[9.5px] text-neutral-400 select-none">
           <div style={{ height: H_RULER }} className="border-b border-neutral-900 px-1.5 leading-[20px]">
             tempo <span className="text-amber-500/70">◆</span>
@@ -447,10 +447,10 @@ export default function Timeline(p: Props) {
                                    text-[9px] text-neutral-400 hover:text-neutral-100 overflow-hidden
                                    text-left leading-4"
                         style={{ left: x(a.t0), width: Math.max(2, x(a.t1 - a.t0)) }}>
-                  {/* Da vicino un atto e' largo quanto dieci schermi: il nome
-                      scritto al suo inizio e' fuori vista quasi sempre, e la
-                      corsia sembra vuota. Il nome scorre con la finestra e si
-                      ferma al bordo dell'atto. */}
+                  {/* Close up a beat is as wide as ten screens: the name written at
+                      its start is out of sight almost always, and the lane
+                      looks empty. The name scrolls with the window and stops at
+                      the beat's edge. */}
                   <span className="inline-block px-1 whitespace-nowrap"
                         style={{
                           transform: `translateX(${Math.max(
@@ -512,8 +512,9 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                          height: `${18 + c.soundIntensity * 82}%`,
                          background: c.rovescio ? "#8a5a3a" : "#3f6076",
                        }}>
-                    {/* La maniglia della durata. Larga sei pixel: piu' stretta
-                        e non si prende, piu' larga e si rubano i clic al blocco. */}
+                    {/* The duration handle. Six pixels wide: narrower and it cannot
+                        be grabbed, wider and it steals clicks from the
+                        block. */}
                     <div onPointerDown={startResize(i)}
                          title="quante battute dura"
                          className="absolute inset-y-0 right-0 w-[6px] cursor-col-resize
@@ -528,13 +529,14 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
               {pps > 34 && cuts.map((c, i) => (
                 <div key={`n${i}`} className="absolute top-0 px-1 pointer-events-none truncate leading-[13px]"
                      style={{ left: x(c.t), width: Math.max(1, x(c.dur)) }}>
-                  {/* Il blocco arriva fin quassu' quando il suono e' duro: senza
-                      un fondo, il nome sparisce proprio sui tagli che contano. */}
+                  {/* The block reaches up this far when the sound is hard: without a
+                      background, the name disappears on exactly the cuts that
+                      matter. */}
                   <span className="text-[9px] text-neutral-100 bg-black/65 rounded-sm px-1">{c.shot}</span>
                 </div>
               ))}
-              {/* La durata dichiarata non si puo' mostrare spostando i blocchi
-                  dopo — sarebbe un montaggio che non esiste — quindi si dice. */}
+              {/* A declared duration cannot be shown by moving the blocks after it
+                  — that would be a cut that does not exist — so it is stated. */}
               {cuts.map((c, i) => (forcedDuration.has(c.bar) ? (
                 <div key={`dd${i}`} title={`durata dichiarata: ${forcedDuration.get(c.bar)} battute`}
                      className="absolute bottom-0 text-[8.5px] text-sky-200 bg-sky-900/80 px-1 rounded-sm
@@ -543,8 +545,8 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                   →{forcedDuration.get(c.bar)}
                 </div>
               ) : null))}
-              {/* Una battuta forzata a mano non e' piu' derivata: si vede da
-                  qui, senza dover aprire il taglio per scoprirlo. */}
+              {/* A bar forced by hand is no longer derived: it is visible from
+                  here, without having to open the cut to find out. */}
               {cuts.filter((c) => inchiodate.has(c.bar)).map((c, i) => (
                 <div key={`f${i}`} title="battuta inchiodata a mano"
                      className="absolute top-0 h-[3px] bg-sky-400 pointer-events-none"
@@ -584,10 +586,10 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
               </>
             )}
 
-            {/* Dove va a finire il gesto.
-                Un blocco che si allunga si ferma sulla mezza battuta piu'
-                vicina: se il punto d'arrivo non si vede, si tira alla cieca e
-                si scopre dov'e' andato solo lasciando. */}
+            {/* Where the gesture will land.
+                A block being lengthened stops on the nearest half bar: if the
+                landing point is invisible, you pull blind and only find out
+                where it went by letting go. */}
             {trascino?.kind === "stretch" && cuts[trascino.i] && (
               <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
                    style={{

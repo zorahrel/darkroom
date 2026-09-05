@@ -1,14 +1,15 @@
 /**
- * Il percorso reale, non la funzione isolata: un job accodato in DB, lavorato
- * dal runner col backend `openai`, che deve finire 'done' con una versione in
- * galleria. I test unitari coprivano le funzioni del worker; questo copre
- * l'unica cosa che l'utente vede — la foto che compare, o non compare.
+ * The real path, not the isolated function: a job queued in the DB, worked by
+ * the runner with the `openai` backend, which must end 'done' with a version in
+ * the gallery. The unit tests covered the worker's functions; this one covers
+ * the only thing the user sees — the photo that appears, or does not.
  *
- * Fa una chiamata VERA all'Images API in `low` (~196 token, ~$0.006), quindi è
- * opt-in: senza `OPENAI_E2E=1` i due test a pagamento si saltano. Lasciarli
- * accesi di default portava `bun test` da 15s a 342s e faceva pagare ogni run.
+ * It makes a REAL call to the Images API at `low` (~196 tokens, ~$0.006), so it
+ * is opt-in: without `OPENAI_E2E=1` the two paid tests are skipped. Leaving
+ * them on by default took `bun test` from 15s to 342s and charged for every
+ * run.
  *
- * Uso: OPENAI_E2E=1 bun test tests/openaiE2E.test.ts
+ * Usage: OPENAI_E2E=1 bun test tests/openaiE2E.test.ts
  */
 import { describe, expect, test, beforeAll } from "bun:test";
 import { mkdirSync, existsSync, statSync } from "node:fs";
@@ -27,8 +28,8 @@ const hasKey = (() => {
 /** Serve sia la chiave sia il consenso esplicito: questi test costano. */
 const live = hasKey && process.env.OPENAI_E2E === "1";
 
-// `low` invece di `high`: stesso percorso di codice, ~35x meno costo. Quello
-// che si verifica qui è il giro completo, non la resa.
+// `low` instead of `high`: same code path, ~35x less cost. What is verified
+// here is the full round trip, not the rendering quality.
 process.env.OPENAI_IMAGE_QUALITY = "low";
 process.env.WORKER_BACKEND = "openai";
 
@@ -45,7 +46,7 @@ describe.skipIf(!live)("backend openai: il giro completo produce un file vero", 
 
       expect(r.status).toBe("ok");
       if (r.status !== "ok") return;
-      // Non basta lo status: il file deve esistere, essere un PNG e non essere vuoto.
+      // The status is not enough: the file must exist, be a PNG and not be empty.
       expect(existsSync(out)).toBe(true);
       expect(statSync(out).size).toBeGreaterThan(1024);
       const head = Buffer.from(await Bun.file(out).arrayBuffer()).subarray(0, 8);
@@ -56,7 +57,7 @@ describe.skipIf(!live)("backend openai: il giro completo produce un file vero", 
   );
 
   test(
-    "edit riparte da una sorgente e produce un file diverso",
+    "edit starts from a source and produces a different file",
     async () => {
       const { runWorkerOpenAi, runWorkerOpenAiGenerate } = await import("../server/worker-openai.ts");
       const src = join(outDir, "src.png");
@@ -64,28 +65,28 @@ describe.skipIf(!live)("backend openai: il giro completo produce un file vero", 
       expect(gen.status).toBe("ok");
 
       const out = join(outDir, "edited.png");
-      // Il MIME sul Blob è ciò che rompeva questo percorso: senza, l'endpoint
-      // edits risponde "unsupported mimetype ('application/octet-stream')".
+      // The MIME on the Blob is what broke this path: without it, the edits
+      // endpoint answers "unsupported mimetype ('application/octet-stream')".
       const r = await runWorkerOpenAi({ image: src, prompt: "make the background yellow", output: out });
       expect(r.status).toBe("ok");
       if (r.status !== "ok") return;
       expect(existsSync(out)).toBe(true);
       const a = Buffer.from(await Bun.file(src).arrayBuffer());
       const b = Buffer.from(await Bun.file(out).arrayBuffer());
-      expect(b.equals(a)).toBe(false); // un edit che restituisce l'originale è un edit fallito
+      expect(b.equals(a)).toBe(false); // an edit that returns the original is a failed edit
     },
     8 * 60 * 1000,
   );
 });
 
-describe("gli errori non diventano file rotti in galleria", () => {
-  test("una sorgente inesistente fallisce prima di chiamare l'API", async () => {
+describe("errors do not become broken files in the gallery", () => {
+  test("a non-existent source fails before calling the API", async () => {
     const { runWorkerOpenAi } = await import("../server/worker-openai.ts");
     const out = join(outDir, "mai.png");
     const r = await runWorkerOpenAi({ image: join(outDir, "NONESISTE.png"), prompt: "x", output: out });
     expect(r.status).toBe("error");
-    // Il punto: un fallimento non deve lasciare un file mezzo scritto che poi
-    // in griglia sembra una versione buona.
+    // The point: a failure must not leave a half-written file that then looks
+    // like a good version in the grid.
     expect(existsSync(out)).toBe(false);
   });
 });

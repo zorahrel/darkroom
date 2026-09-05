@@ -348,7 +348,7 @@ export const api = {
       body: JSON.stringify({ limit, recheck }),
     }),
   verifyBatchStatus: () => jsonFetch<VerifyBatchStatus>("/api/verify/batch"),
-  /** "Mi piace" su una foto: un click nella griglia. */
+  /** "Like" on a photo: one click in the grid. */
   setPicked: (id: string, picked: boolean) =>
     jsonFetch<{ ok: true; picked: boolean }>(
       `/api/photos/${encodeURIComponent(id)}/picked`,
@@ -383,7 +383,7 @@ export const api = {
       `/api/collections/${encodeURIComponent(id)}/photos`,
       { method: "PUT", body: JSON.stringify({ photo_ids: photoIds }) },
     ),
-  /** Porta una foto in testa al post: un click invece del drag. */
+  /** Brings a photo to the front of the post: a click instead of the drag. */
   setCover: (collectionId: string, photoId: string) =>
     jsonFetch<{ ok: true; cover: string }>(
       `/api/collections/${encodeURIComponent(collectionId)}/cover`,
@@ -398,7 +398,7 @@ export const api = {
         body: JSON.stringify({ photo_ids: photoIds, collection_id: collectionId }),
       },
     ),
-  // Collage: raggruppa più foto di un post in una sola slide.
+  // Collage: groups several photos of a post into a single slide.
   createCollage: (
     collectionId: string,
     input: { photo_ids: string[]; mode?: Collage["mode"]; layout?: string },
@@ -499,10 +499,10 @@ export const api = {
   videoCancelGeneration: (id: number) =>
     jsonFetch<{ ok: boolean }>(`/api/video/generations/${id}/cancel`, { method: "POST" }),
 
-  // ---- catalogo degli strumenti -------------------------------------------
-  /** Cosa sa fare Darkroom e cosa di quello è pronto adesso. */
+  // ---- tool catalogue -----------------------------------------------------
+  /** What Darkroom can do and which of that is ready right now. */
   tools: () => jsonFetch<Catalogue>("/api/tools"),
-  /** I progetti che possono ospitare uno strumento (quelli con la vista giusta). */
+  /** The projects that can host a tool (the ones with the right view). */
   toolProjects: (id: string) =>
     jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/projects`),
   /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */

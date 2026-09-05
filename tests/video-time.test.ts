@@ -34,7 +34,7 @@ describe("which cut is under the playhead", () => {
     expect(cutIndex([], 5)).toBe(0);
   });
 
-  test("concorda con la ricerca lineare su tutta la durata", () => {
+  test("it agrees with the linear search over the whole duration", () => {
     // 64 tagli come il montaggio vero, a passo irregolare come i beat.
     const molti = Array.from({ length: 64 }, (_, i) => ({ t: i * 2.1 + (i % 3) * 0.31 }));
     const lineare = (t: number) => {
@@ -46,8 +46,8 @@ describe("which cut is under the playhead", () => {
   });
 });
 
-describe("le corsie si spartiscono lo spazio", () => {
-  test("sotto il minimo restano ai minimi, e la somma sfora: la timeline scorre", () => {
+describe("the lanes share out the space", () => {
+  test("below the minimum they stay at their minimums, and the sum overflows: the timeline scrolls", () => {
     const c = laneHeights(80);
     expect(c).toEqual({ suono: MIN_SUONO, cuts: MIN_TAGLI, quadri: MIN_QUADRI });
     expect(c.suono + c.cuts + c.quadri).toBeGreaterThan(80 - H_RULER - H_ACTS);
@@ -78,7 +78,7 @@ describe("le corsie si spartiscono lo spazio", () => {
   });
 });
 
-describe("il righello si dirada da solo", () => {
+describe("the ruler thins itself out", () => {
   test("from far away the ticks are sparse, close up dense", () => {
     expect(tickStep(5.7)).toBe(15);      // the whole track in ~850px
     expect(tickStep(91)).toBe(1);        // 16x
@@ -92,7 +92,7 @@ describe("il righello si dirada da solo", () => {
   });
 });
 
-describe("il tempo scritto come in un montaggio", () => {
+describe("time written as in an edit", () => {
   test("ore, minuti, secondi e fotogramma", () => {
     expect(timecode(0)).toBe("00:00:00:00");
     expect(timecode(1 / 24)).toBe("00:00:00:01");
@@ -100,7 +100,7 @@ describe("il tempo scritto come in un montaggio", () => {
     expect(timecode(3661.5)).toBe("01:01:01:12");
   });
 
-  test("il fotogramma non sfora mai: 23.999 quadri non esiste", () => {
+  test("the frame never overflows: 23.999 frames does not exist", () => {
     for (let k = 0; k < 240; k++) {
       const f = Number(timecode(k / 24).slice(-2));
       expect(f).toBeLessThan(24);
@@ -118,7 +118,7 @@ describe("il tempo scritto come in un montaggio", () => {
     expect(timecode(0.9999)).toBe("00:00:01:00");   // 23.998 -> 24, i.e. the next second
   });
 
-  test("un tempo negativo non produce numeri strani", () => {
+  test("a negative time does not produce strange numbers", () => {
     expect(timecode(-5)).toBe("00:00:00:00");
   });
 });

@@ -1,16 +1,16 @@
 import type { VideoCut } from "../../api";
 
 /**
- * Le due misure della timeline che si sbagliano in silenzio.
+ * The two timeline measurements that go wrong silently.
  *
- * Stanno qui, fuori dai componenti, perché un errore in nessuna delle due dà un
- * errore: dà un pannello che apre il taglio sbagliato, o una corsia schiacciata
- * a zero. Si vedono solo guardando, e guardare è esattamente ciò che questa
- * pagina serve a fare bene.
+ * They live here, outside the components, because an error in neither of them
+ * gives an error: it gives a panel that opens the wrong cut, or a lane squashed
+ * to zero. They are only seen by looking, and looking is exactly what this page
+ * is meant to be good for.
  */
 
-/** Quale taglio sta sotto un istante. Ricerca binaria perché la chiamano il
- *  trasporto a ogni `timeupdate` e la tastiera a ogni freccia. */
+/** Which cut is under an instant. Binary search because the transport calls
+ *  it on every `timeupdate` and the keyboard on every arrow. */
 export function cutIndex(cuts: Pick<VideoCut, "t">[], t: number): number {
   let lo = 0, hi = cuts.length - 1, r = 0;
   while (lo <= hi) {
@@ -29,12 +29,12 @@ export const MIN_QUADRI = 40;
 export type LaneHeights = { suono: number; cuts: number; quadri: number };
 
 /**
- * Come le tre corsie alte si spartiscono lo spazio del pannello.
+ * How the three tall lanes share out the panel's space.
  *
- * Tirando su il separatore la timeline cresce e l'onda, i blocchi e i
- * fotogrammi crescono con lei — che è il motivo per cui uno la ingrandisce. Se
- * lo spazio non basta si scende ai minimi e la timeline scorre in verticale,
- * invece di schiacciare tutto fino a non dire più niente.
+ * Pulling the divider up, the timeline grows and the waveform, the blocks and
+ * the frames grow with it — which is why you enlarge it. If there is not enough
+ * space they go down to their minimums and the timeline scrolls vertically,
+ * instead of squashing everything until it says nothing any more.
  */
 export function laneHeights(height: number): LaneHeights {
   const remains = Math.max(0, height - H_RULER - H_ACTS - 2);
@@ -48,20 +48,20 @@ export function laneHeights(height: number): LaneHeights {
   };
 }
 
-/** Ogni quanto mettere una tacca perché il righello resti leggibile: da lontano
- *  una ogni dieci secondi, da vicino una al secondo. */
+/** How often to put a tick so the ruler stays readable: from far away one
+ *  every ten seconds, close up one a second. */
 export function tickStep(pxAlSecondo: number): number {
   for (const s of [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60]) if (s * pxAlSecondo >= 58) return s;
   return 60;
 }
 
 /**
- * Il tempo come lo scrive un montaggio: `ore:minuti:secondi:fotogramma`.
+ * Time as an edit writes it: `hours:minutes:seconds:frame`.
  *
- * `2:05.4` va bene per dire dove sei a occhio, ma non per dire *quale
- * fotogramma*: quattro decimi sono dieci quadri a 24, e un taglio si discute al
- * quadro. Un editor scrive `00:02:05:09` perche' quel numero e' indirizzabile —
- * si puo' scrivere in una nota e ritrovare esatto.
+ * `2:05.4` is fine for saying roughly where you are, but not for saying *which
+ * frame*: four tenths is ten frames at 24, and a cut is argued at the frame. An
+ * editor writes `00:02:05:09` because that number is addressable — it can be
+ * written in a note and found again exactly.
  */
 export function timecode(s: number, fps = 24): string {
   const tot = Math.max(0, Math.round(s * fps));
@@ -71,8 +71,8 @@ export function timecode(s: number, fps = 24): string {
   return `${due(Math.floor(sec / 3600))}:${due(Math.floor(sec / 60) % 60)}:${due(sec % 60)}:${due(f)}`;
 }
 
-/** Le velocita' della navetta J/K/L, come su qualunque banco di montaggio:
- *  premere piu' volte accelera, K ferma, e indietro e' lo specchio di avanti. */
+/** The J/K/L shuttle speeds, as on any edit bench: pressing repeatedly
+ *  accelerates, K stops, and backwards is the mirror of forwards. */
 export function shuttle(current: number, key: "j" | "k" | "l"): number {
   const scala = [1, 2, 4, 8];
   if (key === "k") return 0;

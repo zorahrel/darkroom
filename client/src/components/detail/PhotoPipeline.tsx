@@ -83,8 +83,8 @@ export function PhotoPipeline({
   /** Deep-link (`?step=<id>`): expand and scroll to this step on mount. */
   openStepId?: string | null;
 }) {
-  // Stato del colore con undo/redo: `setDraft` registra la storia, i drag degli
-  // slider collassano in un passo solo (coalescing nell'hook).
+  // Colour state with undo/redo: `setDraft` records the history, slider drags
+  // collapse into a single step (coalescing in the hook).
   const {
     state: draft,
     set: setDraft,
@@ -107,7 +107,7 @@ export function PhotoPipeline({
   // e.g. after a save/reset/refresh — that becomes the new undo baseline.
   useEffect(() => resetHistory(effectiveGrade), [effSig, resetHistory]);
 
-  // Undo/redo scorciatoie da tastiera (⌘Z / ⌘⇧Z), ignorate quando si scrive.
+  // Undo/redo keyboard shortcuts (⌘Z / ⌘⇧Z), ignored while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
@@ -121,9 +121,9 @@ export function PhotoPipeline({
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
-  // Editor mobile a schermo intero (<lg): appena c'è una versione lo shell è
-  // già lì sotto la foto (niente bottone d'ingresso). Le generazioni vivono in
-  // un pannello "Versioni" dentro lo shell, così l'overlay non nasconde nulla.
+  // Full-screen mobile editor (<lg): as soon as there is a version the shell is
+  // already there under the photo (no entry button). The generations live in a
+  // "Versions" panel inside the shell, so the overlay hides nothing.
   const lutGroups = useMemo(() => groupLuts(luts), [luts]);
 
   const hasVersion = versionNumber != null;
@@ -176,9 +176,10 @@ export function PhotoPipeline({
       setBaking(false);
     }
   }
-  // Promuove il grade di QUESTA foto a default dell'intero set (sovrascrive
-  // settings.color_grade) — l'unico modo dal detail di toccare il globale,
-  // distinto dal "Salva" qui sotto che scrive solo l'override della foto.
+  // Promotes THIS photo's grade to the default for the whole set (overwrites
+  // settings.color_grade) — the only way from the detail view to touch the
+  // global one, distinct from the "Save" below which only writes the photo's
+  // override.
   async function doSaveGlobal() {
     if (
       !confirm(
@@ -198,7 +199,7 @@ export function PhotoPipeline({
       setSavingGlobal(false);
     }
   }
-  // Esporta l'immagine gradata full-res della versione corrente (download).
+  // Exports the current version's full-res graded image (download).
   function doExport() {
     if (versionNumber == null) return;
     const a = document.createElement("a");
@@ -242,14 +243,14 @@ export function PhotoPipeline({
   function addStep(type: GradeStepType) {
     setDraft({ ...draft, steps: [...draft.steps, newStep(type)] });
   }
-  // Applica un preset come override di questa foto (poi si salva col pulsante Salva).
+  // Applies a preset as this photo's override (then saved with the Save button).
   function applyGrade(g: ColorGrade) {
     setDraft({ enabled: g.enabled, steps: g.steps });
   }
 
-  // Toolbar mobile: "Genera" (la generazione ChatGPT, non uno step della catena)
-  // + ogni step deterministico come chip riordinabile. Il pannello di ogni step
-  // mostra SOLO i parametri; enable/riordino/rimuovi vivono nel suo header (step).
+  // Mobile toolbar: "Generate" (the ChatGPT generation, not a step of the
+  // chain) + every deterministic step as a reorderable chip. Each step's panel
+  // shows ONLY the parameters; enable/reorder/remove live in its header (step).
   const mobileGroups: ToolGroup[] = useMemo(() => {
     const groups: ToolGroup[] = [
       ...(mobileExtras
@@ -353,7 +354,7 @@ export function PhotoPipeline({
           ),
       });
     });
-    // OUTPUT — ultimo chip della barra: esporta la versione gradata full-res.
+    // OUTPUT — last chip on the bar: exports the full-res graded version.
     groups.push({
       id: "export",
       label: "Esporta",

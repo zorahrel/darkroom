@@ -6,19 +6,19 @@ import { versionFileName } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
 /**
- * IL GUASTO, misurato il 05/09 sull'ablazione occhiali del progetto `profilo`.
+ * THE FAULT, measured on 05/09 on the sunglasses ablation of the `profilo`
+ * project.
  *
- * Tre job della stessa foto (235, 236, 237) sono stati lavorati insieme —
- * il watchdog aveva fatto ripartire il ciclo senza che il vecchio fosse morto,
- * e i cicli si erano sommati. Ognuno, entrando, calcolava il numero della
- * prossima versione e ne ricavava il file di uscita: tutti e tre `v71.png`.
- * Poi ognuno riscriveva il numero all'insert, e sono nate le versioni 71, 72 e
- * 73 — tre righe, un file solo, due render persi. Niente e' fallito: la coda
- * diceva "done" tre volte.
+ * Three jobs of the same photo (235, 236, 237) were worked at once — the
+ * watchdog had restarted the loop without the old one being dead, and the loops
+ * had added up. Each one, on entry, computed the next version number and
+ * derived its output file from it: all three `v71.png`. Then each rewrote the
+ * number at insert time, and versions 71, 72 and 73 were born — three rows, one
+ * file, two renders lost. Nothing failed: the queue said "done" three times.
  *
- * L'invariante che questi test difendono: mentre genera, un job scrive su un
- * file SUO; il nome definitivo glielo si da' alla fine, quando il numero di
- * versione e' finalmente noto.
+ * The invariant these tests defend: while generating, a job writes to a file of
+ * ITS OWN; the final name is given to it at the end, when the version number is
+ * finally known.
  */
 function dirDiProva(nome: string): string {
   const d = join(TEST_ROOT, "collisione", nome);
@@ -26,35 +26,35 @@ function dirDiProva(nome: string): string {
   return d;
 }
 
-describe("il file su cui un job scrive mentre genera", () => {
-  test("due job della stessa foto non condividono il file di lavoro", () => {
+describe("the file a job writes to while generating", () => {
+  test("two jobs of the same photo do not share the working file", () => {
     const d = dirDiProva("a");
     expect(workingFile(d, 235)).not.toBe(workingFile(d, 236));
   });
 
-  test("non porta il nome di una versione: nessuno puo' scambiarlo per un render finito", () => {
+  test("it does not carry a version's name: nobody can mistake it for a finished render", () => {
     const d = dirDiProva("b");
     expect(workingFile(d, 71)).not.toBe(join(d, versionFileName(71)));
     expect(workingFile(d, 71).endsWith("v71.png")).toBe(false);
   });
 });
 
-describe("la consegna del file al numero di versione", () => {
-  test("il percorso restituito esiste ed e' quello che finisce nella riga", () => {
+describe("handing the file over to the version number", () => {
+  test("the returned path exists and is the one that ends up in the row", () => {
     const d = dirDiProva("c");
     const work = workingFile(d, 900);
     writeFileSync(work, "render");
     const finale = finalizzaFile(work, d, 71);
     expect(finale).toBe(join(d, "v71.png"));
     expect(existsSync(finale)).toBe(true);
-    // Il file di lavoro non resta indietro: due copie della stessa immagine
-    // farebbero sembrare piena una cartella di scarti.
+    // The working file is not left behind: two copies of the same image would
+    // make a folder of discards look full.
     expect(existsSync(work)).toBe(false);
   });
 
-  test("tre job in parallelo producono tre file distinti, ognuno col proprio contenuto", () => {
-    // E' lo scenario esatto del 05/09, con la differenza che qui i tre job
-    // scrivono davvero il proprio risultato prima di consegnarlo.
+  test("three parallel jobs produce three distinct files, each with its own content", () => {
+    // It is the exact scenario of 05/09, with the difference that here the three
+    // jobs really write their own result before handing it over.
     const d = dirDiProva("d");
     const jobs = [235, 236, 237];
     const contenuti = ["controllo", "ref+parole", "solo-ref"];
