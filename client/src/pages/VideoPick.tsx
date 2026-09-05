@@ -810,7 +810,7 @@ export default function VideoPick() {
               filter === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400"
             }`}
           >
-            {k}{k === "da giudicare" ? ` ${toJudge}` : k === "sospette" ? ` ${suspect}` : ""}
+            {k === "all" ? "tutte" : k}{k === "da giudicare" ? ` ${toJudge}` : k === "sospette" ? ` ${suspect}` : ""}
           </button>
         ))}
         <Choose value={act} width={108} title="filtra per atto"

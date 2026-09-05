@@ -125,7 +125,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                     onClick={() => void pick(s.id, !s.kept)}
                     className={`text-[9.5px] px-1 rounded-sm border ${
                       s.kept ? "border-neutral-800 text-neutral-400" : "border-neutral-900 text-neutral-400"}`}>
-                    {s.kept ? "keep" : "discard"}
+                    {s.kept ? "tenuto" : "scartato"}
                   </button>
                 </div>
                 {scrivo === s.id && (
