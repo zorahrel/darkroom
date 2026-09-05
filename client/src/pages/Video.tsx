@@ -685,7 +685,7 @@ export default function Video() {
         </div>
       </div>
 
-      {/* ---- riga alta: libreria · monitor · ispettore ---- */}
+      {/* ---- tall row: library · monitor · inspector ---- */}
       <div className="flex min-h-0" style={{ height: topHeight }}>
         <aside className="shrink-0 min-w-0" style={{ width: wSx }}>
           <Library shots={shots} inEdit={inEdit} setShots={setShots} open={openShot} />
@@ -857,9 +857,9 @@ export default function Video() {
         />
       </div>
 
-      {/* Ogni cosa messa a mano, in un posto solo e con il suo × accanto. È la
-          risposta a "ho toccato qualcosa per sbaglio?": prima quella domanda si
-          poteva rispondere solo aprendo `scelte.json`. */}
+      {/* Everything set by hand, in one place and with its × beside it. It is
+          the answer to "did I touch something by mistake?": that question used
+          to be answerable only by opening `scelte.json`. */}
       {vediForz && (
         <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setVediForz(false)}>
           <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 w-[560px] max-w-[92vw]"

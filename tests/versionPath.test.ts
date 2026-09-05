@@ -19,7 +19,7 @@ describe("a version's file name", () => {
     expect(versionFileName(9)).toBe("v09.png");
   });
 
-  test("da dieci in su resta com'e'", () => {
+  test("from ten up it stays as it is", () => {
     expect(versionFileName(10)).toBe("v10.png");
     expect(versionFileName(30)).toBe("v30.png");
   });
@@ -47,7 +47,7 @@ describe("where a version's file must live", () => {
   });
 });
 
-describe("il controllo sulla convenzione", () => {
+describe("the check on the convention", () => {
   test("a correct path has nothing to say", () => {
     withProject("conv-c", () => {
       expect(pathOutsideConvention("f", 3, versionPath("f", 3))).toBeNull();
@@ -95,7 +95,7 @@ describe("instants are written in milliseconds", () => {
     expect(Math.abs(t - Date.now())).toBeLessThan(1000);
   });
 
-  test("riconosce un istante scritto in secondi", async () => {
+  test("it recognises an instant written in seconds", async () => {
     // THE BUG: three versions recorded by hand with Date.now()/1000 ended up at
     // the bottom of the chronological order, looking decades old.
     const { suspectInstant } = await import("../server/db.ts");
@@ -181,7 +181,7 @@ describe("the channel is chosen per job, not per process", () => {
     expect(backendDi({ backend: "" })).toBe("cdp");
   });
 
-  test("il canale e' insensibile alle maiuscole", async () => {
+  test("the channel is case-insensitive", async () => {
     const { backendDi } = await import("../server/jobs.ts");
     expect(backendDi({ backend: "OpenAI" })).toBe("openai");
   });

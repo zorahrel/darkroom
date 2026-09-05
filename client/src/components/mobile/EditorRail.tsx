@@ -97,9 +97,9 @@ export default function EditorRail({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 text-neutral-100">
-      {/* Header a riga singola che non sfora mai: le due barre d'azione sono
-          shrink-0 (non si comprimono), il titolo è l'unico a cedere spazio
-          (min-w-0 + truncate → ellissi) quando la larghezza scarseggia. */}
+      {/* A single-row header that never overflows: the two action bars are
+          shrink-0 (they do not compress), the title is the only one to give up
+          space (min-w-0 + truncate → ellipsis) when width runs short. */}
       <div className="flex items-center gap-1.5 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         <div className="shrink-0">{leftAction}</div>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-200">{title}</span>
@@ -198,13 +198,13 @@ export function PipelineList({
   );
   const openId = open.size > 0 ? Array.from(open)[0] : null;
   const onToggle = (id: string) => setOpen((cur) => (cur.has(id) ? new Set() : new Set([id])));
-  // Pennello on/off: si tiene premuto sul pallino di uno step e si trascina
-  // sugli altri per accenderli o spegnerli in blocco. Serve a capire cosa fa
-  // ogni passo — provare "con e senza" un gruppo di step, senza aprirli uno per
-  // uno. Il verso lo decide il PRIMO step toccato: se era acceso si spegne, e
-  // tutti quelli che si attraversano seguono lo stesso verso (come le caselle
-  // di un foglio di calcolo), altrimenti trascinando si invertirebbe due volte
-  // lo stesso step.
+  // On/off brush: you hold down on a step's dot and drag over the others to
+  // switch them on or off in bulk. It is for understanding what each step does
+  // — trying "with and without" a group of steps, without opening them one by
+  // one. The direction is decided by the FIRST step touched: if it was on it
+  // goes off, and everything you cross follows the same direction (like the
+  // cells of a spreadsheet), otherwise dragging would invert the same step
+  // twice.
   const paint = useRef<boolean | null>(null);
   useEffect(() => {
     const stop = () => { paint.current = null; };
@@ -387,7 +387,7 @@ function Section({
   open: boolean;
   onToggle: () => void;
   dnd?: SectionDnd;
-  /** Verso corrente del "pennello" on/off (null = non si sta trascinando). */
+  /** Current direction of the on/off "brush" (null = not dragging). */
   paint?: { current: boolean | null };
 }) {
   const step = group.step;
@@ -436,10 +436,10 @@ function Section({
           <span className="w-1.5 shrink-0" />
         )}
         {step && (
-          // Interruttore diretto: prima lo stato era un pallino decorativo e per
-          // spegnere uno step bisognava aprirlo. Tenendolo premuto e passando
-          // sugli altri si accendono/spengono in blocco — e' cosi' che si
-          // capisce cosa fa un gruppo di step, provando "con e senza".
+          // Direct switch: the state used to be a decorative dot and switching a
+          // step off meant opening it. Holding it down and passing over the
+          // others switches them on/off in bulk — that is how you understand
+          // what a group of steps does, by trying "with and without".
           <button
             onPointerDown={(e) => {
               e.stopPropagation();
@@ -500,11 +500,11 @@ function Section({
 
       {open && (
         <div className="px-3 pb-3 pt-1 dr-touch">
-          {/* Gli attrezzi dello step, raggruppati per cosa fanno: prima
-              l'interruttore (e' uno stato), poi lo spostamento, poi le due cose
-              che cambiano i parametri. Cancellare sta in fondo, quieto e con la
-              domanda: era un cestino con lo stesso peso di una freccia, a un
-              dito di distanza. */}
+          {/* The step's tools, grouped by what they do: first the switch (it is a
+              state), then the moving, then the two things that change the
+              parameters. Deleting sits at the end, quiet and with the question:
+              it used to be a bin with the same weight as an arrow, a finger
+              away. */}
           {step && (
             <div className="flex items-center gap-1 mb-2 pb-2 border-b border-neutral-800/70">
               <Toggle on={step.enabled} onChange={step.onToggle}

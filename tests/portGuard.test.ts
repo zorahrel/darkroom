@@ -13,7 +13,7 @@ const deps = (found: Occupant[] | null, ourPid = 999) => ({
 });
 
 describe("do not start on a port already served by another project", () => {
-  test("nessuno in ascolto: si parte", () => {
+  test("nobody listening: it starts", () => {
     expect(checkPort(3535, deps([]))).toEqual({ state: "free" });
   });
 
@@ -36,7 +36,7 @@ describe("do not start on a port already served by another project", () => {
     expect(outcome.state).toBe("ignoto");
   });
 
-  test("il messaggio dice il pid, il bind e come uscirne", () => {
+  test("the message says the pid, the bind and how to get out of it", () => {
     const msg = busyMessage(3333, [
       { pid: 52898, command: "bun run server.ts", address: "*:3333" },
     ]);

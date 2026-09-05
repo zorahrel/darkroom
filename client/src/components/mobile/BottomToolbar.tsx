@@ -16,9 +16,9 @@ export type StepControls = {
   // Reset this step's params to their defaults. Present only when the step has
   // been edited away from default, so a pristine step shows no reset affordance.
   onReset?: () => void;
-  /** "Solo questo": spegne gli altri step per vedere cosa fa DAVVERO questo.
-   *  Un difetto come "la LUT viene annullata dallo step dopo" non si vede
-   *  nell'elenco, si vede solo isolando i passi. */
+  /** "Only this": switches the other steps off to see what this one REALLY
+   *  does. A defect like "the LUT is cancelled by the next step" is invisible
+   *  in the list, it is only seen by isolating the steps. */
   onSolo?: () => void;
   isSolo?: boolean;
   summary?: string;

@@ -1,13 +1,14 @@
 /**
- * La potatura dell'albero per giudizio.
+ * Pruning the tree by verdict.
  *
- * Sta qui e non dentro la pagina perche' e' l'unico pezzo del filtro che puo'
- * sbagliare in silenzio: filtrare le foglie e' facile, ricordarsi di togliere
- * i rami e le radici rimaste vuote no. Una sorgente con la sua intestazione,
- * la miniatura e nessuna variante sotto non sembra "filtrata", sembra rotta.
+ * It lives here and not inside the page because it is the only part of the
+ * filter that can go wrong silently: filtering the leaves is easy, remembering
+ * to remove the branches and roots left empty is not. A source with its header,
+ * its thumbnail and no variants underneath does not look "filtered", it looks
+ * broken.
  */
 
-/** Il minimo che serve per potare: la pagina passa i suoi tipi veri. */
+/** The minimum needed in order to prune: the page passes its real types. */
 type WithVerdict = { verdict: string | null };
 type WithVariants<V> = { variants: V[] };
 type WithGroups<G> = { groups: G[] };
@@ -15,8 +16,8 @@ type WithGroups<G> = { groups: G[] };
 export const VERDICTS = ["all", "keep", "maybe", "discard", "unseen"] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
-/** `unseen` = mai giudicata. E' il filtro che serve per riprendere in mano
- *  un lavoro lasciato a meta', ed e' diverso da "scartata". */
+/** `unseen` = never judged. It is the filter needed to pick up a job left
+ *  half-done, and it is different from "discarded". */
 export function keepsVariant(v: WithVerdict, verdict: Verdict): boolean {
   if (verdict === "all") return true;
   if (verdict === "unseen") return !v.verdict;
@@ -39,8 +40,8 @@ export function filterTree<
     .filter((n) => n.groups.length > 0);
 }
 
-/** Quante varianti per giudizio. Serve sulle pastiglie: un filtro che porta a
- *  una pagina vuota va saputo prima di cliccarlo. */
+/** How many variants per verdict. Needed on the pills: a filter leading to
+ *  an empty page should be known before clicking it. */
 export function countVerdicts(variants: WithVerdict[]): Record<Verdict, number> {
   const c: Record<Verdict, number> = {
     all: variants.length,

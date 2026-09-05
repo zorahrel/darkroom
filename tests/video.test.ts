@@ -156,7 +156,7 @@ describe("removing a verdict is a third state, not a yes", () => {
   };
   const letto = () => JSON.parse(readFileSync(join(rootDir(), "scelte.json"), "utf8"));
 
-  test("scarto, poi annullo: la ripresa non risulta ne' scartata ne' tenuta", () => {
+  test("discard, then undo: the shot comes out neither discarded nor kept", () => {
     inTempProject(() => {
       setPick("g_corr0", false, "prova");
       expect(letto().scartati["g_corr0"]).toBe("prova");
@@ -168,7 +168,7 @@ describe("removing a verdict is a third state, not a yes", () => {
     });
   });
 
-  test("annullare un si' non lo trasforma in uno scarto", () => {
+  test("undoing a yes does not turn it into a discard", () => {
     inTempProject(() => {
       setPick("w_alto", true);
       expect(letto().tenuti["w_alto"]).toBeGreaterThan(0);
@@ -180,7 +180,7 @@ describe("removing a verdict is a third state, not a yes", () => {
     });
   });
 
-  test("i due verdetti veri restano quelli di prima", () => {
+  test("the two real verdicts stay as they were", () => {
     inTempProject(() => {
       setPick("mare6", true);
       expect(letto().tenuti["mare6"]).toBeGreaterThan(0);

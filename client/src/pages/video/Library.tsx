@@ -3,13 +3,13 @@ import { api, pq, type VideoShot } from "../../api";
 import { Field } from "./ui";
 
 /**
- * Il browser dei piani girati.
+ * The browser of the shots that were filmed.
  *
- * Era una griglia larga sotto l'editor: 272 provini da 230 px che rendevano la
- * pagina alta 28.511 pixel, con l'editor che spariva sopra uno schermo e mezzo
- * di miniature. Qui è una colonna densa che scorre per conto suo, con una
- * ricerca — perché la domanda vera non è "fammi vedere tutto", è "dov'è quella
- * col faro".
+ * It was a wide grid under the editor: 272 strips of 230 px that made the page
+ * 28,511 pixels tall, with the editor disappearing above a screen and a half of
+ * thumbnails. Here it is a dense column that scrolls on its own, with a search —
+ * because the real question is not "show me everything", it is "where is the one
+ * with the lighthouse".
  */
 
 type Props = {
@@ -77,8 +77,8 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
             <div key={s.id}
                  draggable
                  onDragStart={(e) => {
-                   // Il tipo e' nostro apposta: cosi' la timeline accetta solo
-                   // cio' che viene da qui, e non un file o un testo qualunque.
+                   // The type is deliberately ours: this way the timeline accepts only
+                   // what comes from here, and not just any file or text.
                    e.dataTransfer.setData("text/darkroom-piano", s.id);
                    e.dataTransfer.effectAllowed = "copy";
                  }}

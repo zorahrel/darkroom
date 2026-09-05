@@ -149,7 +149,7 @@ export default function PresetsPanel({
 
       {err && <p className="text-xs text-red-400">{err}</p>}
 
-      {/* Esito import: mostra cosa è stato mappato e cosa no */}
+      {/* Import outcome: shows what was mapped and what was not */}
       {imp && (
         <div className="rounded-lg border border-sky-900/60 bg-sky-950/20 p-3 space-y-2">
           <div className="flex items-center gap-2">

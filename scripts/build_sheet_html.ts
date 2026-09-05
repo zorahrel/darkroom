@@ -1,11 +1,11 @@
 /**
- * Dal manifest di contact_sheet.ts alla pagina di valutazione ("provino").
+ * From contact_sheet.ts's manifest to the evaluation page (the "strip").
  *
- * Separato dal manifest perché le miniature costano (una passata di magick per
- * file) mentre il layout si ritocca dieci volte: rigenerare le immagini a ogni
- * modifica del CSS sarebbe minuti buttati.
+ * Separate from the manifest because the thumbnails cost (one magick pass per
+ * file) while the layout is tweaked ten times: regenerating the images on every
+ * CSS change would be minutes thrown away.
  *
- * Uso: bun run scripts/build_sheet_html.ts <manifest.json> <out.html>
+ * Usage: bun run scripts/build_sheet_html.ts <manifest.json> <out.html>
  */
 const [, , manifestPath, outPath] = process.argv;
 if (!manifestPath || !outPath) { console.error("uso: build_sheet_html.ts <manifest.json> <out.html>"); process.exit(1); }
@@ -22,9 +22,10 @@ const esc = (s: string) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", 
 const counts: Record<string, number> = {};
 for (const p of m.photos) for (const v of p.variants) counts[v.recipe] = (counts[v.recipe] ?? 0) + 1;
 const total = m.photos.reduce((n: number, p: any) => n + p.variants.length, 0);
-// I set di riferimenti non sono noti in anticipo: nascono da come sono state
-// lanciate le passate. Elencarli a mano significa dimenticarne uno al primo
-// esperimento nuovo, e un filtro che non elenca tutto nasconde lavoro fatto.
+// The reference sets are not known in advance: they arise from how the passes
+// were launched. Listing them by hand means forgetting one at the first new
+// experiment, and a filter that does not list everything hides work already
+// done.
 const setCounts: Record<string, number> = {};
 for (const p of m.photos) for (const v of p.variants) {
   const k = v.refset ?? "solo stile";
@@ -319,14 +320,14 @@ document.querySelectorAll(".filters button").forEach(b=>{
 render();
 </script>`;
 
-// Ogni carattere non-ASCII diventa entita' numerica. La pagina viene servita
-// da host diversi (file://, http.server, l'host degli artifact) e non tutti
-// dichiarano il charset: senza questa passata "1122x1402" diventa "1122Ã—1402"
-// e la em dash diventa "â€”". Visto succedere, non ipotizzato.
-// Le entita' vanno messe nel MARKUP, mai dentro <script>: un glifo come "o"
-// barrato diventerebbe "&#9675;" in mezzo al codice e la pagina morirebbe con
-// un SyntaxError, muta. Successo davvero, non ipotizzato: il provino e' rimasto
-// senza voti finche' non ho letto la console.
+// Every non-ASCII character becomes a numeric entity. The page is served from
+// different hosts (file://, http.server, the artifact host) and not all of them
+// declare the charset: without this pass "1122x1402" becomes "1122Ã—1402" and
+// the em dash becomes "â€”". Seen happening, not hypothesised.
+// The entities go in the MARKUP, never inside <script>: a glyph like a struck-
+// through "o" would become "&#9675;" in the middle of the code and the page
+// would die with a SyntaxError, mute. It really happened, not hypothesised: the
+// strip stayed without votes until I read the console.
 const parts = html.split(/(<script>[\s\S]*?<\/script>)/);
 const ascii = parts
   .map((chunk) => (chunk.startsWith("<script>") ? chunk : chunk.replace(/[\u0080-\uFFFF]/g, (c) => `&#${c.charCodeAt(0)};`)))

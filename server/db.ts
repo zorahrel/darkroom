@@ -523,7 +523,7 @@ export type PhotoRow = {
   extra_instructions: string | null;
   grade_override: string | null;
   feedback: string | null;
-  /** "Mi piace": 1 = la tengo. Indipendente dal post e dalla versione preferita. */
+  /** "Like": 1 = I keep it. Independent of the post and of the favourite version. */
   picked: number;
   /** 1 = ChatGPT refuses this photo: do not enqueue it again. */
   skipped: number;

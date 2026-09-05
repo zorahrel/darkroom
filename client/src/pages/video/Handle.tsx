@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 
 /**
- * Il separatore fra due pannelli.
+ * The divider between two panels.
  *
- * Le larghezze buone dipendono dallo schermo e da cosa si sta facendo: chi
- * cerca una ripresa vuole la libreria larga, chi confronta le alternative vuole
- * l'ispettore largo, e su un portatile non c'è spazio per entrambi. Quindi si
- * trascina, e la misura resta nel browser — è una preferenza di chi guarda, non
- * una proprietà del montaggio.
+ * The good widths depend on the screen and on what you are doing: somebody
+ * looking for a shot wants a wide library, somebody comparing alternatives
+ * wants a wide inspector, and on a laptop there is no room for both. So it is
+ * dragged, and the size stays in the browser — it is a preference of whoever is
+ * watching, not a property of the cut.
  */
 
 type Props = {
@@ -15,9 +15,9 @@ type Props = {
   toward: "col" | "row";
   /** Il valore corrente in pixel. */
   value: number;
-  /** Quanto vale dopo aver trascinato di `d` pixel: il segno lo decide chi
-   *  chiama, perché una maniglia a destra di un pannello lo allarga andando a
-   *  destra e quella a sinistra fa il contrario. */
+  /** What it is worth after dragging by `d` pixels: the caller decides the
+   *  sign, because a handle to the right of a panel widens it by going right
+   *  and the one on the left does the opposite. */
   compute: (value0: number, d: number) => number;
   onChange: (v: number) => void;
   onEnd?: (v: number) => void;

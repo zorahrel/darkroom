@@ -20,13 +20,13 @@ export type WorkerResult =
       output: string;
       duration_s: number;
       size_kb: number;
-      /** Costo in dollari, quando il backend lo sa. I backend a quota (cdp,
-       *  codex) non lo sanno e lo lasciano assente: 0 direbbe "gratis", che e'
-       *  una risposta diversa da "non misurabile". */
+      /** Cost in dollars, when the backend knows it. The quota backends (cdp,
+       *  codex) do not know it and leave it absent: 0 would say "free", which
+       *  is a different answer from "not measurable". */
       cost_usd?: number;
-      /** Come e' stata prodotta davvero: modello, resa, token consumati.
-       *  Senza, la versione salvata dichiara "openai" e basta, e due varianti
-       *  uscite da `low` e da `high` sembrano lo stesso esperimento. */
+      /** How it was really produced: model, quality, tokens consumed. Without it,
+       *  the saved version declares "openai" and nothing more, and two variants
+       *  out of `low` and `high` look like the same experiment. */
       model?: string;
       quality?: string;
       output_tokens?: number;

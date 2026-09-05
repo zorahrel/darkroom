@@ -1,22 +1,23 @@
 /**
- * Ablazione sugli OCCHIALI, scena costante (la v63: parcheggio notturno).
+ * Ablation on the SUNGLASSES, constant scene (v63: night car park).
  *
- * Perche' esiste: dalla v54 in poi — cioe' su tutte e quattro le versioni
- * esportate — gli occhiali sono stati descritti SOLO a parole ("due rettangoli
- * neri affiancati, larghi il doppio dell'altezza…") e le foto dei Gascan in
- * data/refs non sono mai state allegate. L'ablazione precedente (v67-v70) ha
- * gia' mostrato che per la FORMA le parole non pagano: era la distanza della
- * camera a risolvere il collo, non le frasi sul collo.
+ * Why it exists: from v54 on — i.e. on all four exported versions — the
+ * sunglasses were described ONLY in words ("two black rectangles side by side,
+ * twice as wide as tall…") and the photos of the Gascans in data/refs were
+ * never attached. The previous ablation (v67-v70) has already shown that for
+ * SHAPE words do not pay: it was the camera distance that solved the neck, not
+ * the sentences about the neck.
  *
- * Tre celle, una leva sola: COME si specificano gli occhiali.
- *   A  controllo  — prompt v63 identico, nessun allegato.       (parole)
- *   B  ref+parole  — stesso prompt + la foto degli occhiali.     (parole+ref)
- *   C  solo ref    — le parole sulla forma tolte, resta la foto. (ref)
+ * Three cells, one lever: HOW the sunglasses are specified.
+ *   A  control    — identical v63 prompt, no attachment.        (words)
+ *   B  ref+words  — same prompt + the photo of the sunglasses.  (words+ref)
+ *   C  ref only   — the words about shape removed, photo stays. (ref)
  *
- * La cella A serve anche se v63 esiste gia': senza un controllo tirato oggi,
- * una differenza fra B/C e v63 potrebbe essere solo varianza fra due tiri.
+ * Cell A is needed even though v63 already exists: without a control shot
+ * today, a difference between B/C and v63 could be mere variance between two
+ * takes.
  *
- * Uso: bun run scripts/sunglasses_ablation.ts [--giri N]
+ * Usage: bun run scripts/sunglasses_ablation.ts [--rounds N]
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -26,7 +27,7 @@ import { enqueueJob } from "../server/jobs.ts";
 
 const PID = "profilo";
 const PHOTO = "1";
-/** La versione da cui si copia la scena. Costante per tutte le celle. */
+/** The version the scene is copied from. Constant for every cell. */
 const BASE = 63;
 
 const arg = (k: string) => {
@@ -35,14 +36,14 @@ const arg = (k: string) => {
 };
 const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 
-/** Il blocco che descrive la forma degli occhiali a parole: e' la leva. */
+/** The block that describes the shape of the sunglasses in words: it is the lever. */
 const WORDS =
   /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
-/** Cosa lo sostituisce quando la forma arriva dall'immagine invece che dal testo. */
+/** What replaces it when the shape comes from the image instead of the text. */
 const RINVIO =
   "OCCHIALI DA SOLE: indosso ESATTAMENTE gli occhiali dell'immagine allegata su fondo grigio. Copiane forma, proporzioni, spessore della montatura e curvatura: sono i miei, non un modello simile. ";
-/** Detto anche quando le parole restano: senza, l'allegato puo' essere letto
- *  come un'altra foto di me e la faccia viene mediata. */
+/** Said even when the words stay: without it, the attachment can be read as
+ *  another photo of me and the face gets averaged. */
 const RUOLO =
   "\n\nUna delle immagini allegate NON sono io: e' la foto dei miei occhiali da sole su fondo neutro. Serve solo a copiare gli occhiali con esattezza. Non prendere da quella nessun volto, nessuna luce, nessuno sfondo.";
 

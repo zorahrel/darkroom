@@ -72,9 +72,10 @@ export const HSL_BANDS: { key: string; label: string }[] = [
   { key: "magenta", label: "Magenta" },
 ];
 
-// Addable pipeline steps. "ai" = edit generativo (primo step della pipeline
-// completa): editabile, riordinabile, saltato dal display live, eseguito nel
-// bake multi-pass. Gli altri sono deterministici e applicati al volo su /graded.
+// Addable pipeline steps. "ai" = generative edit (first step of the full
+// pipeline): editable, reorderable, skipped by the live display, run in the
+// multi-pass bake. The others are deterministic and applied on the fly on
+// /graded.
 export const STEP_ORDER: GradeStepType[] = [
   "ai",
   "white_balance",

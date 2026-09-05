@@ -167,7 +167,7 @@ describe("media", () => {
 });
 
 describe("a photo refused by ChatGPT is skipped", () => {
-  test("la flag si mette e si toglie", async () => {
+  test("the flag is set and unset", async () => {
     const id = "skip_test_1";
     db().run(
       "INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?)",
@@ -296,7 +296,7 @@ describe("the covers still to refine", () => {
   });
 });
 
-describe("i crediti si chiedono, non si scoprono sbattendoci", () => {
+describe("the credits are asked for, not discovered by walking into them", () => {
   test("there is a route for the Higgsfield balance", async () => {
     const src = await Bun.file(new URL("../server/routes/generation.ts", import.meta.url)).text();
     // The only way to know whether you could generate used to be LAUNCHING a

@@ -1,19 +1,20 @@
 /**
- * Chi resta nell'elenco dopo un verdetto.
+ * Who stays in the list after a verdict.
  *
- * La pagina della scelta tiene la posizione con un indice dentro una coda
- * filtrata. Finche' il filtro e' "tutte" l'indice e' innocuo, ma i filtri veri
- * sono quelli che la scena appena giudicata NON soddisfa piu': con "da
- * giudicare" la riga esce dalla coda nell'istante del verdetto, e quella dopo
- * scala da sola in posizione `i`.
+ * The pick page keeps its position with an index into a filtered queue. As long
+ * as the filter is "all" the index is harmless, but the real filters are the
+ * ones the just-judged shot no longer satisfies: with "to judge" the row leaves
+ * the queue the instant of the verdict, and the next one moves up into position
+ * `i` by itself.
  *
- * Avanzare li' dentro scavalca una scena, e la scavalca senza dirlo: su 145
- * riprese ne restavano viste 72, le altre segnate "mai viste" senza che niente
- * spiegasse perche'. Il conteggio in cima alla pagina lo mostrava e sembrava
- * lentezza dell'operatore.
+ * Advancing in there skips a shot, and skips it silently: out of 145 shots, 72
+ * came out seen and the others marked "never seen" with nothing to explain why.
+ * The count at the top of the page showed it and it looked like the operator
+ * was being slow.
  *
- * Sta qui, fuori dal componente, perche' e' una regola — non un dettaglio di
- * resa — e perche' un difetto invisibile a occhio va tenuto fermo da un test.
+ * It lives here, outside the component, because it is a rule — not a rendering
+ * detail — and because a defect invisible to the eye has to be held still by a
+ * test.
  */
 export type PickFilter =
   | "da giudicare"
@@ -24,14 +25,14 @@ export type PickFilter =
   | "in montaggio"
   | "all";
 
-/** true se la scena, dopo questo verdetto, sparisce dall'elenco filtrato. */
+/** true if the shot, after this verdict, disappears from the filtered list. */
 export function leavesQueue(filter: PickFilter, kept: boolean): boolean {
-  // Tutt'e due chiedono un verdetto che non c'e' ancora: darlo la fa uscire,
-  // qualunque esso sia.
+  // Both ask for a verdict that is not there yet: giving one makes it leave,
+  // whatever it is.
   if (filter === "da giudicare" || filter === "sospette") return true;
   if (filter === "tenute") return !kept;
   if (filter === "scartate") return kept;
-  // "annotate", "in montaggio" e "tutte" non guardano il verdetto: la riga
-  // resta dov'e' e l'indice deve avanzare come sempre.
+  // "annotated", "in the cut" and "all" do not look at the verdict: the row
+  // stays where it is and the index must advance as usual.
   return false;
 }

@@ -1,18 +1,18 @@
 /**
- * Lo SFONDO da immagine di riferimento, non da descrizione.
+ * The BACKGROUND from a reference image, not from a description.
  *
- * Perche': i fondi urbani (parcheggio, sottopasso, garage) erano scritti a
- * parole, e la citta' non e' quello che si vuole. La stessa lezione degli
- * occhiali — e prima ancora quella della focale sul collo — dice che una forma
- * o un luogo si ottengono ALLEGANDO l'immagine, non descrivendola: il testo
- * sposta l'atmosfera, non la cosa.
+ * Why: the urban backgrounds (car park, underpass, garage) were written in
+ * words, and the city is not what you want. The same lesson as the sunglasses —
+ * and before that the one about focal length on the neck — says that a shape or
+ * a place is obtained by ATTACHING the image, not describing it: text moves the
+ * atmosphere, not the thing.
  *
- * Una cella per ogni fondo in data/refs. Tutto il resto e' costante: stessa
- * identita', stessa inquadratura 35mm, e gli occhiali sempre presi dalla loro
- * foto (la ricetta "solo ref" della cella C). L'unica variabile e' QUALE fondo
- * viene allegato — cosi' la scelta si fa guardando, non immaginando.
+ * One cell per background in data/refs. Everything else is constant: same
+ * identity, same 35mm framing, and the sunglasses always taken from their photo
+ * (cell C's "ref only" recipe). The only variable is WHICH background is
+ * attached — so the choice is made by looking, not by imagining.
  *
- * Uso: bun run scripts/background_from_reference.ts [--fondi a.jpg,b.jpg] [--giri N]
+ * Usage: bun run scripts/background_from_reference.ts [--fondi a.jpg,b.jpg] [--rounds N]
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ import { enqueueJob } from "../server/jobs.ts";
 
 const PID = "profilo";
 const PHOTO = "1";
-/** La versione da cui si copia tutto il resto: identita', posa, inquadratura. */
+/** The version everything else is copied from: identity, pose, framing. */
 const BASE = 63;
 
 const arg = (k: string) => {
@@ -31,9 +31,9 @@ const arg = (k: string) => {
 };
 const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 
-/** Il blocco che descrive il LUOGO a parole: e' cio' che si sostituisce. */
+/** The block that describes the PLACE in words: it is what gets replaced. */
 const LUOGO = /LUOGO:.*?(?=OCCHIALI DA SOLE)/s;
-/** Il blocco che descrive la forma degli occhiali a parole. */
+/** The block that describes the shape of the sunglasses in words. */
 const OCCHIALI = /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
 
 const SFONDO_DA_REF =
@@ -67,7 +67,7 @@ withProject(PID, () => {
   const OCCHIALI_REF = join(refDir, "occhiali-gascan-ritagliato.jpg");
   if (!existsSync(OCCHIALI_REF)) throw new Error(`reference occhiali mancante: ${OCCHIALI_REF}`);
 
-  // I fondi: quelli chiesti, o tutti i file che si chiamano `fondo-*`.
+  // The backgrounds: the ones asked for, or every file named `fondo-*`.
   const chiesti = arg("--fondi")?.split(",").map((s) => s.trim()).filter(Boolean);
   const disponibili = readdirSync(refDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f));
   const fondi = chiesti ?? disponibili.filter((f) => f.startsWith("fondo-"));

@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 
-// Un accordion riusabile: header cliccabile (chevron + titolo + riepilogo live +
-// badge di coda) che apre/chiude il corpo. Lo stato aperto è persistito su
-// localStorage con `storageKey`, così ogni pipeline resta com'è stata lasciata.
-// Il `summary` compare sempre da chiuso e, da aperto, solo su schermi ≥ sm — così
-// su mobile l'header resta magro e da desktop hai comunque lo stato a colpo d'occhio.
+// A reusable accordion: clickable header (chevron + title + live summary +
+// queue badge) that opens/closes the body. The open state is persisted in
+// localStorage with `storageKey`, so each pipeline stays as it was left.
+// The `summary` always shows when closed and, when open, only on screens ≥ sm —
+// so on mobile the header stays thin and on desktop you still have the state at
+// a glance.
 export default function Accordion({
   title,
   summary,

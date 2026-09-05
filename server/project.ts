@@ -48,7 +48,7 @@ export type Project = {
   root: string;
   /** The main view: the one you land on when opening the project. */
   kind: ProjectKind;
-  /** Le viste accese. Contiene sempre `kind`. */
+  /** The views switched on. Always contains `kind`. */
   views: ProjectKind[];
   active: boolean;
   created_at: number;

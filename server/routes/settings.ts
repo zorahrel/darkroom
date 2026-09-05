@@ -116,11 +116,11 @@ settingsRoutes.get("/api/luts", (c) => {
   return c.json({ luts, current: getColorGrade() });
 });
 
-/** I due riferimenti cromatici del set: uno diurno e uno notturno.
+/** The set's two colour references: one for day and one for night.
  *
- *  Sono globali di proposito. Un riferimento per post rendeva ogni post coerente
- *  con sé stesso e diverso dagli altri, che è l'opposto di quel che serve a un
- *  profilo dove le foto si scorrono di fila. */
+ *  They are global on purpose. A reference per post made each post coherent
+ *  with itself and different from the others, which is the opposite of what a
+ *  profile needs, where the photos are scrolled one after another. */
 settingsRoutes.get("/api/settings/sky-refs", (c) => c.json(skyReferences()));
 
 settingsRoutes.put("/api/settings/sky-refs", async (c) => {

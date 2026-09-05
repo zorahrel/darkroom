@@ -29,7 +29,7 @@ const OUTPUT_RATE_PER_M: Record<string, number> = {
   "gpt-image-1-mini": 8.0,
 };
 
-/** Speso nelle ultime 24h, dalle chiamate registrate. */
+/** Spent in the last 24h, from the recorded calls. */
 export function spentToday(): number {
   try {
     const r = db()

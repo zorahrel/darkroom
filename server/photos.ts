@@ -35,20 +35,20 @@ export function ensureFinalDir(): void {
 }
 
 /**
- * Il cielo giusto per l'ORA dello scatto.
+ * The right sky for the TIME the photo was taken.
  *
- * Un cielo diurno e uno notturno hanno bisogno di istruzioni opposte, e
- * sbagliarlo si vede più di ogni altra cosa perché il cielo è la superficie più
- * grande della foto. Sceglierlo a mano su ogni scatto è lavoro inutile: l'ora
- * di scatto lo sa già.
+ * A daytime sky and a night sky need opposite instructions, and getting it
+ * wrong is more visible than anything else because the sky is the photo's
+ * largest surface. Choosing it by hand on every shot is pointless work: the
+ * capture time already knows.
  *
- * Vive qui e non nella rotta perché OGNI percorso di generazione deve
- * applicarlo — è già successo che il ramo Higgsfield lo saltasse e uscisse una
- * foto notturna con le istruzioni per un cielo di mezzogiorno.
+ * It lives here and not in the route because EVERY generation path must apply
+ * it — the Higgsfield branch has already been known to skip it and produce a
+ * night photo with the instructions for a midday sky.
  */
 export function withSkyForTime(cfg: PromptConfig, photo: PhotoRow): PromptConfig {
-  // Un override esplicito per-foto vince sempre: se qualcuno ha scelto il
-  // cielo a mano, sa cosa sta facendo.
+  // An explicit per-photo override always wins: if somebody chose the sky by
+  // hand, they know what they are doing.
   if (photo.config_override?.includes('"sky"')) return cfg;
   const h = photo.taken_at ? new Date(photo.taken_at).getHours() : 12;
   return { ...cfg, sky: h >= 18 || h < 6 ? "deep-night" : "even-blue" };

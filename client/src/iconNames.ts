@@ -25,12 +25,12 @@ import {
 } from "lucide-react";
 
 /**
- * Dalla chiave dell'icona all'icona.
+ * From the icon's key to the icon.
  *
- * Il catalogo degli strumenti vive nel server e viaggia in JSON, dove un
- * componente React non ci sta: manda una parola. La traduzione sta qui, in un
- * posto solo, e una chiave sconosciuta non rompe la pagina — chi legge mette
- * la sua chiave di riserva.
+ * The tool catalogue lives in the server and travels as JSON, where a React
+ * component does not fit: it sends a word. The translation lives here, in one
+ * place, and an unknown key does not break the page — the reader supplies its
+ * own fallback.
  */
 export const ICONS: Record<string, LucideIcon> = {
   activity: Activity,

@@ -19,8 +19,8 @@ export const pipelineRoutes = new Hono();
 
 // ---- API: export -----------------------------------------------------------
 
-/** Copia le preferite, sviluppate a piena risoluzione, nella cartella d'uscita.
- *  Fuori dalla rotta perché la chiama anche l'avvio rapido della home. */
+/** Copies the favourites, developed at full resolution, into the output
+ *  folder. Outside the route because the home's quick start calls it too. */
 export function exportFavorites(): { copied: number; total: number; dir: string; graded: boolean } {
   ensureFinalDir();
   const rows = db()
@@ -46,8 +46,9 @@ export function exportFavorites(): { copied: number; total: number; dir: string;
       // Full-res graded JPG (no downscale) — the real deliverable.
       const dst = join(finalDir(), `${r.photo_id}.jpg`);
       const wbGain = sceneMatchRequested(cfg) ? wbGainFor(r.photo_id) : null;
-      // L'export deve armonizzare come la griglia: se il passo c'è, si applica
-      // anche qui, altrimenti quel che si è approvato non è quel che si pubblica.
+      // The export must harmonise like the grid: if the step is there, it is
+      // applied here too, otherwise what was approved is not what is
+      // published.
       const match = cfg.steps.some((s) => s.type === "match" && s.enabled)
         ? setMatchFor(r.photo_id)
         : null;
@@ -156,14 +157,14 @@ pipelineRoutes.get("/api/pipeline/status", (c) => {
     grade,
     favorites: favs?.n ?? 0,
     queue: jobsBy,
-    // Se la dashboard che stai guardando e' piu' vecchia del codice, deve
-    // dirtelo LEI: e' l'unica superficie che si guarda davvero. Nove giorni di
-    // UI stantia sono passati inosservati proprio perche' l'unico indizio
-    // sarebbe stato in un log che nessuno apre.
+    // If the dashboard you are looking at is older than the code, IT has to tell
+    // you: it is the only surface anybody really looks at. Nine days of stale UI
+    // went unnoticed precisely because the only clue would have been in a log
+    // nobody opens.
     stale_dist: staleDistWarning(REPO_ROOT),
-    // Conflitti nel grade che non si vedono nella lista degli step ma si
-    // vedono nelle foto (una saturazione che annulla la LUT, la LUT spenta
-    // di notte). Vanno detti dove si guarda, non scoperti a valle.
+    // Grade conflicts invisible in the step list but visible in the photos (a
+    // saturation that cancels the LUT, the LUT switched off at night). They
+    // have to be said where people look, not discovered downstream.
     grade_warnings: gradeWarnings(grade.steps),
   });
 });

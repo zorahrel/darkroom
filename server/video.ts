@@ -361,7 +361,7 @@ export function swap(barA: number, shotA: string, barB: number, shotB: string) {
   return s.pin!;
 }
 
-/** Toglie l'inchiodatura da più battute in un colpo: è l'annulla di uno scambio. */
+/** Removes the pin from several bars at once: it is the undo of a swap. */
 export function unpin(bars: number[]) {
   const s = picks();
   for (const b of bars) delete s.pin![String(b)];
@@ -823,7 +823,8 @@ export type Gate = {
 let gateCache: { key: string; gate: Gate } | null = null;
 let gateRunning: string | null = null;
 
-/** Il risultato se c'e', altrimenti lo mette in cantiere e torna subito. */
+/** The result if it is there, otherwise it puts it in the works and returns
+ *  at once. */
 export function gate(force = false): Gate {
   const check = at("check.py");
   const master = at(VIDEO_MASTER);
@@ -941,7 +942,7 @@ export function startRebuild(): { ok: boolean; error?: string } {
     rebuild.active = false;
     rebuild.finita = Date.now();
     rebuild.output = code;
-    gateCache = null;            // il video e' cambiato: la barra va rifatta
+    gateCache = null;            // the video changed: the bar has to be redone
   });
   return { ok: true };
 }

@@ -102,7 +102,7 @@ describe("GET /api/tools", () => {
 });
 
 describe("POST /api/tools/:id/start", () => {
-  test("uno strumento sconosciuto è un 404, non un crash", async () => {
+  test("an unknown tool is a 404, not a crash", async () => {
     const r = await app.request("/api/tools/inesistente/start", {
       method: "POST",
       body: JSON.stringify({}),
@@ -119,7 +119,7 @@ describe("POST /api/tools/:id/start", () => {
     expect(((await r.json()) as any).error).toContain("progetto");
   });
 
-  test("un campo obbligatorio mancante torna il motivo, non un 500", async () => {
+  test("a missing required field returns the reason, not a 500", async () => {
     const r = await app.request("/api/tools/projects/start", {
       method: "POST",
       body: JSON.stringify({ values: {} }),

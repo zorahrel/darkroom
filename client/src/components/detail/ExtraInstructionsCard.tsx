@@ -79,6 +79,6 @@ export function ExtraInstructionsCard({
   );
 }
 
-// Il prompt finale COMPLETO effettivamente inviato a ChatGPT per questa foto —
-// config globale + override foto + istruzioni extra, già assemblato dal server.
-// Sola lettura, scrollabile, con copia negli appunti.
+// The COMPLETE final prompt actually sent to ChatGPT for this photo — global
+// config + photo override + extra instructions, already assembled by the
+// server. Read-only, scrollable, with copy to clipboard.

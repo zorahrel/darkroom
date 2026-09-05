@@ -19,8 +19,8 @@ export default function JobsPanel({
   );
 
   // Failed/cancelled jobs still showing in the panel — dismissable in bulk.
-  /** Il generatore e' globale, non del progetto: si chiede una volta sola e si
-   *  aggiorna con il resto del pannello. */
+  /** The generator is global, not per project: it is asked for once and
+   *  refreshes with the rest of the panel. */
   const [gen, setGen] = useState<{ backend: string; browser: boolean | null }>(
     { backend: "…", browser: null });
   useEffect(() => {
@@ -38,10 +38,10 @@ export default function JobsPanel({
 
   return (
     <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-4 z-50 w-auto sm:w-[420px] max-h-[70vh] flex flex-col bg-neutral-900 border border-neutral-800 rounded-lg shadow-2xl">
-      {/* Tre righe invece di una: titolo, conto, generatore.
-          Su 420 pixel il titolo, quattro numeri, "scarta falliti" e la chiusura
-          non ci stavano su una riga sola, e "Jobs" finiva scritto sopra il
-          conto. */}
+      {/* Three rows instead of one: title, count, generator.
+          At 420 pixels the title, four numbers, "discard failed" and the close
+          button did not fit on one row, and "Jobs" ended up written over the
+          count. */}
       <div className="px-3.5 pt-2.5 pb-2 border-b border-neutral-800 space-y-1.5">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">Lavori</h3>
@@ -70,9 +70,9 @@ export default function JobsPanel({
           )}
         </div>
 
-        {/* Chi genera le immagini, e se e' in piedi. Stava sull'elenco dei
-            progetti, dove non serviva a nessuna decisione; qui e' la prima cosa
-            da guardare quando un lavoro fallisce. */}
+        {/* Who generates the images, and whether it is up. It used to be on the
+            project list, where it informed no decision; here it is the first
+            thing to look at when a job fails. */}
         <div className="flex items-center gap-1.5 text-[11px]">
           <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
             gen.browser === null ? "bg-neutral-500" : gen.browser ? "bg-emerald-500" : "bg-red-500"}`} />
@@ -271,8 +271,8 @@ function relIt(ts: number | null | undefined): string {
   return `${g} g fa`;
 }
 
-// Orario (HH:MM) dell'evento rilevante per stato: fine per done/failed/cancelled,
-// avvio per running, ingresso in coda per pending.
+// Time (HH:MM) of the event relevant to the state: end for
+// done/failed/cancelled, start for running, entry into the queue for pending.
 function clockFor(job: JobsPayload["items"][number]): string {
   const start = job.first_started_at ?? job.started_at;
   switch (job.status) {
@@ -317,7 +317,7 @@ function timingLine(job: JobsPayload["items"][number]): string {
   }
 }
 
-// Testo esteso per il tooltip sull'orario.
+// Extended text for the tooltip on the time.
 function eventLabel(job: JobsPayload["items"][number]): string {
   const clock = clockFor(job);
   const line = timingLine(job);

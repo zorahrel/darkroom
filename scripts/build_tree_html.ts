@@ -1,10 +1,10 @@
 /**
- * Prototipo della vista ad albero (LIN-02), costruito dai dati veri del progetto.
+ * Prototype of the tree view (LIN-02), built from the project's real data.
  *
- * Serve a decidere se la forma funziona PRIMA di scriverla dentro l'app: una
- * vista di scelta si giudica usandola, non leggendone la specifica.
+ * It is for deciding whether the shape works BEFORE writing it inside the app:
+ * a pick view is judged by using it, not by reading its specification.
  *
- * Uso: bun run scripts/build_albero_html.ts <manifest.json> <out.html>
+ * Usage: bun run scripts/build_tree_html.ts <manifest.json> <out.html>
  */
 const [, , manifestPath, outPath] = process.argv;
 if (!manifestPath || !outPath) {
@@ -27,9 +27,9 @@ type V = { id: number; n: number; recipe: string; refset?: string; thumb: string
 
 const trees = m.photos
   .map((p: any, pi: number) => {
-    // Raggruppo per configurazione: e' l'unita' di decisione, non la singola
-    // variante. Due varianti della stessa ricetta con riferimenti diversi sono
-    // due esperimenti, e vanno lette come tali.
+    // Grouped by configuration: that is the unit of decision, not the individual
+    // variant. Two variants of the same recipe with different references are
+    // two experiments, and must be read as such.
     const groups = new Map<string, V[]>();
     for (const v of p.variants as V[]) {
       const k = `${v.refset ?? "origine non registrata"}|${v.recipe}`;
@@ -220,7 +220,7 @@ document.getElementById("clear").addEventListener("click",function(){data={};sav
 render();
 </script>`;
 
-// Le entita' solo fuori dallo script: dentro romperebbero il codice.
+// The entities only outside the script: inside they would break the code.
 const parts = html.split(/(<script>[\s\S]*?<\/script>)/);
 await Bun.write(
   outPath,
@@ -230,6 +230,6 @@ await Bun.write(
 );
 console.log(`[albero] ${m.photos.length} sorgenti, ${total} varianti -> ${outPath}`);
 
-// Il file usa await al livello superiore: senza un export, tsc non lo tratta
-// come modulo e segnala due errori che bun non ha.
+// The file uses top-level await: without an export, tsc does not treat it as
+// a module and reports two errors bun does not have.
 export {};

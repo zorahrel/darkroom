@@ -1,15 +1,16 @@
 /**
- * Stadio di upscale locale (Real-ESRGAN via il binario di Upscayl).
+ * Local upscale stage (Real-ESRGAN via Upscayl's binary).
  *
- * Sta qui e non nella pipeline di generazione perché è un'operazione a valle e
- * costosa in disco: una variante da 1122x1402 diventa 4488x5608 e passa da 2 MB
- * a ~43 MB. Upscalare tutte le varianti prima di sceglierle significa scrivere
- * un gigabyte per buttarne il 90%. Si upscala ciò che è stato scelto.
+ * It lives here and not in the generation pipeline because it is a downstream
+ * operation and expensive in disk: a 1122x1402 variant becomes 4488x5608 and
+ * goes from 2 MB to ~43 MB. Upscaling every variant before choosing means
+ * writing a gigabyte to throw away 90% of it. What has been chosen is what gets
+ * upscaled.
  *
- * Uso:
- *   bun run scripts/upscale.ts <projectId> --versions 12,15   # id specifici
- *   bun run scripts/upscale.ts <projectId> --favorites        # i preferiti
- *   bun run scripts/upscale.ts <projectId> --recipe bw-hard   # tutta una ricetta
+ * Usage:
+ *   bun run scripts/upscale.ts <projectId> --versions 12,15   # specific ids
+ *   bun run scripts/upscale.ts <projectId> --favorites        # the favourites
+ *   bun run scripts/upscale.ts <projectId> --recipe bw-hard   # a whole recipe
  */
 import { spawn } from "bun";
 import { existsSync, mkdirSync, statSync } from "node:fs";

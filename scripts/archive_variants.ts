@@ -1,11 +1,11 @@
 /**
- * Toglie dal progetto le varianti nate da un set di riferimenti sbagliato.
+ * Removes from the project the variants born from a wrong reference set.
  *
- * Sposta invece di cancellare: una passata scartata oggi e' la prova di cosa
- * NON funziona, e ricrearla costa quanto e' costata. I file finiscono in
- * data/archive/<set>/, le righe di versione e job spariscono dal progetto.
+ * It moves instead of deleting: a pass discarded today is the evidence of what
+ * does NOT work, and recreating it costs what it cost. The files end up in
+ * data/archive/<set>/, the version and job rows leave the project.
  *
- * Uso: bun run scripts/archive_variants.ts <projectId> --keep "3 rif: id,3 rif: id+look"
+ * Usage: bun run scripts/archive_variants.ts <projectId> --keep "3 rif: id,3 rif: id+look"
  */
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -34,7 +34,7 @@ withProject(pid, () => {
     db().run("UPDATE jobs SET result_version_id=NULL WHERE result_version_id=?", [v.id]);
     db().run("DELETE FROM versions WHERE id=?", [v.id]);
   }
-  // I job che non hanno prodotto nulla di conservato non servono piu' al provino.
+  // The jobs that produced nothing kept are no longer of use to the strip.
   const jobsGone = db().run(
     "DELETE FROM jobs WHERE result_version_id IS NULL AND status='done'").changes;
   const left = db().query<{ n: number }, []>("SELECT COUNT(*) n FROM versions WHERE source='generated'").get()?.n ?? 0;

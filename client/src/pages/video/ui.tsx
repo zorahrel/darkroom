@@ -1,10 +1,10 @@
 /**
- * L'editor usava i suoi pezzi; adesso sono di tutta l'app.
+ * The editor used its own pieces; now they belong to the whole app.
  *
- * Il file resta come porta d'ingresso perché le pagine video lo importano da
- * qui, ma la definizione è una sola: due copie dello stesso bottone divergono
- * al primo ritocco, ed è esattamente come si finisce con quattordici misure di
- * carattere e sei raggi diversi.
+ * The file remains as a doorway because the video pages import from here, but
+ * the definition is single: two copies of the same button diverge at the first
+ * tweak, and that is exactly how you end up with fourteen font sizes and six
+ * different radii.
  */
 export { Area, Bott, Field, Confirm, Toggle, NumberField, Choose, Checkbox, Badge, Header } from "../../ui";
 export type { Weight, Size } from "../../ui";

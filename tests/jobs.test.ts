@@ -84,7 +84,7 @@ describe("listJobs: an error that was overcome is no longer an error", () => {
 });
 
 describe("strategia anti-saturazione di ChatGPT", () => {
-  test("la pausa fra job è configurabile e ha un default sensato", async () => {
+  test("the pause between jobs is configurable and has a sensible default", async () => {
     // The value cannot be read from a test (it is an already-loaded module), but
     // the contract can: a pause must exist, and it must be overridable when the
     // account has already been squeezed.
@@ -128,7 +128,7 @@ describe("cap esplicito di ChatGPT", () => {
 });
 
 describe("the downloaded render must be of THIS photo", () => {
-  test("il worker confronta l'immagine scaricata con l'originale", async () => {
+  test("the worker compares the downloaded image with the original", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
     // 116 renders belonging to other jobs got into the set: a plate of sushi had
     // become a street at night, and nothing flagged it. The baseline excludes
@@ -190,7 +190,7 @@ describe("cancelling a job that is running", () => {
 });
 
 describe("recognising the render when ChatGPT shows it small", () => {
-  test("un alt 'immagine generata' vale quanto la dimensione", async () => {
+  test("an alt of 'generated image' counts as much as the size", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
     // Real case on IMG_2906: ChatGPT rendered the result in a 400px box with
     // naturalWidth still 0, the >=512 threshold discarded it and the job spun
@@ -237,7 +237,7 @@ describe("the worker script must at least compile", () => {
   });
 });
 
-describe("il limite immagini di ChatGPT va letto per intero", () => {
+describe("ChatGPT's image limit has to be read in full", () => {
   test("il worker riconosce 'You've hit the Plus plan limit'", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
     // Real message: "You've hit the Plus plan limit for image generations
@@ -260,7 +260,7 @@ describe("il limite immagini di ChatGPT va letto per intero", () => {
 });
 
 describe("a refusal from ChatGPT is not a fault", () => {
-  test("si distingue un no di policy da un errore transitorio", () => {
+  test("a policy no is told apart from a transient error", () => {
     // A fault passes on a retry, a policy "no" does not: without telling them
     // apart the photo went back into the queue every round to collect the same
     // refusal.

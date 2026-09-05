@@ -13,8 +13,8 @@ import { normaliseVideoParams } from "../videoParams.ts";
  *  cannot take by itself. */
 export const videoRoutes = new Hono();
 
-/** Recinzione: un progetto foto non ha `plan.json` ne' `master.sh`, e queste
- *  rotte leggerebbero la sua cartella cercandoli. Meglio un 404 onesto. */
+/** A fence: a photo project has no `plan.json` nor `master.sh`, and these
+ *  routes would read its folder looking for them. Better an honest 404. */
 videoRoutes.use("/api/video/*", async (c, next) => {
   const pid = currentProjectId();
   const p = listProjects().find((x) => x.id === pid);
@@ -33,8 +33,8 @@ videoRoutes.post("/api/video/pick", async (c) => {
     shot?: string; kept?: boolean | null; why?: string;
   };
   if (!body.shot) return c.json({ error: "shot mancante" }, 400);
-  // `kept: null` esplicito = togli il verdetto (l'annulla). Distinto da
-  // "campo assente", che resta un sì: e' la firma che aveva prima.
+  // An explicit `kept: null` = remove the verdict (the undo). Distinct from
+  // "field absent", which stays a yes: that is the signature it had before.
   const kept = body.kept === null ? null : body.kept !== false;
   const s = setPick(body.shot, kept, body.why);
   return c.json({ ok: true, discarded: s.discarded, shots: shots() });
@@ -96,8 +96,8 @@ videoRoutes.post("/api/video/durata", async (c) => {
   return c.json({ ok: true });
 });
 
-// La barra costa: `check.py` estrae fotogrammi con ffmpeg. Il risultato e'
-// tenuto finche' il montaggio non cambia; `?force=1` lo rifa comunque.
+// The bar costs: `check.py` extracts frames with ffmpeg. The result is kept
+// until the cut changes; `?force=1` redoes it anyway.
 videoRoutes.post("/api/video/clear-verdict", async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const shot = String(b.shot ?? "");
@@ -142,8 +142,9 @@ videoRoutes.post("/api/video/ricostruisci", (c) => {
 });
 videoRoutes.get("/api/video/rebuild", (c) => c.json(rebuildState()));
 
-/** Generazione sulla 3090. Il Mac non tocca un fotogramma: qui si accoda, sul
- *  PC si genera, si raccoglie e si interpola, e torna solo la clip leggera. */
+/** Generation on the 3090. The Mac does not touch a frame: it is queued here,
+ *  generated, collected and interpolated on the PC, and only the light clip
+ *  comes back. */
 videoRoutes.get("/api/video/provino/:shot/:take", (c) => {
   const f = take(c.req.param("shot"), c.req.param("take"));
   if (!f) return c.json({ error: "niente provino" }, 404);
@@ -158,7 +159,7 @@ videoRoutes.post("/api/video/generate", async (c) => {
   const shot = String(b.shot ?? "").trim();
   const prompt = String(b.prompt ?? "").trim();
   if (!shot || !prompt) return c.json({ error: "servono piano e prompt" }, 400);
-  // Il nome del piano finisce in un percorso e in una riga di comando sul PC.
+  // The shot's name ends up in a path and in a command line on the PC.
   if (!/^[a-z0-9_]+$/i.test(shot)) return c.json({ error: "nome piano non valido" }, 400);
   const take = String(b.take ?? "a");
   if (!/^[a-z]$/.test(take)) return c.json({ error: "take non valido" }, 400);

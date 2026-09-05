@@ -2,24 +2,23 @@ import { Clapperboard, Film, Images, type LucideIcon } from "lucide-react";
 import type { ProjectKind } from "./api";
 
 /**
- * Le viste di un progetto, in un posto solo.
+ * A project's views, in one place.
  *
- * Un progetto non è di un tipo: ha delle viste accese. Un lavoro vero comincia
- * con le foto di un sopralluogo, diventa uno storyboard e finisce in un
- * montaggio — con un tipo solo bisognava fare tre progetti sulla stessa
- * cartella.
+ * A project is not of a type: it has views switched on. Real work starts with
+ * the photos of a site visit, becomes a storyboard and ends in an edit — with a
+ * single type you had to make three projects on the same folder.
  *
- * Nome, icona e spiegazione stanno qui perché li usano l'elenco dei progetti,
- * le schede della barra in alto e la finestra delle impostazioni: tre posti che
- * devono dire la stessa parola.
+ * Name, icon and explanation live here because the project list, the tabs in
+ * the top bar and the settings window all use them: three places that have to
+ * say the same word.
  */
 export type View = {
   id: ProjectKind;
   name: string;
   icon: LucideIcon;
-  /** Che cosa ci si fa. Va nel titolo del tasto, non in un manuale. */
+  /** What you do with it. It goes in the button's title, not in a manual. */
   explains: string;
-  /** Dove porta, dentro un progetto. */
+  /** Where it leads, inside a project. */
   route: (pid: string) => string;
 };
 

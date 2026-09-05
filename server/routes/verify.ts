@@ -106,11 +106,11 @@ let batch: {
 verifyRoutes.get("/batch", (c) => c.json(batch));
 
 /**
- * Avvia la passata di controllo in sottofondo.
+ * Starts the check pass in the background.
  *
- * Torna `null` se ce n'è già una in corso: due passate sulla stessa coda si
- * pestano i piedi e la seconda non aggiunge niente. Fuori dalla rotta perché
- * la chiama anche l'avvio rapido della home.
+ * Returns `null` if one is already running: two passes over the same queue
+ * tread on each other and the second adds nothing. Outside the route because
+ * the home's quick start calls it too.
  */
 export function startVerification(limite = 100, recheck = false): { started: number } | null {
   if (batch.running) return null;

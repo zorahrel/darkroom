@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { api, pq, type VideoCut, type VideoShot } from "../../api";
 
 /**
- * Il taglio scelto: perché sta lì, e come cambiarlo.
+ * The chosen cut: why it is there, and how to change it.
  *
- * Le alternative erano una tendina di nomi. Ma "x19" non dice niente: la
- * domanda è se quell'immagine, su quella battuta, regge il suono — e quella si
- * guarda. Qui i candidati sono provini, ordinati per quanto la loro durezza si
- * avvicina a quella del suono in questo punto, che è lo stesso criterio con cui
- * il piano ha scelto: si vede la classifica che ha deciso, e la si scavalca a
- * ragion veduta.
+ * The alternatives used to be a drop-down of names. But "x19" says nothing: the
+ * question is whether that image, on that bar, holds the sound — and that is
+ * something you look at. Here the candidates are strips, ordered by how close
+ * their hardness is to the sound's at this point, which is the same criterion
+ * the plan chose by: you see the ranking that decided, and you overrule it
+ * knowingly.
  *
- * Niente `alert()`: una forzatura si annota sotto al bottone e si può disfare
- * lì, senza una finestra da chiudere per ogni clic.
+ * No `alert()`: a forcing is noted under the button and can be undone there,
+ * without a window to close on every click.
  */
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -22,7 +22,7 @@ type Props = {
   shots: VideoShot[];
   candidati: VideoShot[];
   close: () => void;
-  /** Chiamato dopo ogni forzatura, perché l'elenco in pagina resti vero. */
+  /** Called after every forcing, so the list on the page stays true. */
   onForzato: () => void;
 };
 
@@ -31,17 +31,17 @@ type Done = { text: string; undo: () => Promise<unknown> };
 export default function Ispettore({ sel, shots, candidati, close, onForzato }: Props) {
   const [done, setDone] = useState<Done | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** Il candidato che si sta guardando. Sceglierlo non cambia niente: cambia
-   *  il piano solo il bottone sotto, che dice per esteso cosa farà. Un clic
-   *  solo, com'era prima, inchiodava una battuta in silenzio — e una modifica
-   *  che non si vede è una modifica che non si può disfare. */
+  /** The candidate being looked at. Choosing it changes nothing: only the
+   *  button below changes the plan, and it says in full what it will do. A
+   *  single click, as it used to be, pinned a bar in silence — and a change you
+   *  cannot see is a change you cannot undo. */
   const [trying, setTrying] = useState<VideoShot | null>(null);
   useEffect(() => { setTrying(null); setDone(null); setError(null); }, [sel.bar, sel.shot]);
 
   const mio = shots.find((s) => s.id === sel.shot) ?? null;
 
-  /** Ordinati come li ha ordinati il piano: per distanza fra la durezza
-   *  dell'immagine e quella del suono su questa battuta. */
+  /** Ordered the way the plan ordered them: by the distance between the
+   *  image's hardness and the sound's on this bar. */
   const sorted = useMemo(() => {
     const bersaglio = sel.soundIntensity;
     return [...candidati]
@@ -86,8 +86,8 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
             durezza immagine <span className="text-neutral-300">{sel.shotIntensity?.toFixed(2) ?? "—"}</span>
           </div>
           {stacco && <div className="mt-1 text-amber-500/90">si staccano parecchio</div>}
-          {/* Le riprese dello stesso piano: `a` non e' per forza la migliore, e
-              fin qui si potevano confrontare solo dalla libreria. */}
+          {/* The shots of the same setup: `a` is not necessarily the best, and
+              until now they could only be compared from the library. */}
           {mio && mio.takes.length > 1 && (
             <div className="mt-1.5">
               <div className="text-neutral-400">riprese</div>

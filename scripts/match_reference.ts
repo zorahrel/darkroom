@@ -1,11 +1,11 @@
 /**
- * Calibra luce e inquadratura contro una reference, invece di descriverle a
- * parole e sperare. Il prompt e' stato riscritto tre volte a mano ottenendo
- * -3.4, poi -43.3, contro il -23.1 del target: il parametro risponde, ma "hard
- * light from the side" non dice al modello QUANTO. Qui la distanza si misura e
- * il giro successivo corregge nella direzione giusta.
+ * Calibrates light and framing against a reference, instead of describing them
+ * in words and hoping. The prompt was rewritten three times by hand getting
+ * -3.4, then -43.3, against the target's -23.1: the parameter responds, but
+ * "hard light from the side" does not tell the model HOW MUCH. Here the
+ * distance is measured and the next round corrects in the right direction.
  *
- * Uso: bun run scripts/match_reference.ts <reference.png> [giri]
+ * Usage: bun run scripts/match_reference.ts <reference.png> [rounds]
  */
 import { runWorkerOpenAi } from "../server/worker-openai.ts";
 import { spawnSync } from "node:child_process";
@@ -13,14 +13,14 @@ import { join } from "node:path";
 
 const REF = process.argv[2] ?? join(process.env.DARKROOM_DATA ?? "data", "refs", "riferimento.png");
 const PASSES = Number(process.argv[3] ?? 3);
-// La cartella dati del progetto su cui si calibra: si passa da fuori, perché
-// il percorso di casa di chi ha scritto lo script non è un default.
+// The data folder of the project being calibrated: it is passed from outside,
+// because the home path of whoever wrote the script is not a default.
 const DATA = process.env.DARKROOM_DATA ?? "data";
 
 type Metrics = { light: number; subject: number; p5: number; p95: number; blacks: number };
 
-/** Le metriche si leggono dai pixel: un VLM descriveva come "hard light from
- *  the side" sia il target sia una resa piatta a -3.4. */
+/** The metrics are read from the pixels: a VLM described both the target and
+ *  a flat rendering at -3.4 as "hard light from the side". */
 function measure(file: string): Metrics {
   const py = `
 from PIL import Image
@@ -37,8 +37,8 @@ print(json.dumps({
   return JSON.parse(r.stdout) as Metrics;
 }
 
-/** Le correzioni sono in inglese e descrivono la GEOMETRIA, non l'atmosfera:
- *  gradi, direzione, presenza o assenza di fill. */
+/** The corrections are in English and describe the GEOMETRY, not the
+ *  atmosphere: degrees, direction, presence or absence of fill. */
 function correzioni(t: Metrics, c: Metrics): string[] {
   const out: string[] = [];
   const dLight = c.light - t.light;
@@ -90,8 +90,8 @@ for (let pass = 1; pass <= PASSES; pass++) {
     continue;
   }
   const m = measure(out);
-  // Distanza normalizzata: la luce vale quanto l'inquadratura, altrimenti si
-  // ottimizza il numero piu' grande e si perde l'altro.
+  // Normalised distance: the light counts as much as the framing, otherwise you
+  // optimise the biggest number and lose the other.
   const dist = Math.abs(m.light - target.light) / 10 + Math.abs(m.subject - target.subject) * 20;
   console.log(
     `giro ${pass}: luce=${m.light} (t ${target.light}) soggetto=${m.subject} (t ${target.subject}) dist=${dist.toFixed(2)}`,

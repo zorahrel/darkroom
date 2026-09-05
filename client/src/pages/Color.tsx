@@ -140,14 +140,14 @@ export default function PipelineBar({
     next.splice(to, 0, moved);
     patch({ steps: next });
   }
-  /** "Solo questo": spegne ogni altro step e lascia acceso il suo — la griglia
-   *  ridipinge subito e si vede COSA fa davvero quello che stai regolando.
-   *  Ricliccando si torna a tutti accesi.
+  /** "Only this": switches off every other step and leaves its own on — the
+   *  grid repaints at once and you see WHAT the thing you are adjusting really
+   *  does. Clicking again returns to all on.
    *
-   *  Nasce da un difetto costato ore: la LUT personale veniva applicata e poi
-   *  annullata da una saturazione in coda. Guardando l'elenco degli step era
-   *  tutto normale; l'unico modo di accorgersene era isolare i passi a mano,
-   *  uno per uno, riattivandoli dopo. */
+   *  Born of a defect that cost hours: the personal LUT was applied and then
+   *  cancelled by a saturation further down the chain. Looking at the step list
+   *  everything was normal; the only way to notice was isolating the steps by
+   *  hand, one at a time, re-enabling them afterwards. */
   function soloStepAt(idx: number) {
     const others = grade.steps.filter((s, j) => j !== idx && s.type !== "ai");
     const isSolo = others.every((s) => !s.enabled) && grade.steps[idx]?.enabled;
@@ -164,17 +164,17 @@ export default function PipelineBar({
   function addStep(type: GradeStepType) {
     patch({ steps: [...grade.steps, newStep(type)] });
   }
-  // Applica un preset al look globale del set (autosave via patch).
+  // Applies a preset to the set's global look (autosaved via patch).
   function applyGrade(g: ColorGrade) {
     patch({ enabled: g.enabled, steps: g.steps });
   }
 
-  // Gruppi della toolbar mobile: solo step deterministici (niente Genera, che a
-  // livello globale non è uno step — vive nell'Input/Output qui sopra). Ogni chip
-  // è uno step riordinabile; il pannello mostra i parametri, la gestione (enable/
-  // riordino/rimuovi) sta nel suo header.
-  // Ricalcolata a ogni render (non memoizzata): il gruppo Input contiene controlli
-  // con stato che cambia spesso (prompt, conteggio) e deve restare fresco.
+  // Groups of the mobile toolbar: deterministic steps only (no Generate, which
+  // at the global level is not a step — it lives in the Input/Output above).
+  // Each chip is a reorderable step; the panel shows the parameters, the
+  // management (enable/reorder/remove) lives in its header.
+  // Recomputed on every render (not memoised): the Input group contains
+  // controls whose state changes often (prompt, count) and must stay fresh.
   const mobileGroups: ToolGroup[] = (() => {
     const groups: ToolGroup[] = [
       {
@@ -422,8 +422,8 @@ export default function PipelineBar({
   // so the grid and the pipeline are visible together.
   return (
     <div className="flex flex-col h-full min-h-0 bg-neutral-950">
-      {/* Su Home la griglia stessa È l'anteprima (tutte le foto mostrano il grade),
-          quindi niente riquadro anteprima qui: tutto lo spazio va agli step. */}
+      {/* On Home the grid itself IS the preview (every photo shows the grade),
+          so no preview box here: all the space goes to the steps. */}
       <PipelineList
         groups={mobileGroups}
         master={{
@@ -455,9 +455,9 @@ export default function PipelineBar({
   );
 }
 
-// Connettore verticale fra due stage-cornice: la freccia + etichetta rendono
-// esplicito che input/output "avvolgono" gli step nel mezzo. Esportato così la
-// Detail riusa la stessa grammatica pipeline invece di reinventarla.
+// Vertical connector between two frame-stages: the arrow + label make it
+// explicit that input/output "wrap" the steps in between. Exported so Detail
+// reuses the same pipeline grammar instead of reinventing it.
 export function StageConnector({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 my-1.5 pl-4 text-[10px] uppercase tracking-wider text-neutral-400">

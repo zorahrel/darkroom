@@ -39,7 +39,7 @@ describe("the order of the attachments and the sentence that describes them", ()
     expect(p).toContain("The third attached image");
   });
 
-  test("con la sorgente, la frase la nomina insieme alle foto d'identita'", () => {
+  test("with the source, the sentence names it together with the identity photos", () => {
     const p = preamble(sort([io("altra.png")]), true);
     expect(p).toContain("SOURCE photograph");
     expect(p).toContain("are of ME");
@@ -66,7 +66,7 @@ describe("it speaks only of what is attached", () => {
     expect(p).toContain("STYLING");
   });
 
-  test("un elenco vuoto non produce frasi", () => {
+  test("an empty list produces no sentences", () => {
     expect(preamble([], false)).toBe("");
   });
 });
@@ -94,7 +94,7 @@ describe("every role says what to take and what not to", () => {
 });
 
 describe("i file inviati e le posizioni citate coincidono", () => {
-  test("il caso reale di v37: 3 scatti, 1 stile, 2 occhiali", () => {
+  test("the real case of v37: 3 shots, 1 style, 2 sunglasses", () => {
     const { files, preamble: p } = prepareAttachments(
       [
         object("gascan-nero.jpg", "the exact shape of the sunglasses"),
@@ -140,7 +140,7 @@ describe("i file inviati e le posizioni citate coincidono", () => {
     expect(prepareAttachments(a).files).toHaveLength(a.length);
   });
 
-  test("un solo allegato non si dice 'il primo di uno'", () => {
+  test("a single attachment is not called 'the first of one'", () => {
     expect(preamble(sort([style("x.jpg")]), false)).toContain("The attached image");
   });
 });

@@ -57,7 +57,7 @@ export function thumbGenUrl(photoId: string, versionNumber: number, w?: number):
   return pq(`/thumb/gen/${encodeURIComponent(photoId)}/${filename}${q}`);
 }
 
-/** Immagine di stile del progetto (`data/refs`). */
+/** The project's style image (`data/refs`). */
 export function refUrl(filename: string): string {
   return pq(`/refs/${encodeURIComponent(filename)}`);
 }
@@ -77,7 +77,7 @@ export function panelImageUrl(photoId: string, w = 480, bust?: number): string {
   return pq(`/api/storyboard/panels/${encodeURIComponent(photoId)}/image?${p.toString()}`);
 }
 
-/** JPG composto di un collage (slide del carosello). */
+/** The composed JPG of a collage (a carousel slide). */
 export function collageUrl(id: string, opts: { graded?: boolean; size?: string; bust?: number } = {}): string {
   const q = new URLSearchParams();
   if (opts.graded === false) q.set("graded", "0");
@@ -87,7 +87,7 @@ export function collageUrl(id: string, opts: { graded?: boolean; size?: string; 
   return pq(`/api/collages/${encodeURIComponent(id)}/image${qs ? `?${qs}` : ""}`);
 }
 
-/** Miniatura di un'immagine di stile in `data/refs`. */
+/** Thumbnail of a style image in `data/refs`. */
 export function thumbRefUrl(filename: string, w?: number): string {
   const q = w ? `?w=${w}` : "";
   return pq(`/thumb/refs/${encodeURIComponent(filename)}${q}`);

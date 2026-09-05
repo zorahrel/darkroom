@@ -22,10 +22,10 @@ export function deterministicSteps(steps: GradeStep[]): GradeStep[] {
 /** Resolve LUT ids (relative → absolute under LUT_DIR) and drop 'ai' steps, so
  *  the Python color grader receives only steps it understands with usable paths.
  *
- *  Il passo `match` è l'unico i cui parametri NON stanno nel grade: dipendono
- *  dal gruppo (quali altre foto stanno in quel post) e vengono calcolati dal
- *  server. Se non ci sono — foto non assegnata, o post con una foto sola — il
- *  passo viene tolto invece di essere applicato a vuoto. */
+ *  The `match` step is the only one whose parameters are NOT in the grade: they
+ *  depend on the group (which other photos are in that post) and are computed
+ *  by the server. If they are absent — an unassigned photo, or a post with a
+ *  single photo — the step is removed instead of being applied to nothing. */
 export function resolveStepsForScript(
   steps: GradeStep[],
   match?: { a_shift: number; b_shift: number; a_scale: number; b_scale: number } | null,
@@ -93,15 +93,16 @@ export function runGradeSteps(
   return r.status === 0 && existsSync(out);
 }
 
-/** Difetti del grade che non si vedono guardando la lista degli step, ma si
- *  vedono nelle foto — e si scoprono tardi, dopo aver rigenerato tutto.
+/** Grade defects invisible when looking at the step list, but visible in the
+ *  photos — and discovered late, after regenerating everything.
  *
- *  Caso reale: la LUT personale (CMG SUMMER) DESATURA parecchio (0.66 -> 0.38
- *  al 100%), ma in coda c'era uno step `color` con saturation=+40 che la
- *  annullava. Il file c'era, il passo girava, il risultato spariva subito
- *  dopo: le foto uscivano sature e "senza la mia LUT" senza che niente lo
- *  segnalasse. Stessa storia per dose_night=14, che di notte la spegneva
- *  quasi del tutto — e meta' del viaggio e' notturna. */
+ *  Real case: the personal LUT (CMG SUMMER) DESATURATES quite a lot (0.66 ->
+ *  0.38 at 100%), but further down the chain there was a `color` step with
+ *  saturation=+40 that cancelled it. The file was there, the step ran, the
+ *  result disappeared immediately after: the photos came out saturated and
+ *  "without my LUT" with nothing to flag it. Same story for dose_night=14,
+ *  which at night switched it off almost entirely — and half the trip is at
+ *  night. */
 export function gradeWarnings(steps: GradeStep[]): string[] {
   const out: string[] = [];
   const active = steps.filter((s) => s.enabled !== false);

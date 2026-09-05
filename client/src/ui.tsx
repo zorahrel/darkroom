@@ -92,7 +92,7 @@ export function Bott({
 export function Confirm({
   children, question, confirm, onConfirm, size = "m", title, className = "",
 }: {
-  /** Il richiamo, sempre quieto. */
+  /** The reference, always quiet. */
   children: React.ReactNode;
   /** What happens, said in full. */
   question: string;

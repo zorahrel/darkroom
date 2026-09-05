@@ -105,7 +105,7 @@ describe("a reference never used shows that it was never used", () => {
     expect(refs.map((r) => r.file)).toEqual(["z-never-used.png", "a-used-a-lot.png"]);
   });
 
-  test("un lineage illeggibile non fa sparire l'elenco", async () => {
+  test("an unreadable lineage does not make the list disappear", async () => {
     put("style.png");
     db().run(
       `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
@@ -192,7 +192,7 @@ describe("a reference is uploaded from inside Darkroom", () => {
     expect(body.file.endsWith(".png")).toBe(true);
   });
 
-  test("un doppio suffisso non aggira il controllo sul formato", async () => {
+  test("a double suffix does not get around the format check", async () => {
     // "x.png.exe" has .png in the name but the real extension is .exe.
     const r = await load("x.png.exe", PNG, "image/png");
     expect(r.status).toBe(400);
@@ -292,7 +292,7 @@ describe("the distance behaves like a distance", () => {
     };
   };
 
-  test("degradare progressivamente non fa MAI scendere la distanza", async () => {
+  test("degrading progressively NEVER makes the distance fall", async () => {
     const src = join(refsDir(), "base.png");
     put("base.png");
     // The reference is degraded against itself: every step is further away.

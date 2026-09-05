@@ -45,9 +45,9 @@ export function FinalPromptView({ prompt }: { prompt: string }) {
   );
 }
 
-// La pipeline colore per LA SINGOLA foto: anteprima gradata live (tieni premuto
-// per la base) + editor degli step in override dedicato. Salva → override
-// per-foto; reset → torna al grade globale.
-// L'intera pipeline della foto: un'unica anteprima sticky a sinistra (condivisa
-// da TUTTI gli stage, guidata dall'hover-step del colore) e gli stage a destra
-// nella stessa grammatica bookend della home — Input (viola) → Step (fucsia).
+// The colour pipeline for A SINGLE photo: live graded preview (hold for the
+// base) + step editor in a dedicated override. Save → per-photo override;
+// reset → back to the global grade.
+// The photo's whole pipeline: one sticky preview on the left (shared by ALL the
+// stages, driven by the colour's hover-step) and the stages on the right in the
+// same bookend grammar as the home — Input (purple) → Step (fuchsia).

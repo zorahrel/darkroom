@@ -52,7 +52,7 @@ describe("tree filter by verdict", () => {
     expect(r[0]!.groups[0]!.variants.map((v) => v.id)).toEqual([1]);
   });
 
-  test("un gruppo svuotato sparisce ma i fratelli pieni restano", () => {
+  test("an emptied group disappears but the full siblings stay", () => {
     const r = filterTree(tree(), "maybe");
     expect(r).toHaveLength(1);
     expect(r[0]!.photo).toBe("b");
@@ -60,7 +60,7 @@ describe("tree filter by verdict", () => {
     expect(r[0]!.groups[0]!.variants.map((v) => v.id)).toEqual([4]);
   });
 
-  test("«scarta» tiene le scartate sparse su gruppi diversi", () => {
+  test("«discard» keeps the discarded ones scattered across different groups", () => {
     const r = filterTree(tree(), "discard");
     expect(r.flatMap((n) => n.groups.flatMap((g) => g.variants.map((v) => v.id)))).toEqual([3, 5]);
   });
@@ -84,7 +84,7 @@ describe("tree filter by verdict", () => {
     expect(a[1]!.groups[1]!.variants).toHaveLength(2);
   });
 
-  test("stringa vuota conta come da vedere, non come giudizio", () => {
+  test("an empty string counts as to-see, not as a verdict", () => {
     // The DB can hold "" where the code expects null.
     expect(keepsVariant({ verdict: "" }, "unseen")).toBe(true);
     expect(keepsVariant({ verdict: "" }, "discard")).toBe(false);
@@ -157,11 +157,11 @@ describe("the write queue on the URL", () => {
     expect(simulate([["zoom", null], ["group", null]], "zoom=180&group=scene", false)).toBe("zoom=180");
   });
 
-  test("scritture e cancellazioni insieme non si annullano a vicenda", () => {
+  test("writes and deletions together do not cancel each other out", () => {
     expect(simulate([["zoom", "340"], ["group", null]], "zoom=180&group=scene", true)).toBe("zoom=340");
   });
 
-  test("le chiavi di altri (la rotta, la ricerca) non vengono toccate", () => {
+  test("other people's keys (the route, the search) are not touched", () => {
     expect(simulate([["zoom", null]], "zoom=180&q=tokyo", true)).toBe("q=tokyo");
   });
 });

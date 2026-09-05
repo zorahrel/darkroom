@@ -15,9 +15,9 @@ import {
 } from "../api";
 import PromptBuilder from "./PromptBuilder";
 
-// Editor della pipeline colore come lista ORDINATA di step. Ogni step si
-// attiva/disattiva, si riordina (▲▼), si rimuove (✕) e ha i suoi parametri.
-// Il parente possiede il master `enabled`; qui si edita solo `grade.steps`.
+// Editor of the colour pipeline as an ORDERED list of steps. Each step can be
+// enabled/disabled, reordered (▲▼), removed (✕) and has its own parameters.
+// The parent owns the master `enabled`; here only `grade.steps` is edited.
 export default function StepEditor({
   grade,
   onChange,
@@ -27,8 +27,8 @@ export default function StepEditor({
   grade: ColorGrade;
   onChange: (g: ColorGrade) => void;
   luts: Lut[];
-  // Passa l'indice dello step sotto il mouse (o null all'uscita) così il parente
-  // può mostrare l'anteprima della foto FINO a quello step.
+  // Passes the index of the step under the mouse (or null on leaving) so the
+  // parent can show the photo's preview UP TO that step.
   onHoverStep?: (index: number | null) => void;
 }) {
   const steps = grade.steps;

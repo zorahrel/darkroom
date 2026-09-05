@@ -28,10 +28,10 @@ mediaRoutes.get("/raw/:filename", (c) => {
 // Serve a photo's original by id, reading its stored path directly. Works for
 // both imported originals (in RAW) and generated photos (in GEN), and is the
 // canonical "original" URL used by the client.
-/** Le immagini di riferimento del progetto. Servono per sovrapporle a una
- *  variante e vedere lo scarto invece di misurarlo soltanto: la distanza dalla
- *  reference si legge dai numeri, ma "quanto ci somiglia" resta un giudizio
- *  che si fa con gli occhi. */
+/** The project's reference images. They are needed for overlaying them on a
+ *  variant and seeing the gap instead of only measuring it: the distance from
+ *  the reference is read from the numbers, but "how much it resembles it" stays
+ *  a judgement made with the eyes. */
 mediaRoutes.get("/refs/:filename", (c) => {
   const filename = c.req.param("filename");
   if (filename.includes("..") || filename.includes("/")) {
@@ -150,8 +150,9 @@ mediaRoutes.get("/graded/:photoId/:filename", (c) => {
   }
   const width = parseWidth(c, 1600, 3200);
   const wbGain = sceneMatchRequested(cfg) ? wbGainFor(photoId) : null;
-  // I parametri del passo `match` dipendono dal post: si risolvono solo se il
-  // grade lo contiene davvero, per non pagare il calcolo su ogni miniatura.
+  // The `match` step's parameters depend on the post: they are resolved only if
+  // the grade really contains it, so as not to pay for the computation on every
+  // thumbnail.
   const match = cfg.steps.some((s) => s.type === "match" && s.enabled)
     ? setMatchFor(photoId)
     : null;

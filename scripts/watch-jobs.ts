@@ -1,15 +1,14 @@
 #!/usr/bin/env bun
 /**
- * watch-jobs — segue la coda fino a quando si svuota e dice cosa è cambiato.
+ * watch-jobs — follows the queue until it drains and says what changed.
  *
- * Nasce da un problema pratico: mettere in coda 26 rigenerazioni e poi
- * ricontrollare a mano ogni due minuti. Qui il processo resta attaccato,
- * stampa una riga per ogni job che finisce (con il tempo che ci ha messo) e
- * chiude con un riepilogo. Esce non-zero se qualcosa è fallito, così si può
- * incatenare a un altro comando.
+ * Born of a practical problem: queueing 26 regenerations and then re-checking
+ * by hand every two minutes. Here the process stays attached, prints one line
+ * per job that finishes (with how long it took) and closes with a summary. It
+ * exits non-zero if anything failed, so it can be chained to another command.
  *
- *   bun run scripts/watch-jobs.ts            # segue finché la coda è vuota
- *   bun run scripts/watch-jobs.ts --once     # stampa lo stato e basta
+ *   bun run scripts/watch-jobs.ts            # follows until the queue is empty
+ *   bun run scripts/watch-jobs.ts --once     # prints the state and stops
  *   bun run scripts/watch-jobs.ts --timeout 3600
  */
 
@@ -48,8 +47,8 @@ function secs(from: number | null, to: number | null): string {
 }
 
 const t0 = Date.now();
-// Stato per job, così si stampa una riga SOLO quando qualcosa cambia davvero:
-// un poll ogni 5s che ristampa tutto è rumore, non monitoraggio.
+// Per-job state, so a line is printed ONLY when something really changes: a
+// poll every 5s reprinting everything is noise, not monitoring.
 const seen = new Map<number, string>();
 let finished = 0;
 let failed = 0;

@@ -1,11 +1,11 @@
 /**
- * Costruisce il manifest per la scheda di valutazione: ogni foto sorgente con
- * le sue varianti, ridotte a miniature webp incorporabili.
+ * Builds the manifest for the evaluation sheet: each source photo with its
+ * variants, reduced to embeddable webp thumbnails.
  *
- * Perché non un montage unico: una griglia appiattita non dice QUALE ricetta ha
- * prodotto cosa, e la valutazione serve a scegliere una ricetta, non una foto.
+ * Why not a single montage: a flattened grid does not say WHICH recipe produced
+ * what, and the evaluation is for choosing a recipe, not a photo.
  *
- * Uso: bun run scripts/contact_sheet.ts <projectId> [--edge 760] [--out file.json]
+ * Usage: bun run scripts/contact_sheet.ts <projectId> [--edge 760] [--out file.json]
  */
 import { spawn } from "bun";
 import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
@@ -52,9 +52,9 @@ withProject(pid, async () => {
       try {
         const c = JSON.parse(v.config ?? "{}");
         recipe = c.recipe ?? "?";
-        // Le varianti della prima passata non hanno l'etichetta: sono nate
-        // prima che esistesse, e per definizione avevano il solo riferimento
-        // di stile. Va scritto, non lasciato vuoto.
+        // The variants of the first pass have no label: they were born before it
+        // existed, and by definition had only the style reference. That has to
+        // be written, not left empty.
         refset = c.refset ?? "solo stile";
       } catch {}
       vs.push({ id: v.id, n: v.version_number, recipe, refset, path: v.image_path, thumb: t });
@@ -62,8 +62,9 @@ withProject(pid, async () => {
     if (vs.length) out.push({ photo: p.id, source: src, sourcePath: p.original_path, variants: vs });
     console.log(`  ${p.id.slice(0, 14)}: ${vs.length} varianti`);
   }
-  // Il riferimento va nel manifest: senza, la pagina mostra le varianti e non
-  // ciò a cui dovevano assomigliare, e la valutazione diventa a memoria.
+  // The reference goes into the manifest: without it, the page shows the
+  // variants and not what they were supposed to resemble, and the evaluation
+  // becomes a matter of memory.
   const refDir = join(join(dirsFor(pid).DATA_DIR, "refs"));
   const refFile = existsSync(refDir) ? readdirSync(refDir).find((f) => /\.(png|jpe?g|webp)$/i.test(f)) : undefined;
   const reference = refFile ? await thumb(join(refDir, refFile)) : null;

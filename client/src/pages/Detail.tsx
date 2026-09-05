@@ -370,10 +370,10 @@ export default function DetailPage() {
 
       <JobStatusBanner pausedUntil={pausedUntil} />
 
-      {/* Con una versione, l'editor a schermo intero (EditorShell) copre la
-          pagina e mostra le generazioni nel gruppo "Versioni": qui nascondiamo
-          Originale+Generazioni per non renderizzare due volte il carosello.
-          Senza versione, resta visibile per poter generare. */}
+      {/* With a version, the full-screen editor (EditorShell) covers the page
+          and shows the generations in the "Versions" group: here we hide
+          Original+Generations so as not to render the carousel twice. With no
+          version, it stays visible so you can generate. */}
       <div
         className={
           (versions.length > 0 ? "hidden" : "grid") +
@@ -405,9 +405,9 @@ export default function DetailPage() {
         </div>
       </div>
 
-      {/* Pipeline della foto: EditorShell (barra unica) a tutte le larghezze —
-          mobile fullscreen, desktop dock in basso con l'anteprima grande sopra.
-          Input = generazione ChatGPT · Step = colore locale. */}
+      {/* The photo's pipeline: EditorShell (one bar) at every width — mobile
+          fullscreen, desktop dock at the bottom with the big preview above.
+          Input = ChatGPT generation · Step = local colour. */}
       <PhotoPipeline
         photoId={photo.id}
         versionNumber={v ? v.version_number : null}
@@ -440,8 +440,8 @@ export default function DetailPage() {
         }}
       />
 
-      {/* Con una versione l'editor a schermo intero copre la pagina: log job e
-          legacy prompt restano solo quando non c'è ancora nulla da editare. */}
+      {/* With a version the full-screen editor covers the page: the job log and
+          the legacy prompt stay only when there is nothing to edit yet. */}
       {versions.length === 0 && (
         <>
           <PhotoJobsLog photoId={photo.id} />

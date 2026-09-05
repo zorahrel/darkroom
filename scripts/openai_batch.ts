@@ -1,19 +1,19 @@
 /**
- * Batch OpenAI: accoda una lista di prompt e la raccoglie dopo, a metà prezzo.
+ * OpenAI batch: queues a list of prompts and collects it later, at half price.
  *
- * Vive fuori dal job loop di proposito. Il loop è sincrono — scrive 'done'
- * appena il worker ritorna — mentre un batch reale da 2 immagini `high` ha
- * impiegato 708s (misurato il 26/08). Dentro il loop terrebbe il runner
- * occupato per minuti; qui l'attesa è esplicita e la si accetta in cambio del
- * 50% di sconto.
+ * It deliberately lives outside the job loop. The loop is synchronous — it
+ * writes 'done' as soon as the worker returns — while a real batch of 2 `high`
+ * images took 708s (measured 26/08). Inside the loop it would keep the runner
+ * busy for minutes; here the wait is explicit and accepted in exchange for the
+ * 50% discount.
  *
- * Uso:
- *   bun run scripts/openai_batch.ts submit prompts.txt   # una riga = un prompt
+ * Usage:
+ *   bun run scripts/openai_batch.ts submit prompts.txt   # one line = one prompt
  *   bun run scripts/openai_batch.ts status <batch_id>
  *   bun run scripts/openai_batch.ts fetch  <batch_id> [outdir]
  *
- * La chiave si legge dal Keychain, mai da un file in chiaro:
- *   security add-generic-password -s openai -a darkroom -w "<chiave>" -U
+ * The key is read from the Keychain, never from a plaintext file:
+ *   security add-generic-password -s openai -a darkroom -w "<key>" -U
  */
 import { openaiKey, openaiDailyCapUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE } from "../server/config.ts";
 import { recordCall, spentToday } from "../server/worker-openai.ts";
@@ -46,10 +46,10 @@ async function submit(file: string): Promise<void> {
     console.error(`nessun prompt in ${file} (una riga = un prompt, '#' per i commenti)`);
     process.exit(1);
   }
-  // Il tetto e il conteggio vivevano nel worker, ma il batch chiama l'API da
-  // solo: cinquanta prompt in high sono ~$5 che non comparivano da nessuna
-  // parte e che nessun limite fermava. Qui si stima PRIMA di accodare, perche'
-  // dopo il batch e' partito e si paga comunque.
+  // The cap and the counting lived in the worker, but the batch calls the API
+  // on its own: fifty prompts in high is ~$5 that appeared nowhere and that no
+  // limit stopped. Here it is estimated BEFORE queueing, because afterwards the
+  // batch has left and is paid for regardless.
   const tokAttesi = OPENAI_IMAGE_QUALITY === "low" ? 200 : OPENAI_IMAGE_QUALITY === "medium" ? 1100 : 7000;
   const estimate = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokAttesi);
   const cap = openaiDailyCapUsd();
@@ -137,7 +137,7 @@ async function fetchOut(id: string, outdir: string): Promise<void> {
     const r = JSON.parse(line);
     const rb = r.response?.body;
     const b64 = rb?.data?.[0]?.b64_json;
-    // Una riga fallita nel mezzo non deve far perdere le altre.
+    // A failed line in the middle must not lose the others.
     if (!b64) {
       failures.push(`${r.custom_id}: ${rb?.error?.message ?? r.error?.message ?? "senza immagine"}`);
       continue;
@@ -147,8 +147,8 @@ async function fetchOut(id: string, outdir: string): Promise<void> {
     await Bun.write(path, bytes);
     const tok = rb?.usage?.output_tokens ?? 0;
     tokens += tok;
-    // Registrata alla raccolta, non alla sottomissione: qui i token sono quelli
-    // veri, non una stima. Lo sconto 0.5 e' la tariffa batch.
+    // Recorded at collection, not at submission: here the tokens are the real
+    // ones, not an estimate. The 0.5 discount is the batch tariff.
     if (tok) recordCall(OPENAI_IMAGE_MODEL, tok, true, "batch", 0.5);
     saved++;
     console.log(`  ${r.custom_id}.png  ${Math.round(bytes.length / 1024)}KB`);

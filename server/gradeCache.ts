@@ -55,8 +55,8 @@ export function gradedFile(
         s: st.size,
         steps: deterministicSteps(cfg.steps),
         wb: wbGain ?? null,
-        // Le correzioni di gruppo entrano nella chiave: cambiando la
-        // composizione del post cambia il risultato, e la cache deve saperlo.
+        // The group corrections enter the key: changing the post's composition
+        // changes the result, and the cache has to know that.
         match: match ?? null,
         width,
       }),

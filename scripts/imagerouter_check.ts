@@ -1,13 +1,13 @@
 /**
- * Verifica una chiave ImageRouter e misura cosa dà davvero, invece di fidarsi
- * del catalogo: `gpt-image-2:free` è annunciato a prezzo 0, ma "gratis" nei
- * cataloghi degli aggregatori regge spesso solo i primi giorni. Qui si genera
- * per davvero e si legge la dimensione reale del file che torna.
+ * Verifies an ImageRouter key and measures what it really gives, instead of
+ * trusting the catalogue: `gpt-image-2:free` is announced at price 0, but
+ * "free" in aggregators' catalogues often only holds for the first few days.
+ * Here it really generates and reads the real size of the file that comes back.
  *
- * La chiave si legge dal Keychain, mai da un file in chiaro:
- *   security add-generic-password -s imagerouter -a darkroom -w "<chiave>" -U
+ * The key is read from the Keychain, never from a plaintext file:
+ *   security add-generic-password -s imagerouter -a darkroom -w "<key>" -U
  *
- * Uso: bun run scripts/imagerouter_check.ts [modello]
+ * Usage: bun run scripts/imagerouter_check.ts [model]
  */
 import { spawn } from "bun";
 
@@ -44,7 +44,7 @@ if (!b64 && !url) { console.error("risposta senza immagine:", JSON.stringify(j).
 const bytes = b64 ? Buffer.from(b64, "base64") : Buffer.from(await (await fetch(url)).arrayBuffer());
 const out = `/tmp/ir_${MODEL.replace(/[^a-z0-9]/gi, "_")}.png`;
 await Bun.write(out, bytes);
-// La dimensione dichiarata non basta: si legge dai byte del file.
+// The declared size is not enough: it is read from the file's bytes.
 let dims = "?";
 if (bytes[0] === 0x89) dims = `${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`;
 console.log(`OK ${MODEL}: ${dims}px, ${Math.round(bytes.length / 1024)} KB, ${secs}s -> ${out}`);
