@@ -4,16 +4,15 @@ import { extname } from "node:path";
 /** Small HTTP helpers shared by the route modules. */
 
 /**
- * Serve un file, e se il chiamante chiede un pezzo glielo da'.
+ * Serves a file, and hands over a slice of it when the caller asks for one.
  *
- * `Range` non e' un dettaglio di efficienza: e' cio' che rende un video
- * *cercabile*. Senza, `currentTime = 120` non porta a 2:00 — il browser non ha
- * modo di prendere quel punto e riporta la testina a zero. Un player, una
- * striscia di fotogrammi e una timeline da trascinare sembravano tutti rotti
- * per questa sola riga mancante.
+ * `Range` is not an efficiency detail: it is what makes a video *seekable*.
+ * Without it `currentTime = 120` does not land at 2:00 — the browser has no way
+ * to fetch that point and puts the playhead back to zero. A player, a filmstrip
+ * and a draggable timeline all looked broken because of this one missing line.
  *
- * E il corpo non si legge piu' tutto in memoria: `Bun.file` lo trasmette, cosi'
- * un master da 2,5 GB non diventa 2,5 GB di RAM per ogni richiesta.
+ * And the body is no longer read into memory whole: `Bun.file` streams it, so a
+ * 2.5 GB master does not become 2.5 GB of RAM per request.
  */
 export function serveFile(absPath: string, mime?: string, req?: Request): Response {
   if (!existsSync(absPath)) return new Response("not found", { status: 404 });
@@ -29,8 +28,8 @@ export function serveFile(absPath: string, mime?: string, req?: Request): Respon
   const range = req?.headers.get("range");
   const m = range ? /^bytes=(\d*)-(\d*)$/.exec(range.trim()) : null;
   if (m) {
-    // "bytes=-500" sono gli ULTIMI 500 byte, non i primi: il suffisso e' un
-    // caso a parte, non un inizio mancante.
+    // "bytes=-500" means the LAST 500 bytes, not the first: the suffix form is
+    // a case of its own, not a missing start.
     const suffisso = m[1] === "";
     let da = suffisso ? Math.max(0, size - Number(m[2] || 0)) : Number(m[1]);
     let a = suffisso || m[2] === "" ? size - 1 : Number(m[2]);
@@ -62,8 +61,8 @@ export function guessMime(p: string): string {
   if (ext === ".json") return "application/json; charset=utf-8";
   if (ext === ".woff2") return "font/woff2";
   if (ext === ".ico") return "image/x-icon";
-  // Senza il tipo giusto un mp4 arriva come "application/octet-stream" e il
-  // browser lo tratta come uno scarico, non come un video da mettere in pagina.
+  // Without the right type an mp4 arrives as "application/octet-stream" and the
+  // browser treats it as a download instead of a video to put on the page.
   if (ext === ".mp4" || ext === ".m4v") return "video/mp4";
   if (ext === ".webm") return "video/webm";
   if (ext === ".mov") return "video/quicktime";

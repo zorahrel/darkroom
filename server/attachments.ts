@@ -1,25 +1,26 @@
 /**
- * Gli allegati di una generazione, e la frase che li descrive al modello.
+ * The attachments of a generation, and the sentence that describes them to the
+ * model.
  *
- * L'API delle immagini non conosce ruoli: le foto viaggiano tutte insieme in
- * un solo array `image[]`, e chi guarda vede N immagini indistinguibili. La
- * differenza fra "questa sono io" e "questa e' lo stile da copiare" esiste
- * soltanto perche' il prompt la dichiara — per POSIZIONE.
+ * The image API knows nothing about roles: the photos all travel together in a
+ * single `image[]` array, and whoever looks sees N indistinguishable images.
+ * The difference between "this is me" and "this is the style to copy" exists
+ * only because the prompt declares it — by POSITION.
  *
- * Finche' l'array e la frase si scrivono in due punti diversi, quella
- * corrispondenza e' una promessa che nessuno verifica: basta aggiungere una
- * reference in mezzo, o riordinare l'elenco, e il prompt continua a dire "le
- * prime due sono io" mentre le prime due sono diventate altro. Il modello
- * obbedisce alla frase, quindi prende l'identita' dall'immagine sbagliata e il
- * risultato e' una persona che non esiste — un guasto che non solleva errori e
- * si scopre solo guardando la faccia venuta male.
+ * As long as the array and the sentence are written in two different places,
+ * that correspondence is a promise nobody checks: add one reference in the
+ * middle, or reorder the list, and the prompt still says "the first two are me"
+ * while the first two have become something else. The model obeys the sentence,
+ * so it takes the identity from the wrong image and the result is a person who
+ * does not exist — a failure that raises no error and is found only by looking
+ * at the face that came out wrong.
  *
- * Qui i due lati nascono dalla STESSA lista: si dichiara ogni file con il suo
- * ruolo, e da quella lista si ricavano sia l'ordine degli allegati sia le
- * parole che lo descrivono. Non possono piu' divergere.
+ * Here the two sides are born from the SAME list: every file is declared with
+ * its role, and from that list come both the order of the attachments and the
+ * words describing it. They can no longer diverge.
  */
 
-/** Che cosa e' un'immagine per il modello. */
+/** What an image is, to the model. */
 export type Role =
   /** La persona: viso, ossatura, identita' da conservare. */
   | "identity"
@@ -29,15 +30,15 @@ export type Role =
   | "object";
 
 export type Attachment = {
-  /** Percorso del file da inviare. */
+  /** Path of the file to send. */
   path: string;
   role: Role;
-  /** Che cosa prendere da questa immagine, con parole tue. Entra nel prompt:
+  /** What to take from this image, in your own words. It goes into the prompt:
    *  "the shape of the sunglasses", "the coloured gel lighting". */
   take?: string;
 };
 
-/** Come si dice una posizione in inglese, per il prompt. */
+/** How a position is said in English, for the prompt. */
 function position(indici: number[], total: number): string {
   if (total === 1) return "The attached image";
   if (indici.length === 1) {
@@ -48,7 +49,7 @@ function position(indici: number[], total: number): string {
     return ord ? `The ${ord} attached image` : `Attached image ${indici[0]! + 1}`;
   }
   if (indici.length === total) return "The attached images";
-  // Un blocco contiguo si dice per esteso: "the first two", "the last three".
+  // A contiguous block is spelled out: "the first two", "the last three".
   const contiguo = indici.every((n, i) => i === 0 || n === indici[i - 1]! + 1);
   const howMany = ["", "one", "two", "three", "four", "five", "six"][indici.length] ?? String(indici.length);
   if (contiguo && indici[0] === 0) return `The first ${howMany} attached images`;
@@ -57,11 +58,11 @@ function position(indici: number[], total: number): string {
 }
 
 /**
- * Il preambolo che spiega al modello che cosa ha davanti.
+ * The preamble that tells the model what it is looking at.
  *
- * Ogni ruolo compare solo se ci sono immagini che lo portano: dire "la foto in
- * bianco e nero e' un'altra persona" quando quel file non e' allegato confonde
- * e basta, ed e' un errore gia' fatto in passato.
+ * Each role appears only if there are images carrying it: saying "the black and
+ * white photo is another person" when that file is not attached only confuses,
+ * and that mistake has already been made.
  */
 export function preamble(attachments: Attachment[], withSource: boolean): string {
   const tot = attachments.length;
@@ -77,10 +78,10 @@ export function preamble(attachments: Attachment[], withSource: boolean): string
         ? `The SOURCE photograph and ${position(ident.map((x) => x.i), tot).toLowerCase()}`
         : "The SOURCE photograph"
       : position(ident.map((x) => x.i), tot);
-    // Il verbo segue QUANTE immagini sono davvero nominate, non il fatto che
-    // ci sia una sorgente: con la sola sorgente e nessun allegato d'identita'
-    // usciva "The SOURCE photograph are of ME", e una frase sgrammaticata la
-    // paga il modello, che la interpreta peggio.
+    // The verb follows HOW MANY images are really named, not the fact that a
+    // source exists: with the source alone and no identity attachment it came
+    // out as "The SOURCE photograph are of ME", and an ungrammatical sentence
+    // is paid for by the model, which reads it worse.
     const quante = (withSource ? 1 : 0) + ident.length;
     phrases.push(
       `${who} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
@@ -109,11 +110,11 @@ export function preamble(attachments: Attachment[], withSource: boolean): string
 }
 
 /**
- * L'ordine in cui gli allegati vanno inviati.
+ * The order the attachments have to be sent in.
  *
- * Raggruppati per ruolo, cosi' il preambolo puo' parlare di blocchi contigui
- * ("le prime due") invece di elencare posizioni sparse — che il modello segue
- * peggio. L'ordine dentro ogni gruppo resta quello dichiarato da chi chiama.
+ * Grouped by role, so the preamble can talk about contiguous blocks ("the first
+ * two") instead of listing scattered positions — which the model follows worse.
+ * The order inside each group stays the one the caller declared.
  */
 export function sort(attachments: Attachment[]): Attachment[] {
   const weight: Record<Role, number> = { identity: 0, style: 1, object: 2 };
@@ -121,11 +122,11 @@ export function sort(attachments: Attachment[]): Attachment[] {
 }
 
 /**
- * Allegati e preambolo dalla stessa lista, garantiti coerenti.
+ * Attachments and preamble from the same list, guaranteed consistent.
  *
- * `conSorgente` dice se esiste anche un'immagine di partenza (quella su cui si
- * fa l'edit): non e' fra gli allegati ma il preambolo deve nominarla, perche'
- * per il modello e' comunque una delle immagini in ingresso.
+ * `withSource` says whether a starting image also exists (the one being
+ * edited): it is not among the attachments but the preamble has to name it,
+ * because to the model it is one of the incoming images all the same.
  */
 export function prepareAttachments(
   attachments: Attachment[],

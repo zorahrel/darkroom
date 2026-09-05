@@ -1,16 +1,16 @@
-// Armonizzazione per post ------------------------------------------------------
-// Due scatti della stessa scena tornano dall'edit AI con bilanciamento,
-// esposizione e saturazione diversi, perché ogni render è indipendente: nel
-// carosello la luce "salta" mentre scorri. Misurato sul post Nara — tutte foto
-// dello stesso pomeriggio — il calore variava di 116 punti su 255.
+// Per-post harmonisation ------------------------------------------------------
+// Two shots of the same scene come back from the AI edit with different white
+// balance, exposure and saturation, because every render is independent: in the
+// carousel the light "jumps" as you scroll. Measured on the Nara post — all
+// photos from the same afternoon — warmth varied by 116 points out of 255.
 //
-// Qui il gruppo di riferimento è la COLLEZIONE (il post), non la vicinanza
-// temporale come in sceneWb: è il post che l'occhio giudica come un insieme, e
-// due foto a venti minuti di distanza nello stesso carosello devono accordarsi
-// anche se non sono una raffica.
+// Here the reference group is the COLLECTION (the post), not temporal proximity
+// as in sceneWb: it is the post the eye judges as a whole, and two photos taken
+// twenty minutes apart in the same carousel have to agree even if they are not
+// a burst.
 //
-// Le correzioni sono cache su disco e ricalcolate solo quando cambia il
-// contenuto dei post o i file delle versioni.
+// The corrections are cached on disk and recomputed only when the content of
+// the posts or the version files changes.
 import { spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -31,7 +31,7 @@ type Member = { id: string; collection_id: string; image_path: string };
 
 let cache: { sig: string; map: Map<string, SetMatch> } | null = null;
 
-/** Ogni foto assegnata a un post, con il render che si sta guardando. */
+/** Every photo assigned to a post, with the render currently being looked at. */
 function members(): Member[] {
   return db()
     .query<Member, []>(
@@ -72,8 +72,8 @@ function compute(rows: Member[]): Map<string, SetMatch> {
   if (!groups.length) return new Map();
 
   const r = spawnSync("python3", [SCRIPT], {
-    // 0.75: toglie la deriva lasciando a ogni foto il suo carattere. A 1 le
-    // tinte diventano identiche e il post si spegne.
+    // 0.75: removes the drift while leaving each photo its own character. At 1
+    // the hues become identical and the post goes flat.
     input: JSON.stringify({ groups, strength: 0.75 }),
     encoding: "utf8",
     timeout: 300_000,
@@ -90,8 +90,8 @@ function compute(rows: Member[]): Map<string, SetMatch> {
   }
 }
 
-/** Correzione di armonizzazione per una foto, o null se non è in un post
- *  con almeno un'altra foto. Cache invalidata dal contenuto, non dal tempo. */
+/** Harmonisation correction for a photo, or null when it is not in a post
+ *  with at least one other photo. Cache invalidated by content, not by time. */
 export function setMatchFor(photoId: string): SetMatch | null {
   const rows = members();
   const sig = signature(rows);
@@ -101,7 +101,7 @@ export function setMatchFor(photoId: string): SetMatch | null {
   return cache.map.get(photoId) ?? null;
 }
 
-/** Svuota la cache: serve quando cambiano i post senza che cambino i file. */
+/** Empties the cache: needed when the posts change without the files changing. */
 export function invalidateSetMatch(): void {
   cache = null;
 }

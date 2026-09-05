@@ -2,47 +2,48 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { dirname } from "node:path";
 
 /**
- * Un solo runner per DB.
+ * One runner per DB.
  *
- * Darkroom e' finito con DUE servizi launchd che eseguivano lo stesso
- * `server/index.ts` sulla stessa cartella (porte 3535 e 3737): due job runner
- * sullo stesso `photos.db` e sullo stesso account ChatGPT. Il claim atomico dei
- * job e il lock del browser evitavano il danno peggiore, ma restava il resto:
- * due processi che bussano allo stesso account acceleravano il cap silenzioso,
- * e la contesa in scrittura sul DB produceva SQLITE_BUSY (che a sua volta
- * usciva come HTTP 500).
+ * Darkroom ended up with TWO launchd services running the same
+ * `server/index.ts` over the same folder (ports 3535 and 3737): two job runners
+ * on the same `photos.db` and on the same ChatGPT account. The atomic job claim
+ * and the browser lock avoided the worst damage, but the rest remained: two
+ * processes knocking on the same account sped up the silent cap, and write
+ * contention on the DB produced SQLITE_BUSY (which in turn surfaced as an
+ * HTTP 500).
  *
- * Nessuno se n'era accorto per settimane, perche' entrambi rispondevano
- * correttamente: il duplicato non rompe niente, spreca e basta — il tipo di
- * guasto che si nota solo quando ha gia' fatto danni.
+ * Nobody had noticed for weeks, because both answered correctly: the duplicate
+ * breaks nothing, it just wastes — the kind of failure you only notice once it
+ * has already done harm.
  *
- * Qui si scrive un file con il PID del runner attivo. Chi parte dopo lo vede,
- * dice CHI e' l'altro e non avvia il proprio runner: serve l'HTTP (utile per
- * una seconda finestra in sola lettura), non una seconda coda.
+ * Here a file is written holding the active runner's PID. Whoever starts later
+ * sees it, says WHO the other one is and does not start its own runner: the
+ * HTTP side is wanted (useful for a second read-only window), a second queue is
+ * not.
  */
 export type RunnerLock =
   | { ok: true; release: () => void }
   | { ok: false; holderPid: number };
 
-/** Il processo esiste ancora? (kill 0 non manda segnali, verifica soltanto.) */
+/** Does the process still exist? (kill 0 sends no signal, it only checks.) */
 function alive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch (e) {
-    // EPERM = il processo ESISTE ma è di un altro utente (o privilegiato, come
-    // launchd): trattarlo da morto significherebbe rubargli il lock. Solo
-    // ESRCH ("no such process") dice davvero che non c'è più.
+    // EPERM = the process EXISTS but belongs to another user (or is privileged,
+    // like launchd): treating it as dead would mean stealing its lock. Only
+    // ESRCH ("no such process") really says it is gone.
     return (e as NodeJS.ErrnoException)?.code === "EPERM";
   }
 }
 
 /**
- * Prova a diventare il runner attivo per questo DB.
+ * Try to become the active runner for this DB.
  *
- * Un lock stantio (processo morto senza rilasciare) viene rilevato e ripreso:
- * un lockfile che sopravvive a un crash bloccherebbe la coda per sempre, che e'
- * peggio del problema che risolve.
+ * A stale lock (a process that died without releasing) is detected and taken
+ * over: a lockfile surviving a crash would block the queue forever, which is
+ * worse than the problem it solves.
  */
 export function acquireRunnerLock(lockPath: string): RunnerLock {
   mkdirSync(dirname(lockPath), { recursive: true });
@@ -51,7 +52,7 @@ export function acquireRunnerLock(lockPath: string): RunnerLock {
     if (Number.isFinite(prev) && prev > 0 && prev !== process.pid && alive(prev)) {
       return { ok: false, holderPid: prev };
     }
-    // Stale: il proprietario non c'e' piu'.
+    // Stale: the owner is no longer there.
     try {
       unlinkSync(lockPath);
     } catch {

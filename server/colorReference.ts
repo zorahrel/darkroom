@@ -1,29 +1,29 @@
-// Riferimento cromatico di un post ---------------------------------------------
-// Il problema, e perché il filtro non basta.
+// A post's colour reference ---------------------------------------------------
+// The problem, and why a filter is not enough.
 //
-// Ogni render AI decide il proprio colore in isolamento, quindi due scatti dello
-// stesso pomeriggio tornano con dominanti diverse. Correggerlo DOPO — allineando
-// le statistiche in Lab — funziona sui numeri ma resta un filtro applicato
-// sopra: sposta il colore che è già stato deciso male, invece di farlo decidere
-// bene.
+// Every AI render decides its own colour in isolation, so two shots from the
+// same afternoon come back with different casts. Correcting it AFTERWARDS — by
+// aligning the statistics in Lab — works on the numbers but stays a filter laid
+// on top: it moves colour that has already been decided badly, instead of
+// getting it decided well.
 //
-// Qui si fa il contrario: si allega alla generazione una foto GIÀ approvata del
-// suo stesso post, e le si dice di accordarsi a quella. Il modello vede il
-// bersaglio mentre lavora, e il colore giusto nasce col render invece di essere
-// corretto a valle. Nessun filtro sopra la foto.
+// Here we do the opposite: an ALREADY approved photo from the same post is
+// attached to the generation, and the model is told to match it. The model sees
+// the target while it works, and the right colour is born with the render
+// instead of being corrected downstream. No filter over the photo.
 import { existsSync } from "node:fs";
 import { db } from "./db.ts";
 
 /**
- * Riferimenti di CIELO, validi su tutto il set e non solo dentro un post.
+ * SKY references, valid across the whole set and not just inside one post.
  *
- * Il cielo è la superficie più grande della foto e cambiava tono da uno scatto
- * all'altro: sul set misurato andava da saturazione 0,31 a 0,85. Il riferimento
- * del post non basta, perché due post diversi ripresi la stessa mattina devono
- * avere lo stesso cielo. Sono due, non uno: un cielo diurno e uno notturno non
- * si assomigliano e non devono essere allineati fra loro.
+ * The sky is the largest surface in the photo and changed tone from one shot to
+ * the next: on the measured set it ran from saturation 0.31 to 0.85. The post's
+ * reference is not enough, because two different posts shot on the same morning
+ * have to have the same sky. There are two, not one: a daytime sky and a
+ * night-time one do not resemble each other and must not be aligned together.
  *
- * `null` disattiva il meccanismo (nessuna foto eletta).
+ * `null` turns the mechanism off (no photo elected).
  */
 export type SkyRefs = { day: string | null; night: string | null };
 
@@ -35,12 +35,12 @@ export function skyReferences(): SkyRefs {
   return { day: get("sky_ref_day"), night: get("sky_ref_night") };
 }
 
-/** La foto di riferimento del post a cui appartiene `photoId`, se esiste.
+/** The reference photo of the post `photoId` belongs to, if there is one.
  *
- *  Non si allega mai la foto a sé stessa: sarebbe rumore, e in un post di due
- *  foto manderebbe il modello a inseguire la propria coda. */
-/** Il riferimento di cielo adatto a questa foto: notturno se scattata di sera,
- *  diurno altrimenti. Mai la foto stessa. */
+ *  A photo is never attached to itself: it would be noise, and in a post of two
+ *  photos it would send the model chasing its own tail. */
+/** The sky reference suited to this photo: night-time if shot in the evening,
+ *  daytime otherwise. Never the photo itself. */
 export function skyReferenceFor(photoId: string): string | null {
   const row = db()
     .query<{ taken_at: number | null }, [string]>(
@@ -54,7 +54,7 @@ export function skyReferenceFor(photoId: string): string | null {
   return versionPathOf(refId);
 }
 
-/** Percorso del render approvato di una foto (preferita, o l'ultima). */
+/** Path of a photo's approved render (the favourite, or the last one). */
 function versionPathOf(photoId: string): string | null {
   const v = db()
     .query<{ image_path: string }, [string, string]>(
@@ -70,16 +70,13 @@ function versionPathOf(photoId: string): string | null {
 }
 
 export function colorReferenceFor(photoId: string): string | null {
-  // I riferimenti GLOBALI vincono su quello del post.
+  // GLOBAL references win over the post's own.
   //
-  // Un riferimento per post sembrava ragionevole ma faceva l'opposto di quel
-  // che serviva: sei post, sei riferimenti diversi, con saturazioni misurate
-  // da 0,23 a 0,66. Ogni post diventava internamente coerente e diverso da
-  // tutti gli altri — ma il set è UNO, e lo si scorre di fila sullo stesso
-  // profilo.
-  //
-  // Ne bastano due: uno diurno e uno notturno. Sono le uniche due famiglie di
-  // luce che non ha senso allineare fra loro.
+  // One reference per post seemed reasonable but did the opposite of what was
+  // needed: six posts, six different references, with saturations measured from
+  // 0.23 to 0.66. Every post became internally coherent and different from all
+  // the others — but the set is ONE, and it is scrolled straight through on the
+  // same profile.
   const skyRef = skyReferenceFor(photoId);
   if (skyRef) return skyRef;
 
@@ -94,8 +91,8 @@ export function colorReferenceFor(photoId: string): string | null {
   const refId = row?.ref_id;
   if (!refId || refId === photoId) return null;
 
-  // Il render approvato della foto di riferimento: se non ha una preferita si
-  // usa l'ultima, che è quel che si sta guardando nella griglia.
+  // The reference photo's approved render: without a favourite the last one is
+  // used, which is what you are looking at in the grid.
   const v = db()
     .query<{ image_path: string }, [string, string]>(
       `SELECT v.image_path AS image_path
@@ -110,13 +107,13 @@ export function colorReferenceFor(photoId: string): string | null {
   return v.image_path;
 }
 
-/** La clausola da appendere al prompt quando c'è un riferimento allegato.
+/** The clause to append to the prompt when a reference is attached.
  *
- *  Nomina esplicitamente cosa copiare e cosa NON copiare: senza la seconda
- *  parte il modello tende a importare anche il soggetto o l'inquadratura della
- *  reference, che è il modo tipico in cui questa tecnica fallisce. */
-/** Clausola per il riferimento di cielo, distinta da quella del post: qui si
- *  chiede di copiare SOLO il cielo, non il resto del trattamento. */
+ *  It explicitly names what to copy and what NOT to copy: without the second
+ *  part the model tends to import the reference's subject or framing too, which
+ *  is the typical way this technique fails. */
+/** Clause for the sky reference, distinct from the post's: here we ask to copy
+ *  ONLY the sky, not the rest of the treatment. */
 export const SKY_REFERENCE_CLAUSE =
   "One of the attached images is a SKY REFERENCE. If this photograph shows sky, " +
   "render that sky with exactly the same colour, saturation, brightness and " +

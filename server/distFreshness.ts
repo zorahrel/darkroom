@@ -2,16 +2,16 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Il `dist` servito e' piu' vecchio dei sorgenti del client?
+ * Is the `dist` being served older than the client sources?
  *
- * Il server serve `dist/` staticamente, ma niente lo ricostruisce quando
- * cambia `client/src`. Il risultato e' silenzioso e velenoso: si guarda la
- * dashboard, si vede la UI di nove giorni fa e si conclude che una modifica
- * non e' stata fatta — mentre nel codice c'e'. E' successo davvero, per nove
- * giorni, e non c'era un solo segnale da nessuna parte.
+ * The server serves `dist/` statically, but nothing rebuilds it when
+ * `client/src` changes. The result is silent and poisonous: you look at the
+ * dashboard, you see the UI from nine days ago and you conclude a change was
+ * never made — while it is right there in the code. It really happened, for
+ * nine days, and there was not a single signal anywhere.
  *
- * Qui non si indovina: si confronta il file piu' recente di `client/` con
- * `dist/index.html`. Ritorna null quando e' tutto a posto.
+ * Here nothing is guessed: the most recent file under `client/` is compared
+ * against `dist/index.html`. Returns null when all is well.
  */
 export function staleDist(repoRoot: string): { newest: string; ageSeconds: number } | null {
   const distIndex = join(repoRoot, "dist", "index.html");
@@ -29,8 +29,8 @@ export function staleDist(repoRoot: string): { newest: string; ageSeconds: numbe
       return;
     }
     for (const e of entries) {
-      // node_modules e dist non sono sorgenti: guardarli renderebbe l'allarme
-      // sempre acceso e quindi inutile.
+      // node_modules and dist are not sources: watching them would keep the
+      // alarm permanently on and therefore useless.
       if (e.name === "node_modules" || e.name === "dist" || e.name.startsWith(".")) continue;
       const p = join(dir, e.name);
       if (e.isDirectory()) {
@@ -51,7 +51,7 @@ export function staleDist(repoRoot: string): { newest: string; ageSeconds: numbe
   };
 }
 
-/** Riga di avviso pronta da stampare, o null se il build e' aggiornato. */
+/** A warning line ready to print, or null if the build is up to date. */
 export function staleDistWarning(repoRoot: string): string | null {
   const s = staleDist(repoRoot);
   if (!s) return null;

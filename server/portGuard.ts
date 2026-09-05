@@ -1,44 +1,45 @@
 /**
- * NON RUBARE LA PORTA A UN ALTRO PROGETTO.
+ * DO NOT STEAL ANOTHER PROJECT'S PORT.
  *
- * IL GUASTO, misurato il 2026-08-20 sulla macchina dell'utente. Topics ascolta
- * su `*:3333`, cioe' il bind IPv6 jolly. Darkroom, avviato a mano con
- * `PORT=3333`, si e' legato a `127.0.0.1:3333` — IPv4 esplicito. I due binding
- * sono entrambi legittimi e convivono senza un solo errore: `Bun.serve` non ha
- * dato `EADDRINUSE`, perche' non c'era nessuna collisione da segnalare.
+ * THE FAILURE, measured on 2026-08-20 on the user's machine. Topics listens on
+ * `*:3333`, that is the IPv6 wildcard bind. Darkroom, started by hand with
+ * `PORT=3333`, bound to `127.0.0.1:3333` — explicit IPv4. Both binds are
+ * legitimate and coexist without a single error: `Bun.serve` did not raise
+ * `EADDRINUSE`, because there was no collision to report.
  *
- * Ma il kernel consegna al binding piu' SPECIFICO. Da quel momento ogni
- * connessione a `127.0.0.1:3333` e' finita a Darkroom: Topics rispondeva 200
- * con l'HTML di un altro progetto, e in HTTPS moriva con
- * `tlsv1 alert protocol version` perche' Darkroom non parla TLS. Per NOVE ORE.
- * Il sintomo a schermo era «ci mette un sacco a connettersi» piu' una finestra
- * che non si aggiornava: nessuno dei due dice «hai due server sulla stessa
- * porta».
+ * But the kernel delivers to the most SPECIFIC bind. From that moment every
+ * connection to `127.0.0.1:3333` went to Darkroom: Topics answered 200 with
+ * another project's HTML, and over HTTPS it died with
+ * `tlsv1 alert protocol version` because Darkroom does not speak TLS. For NINE
+ * HOURS. On screen the symptom was "it takes forever to connect" plus a window
+ * that would not refresh: neither of them says "you have two servers on the
+ * same port".
  *
- * DA CHE PARTE STA IL CONTROLLO. Topics ha una sonda che dice «non sono io a
- * rispondere sulla mia porta» e non uccide niente, giustamente: quel processo
- * e' di qualcun altro. Qui siamo dall'altro lato, e il dovere e' opposto e piu'
- * forte — chi ARRIVA su una porta gia' servita e' l'intruso, e l'unica mossa
- * corretta e' non partire. Darkroom e' una dashboard locale: rinunciare al boot
- * costa un messaggio, rubare la porta costa una giornata a qualcun altro.
+ * WHICH SIDE THE CHECK BELONGS TO. Topics has a probe that says "it is not me
+ * answering on my port" and kills nothing, rightly: that process belongs to
+ * somebody else. Here we are on the other side, and the duty is the opposite
+ * one and stronger — whoever ARRIVES at a port already served is the intruder,
+ * and the only correct move is not to start. Darkroom is a local dashboard:
+ * giving up the boot costs a message, stealing the port costs somebody else a
+ * day.
  *
- * Perche' `lsof` e non un tentativo di `connect`: un server puo' essere in
- * ascolto e non rispondere ancora (boot lento, TLS), e un `connect` che fallisce
- * direbbe «libera» quando non lo e'. La domanda giusta e' «c'e' un socket in
- * LISTEN su questa porta», e a quella risponde la tabella dei socket.
+ * Why `lsof` and not an attempted `connect`: a server can be listening and not
+ * answering yet (slow boot, TLS), and a `connect` that fails would say "free"
+ * when it is not. The right question is "is there a socket LISTENing on this
+ * port", and the socket table is what answers it.
  */
 
-/** Chi tiene un socket in LISTEN su una porta. */
+/** Who holds a socket LISTENing on a port. */
 export interface Occupant {
   pid: number;
-  /** La riga di comando, se leggibile: `lsof` con permessi ridotti da' solo il pid. */
+  /** The command line, when readable: `lsof` with reduced permissions gives only the pid. */
   command: string | null;
-  /** L'indirizzo del bind, es. `*:3333` o `127.0.0.1:3333`. Serve a spiegare. */
+  /** The bind address, e.g. `*:3333` or `127.0.0.1:3333`. It is there to explain. */
   address: string | null;
 }
 
 export type PortOutcome =
-  /** Nessuno ascolta: si puo' partire. */
+  /** Nobody is listening: we can start. */
   | { state: "free" }
   /** Ascolta qualcun altro: NON si parte. */
   | { state: "busy"; occupants: Occupant[] }
@@ -47,13 +48,13 @@ export type PortOutcome =
   | { state: "ignoto"; why: string };
 
 export interface GuardiaDeps {
-  /** I socket in LISTEN su quella porta, o `null` se non si e' potuto sapere. */
+  /** The LISTENing sockets on that port, or `null` if we could not find out. */
   listeners: (port: number) => Occupant[] | null;
-  /** Il nostro pid, per non accusare noi stessi (o un hot-reload di noi stessi). */
+  /** Our own pid, so we do not accuse ourselves (or a hot-reload of ourselves). */
   ourPid: number;
 }
 
-/** La porta e' libera per noi? */
+/** Is the port free for us? */
 export function checkPort(port: number, deps: GuardiaDeps): PortOutcome {
   const found = deps.listeners(port);
   if (found === null) {
@@ -65,10 +66,10 @@ export function checkPort(port: number, deps: GuardiaDeps): PortOutcome {
 }
 
 /**
- * Il messaggio che l'utente legge quando il boot si ferma.
+ * The message the user reads when the boot stops.
  *
- * Dice il pid e il comando perche' la domanda successiva e' sempre «e adesso
- * quale finestra chiudo»: un «porta occupata» senza un pid la lascia aperta.
+ * It names the pid and the command because the next question is always "so
+ * which window do I close": a "port busy" without a pid leaves it open.
  */
 export function busyMessage(port: number, occupants: Occupant[]): string {
   const rows = occupants.map((o) => {
@@ -88,11 +89,11 @@ export function busyMessage(port: number, occupants: Occupant[]): string {
 }
 
 /**
- * `lsof` sui socket in LISTEN di una porta, in output stabile (`-F`).
+ * `lsof` over a port's LISTENing sockets, in stable output (`-F`).
  *
- * `-sTCP:LISTEN` esclude le connessioni stabilite verso quella porta, che non
- * la occupano; `-nP` evita le risoluzioni DNS e dei nomi di servizio, che
- * costano secondi e non aggiungono niente.
+ * `-sTCP:LISTEN` leaves out established connections towards that port, which do
+ * not occupy it; `-nP` avoids DNS and service-name lookups, which cost seconds
+ * and add nothing.
  */
 export function realListeners(port: number): Occupant[] | null {
   try {
@@ -100,7 +101,7 @@ export function realListeners(port: number): Occupant[] | null {
       ["lsof", "-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-Fpcn"],
       { stdout: "pipe", stderr: "pipe" },
     );
-    // exit 1 senza output = nessuno ascolta: e' un esito, non un errore.
+    // exit 1 with no output = nobody is listening: an outcome, not an error.
     const text = new TextDecoder().decode(proc.stdout);
     if (!text.trim()) return proc.exitCode === 0 || proc.exitCode === 1 ? [] : null;
     return parseLsof(text, port);
@@ -110,9 +111,9 @@ export function realListeners(port: number): Occupant[] | null {
 }
 
 /**
- * L'output `-F` di lsof: righe con un prefisso di un carattere, raggruppate per
- * processo (`p`/`c`) e poi per file (`n`). Si legge in ordine e si tiene lo
- * stato corrente — un `n` appartiene all'ultimo `p` visto.
+ * lsof's `-F` output: lines with a one-character prefix, grouped by process
+ * (`p`/`c`) and then by file (`n`). It is read in order, keeping the current
+ * state — an `n` belongs to the last `p` seen.
  */
 export function parseLsof(text: string, port: number): Occupant[] {
   const out: Occupant[] = [];
@@ -128,8 +129,8 @@ export function parseLsof(text: string, port: number): Occupant[] {
     } else if (field === "c") {
       command = val;
     } else if (field === "n" && pid !== null) {
-      // `n` puo' comparire piu' volte per lo stesso processo (IPv4 e IPv6):
-      // sono due binding distinti e vanno mostrati entrambi.
+      // `n` can appear more than once for the same process (IPv4 and IPv6):
+      // they are two distinct binds and both have to be shown.
       if (!val.endsWith(`:${port}`)) continue;
       out.push({ pid, command, address: val });
     }
