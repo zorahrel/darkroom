@@ -166,7 +166,7 @@ describe("parseConfig", () => {
   });
 });
 
-describe("clausole aggiunte per il set Giappone", () => {
+describe("clauses added for the Japan set", () => {
   test("neutral-strict names the amber of interiors, not just 'neutral'", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, white_balance: "neutral-strict" });
     // Un aggettivo ("neutro") non è verificabile; un riferimento sì.
@@ -177,7 +177,7 @@ describe("clausole aggiunte per il set Giappone", () => {
     expect(p).toContain("Keep the light sources themselves warm");
   });
 
-  test("food strict elenca i modi in cui il cibo esce male", () => {
+  test("food strict lists the ways food comes out badly", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, food: "strict" });
     expect(p).toContain("never grey, brown, dull or iridescent");
     expect(p).toContain("egg yolks");
@@ -185,7 +185,7 @@ describe("clausole aggiunte per il set Giappone", () => {
     expect(p).toContain("Do NOT change the dish");
   });
 
-  test("le opzioni storiche non cambiano", () => {
+  test("the historical options do not change", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, white_balance: "neutral" })).toContain(
       "neutral, accurate white balance",
     );
@@ -217,14 +217,14 @@ describe("optics and sky: options that name the result", () => {
     );
   });
 
-  test("cielo chiaro dà un riferimento verificabile, non un aggettivo", () => {
+  test("a clear sky gives a verifiable reference, not an adjective", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "bright-airy" });
     // "più chiaro degli edifici" si può guardare; "arioso" no.
     expect(p).toContain("BRIGHTER than the buildings");
     expect(p).toContain("never dark, heavy, navy or stormy");
   });
 
-  test("le opzioni storiche restano quelle di prima", () => {
+  test("the historical options stay as they were", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, dof: "preserve" })).toContain(
       "preserve original depth of field",
     );
@@ -235,8 +235,8 @@ describe("optics and sky: options that name the result", () => {
   });
 });
 
-describe("cieli e ottiche scelte per la scena", () => {
-  test("il cielo notturno chiede POCHE stelle, non un firmamento", () => {
+describe("skies and optics chosen for the scene", () => {
+  test("the night sky asks for FEW stars, not a firmament", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-night" });
     // Saying only "night" makes the model fill the void with a milky way:
     // the number has to be named, and so does what NOT to do.
@@ -260,7 +260,7 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).not.toContain("invented where the sky was clear");
   });
 
-  test("estendere i bordi non autorizza a inventare un oggetto davanti", () => {
+  test("extending the edges does not authorise inventing an object in front", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" });
     // Su IMG_2906 il reframe ha piazzato un tetto inesistente davanti alla
     // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
@@ -288,7 +288,7 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(p).toContain("no halo around buildings");
   });
 
-  test("l'oggetto eroico non è il grandangolo generico", () => {
+  test("the heroic object is not the generic wide angle", () => {
     const obj = assemblePrompt({ ...DEFAULT_CONFIG, composition: "hero-object" });
     const wide = assemblePrompt({ ...DEFAULT_CONFIG, composition: "wide-hero" });
     expect(obj).toContain("make the object the hero");
@@ -296,13 +296,13 @@ describe("cieli e ottiche scelte per la scena", () => {
     expect(obj).not.toBe(wide);
   });
 
-  test("il tunnel chiede il punto di fuga, non solo un campo largo", () => {
+  test("the tunnel asks for the vanishing point, not just a wide field", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "tunnel" });
     expect(p).toContain("converge toward the vanishing point");
     expect(p).toContain("verticals dead straight");
   });
 
-  test("le opzioni preesistenti non cambiano", () => {
+  test("the pre-existing options do not change", () => {
     expect(assemblePrompt({ ...DEFAULT_CONFIG, sky: "deep-blue" })).toContain("deep, clean blue");
     expect(assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" })).toContain(
       "recompose the frame decisively",
@@ -395,7 +395,7 @@ describe("moving the camera is not inventing the scene", () => {
   });
 });
 
-describe("un soggetto incompleto resta incompleto", () => {
+describe("an incomplete subject stays incomplete", () => {
   test("no optic asks to complete what the photo did not capture", () => {
     // On IMG_2906 the pagoda is shot from below and the foundations are not
     // there: asking for "the whole subject" is an order to invent them, and

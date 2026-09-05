@@ -8,16 +8,16 @@ import { realListeners, busyMessage, checkPort } from "./portGuard.ts";
 /** Boot: start the job runner and serve the app (see app.ts for the routes). */
 
 const PORT = Number(process.env.PORT ?? 3535);
-// Bun senza `hostname` ascolta su 0.0.0.0: Darkroom non ha autenticazione,
-// quindi su una rete condivisa (coworking, hotel) le foto e i controlli di
-// generazione sarebbero di chiunque. Loopback di default; per l'accesso da
-// telefono usa `tailscale serve` (cifrato e legato al tuo tailnet) oppure
-// HOST=0.0.0.0 se sei consapevolmente su una rete fidata.
+// Bun without `hostname` listens on 0.0.0.0: Darkroom has no
+// authentication, so on a shared network (coworking, hotel) the photos and the
+// generation controls would be anybody's. Loopback by default; for access from
+// a phone use `tailscale serve` (encrypted and tied to your tailnet) or
+// HOST=0.0.0.0 if you are knowingly on a trusted network.
 const HOST = process.env.HOST ?? "127.0.0.1";
 
-// Chi arriva su una porta gia' servita e' l'intruso: si ferma qui, prima di
-// avviare il job runner e di rubare traffico a un altro progetto. Vedi
-// `portGuard.ts` per il guasto reale che questo controllo evita.
+// Whoever arrives on a port already served is the intruder: it stops here,
+// before starting the job runner and stealing traffic from another project. See
+// `portGuard.ts` for the real fault this check avoids.
 if (process.env.DARKROOM_PORT_FORCE !== "1") {
   const outcome = checkPort(PORT, { listeners: realListeners, ourPid: process.pid });
   if (outcome.state === "busy") {
@@ -25,30 +25,31 @@ if (process.env.DARKROOM_PORT_FORCE !== "1") {
     process.exit(1);
   }
   if (outcome.state === "ignoto") {
-    // Non blocca: un controllo che non sa non ha il diritto di fermare il boot.
+    // It does not block: a check that cannot know has no right to stop the boot.
     console.warn(`[porta] controllo saltato (${outcome.why}) — parto lo stesso.`);
   }
 }
 
 startRunner();
-// I job di generazione video che un riavvio ha lasciato a meta' si riagganciano
-// al loro prompt invece di restare "in corso" per sempre.
+// Video generation jobs left half-done by a restart re-attach to their prompt
+// instead of staying "in progress" for ever.
 try { (await import("./comfy.ts")).riprendiInterrotti(); } catch { /* progetto senza video */ }
 
-// Il client si ricostruisce da solo quando i sorgenti sono piu' recenti del
-// build servito. Nove giorni di dashboard vecchia sono passati senza un
-// segnale: un avviso nei log non basta, perche' nessuno li legge. Qui il
-// problema si risolve invece di essere annunciato. Disattivabile con
-// DARKROOM_NO_AUTOBUILD=1 (utile in dev, dove ci pensa Vite).
+// The client rebuilds itself when the sources are more recent than the build
+// being served. Nine days of an old dashboard went by without a signal: a
+// warning in the logs is not enough, because nobody reads them. Here the
+// problem is solved instead of announced. Can be switched off with
+// DARKROOM_NO_AUTOBUILD=1 (useful in dev, where Vite takes care of it).
 if (staleDistWarning(REPO_ROOT) && process.env.DARKROOM_NO_AUTOBUILD !== "1") {
   console.log("[dist] build del client non aggiornato — ricostruisco…");
   const t0 = Date.now();
-  // `bunx` per nome non si trova sotto launchd: il servizio parte con un PATH
-  // minimo, e `Bun.spawnSync` su un eseguibile inesistente NON torna un codice
-  // diverso da zero — solleva, e il modulo muore prima di mettersi in ascolto.
-  // Un server che non parte perche' non sa ricompilare la dashboard e' peggio
-  // di uno che serve la dashboard vecchia dicendolo. Quindi: si usa la bun che
-  // sta gia' girando (`bun x` e' bunx), e si prende la sollevazione.
+  // `bunx` by name is not found under launchd: the service starts with a
+  // minimal PATH, and `Bun.spawnSync` on a non-existent executable does NOT
+  // return a non-zero code — it throws, and the module dies before it starts
+  // listening. A server that will not start because it cannot recompile the
+  // dashboard is worse than one that serves the old dashboard and says so. So:
+  // the bun already running is used (`bun x` is bunx), and the throw is
+  // caught.
   let proc: { exitCode: number | null; stderr: Uint8Array } = { exitCode: 1, stderr: new Uint8Array() };
   try {
     proc = Bun.spawnSync([process.execPath, "x", "vite", "build", "--config", "client/vite.config.ts"], {
@@ -62,14 +63,14 @@ if (staleDistWarning(REPO_ROOT) && process.env.DARKROOM_NO_AUTOBUILD !== "1") {
   if (proc.exitCode === 0) {
     console.log(`[dist] client ricostruito in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else {
-    // Un build fallito non deve impedire al server di partire: la dashboard
-    // vecchia e' meglio di nessuna dashboard. Ma va detto forte.
+    // A failed build must not stop the server starting: the old dashboard is
+    // better than no dashboard. But it has to be said loudly.
     console.error("[dist] BUILD FALLITO — la dashboard servita resta quella vecchia:");
     console.error(new TextDecoder().decode(proc.stderr).slice(-800));
   }
 }
-// Se resta vecchio (build fallito, o autobuild disattivato) lo si vede anche
-// dalla dashboard: /api/pipeline/status espone stale_dist.
+// If it stays old (failed build, or autobuild switched off) it is visible
+// from the dashboard too: /api/pipeline/status exposes stale_dist.
 const distWarn = staleDistWarning(REPO_ROOT);
 if (distWarn) console.warn(distWarn);
 

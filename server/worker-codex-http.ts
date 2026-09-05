@@ -1,19 +1,20 @@
-// Backend "codex-http": genera via l'endpoint che usa la CLI Codex, con il token
-// OAuth della sottoscrizione ChatGPT.
+// The "codex-http" backend: generates via the endpoint the Codex CLI uses,
+// with the OAuth token of the ChatGPT subscription.
 //
-// Perché esiste, accanto a `worker-codex.ts` e al worker CDP:
-//   * il worker CDP legge il DOM di chatgpt.com. Il 24/08 un allegato nostro
-//     (il riferimento cromatico) è finito scaricato al posto del render, 222 job
-//     di fila. Qui non c'è DOM: l'immagine arriva in base64 nello stream.
-//   * `worker-codex.ts` lancia il binario Codex e pesca il PNG più recente in
-//     ~/.codex/generated_images, e i reference li IGNORA. Senza reference non
-//     c'è coerenza fra una variante e l'altra, che è il motivo per cui i
-//     reference esistono.
+// Why it exists, alongside `worker-codex.ts` and the CDP worker:
+//   * the CDP worker reads chatgpt.com's DOM. On 24/08 an attachment of ours
+//     (the colour reference) ended up downloaded instead of the render, 222
+//     jobs in a row. Here there is no DOM: the image arrives base64 in the
+//     stream.
+//   * `worker-codex.ts` launches the Codex binary and fishes the most recent
+//     PNG out of ~/.codex/generated_images, and it IGNORES the references.
+//     Without references there is no coherence between one variant and the
+//     next, which is the reason references exist.
 //
-// Limite noto e misurato (24/08): il backend decide lui dimensione e qualità.
-// Chiedendo 2048x2048/high ha risposto 1536x1024/low e 1254x1254/medium. Il
-// modello è gpt-image 2.0 (verificato nel manifest C2PA firmato dentro il PNG),
-// ma la qualità non è negoziabile da qui.
+// Known and measured limit (24/08): the backend decides size and quality
+// itself. Asked for 2048x2048/high it answered 1536x1024/low and
+// 1254x1254/medium. The model is gpt-image 2.0 (verified in the signed C2PA
+// manifest inside the PNG), but the quality is not negotiable from here.
 import { spawn } from "bun";
 import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -24,8 +25,8 @@ const ENDPOINT = "https://chatgpt.com/backend-api/codex/responses";
 const AUTH_PATH = join(homedir(), ".codex", "auth.json");
 const MODEL = process.env.CODEX_HTTP_MODEL ?? "gpt-5.5";
 const TIMEOUT_MS = 6 * 60 * 1000;
-/** Lato massimo degli allegati. Il payload è JSON: una foto da 12 MP in base64
- *  sono ~16 MB di richiesta, e il backend chiude la connessione. */
+/** Maximum side of the attachments. The payload is JSON: a 12 MP photo in
+ *  base64 is ~16 MB of request, and the backend closes the connection. */
 const MAX_EDGE = Number(process.env.CODEX_HTTP_MAX_EDGE ?? 1024);
 
 function readToken(): { token: string; accountId?: string } {
@@ -36,14 +37,14 @@ function readToken(): { token: string; accountId?: string } {
   return { token: t, accountId: j?.tokens?.account_id };
 }
 
-/** Ridimensiona in JPEG dentro tmp; ritorna il path da allegare. */
+/** Resizes to JPEG inside tmp; returns the path to attach. */
 async function shrink(src: string): Promise<string> {
   const out = join(tmpdir(), `dk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`);
   const p = spawn({
     cmd: ["magick", src, "-auto-orient", "-resize", `${MAX_EDGE}x${MAX_EDGE}>`, "-quality", "88", out],
     stdout: "pipe", stderr: "pipe",
   });
-  if ((await p.exited) !== 0 || !existsSync(out)) return src; // meglio l'originale che niente
+  if ((await p.exited) !== 0 || !existsSync(out)) return src; // better the original than nothing
   return out;
 }
 
@@ -54,9 +55,9 @@ async function dataUri(path: string): Promise<string> {
   return `data:${mime};base64,${b64}`;
 }
 
-/** Correlazione strutturale via lo script python (numpy/Pillow ci sono gia').
- *  `null` quando non si puo' misurare: un controllo che rompe le generazioni
- *  buone e' peggio del problema che risolve. */
+/** Structural correlation via the python script (numpy/Pillow are already
+ *  there). `null` when it cannot be measured: a check that breaks good
+ *  generations is worse than the problem it solves. */
 async function correlation(a: string, b: string): Promise<number | null> {
   try {
     const p = spawn({ cmd: ["python3", new URL("../scripts/img_corr.py", import.meta.url).pathname, a, b], stdout: "pipe", stderr: "pipe" });
@@ -71,11 +72,11 @@ async function correlation(a: string, b: string): Promise<number | null> {
 
 export async function runWorkerCodexHttp(input: {
   image?: string;
-  /** Piu' foto sorgente allegate alla stessa richiesta (GEN-01). Una sorgente
-   *  e' materiale da cui esce il risultato; un riferimento e' un bersaglio a
-   *  cui assomigliare. Tre ritratti della stessa persona come input contemporaneo
-   *  sono il primo caso, e trattarli come riferimenti direbbe al modello di
-   *  copiarne il look invece di usarli come materiale. */
+  /** Several source photos attached to the same request (GEN-01). A source is
+   *  material the result comes out of; a reference is a target to resemble.
+   *  Three portraits of the same person as simultaneous input are the first
+   *  case, and treating them as references would tell the model to copy their
+   *  look instead of using them as material. */
   images?: string[];
   prompt: string;
   output: string;
@@ -92,8 +93,8 @@ export async function runWorkerCodexHttp(input: {
     }
     for (const r of input.refs ?? []) if (existsSync(r)) attachments.push(await dataUri(r));
 
-    // Limite dichiarato: il payload e' JSON, e sei immagini in base64 sono gia'
-    // diversi MB. Meglio un errore leggibile che una connessione chiusa a meta'.
+    // Declared limit: the payload is JSON, and six base64 images are already
+    // several MB. Better a readable error than a connection closed halfway.
     if (attachments.length > 6) {
       return { status: "error", error: `troppi allegati: ${attachments.length} (massimo 6)`, duration_s: 0 };
     }
@@ -107,8 +108,8 @@ export async function runWorkerCodexHttp(input: {
       instructions: "You are an image generation assistant.",
       input: [{ type: "message", role: "user", content }],
       tools: [{ type: "image_generation", output_format: "png" }],
-      // Con allegati il tool DEVE scattare: senza, il modello risponde a parole
-      // e il job muore per "nessuna immagine" dopo aver pagato l'upload.
+      // With attachments the tool MUST fire: without it the model answers in
+      // words and the job dies for "no image" after paying for the upload.
       tool_choice: attachments.length ? "required" : "auto",
       parallel_tool_calls: false,
       store: false,
@@ -142,8 +143,8 @@ export async function runWorkerCodexHttp(input: {
     }
     if (!res.ok) {
       const txt = (await res.text()).slice(0, 300);
-      // 401/403 = token scaduto: è una condizione da dire chiaramente, non un
-      // fallimento generico che manda la coda a ritentare per ore.
+      // 401/403 = expired token: it is a condition to state plainly, not a
+      // generic failure that sends the queue retrying for hours.
       const hint = res.status === 401 || res.status === 403 ? " (token scaduto: 'codex login')" : "";
       return { status: "error", error: `HTTP ${res.status}${hint}: ${txt}`, duration_s: (Date.now() - startedAt) / 1000 };
     }
@@ -172,7 +173,7 @@ export async function runWorkerCodexHttp(input: {
         } else if (t === "response.output_item.done" && ev.item?.type === "image_generation_call" && typeof ev.item?.result === "string") {
           b64 = ev.item.result;
         } else if (t === "response.output_item.done" && ev.item?.type === "message") {
-          // Il modello ha risposto a parole: quasi sempre un rifiuto di policy.
+          // The model answered in words: almost always a policy refusal.
           const txt = (ev.item.content ?? []).map((c: any) => c?.text ?? "").join(" ");
           if (txt && !b64) refusal = txt.slice(0, 200);
         } else if (t === "error" || t === "response.failed") {
@@ -186,15 +187,15 @@ export async function runWorkerCodexHttp(input: {
     mkdirSync(dirname(input.output), { recursive: true });
     writeFileSync(input.output, Buffer.from(b64, "base64"));
 
-    // L'unico controllo che serve qui, e l'unico che si puo' fare senza
-    // sbagliare: l'immagine tornata NON deve essere uno degli allegati. Il 24/08
-    // il worker CDP ha scaricato per 222 volte il riferimento cromatico al posto
-    // del render; quel modo di fallire e' reale e va chiuso anche qui.
+    // The only check needed here, and the only one that can be made without
+    // getting it wrong: the image returned must NOT be one of the attachments.
+    // On 24/08 the CDP worker downloaded the colour reference instead of the
+    // render 222 times; that way of failing is real and is closed here too.
     //
-    // Quel che NON si controlla, di proposito: quanto il risultato somigli alla
-    // sorgente. Le ricette cambiano inquadratura (ritaglio quadrato, crop
-    // stretto), e su un ritaglio legittimo la correlazione scende a 0.03:
-    // un cancello su quel numero boccerebbe il lavoro giusto.
+    // What is deliberately NOT checked: how much the result resembles the
+    // source. The recipes change the framing (square crop, tight crop), and on
+    // a legitimate crop the correlation drops to 0.03: a gate on that number
+    // would fail the right work.
     const attachedFiles = [...sources, ...(input.refs ?? [])].filter((f) => existsSync(f));
     for (const f of attachedFiles) {
       const c = await correlation(f, input.output);

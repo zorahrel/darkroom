@@ -63,9 +63,10 @@ export const WORKER_LOCK =
   envPath("DARKROOM_WORKER_LOCK") ??
   join(homedir(), ".cache", "darkroom", "chatgpt-worker.lock");
 
-/** Lock del RUNNER: identifica quale processo lavora la coda di questo DB.
- *  Distinto da WORKER_LOCK (che serializza il browser fra job): qui si tratta
- *  di impedire che DUE server aprano due code sulla stessa installazione. */
+/** The RUNNER's lock: it identifies which process works this DB's queue.
+ *  Distinct from WORKER_LOCK (which serialises the browser between jobs): here
+ *  it is about stopping TWO servers opening two queues on the same
+ *  installation. */
 export const RUNNER_LOCK =
   envPath("DARKROOM_RUNNER_LOCK") ??
   join(homedir(), ".cache", "darkroom", "runner.lock");
@@ -101,51 +102,51 @@ export function resolveChromeBin(): string | null {
  *  "codex-http" or "openai". */
 export const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
 
-/** Solo il backend "cdp" guida un browser. Gli altri non hanno una finestra da
- *  sorvegliare, e chiederglielo faceva partire Chrome senza motivo: il guard
- *  escludeva per nome il solo "codex", quindi "codex-http" e "openai" cadevano
- *  nel ramo del browser. */
+/** Only the "cdp" backend drives a browser. The others have no window to
+ *  watch, and asking them to made Chrome start for no reason: the guard
+ *  excluded only "codex" by name, so "codex-http" and "openai" fell into the
+ *  browser branch. */
 export const BACKEND_USES_BROWSER = WORKER_BACKEND === "cdp";
 
-/** Modello e resa del backend OpenAI. `gpt-image-2` in `high` è il motivo per
- *  cui questo backend esiste: è l'unico che rende leggibile il testo dentro
- *  l'immagine. Si abbassa a `low` per le prove, dove costa ~20x di meno. */
+/** Model and quality of the OpenAI backend. `gpt-image-2` at `high` is why
+ *  this backend exists: it is the only one that makes text inside the image
+ *  readable. It is dropped to `low` for trials, where it costs ~20x less. */
 export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
 export const OPENAI_IMAGE_QUALITY = process.env.OPENAI_IMAGE_QUALITY ?? "high";
 export const OPENAI_IMAGE_SIZE = process.env.OPENAI_IMAGE_SIZE ?? "1024x1024";
 
-/** Tetto di spesa giornaliero in dollari, oltre il quale il backend a pagamento
- *  smette di generare.
+/** Daily spend cap in dollars, beyond which the paid backend stops
+ *  generating.
  *
- *  Il limite vero sta sull'account OpenAI, ma non e' impostabile da qui
- *  (`/v1/organization/*` risponde 403 con una chiave di progetto) e comunque
- *  arriva come alert DOPO aver speso. Questo si applica prima della chiamata,
- *  sulle righe di `api_calls` delle ultime 24h: e' l'unico freno che Darkroom
- *  puo' azionare da solo.
+ *  The real limit sits on the OpenAI account, but it cannot be set from here
+ *  (`/v1/organization/*` answers 403 with a project key) and in any case
+ *  arrives as an alert AFTER the money is spent. This one applies before the
+ *  call, on the `api_calls` rows of the last 24h: it is the only brake Darkroom
+ *  can pull by itself.
  *
- *  Il 26/08 una giornata di calibrazione ha prodotto 21 chiamate senza che
- *  nessuno contasse: non erano troppe, ma nessuno lo sapeva mentre accadeva. */
+ *  On 26/08 a day of calibration produced 21 calls with nobody counting: they
+ *  were not too many, but nobody knew that while it was happening. */
 export function openaiDailyCapUsd(): number {
   return Number(process.env.OPENAI_DAILY_CAP_USD ?? "5");
 }
 
-/** Sopra questa spesa in una sessione, il worker sincrono si rifiuta di
- *  generare e rimanda al batch, che costa meta'.
+/** Above this spend in one session, the sync worker refuses to generate and
+ *  defers to the batch, which costs half.
  *
- *  Il batch esisteva gia' e nessuno lo usava: 25 chiamate su 25 fatte in
- *  sincrono, $2.81 dove sarebbero bastati $1.40. Non serviva un'altra opzione,
- *  serviva che la strada cara smettesse di essere quella comoda. Zero disattiva
- *  il freno. */
+ *  The batch already existed and nobody used it: 25 calls out of 25 made
+ *  synchronously, $2.81 where $1.40 would have done. Another option was not
+ *  needed, what was needed was for the expensive road to stop being the
+ *  comfortable one. Zero disables the brake. */
 export function openaiSyncBudgetUsd(): number {
   return Number(process.env.OPENAI_SYNC_BUDGET_USD ?? "0.5");
 }
 
-/** Chiave OpenAI dal Keychain, mai da un file in chiaro (stessa convenzione di
- *  `scripts/imagerouter_check.ts`; il .env del progetto è world-readable).
- *  OPENAI_API_KEY nell'ambiente vince, per CI e test.
+/** OpenAI key from the Keychain, never from a plaintext file (same convention
+ *  as `scripts/imagerouter_check.ts`; the project's .env is world-readable).
+ *  OPENAI_API_KEY in the environment wins, for CI and tests.
  *
- *  Letta una volta sola: `security` costa ~50ms e un job loop la chiederebbe
- *  a ogni generazione. `null` significa "cercata e non trovata". */
+ *  Read once only: `security` costs ~50ms and a job loop would ask for it on
+ *  every generation. `null` means "looked for and not found". */
 let openaiKeyCache: string | null | undefined;
 export function openaiKey(): string | null {
   if (openaiKeyCache !== undefined) return openaiKeyCache;
@@ -234,12 +235,12 @@ export const VIDEO_AUDIO = process.env.VIDEO_AUDIO ?? "";
 export const VIDEO_MASTER = process.env.VIDEO_MASTER ?? "MASTER.mp4";
 
 /**
- * La CLI di Moondream per i controlli che guardano l'immagine.
+ * Moondream's CLI for the checks that look at the image.
  *
- * Una funzione, non una costante: i test sostituiscono il binario con un finto
- * a ogni caso, e una costante letta all'import li avrebbe fatti parlare tutti
- * con il Moondream vero della macchina — che è lento e che, soprattutto,
- * risponde davvero, cioè non prova più niente.
+ * A function, not a constant: the tests replace the binary with a fake on every
+ * case, and a constant read at import would have made them all talk to the
+ * machine's real Moondream — which is slow and which, above all, really
+ * answers, i.e. proves nothing any more.
  */
 export function moondreamBin(): string {
   return process.env.MOONDREAM_BIN ?? "moondream";

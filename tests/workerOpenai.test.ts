@@ -24,19 +24,19 @@ async function loadConfig(backend?: string) {
   return mod;
 }
 
-describe("il backend a pagamento non si sceglie da solo", () => {
+describe("the paid backend is not chosen on its own", () => {
   test("without WORKER_BACKEND it stays cdp, which is free", async () => {
     const c = await loadConfig(undefined);
     expect(c.WORKER_BACKEND).toBe("cdp");
   });
 
-  test("openai si attiva solo se richiesto esplicitamente", async () => {
+  test("openai activates only when explicitly asked for", async () => {
     const c = await loadConfig("openai");
     expect(c.WORKER_BACKEND).toBe("openai");
   });
 });
 
-describe("solo il backend cdp guida un browser", () => {
+describe("only the cdp backend drives a browser", () => {
   // The guard excluded only "codex" by name: with codex-http and openai
   // Darkroom launched Chrome to watch a window it does not use.
   test("cdp sì, gli altri no", async () => {
@@ -47,7 +47,7 @@ describe("solo il backend cdp guida un browser", () => {
   });
 });
 
-describe("il costo si calcola sui token veri", () => {
+describe("the cost is computed on the real tokens", () => {
   test("a measured high costs what it was actually billed", () => {
     // 7024 tokens observed on the 26/08 batch → $0.2107 at the sync price.
     expect(costUsd("gpt-image-2", 7024)).toBeCloseTo(0.2107, 4);
@@ -57,7 +57,7 @@ describe("il costo si calcola sui token veri", () => {
     expect(costUsd("gpt-image-2", 196)).toBeCloseTo(0.00588, 5);
   });
 
-  test("un modello sconosciuto non azzera il conto", () => {
+  test("an unknown model does not zero the bill", () => {
     // Returning 0 would make a pass that is actually paid for look free.
     expect(costUsd("gpt-image-9-inesistente", 7024)).toBeGreaterThan(0);
   });
@@ -78,7 +78,7 @@ describe("without a key the network is not attempted", () => {
   // respect a PATH changed at runtime and found the real key, starting a paid
   // call inside the suite. It is checked against the source instead, which is
   // the only deterministic thing here.
-  test("l'errore dice come registrare la chiave", async () => {
+  test("the error says how to register the key", async () => {
     const src = await Bun.file(new URL("../server/worker-openai.ts", import.meta.url)).text();
     expect(src).toContain("add-generic-password");
     expect(src).toContain("-s");
@@ -113,7 +113,7 @@ describe("the backend really talks to OpenAI", () => {
   // The tests above look at the source; this one looks at the traffic. With a
   // fake key you get as far as the request without spending: if the routing
   // were wrong, the URL would not be OpenAI's.
-  test("generate colpisce /v1/images/generations e un errore non lascia file", async () => {
+  test("generate hits /v1/images/generations and an error leaves no file", async () => {
     const prev = process.env.OPENAI_API_KEY;
     const prevFetch = globalThis.fetch;
     const urls: string[] = [];
@@ -239,7 +239,7 @@ describe("how much has been spent is visible before, not after", () => {
   }, 30_000);
 });
 
-describe("si paga la chiamata, non la versione salvata", () => {
+describe("you pay for the call, not for the version saved", () => {
   // Counting `versions` gave $1.26 over 6 images where the calls were 21 for
   // ~$2.79: the calibration attempts end up in /tmp, the discards are not
   // saved, and failures after the generation are paid for all the same. None of
@@ -278,7 +278,7 @@ describe("si paga la chiamata, non la versione salvata", () => {
   }, 30_000);
 });
 
-describe("il tetto giornaliero morde prima di spendere", () => {
+describe("the daily cap bites before spending", () => {
   // The real limit sits on the OpenAI account but cannot be set from here
   // (403) and arrives as an alert AFTERWARDS. This one applies before the call:
   // it is the only brake Darkroom can pull by itself.
@@ -319,7 +319,7 @@ describe("il tetto giornaliero morde prima di spendere", () => {
     }
   }, 30_000);
 
-  test("sotto il tetto la generazione procede", async () => {
+  test("under the cap the generation proceeds", async () => {
     const prevFetch = globalThis.fetch;
     const prevKey = process.env.OPENAI_API_KEY;
     const prevCap = process.env.OPENAI_DAILY_CAP_USD;

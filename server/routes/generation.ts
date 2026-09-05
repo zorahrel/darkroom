@@ -33,9 +33,9 @@ generationRoutes.post("/api/photos/:id/generate", async (c) => {
     withExtra(mergeConfig(effectiveConfig(photo), oneShot), photo),
     photo,
   );
-  // Se il post ha una foto di riferimento, la si allega e si chiede di
-  // accordarsi a quella: il colore coerente nasce col render, invece di essere
-  // corretto dopo con un filtro.
+  // If the post has a reference photo, it is attached with a request to match
+  // it: the coherent colour is born with the render, instead of being corrected
+  // afterwards with a filter.
   const ref = colorReferenceFor(id);
   const prompt = ref ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
   const job = enqueueJob(
@@ -74,9 +74,10 @@ generationRoutes.get("/api/higgsfield/models", async (c) => {
   return c.json({ error: String(lastErr) }, 500);
 });
 
-/** Crediti residui del piano. Senza questo l'unico modo di sapere se si puo'
- *  generare era LANCIARE un job e vederlo fallire con "Out of credits": si
- *  scopriva il muro sbattendoci contro, un job bruciato alla volta. */
+/** Remaining credits on the plan. Without this the only way to know whether
+ *  you could generate was to LAUNCH a job and watch it fail with "Out of
+ *  credits": you discovered the wall by walking into it, one burned job at a
+ *  time. */
 generationRoutes.get("/api/higgsfield/balance", async (c) => {
   if (!higgsfieldConfigured()) return c.json({ error: "higgsfield non collegato" }, 400);
   try {
@@ -121,8 +122,8 @@ generationRoutes.post("/api/photos/:id/generate-higgsfield", async (c) => {
     withExtra(mergeConfig(effectiveConfig(photo), body?.config ?? null), photo),
     photo,
   );
-  // Anche Higgsfield allega il riferimento cromatico del post: è lo stesso
-  // set, e il colore deve nascere coerente da qualunque motore passi.
+  // Higgsfield attaches the post's colour reference too: it is the same set,
+  // and the colour must be born coherent whichever engine it passes through.
   const ref = colorReferenceFor(id);
   const prompt = ref ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
   const providerParams = JSON.stringify({ model, params: body?.params ?? {} });
@@ -183,19 +184,19 @@ generationRoutes.post("/api/photos/reindex-times", async (c) => {
 });
 
 /**
- * Accoda ogni foto che non ha ancora una versione.
+ * Queues every photo that does not have a version yet.
  *
- * Sta fuori dalla rotta perché non è più solo una rotta: la home la chiama
- * quando si comincia un lavoro da una cartella, e l'MCP dallo stesso posto. Un
- * secondo `for` che accoda con un prompt costruito quasi uguale sarebbe la
- * strada per due comportamenti che divergono in silenzio.
+ * It sits outside the route because it is no longer just a route: the home
+ * calls it when a job is begun from a folder, and the MCP from the same place.
+ * A second `for` queueing with an almost-identical prompt would be the road to
+ * two behaviours diverging in silence.
  */
 export function enqueueMissing(): number {
   const photos = db()
     .query<PhotoRow, []>(
-      // Le foto rifiutate da ChatGPT restano senza versione per sempre: senza
-      // questo filtro sarebbero le prime della lista a ogni "genera mancanti",
-      // e ogni giro spenderebbe un posto in coda per raccogliere lo stesso no.
+      // Photos refused by ChatGPT stay without a version for ever: without this
+      // filter they would be first in the list on every "generate missing", and
+      // every round would spend a queue slot to collect the same no.
       `SELECT p.* FROM photos p
        WHERE (SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) = 0
          AND p.skipped = 0
@@ -220,7 +221,7 @@ generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: enqueue
 
 // Generate brand-new images from a text prompt (no source photo). Each creates
 // a `kind='generated'` photo whose first render becomes its original.
-/** Genera dal nulla: N foto vuote, una per variante, ognuna già in coda. */
+/** Generate from nothing: N empty photos, one per variant, each already queued. */
 export function createGenerations(prompt: string, count: number): { created: number; ids: string[] } {
   const howMany = Math.min(Math.max(Number(count) || 1, 1), 50);
   const now = Date.now();

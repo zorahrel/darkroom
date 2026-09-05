@@ -41,20 +41,21 @@ photoRoutes.get("/api/photos", (c) => {
   } else if (filter === "not_picked") {
     where.push("p.picked = 0");
   } else if (filter === "pro") {
-    // Render dal modello a pagamento: è il master, distinto dalla bozza web.
+    // Render from the paid model: it is the master, distinct from the web draft.
     where.push(`EXISTS (
       SELECT 1 FROM versions v WHERE v.photo_id = p.id AND v.provider = 'higgsfield'
     )`);
   } else if (filter === "covers") {
-    // Le 7 copertine, tutte insieme. E' l'unica immagine che decide se qualcuno
-    // apre il carosello, e finora si potevano guardare solo una alla volta
-    // entrando in ogni post: cosi' non si vede MAI se il profilo, scorrendo,
-    // e' coerente.
+    // The 7 covers, all together. It is the only image that decides whether
+    // anybody opens the carousel, and until now they could only be looked at
+    // one at a time by entering each post: that way you NEVER see whether the
+    // profile, scrolled, is coherent.
     where.push("EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)");
   } else if (filter === "covers_todo") {
-    // Le copertine che NON hanno ancora il master pro: il primo lotto sensato
-    // da pagare. La copertina e' l'unica immagine che decide se qualcuno apre
-    // il carosello, quindi vale il pro prima di ogni altra foto del post.
+    // The covers that do NOT yet have the pro master: the first sensible batch
+    // to pay for. The cover is the only image that decides whether anybody
+    // opens the carousel, so it is worth the pro before every other photo in
+    // the post.
     where.push(`EXISTS (SELECT 1 FROM collections c WHERE c.cover_photo_id = p.id)
       AND p.skipped = 0
       AND NOT EXISTS (
@@ -62,11 +63,11 @@ photoRoutes.get("/api/photos", (c) => {
          WHERE v.id = p.favorite_version_id AND v.provider = 'higgsfield'
       )`);
   } else if (filter === "pro_todo") {
-    // Il complemento di "pro", ed e' la domanda che ci si fa davvero prima di
-    // spendere: cosa MANCA da rifinire. Solo foto gia' assegnate a un post e
-    // non saltate — le altre non usciranno, quindi un master su di esse e'
-    // denaro buttato. E si guarda la PREFERITA, non una versione qualsiasi:
-    // e' quella che finira' nel post.
+    // The complement of "pro", and it is the question you really ask before
+    // spending: what is LEFT to refine. Only photos already assigned to a post
+    // and not skipped — the others will not go out, so a master on them is
+    // money thrown away. And the FAVOURITE is what is looked at, not just any
+    // version: it is the one that will end up in the post.
     where.push(`EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)
       AND p.skipped = 0
       AND NOT EXISTS (
@@ -74,10 +75,10 @@ photoRoutes.get("/api/photos", (c) => {
          WHERE v.id = p.favorite_version_id AND v.provider = 'higgsfield'
       )`);
   } else if (filter === "recent") {
-    // Le foto rigenerate di recente: dopo una tornata di modifiche al prompt o
-    // al grade, è l'unico gruppo che vale la pena riguardare. 24 ore, non 12:
-    // il cap di ChatGPT dura mezza giornata, quindi l'ultima tornata finisce
-    // quasi sempre "ieri sera" e con una finestra corta sparirebbe.
+    // The photos regenerated recently: after a round of changes to the prompt or
+    // the grade, it is the only group worth looking at again. 24 hours, not 12:
+    // ChatGPT's cap lasts half a day, so the last round almost always ends up
+    // "yesterday evening" and with a short window it would disappear.
     where.push(`EXISTS (
       SELECT 1 FROM versions v WHERE v.photo_id = p.id
         AND v.created_at > (strftime('%s','now') - 24*3600) * 1000
@@ -281,13 +282,13 @@ photoRoutes.put("/api/photos/:id/feedback", async (c) => {
   return c.json({ ok: true, feedback: value });
 });
 
-/** Salta/riprendi una foto.
+/** Skip/resume a photo.
  *
- *  ChatGPT rifiuta certe foto (personaggi protetti, somiglianze di terzi) e il
- *  suo "no" non cambia riprovando: la flag la toglie dagli accodamenti di
- *  massa. Si imposta da sola quando arriva il rifiuto, ma deve essere
- *  reversibile a mano — le policy cambiano, e una foto ferma per sempre senza
- *  un modo di riprovarla e' un vicolo cieco. */
+ *  ChatGPT refuses certain photos (protected characters, third-party
+ *  likenesses) and its "no" does not change on a retry: the flag takes it out
+ *  of the bulk queueings. It sets itself when the refusal arrives, but it has
+ *  to be reversible by hand — policies change, and a photo stopped for ever
+ *  with no way of retrying it is a blind alley. */
 photoRoutes.put("/api/photos/:id/skipped", async (c) => {
   const id = c.req.param("id");
   const photo = getPhoto(id);
@@ -306,7 +307,7 @@ photoRoutes.put("/api/photos/:id/skipped", async (c) => {
   return c.json({ ok: true, skipped, reason });
 });
 
-/** "Mi piace" su una foto: un click nella griglia, niente altro. */
+/** "Like" on a photo: one click in the grid, nothing else. */
 photoRoutes.put("/api/photos/:id/picked", async (c) => {
   const id = c.req.param("id");
   if (!getPhoto(id)) return c.json({ error: "not found" }, 404);

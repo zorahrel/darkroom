@@ -1,14 +1,14 @@
-// Dal riferimento alla ricetta (REF-02).
+// From the reference to the recipe (REF-02).
 //
-// Perche' non una didascalia sola: "un ritratto in bianco e nero di un uomo"
-// descrive il soggetto, non il trattamento — e il trattamento e' l'unica cosa
-// che si vuole riusare. Le domande sono mirate a cio' che si puo' chiedere a un
-// generatore: luce, tonalita', taglio, pelle, resa.
+// Why not a single caption: "a black and white portrait of a man" describes the
+// subject, not the treatment — and the treatment is the only thing you want to
+// reuse. The questions are aimed at what can be asked of a generator: light,
+// tonality, framing, skin, rendering.
 //
-// Il modello locale sbaglia e a volte si contraddice: per questo l'estrazione
-// e' una PROPOSTA modificabile, e un'estrazione che non produce niente di utile
-// viene dichiarata fallita invece di salvare una frase generica che poi
-// sembrerebbe una ricetta vera.
+// The local model gets things wrong and sometimes contradicts itself: that is
+// why the extraction is an editable PROPOSAL, and an extraction that produces
+// nothing useful is declared failed instead of saving a generic sentence that
+// would then look like a real recipe.
 import { Hono } from "hono";
 import { moondreamBin } from "../config.ts";
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -18,14 +18,13 @@ import { refsDir } from "../project.ts";
 
 export const referenceRoutes = new Hono();
 
-/** I riferimenti del progetto, con quante varianti li hanno davvero usati.
+/** The project's references, with how many variants really used them.
  *
- *  Il conteggio non e' un ornamento: e' il difetto che questa vista esiste per
- *  rendere visibile. Su `profilo` una reference e' rimasta inutilizzata su
- *  12 generazioni su 12 mentre il refset continuava a promettere "+ stile", e
- *  non c'era nessun posto dove quel numero si potesse leggere. Una reference a
- *  zero non e' un dettaglio: e' una passata intera andata nella direzione
- *  sbagliata. */
+ *  The count is not an ornament: it is the defect this view exists to make
+ *  visible. On `profilo` a reference went unused on 12 generations out of 12
+ *  while the refset kept promising "+ style", and there was nowhere that number
+ *  could be read. A reference at zero is not a detail: it is a whole pass that
+ *  went the wrong way. */
 referenceRoutes.get("/api/references", (c) => {
   const dir = refsDir();
   const files = existsSync(dir)
@@ -85,18 +84,18 @@ async function ask(image: string, question: string): Promise<string | null> {
   const [out, code] = await Promise.all([new Response(p.stdout).text(), p.exited]);
   if (code !== 0) return null;
   const t = out.trim().replace(/\s+/g, " ");
-  // Una risposta di tre parole non descrive un trattamento: e' rumore che
-  // sembra un risultato, ed e' il modo in cui una ricetta nasce vuota.
+  // A three-word answer does not describe a treatment: it is noise that looks
+  // like a result, and it is how a recipe is born empty.
   return t.length >= 25 ? t : null;
 }
 
-/** Estrae la descrizione riusabile di un'immagine di riferimento. */
+/** Extracts the reusable description of a reference image. */
 referenceRoutes.post("/api/reference/extract", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { path?: unknown };
   const requested = typeof body.path === "string" ? body.path.trim() : "";
-  // Un nome nudo si risolve dentro i riferimenti del progetto: la galleria
-  // manda il file, non il percorso, e chiedere all'utente di ricostruirlo a
-  // mano sarebbe chiedergli di sapere dove Darkroom tiene le sue cose.
+  // A bare name resolves inside the project's references: the gallery sends
+  // the file, not the path, and asking the user to rebuild it by hand would be
+  // asking them to know where Darkroom keeps its things.
   const path =
     requested && !requested.includes("/") && existsSync(join(refsDir(), requested))
       ? join(refsDir(), requested)
@@ -111,8 +110,8 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
     else missing.push(a.key);
   }
 
-  // Meno di tre aspetti su cinque non e' una ricetta: e' un abbozzo che
-  // sembrerebbe completo una volta salvato.
+  // Fewer than three aspects out of five is not a recipe: it is a sketch that
+  // would look complete once saved.
   if (parts.length < 3) {
     return c.json(
       { error: `estrazione non riuscita: descritti ${parts.length} aspetti su ${ASPECTS.length}`, missing },
@@ -128,37 +127,37 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
   });
 });
 
-/** Estensioni ammesse: sono quelle che i backend di generazione accettano come
- *  allegato. Un .heic o un .tiff finirebbe in cartella e poi fallirebbe al
- *  momento della generazione, cioe' nel punto piu' costoso. */
+/** Allowed extensions: they are the ones the generation backends accept as an
+ *  attachment. A .heic or a .tiff would land in the folder and then fail at
+ *  generation time, i.e. at the most expensive point. */
 const ESTENSIONI = new Set(["png", "jpg", "jpeg", "webp"]);
-/** 20 MB: sopra, l'upload di un file per sbaglio (un video, un RAW) riempie il
- *  disco senza che nessuno se ne accorga. */
+/** 20 MB: above that, uploading a file by mistake (a video, a RAW) fills the
+ *  disk without anybody noticing. */
 const MAX_BYTES = 20 * 1024 * 1024;
 
-/** Carica un'immagine di riferimento nel progetto.
+/** Uploads a reference image into the project.
  *
- *  Senza questa rotta un file entrava in `data/refs` solo copiandocelo a mano
- *  dal Finder: la galleria mostrava i riferimenti ma non c'era modo di
- *  aggiungerne uno da dentro Darkroom. */
+ *  Without this route a file only entered `data/refs` by copying it there by
+ *  hand from the Finder: the gallery showed the references but there was no way
+ *  to add one from inside Darkroom. */
 referenceRoutes.post("/api/references", async (c) => {
   const form = await c.req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return c.json({ error: "nessun file" }, 400);
 
-  // Il nome arriva dal client e non e' un percorso: si tiene solo l'ultimo
-  // segmento e si ammette un alfabeto ristretto. Sostituire le sole barre
-  // lasciava "../../fuga.png" come "_.._fuga.png": innocuo per il filesystem,
-  // ma e' un nome che porta in giro l'intento di chi l'ha mandato.
+  // The name comes from the client and is not a path: only the last segment is
+  // kept and a restricted alphabet is allowed. Replacing only the slashes left
+  // "../../escape.png" as "_.._escape.png": harmless for the filesystem, but it
+  // is a name that carries around the intent of whoever sent it.
   const last = (file.name || "reference.png").split(/[/\\]/).pop() ?? "reference.png";
   const clean =
     last
       .replace(/[^A-Za-z0-9._-]/g, "_")
       .replace(/\.{2,}/g, ".")
       .replace(/^[._-]+/, "") || "reference.png";
-  // I filesystem si fermano a 255 byte per nome: oltre, la scrittura esplode
-  // con ENAMETOOLONG invece di rifiutare educatamente. Si accorcia la parte
-  // davanti e si tiene l'estensione, che e' quella che conta.
+  // Filesystems stop at 255 bytes per name: beyond that, the write blows up
+  // with ENAMETOOLONG instead of refusing politely. The front part is shortened
+  // and the extension kept, which is the part that counts.
   const tooLong = Buffer.byteLength(clean) > 200;
   const safeName = tooLong
     ? `${clean.slice(0, 180)}.${clean.split(".").pop()}`
@@ -174,9 +173,9 @@ referenceRoutes.post("/api/references", async (c) => {
 
   const dir = refsDir();
   mkdirSync(dir, { recursive: true });
-  // Un nome gia' preso non si sovrascrive: la reference vecchia potrebbe essere
-  // quella con cui sono state generate delle varianti, e sostituirla
-  // cambierebbe il significato del loro lineage senza dirlo a nessuno.
+  // A name already taken is not overwritten: the old reference might be the one
+  // some variants were generated with, and replacing it would change the
+  // meaning of their lineage without telling anybody.
   let name = safeName;
   if (existsSync(join(dir, name))) {
     const base = safeName.slice(0, -(ext.length + 1));
