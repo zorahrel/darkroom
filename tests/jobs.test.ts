@@ -34,7 +34,7 @@ describe("parseRefPaths", () => {
   });
 });
 
-describe("listJobs: un errore superato non è più un errore", () => {
+describe("listJobs: an error that was overcome is no longer an error", () => {
   function job(photo: string, status: string, seen = 0): number {
     const now = Date.now();
     db().run(
@@ -48,35 +48,36 @@ describe("listJobs: un errore superato non è più un errore", () => {
     db().run("DELETE FROM jobs");
   });
 
-  test("un fallimento seguito da un successo esce dalla lista", () => {
+  test("a failure followed by a success leaves the list", () => {
     job("a", "failed");
     job("a", "done");
     const ids = listJobs(100).map((j) => j.status);
-    // La griglia legge l'ULTIMO job per decidere il badge: se il vecchio failed
-    // resta in lista e il done cade fuori dal LIMIT, marca rossa una foto sana.
+    // The grid reads the LAST job to decide the badge: if the old failed one
+    // stays in the list and the done one falls outside the LIMIT, it marks a
+    // healthy photo red.
     expect(ids).toEqual(["done"]);
   });
 
-  test("un fallimento seguito da un job ancora in corso esce comunque", () => {
+  test("a failure followed by a job still running leaves it too", () => {
     job("a", "failed");
     job("a", "running");
     expect(listJobs(100).map((j) => j.status)).toEqual(["running"]);
   });
 
-  test("un fallimento che è ancora l'ultima parola resta", () => {
+  test("a failure that is still the last word stays", () => {
     job("a", "done");
     job("a", "failed");
     expect(listJobs(100).map((j) => j.status)).toContain("failed");
   });
 
-  test("il successo di UN'ALTRA foto non nasconde questo errore", () => {
+  test("the success of ANOTHER photo does not hide this error", () => {
     job("a", "failed");
     job("b", "done");
     const rows = listJobs(100);
     expect(rows.find((j) => j.photo_id === "a")?.status).toBe("failed");
   });
 
-  test("un fallimento già archiviato dall'utente resta fuori", () => {
+  test("a failure already archived by the user stays out", () => {
     job("a", "failed", 1);
     expect(listJobs(100)).toHaveLength(0);
   });
@@ -84,72 +85,72 @@ describe("listJobs: un errore superato non è più un errore", () => {
 
 describe("strategia anti-saturazione di ChatGPT", () => {
   test("la pausa fra job è configurabile e ha un default sensato", async () => {
-    // Il valore non si legge da un test (è un modulo già caricato), ma il
-    // contratto sì: deve esistere una pausa, e deve essere sovrascrivibile
-    // quando l'account è già stato spremuto.
+    // The value cannot be read from a test (it is an already-loaded module), but
+    // the contract can: a pause must exist, and it must be overridable when the
+    // account has already been squeezed.
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
     expect(src).toContain("JOB_GAP_MS");
     expect(src).toContain("process.env.JOB_GAP_MS");
-    // Il jitter è ciò che evita il ritmo perfettamente regolare.
+    // The jitter is what avoids a perfectly regular rhythm.
     expect(src).toContain("JOB_GAP_JITTER_MS");
     expect(src).toMatch(/Math\.random\(\)\s*\*\s*JOB_GAP_JITTER_MS/);
   });
 
-  test("il watchdog fa ripartire il ciclo solo se ci sono job in attesa", async () => {
+  test("the watchdog restarts the loop only if there are jobs waiting", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
-    // Riavviare un ciclo sano è peggio del problema: la guardia sul pending
-    // impedisce di rilanciarlo quando la coda è semplicemente vuota.
+    // Restarting a healthy loop is worse than the problem: the guard on pending
+    // stops it being relaunched when the queue is simply empty.
     expect(src).toMatch(/const pending = pickNextPending\(\);\s*\n\s*if \(!pending\) return;/);
     expect(src).toContain("loopBeatMs");
   });
 
-  test("l'allegato viene ritentato prima di dichiarare fallito il job", async () => {
+  test("the attachment is retried before the job is declared failed", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // "image not attached" era il 62% dei fallimenti e non è un rifiuto di
-    // ChatGPT: è la miniatura lenta. Deve esserci un retry con chat nuova.
+    // "image not attached" was 62% of the failures and is not a refusal from
+    // ChatGPT: it is the slow thumbnail. There must be a retry with a new chat.
     expect(py).toContain("async def attach_with_retries");
     expect(py).toContain("attach_with_retries(cdp, [str(resized)], ref_paths, image.name)");
-    // E la pausa fra i tentativi deve crescere, non essere fissa.
+    // And the pause between attempts must grow, not be fixed.
     expect(py).toContain("wait_s = 5 * i");
   });
 });
 
 describe("cap esplicito di ChatGPT", () => {
-  test("un hint di ore non viene troncato a mezz'ora", async () => {
+  test("a hint in hours is not truncated to half an hour", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
-    // Il caso reale: reset_hint="in 13 hour" veniva ridotto a 30 minuti, quindi
-    // ci ripresentavamo 26 volte a bussare, bruciando un job ogni volta.
+    // The real case: reset_hint="in 13 hour" was cut down to 30 minutes, so we
+    // came back knocking 26 times, burning a job each time.
     expect(src).toContain("MAX_EXPLICIT_PAUSE_MS");
     expect(src).not.toMatch(/pausedUntilMs = Math\.min\(explicitReset \+ 2 \* 60 \* 1000, cap\)/);
-    // E una pausa già in corso non deve essere accorciata da un hint più breve.
+    // And a pause already under way must not be shortened by a briefer hint.
     expect(src).toContain("Math.max(pausedUntilMs, until)");
   });
 });
 
-describe("il render scaricato deve essere di QUESTA foto", () => {
+describe("the downloaded render must be of THIS photo", () => {
   test("il worker confronta l'immagine scaricata con l'originale", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // Nel set sono passati 116 render appartenenti ad altri job: un piatto di
-    // sushi era diventato una strada di notte, e niente lo segnalava. Il
-    // baseline esclude le immagini già viste, ma non una NUOVA immagine
-    // generata per un altro lavoro.
+    // 116 renders belonging to other jobs got into the set: a plate of sushi had
+    // become a street at night, and nothing flagged it. The baseline excludes
+    // images already seen, but not a NEW image generated for another job.
     expect(py).toContain("def looks_like_same_scene");
     expect(py).toContain("does not match the source photo");
     // Il file sbagliato va cancellato, non lasciato lì a fingersi valido.
     expect(py).toContain("output.unlink(missing_ok=True)");
-    // Soglia regolabile: su un set molto ricomposto potrebbe servire più bassa.
+    // Adjustable threshold: on a heavily recomposed set it might need to be
+    // lower.
     expect(py).toContain("SCENE_MIN_CORR");
   });
 
-  test("in caso di errore nel confronto la generazione passa", async () => {
+  test("if the comparison errors, the generation passes", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // Un controllo che boccia i render buoni perché numpy non c'è sarebbe
-    // peggio del problema: il fallback restituisce 1.0 (= identiche).
+    // A check that fails good renders because numpy is missing would be worse
+    // than the problem: the fallback returns 1.0 (= identical).
     expect(py).toMatch(/except Exception:\s*\n\s*#[^\n]*\n\s*#[^\n]*\n\s*return 1\.0/);
   });
 });
 
-describe("annullare un job che sta girando", () => {
+describe("cancelling a job that is running", () => {
   function mk(photo: string, status: string): number {
     db().run(
       `INSERT INTO jobs (photo_id, prompt, status, seen, created_at) VALUES (?, 'p', ?, 0, ?)`,
@@ -162,24 +163,24 @@ describe("annullare un job che sta girando", () => {
 
   beforeEach(() => db().run("DELETE FROM jobs"));
 
-  test("un job bloccato in 'running' si puo' fermare", () => {
-    // Prima si annullavano solo i 'pending': un job appeso teneva il lock del
-    // browser e la coda non avanzava piu' finche' non si riavviava il server.
+  test("a job stuck in 'running' can be stopped", () => {
+    // Only 'pending' ones used to be cancelled: a hung job held the browser lock
+    // and the queue stopped advancing until the server was restarted.
     const id = mk("a", "running");
     expect(cancelPending(id)).toBe(true);
     expect(statusOf(id)).toBe("cancelled");
   });
 
-  test("un job gia' concluso non si tocca", () => {
+  test("a job already finished is left alone", () => {
     const id = mk("a", "done");
     expect(cancelPending(id)).toBe(false);
     expect(statusOf(id)).toBe("done");
   });
 
-  test("il requeue del runner non resuscita un job annullato", () => {
+  test("the runner's requeue does not resurrect a cancelled job", () => {
     const id = mk("a", "running");
     cancelPending(id);
-    // e' la query che il runner esegue dopo un timeout silenzioso
+    // this is the query the runner runs after a silent timeout
     db().run(
       "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
       ["requeued: timeout", id],
@@ -188,47 +189,48 @@ describe("annullare un job che sta girando", () => {
   });
 });
 
-describe("riconoscere il render quando ChatGPT lo mostra piccolo", () => {
+describe("recognising the render when ChatGPT shows it small", () => {
   test("un alt 'immagine generata' vale quanto la dimensione", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // Caso reale su IMG_2906: ChatGPT rendeva il risultato in un riquadro da
-    // 400px con naturalWidth ancora 0, la soglia >=512 lo scartava e il job
-    // girava a vuoto per 6 minuti prima di riaccodarsi.
+    // Real case on IMG_2906: ChatGPT rendered the result in a 400px box with
+    // naturalWidth still 0, the >=512 threshold discarded it and the job spun
+    // for 6 minutes before requeueing itself.
     expect(py).toContain("const strongId = (i) =>");
     expect(py).toContain("alt.startsWith('immagine generata')");
     expect(py).toContain("strongId(i) || bigEnough(i)");
-    // La soglia secca non deve tornare da sola.
+    // The hard threshold must not come back on its own.
     expect(py).not.toContain("(i.naturalWidth >= 512 || i.width >= 512));");
   });
 
-  test("un allegato nostro non e' mai il render", async () => {
+  test("an attachment of ours is never the render", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // 24/08: 222 job falliti di fila. Il riferimento cromatico allegato da
-    // colorReference (alt 'ref_...') e' servito dallo stesso URL
-    // estuary/content?id=file_ del render, quindi passava isGen e veniva
-    // scaricato al posto della generazione: 12 secondi invece di 60, e
-    // correlazione ~0 (altra foto) o ~1 (stessa scena) contro la sorgente.
+    // 24/08: 222 jobs failed in a row. The colour reference attached by
+    // colorReference (alt 'ref_...') is served from the same
+    // estuary/content?id=file_ URL as the render, so it passed isGen and was
+    // downloaded instead of the generation: 12 seconds instead of 60, and a
+    // correlation of ~0 (a different photo) or ~1 (the same scene) against the
+    // source.
     expect(py).toContain("alt.startsWith('ref_')");
-    // La difesa vera non e' il prefisso, che dipende da come chiamiamo i file:
-    // e' il turno della conversazione. Gli allegati stanno nel messaggio
-    // dell'utente, il render in quello dell'assistente.
+    // The real defence is not the prefix, which depends on what we call the
+    // files: it is the conversation turn. Attachments live in the user's
+    // message, the render in the assistant's.
     expect(py).toContain('i.closest(\'[data-message-author-role="user"]\')');
     expect(py).toContain("!fromUser(i)");
   });
 });
 
-describe("lo script del worker deve almeno compilare", () => {
-  test("edit_batch.py e' Python valido", async () => {
-    // Una graffa non raddoppiata dentro una f-string ha fatto uscire il worker
-    // con exit 1 a ogni tentativo: la coda si e' riaccodata all'infinito e
-    // nessun test se ne accorgeva, perche' controllavano solo il TESTO del file.
+describe("the worker script must at least compile", () => {
+  test("edit_batch.py is valid Python", async () => {
+    // A brace not doubled inside an f-string made the worker exit 1 on every
+    // attempt: the queue requeued forever and no test noticed, because they
+    // only checked the file's TEXT.
     const proc = Bun.spawnSync(["python3", "-c",
       "import ast,sys;ast.parse(open('scripts/edit_batch.py').read())"]);
     expect(new TextDecoder().decode(proc.stderr)).toBe("");
     expect(proc.exitCode).toBe(0);
   });
 
-  test("color_grade.py e' Python valido", () => {
+  test("color_grade.py is valid Python", () => {
     const proc = Bun.spawnSync(["python3", "-c",
       "import ast;ast.parse(open('scripts/color_grade.py').read())"]);
     expect(proc.exitCode).toBe(0);
@@ -238,9 +240,9 @@ describe("lo script del worker deve almeno compilare", () => {
 describe("il limite immagini di ChatGPT va letto per intero", () => {
   test("il worker riconosce 'You've hit the Plus plan limit'", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // Messaggio reale: "You've hit the Plus plan limit for image generations
-    // requests... resets in 3 hours and 36 minutes." Non contiene "reached",
-    // quindi passava per un timeout muto e la coda continuava a bussare.
+    // Real message: "You've hit the Plus plan limit for image generations
+    // requests... resets in 3 hours and 36 minutes." It does not contain
+    // "reached", so it passed for a mute timeout and the queue kept knocking.
     expect(py).toContain("hit the .*limit");
     expect(py).toContain("plan limit");
     expect(py).toContain("unable to invoke the image");
@@ -250,23 +252,24 @@ describe("il limite immagini di ChatGPT va letto per intero", () => {
 
   test("'3 hours and 36 minutes' non diventa 3 ore secche", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
-    // Perdere i 36 minuti significa ripresentarsi prima del reset e bruciare
-    // un altro tentativo: e' lo stesso difetto gia' corretto per "13 hour".
+    // Losing the 36 minutes means turning up before the reset and burning
+    // another attempt: it is the same defect already fixed for "13 hour".
     expect(src).toContain("(?:hours?|ore|ora)\\s*(?:and|e)");
     expect(src).toContain("(Number(hm[1]) * 60 + Number(hm[2])) * 60 * 1000");
   });
 });
 
-describe("il rifiuto di ChatGPT non e' un guasto", () => {
+describe("a refusal from ChatGPT is not a fault", () => {
   test("si distingue un no di policy da un errore transitorio", () => {
-    // Un guasto passa riprovando, un "no" di policy no: senza distinguerli la
-    // foto tornava in coda a ogni giro a raccogliere lo stesso rifiuto.
+    // A fault passes on a retry, a policy "no" does not: without telling them
+    // apart the photo went back into the queue every round to collect the same
+    // refusal.
     expect(looksLikePolicyRefusal("content-policy refusal (copyright/likeness) — skipped")).toBe(true);
     expect(looksLikePolicyRefusal("no image in 360s (early-exit)")).toBe(false);
     expect(looksLikePolicyRefusal("Connection refused")).toBe(false);
   });
 
-  test("il runner marca la foto quando arriva il rifiuto", async () => {
+  test("the runner marks the photo when the refusal arrives", async () => {
     const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
     expect(src).toContain("if (looksLikePolicyRefusal(err)) {");
     expect(src).toContain("markSkipped(job.photo_id, err)");
@@ -274,24 +277,24 @@ describe("il rifiuto di ChatGPT non e' un guasto", () => {
   });
 });
 
-describe("un render che non ha modificato niente non e' un render", () => {
-  test("il worker rifiuta anche l'immagine IDENTICA all'originale", async () => {
+describe("a render that changed nothing is not a render", () => {
+  test("the worker also rejects the image IDENTICAL to the original", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
-    // Caso reale su 19A084A4: ChatGPT ha restituito la foto di partenza
-    // ridimensionata (correlazione 1.000). Il controllo guardava solo il lato
-    // "troppo diversa", quindi e' entrata in libreria come versione nuova: il
-    // difetto d'ambra che si voleva togliere e' rimasto identico.
+    // Real case on 19A084A4: ChatGPT returned the source photo, resized
+    // (correlation 1.000). The check only looked at the "too different" side,
+    // so it entered the library as a new version: the amber defect it was meant
+    // to remove stayed identical.
     expect(py).toContain("SCENE_MAX_CORR");
     expect(py).toContain("returned the source photo unedited");
-    // La soglia bassa (render di un altro job) deve restare.
+    // The low threshold (a render from another job) must stay.
     expect(py).toContain("SCENE_MIN_CORR");
     expect(py).toContain("does not match the source photo");
   });
 });
 
-describe("gli script di audit devono compilare", () => {
-  // Stessa lezione della f-string rotta in edit_batch.py: un test che controlla
-  // solo il TESTO di un file non si accorge che non gira.
+describe("the audit scripts must compile", () => {
+  // Same lesson as the broken f-string in edit_batch.py: a test that only
+  // checks a file's TEXT does not notice that it does not run.
   for (const f of ["scripts/audit_set.py", "scripts/pick_favorites.py"]) {
     test(`${f} e' Python valido`, () => {
       const proc = Bun.spawnSync(["python3", "-c", `import ast;ast.parse(open('${f}').read())`]);
@@ -300,46 +303,47 @@ describe("gli script di audit devono compilare", () => {
   }
 });
 
-describe("la soglia dell'audit non e' inventata", () => {
-  test("e' tarata sui giudizi reali, non su un numero tondo a caso", async () => {
+describe("the audit threshold is not invented", () => {
+  test("it is calibrated on real judgements, not on a round number picked at random", async () => {
     const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
-    // v83 misurava +23 ed era stata bocciata a occhio ("ancora troppo
-    // gialla"), v93 +16.8 accettata: una soglia a 25 avrebbe promosso proprio
-    // la versione gia' rifiutata.
+    // v83 measured +23 and had been rejected by eye ("still too yellow"), v93
+    // +16.8 accepted: a threshold at 25 would have promoted precisely the
+    // version already rejected.
     expect(py).toContain("AMBRA_SOGLIA = 20.0");
     expect(py).toContain('v83 = +23.0');
     expect(py).toContain('v93 = +16.8');
   });
 
-  test("le eccezioni sono nominate una per una, non una regola che copre tutto", async () => {
+  test("the exceptions are named one by one, not a rule that covers everything", async () => {
     const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
     expect(py).toContain("AMBRA_ACCETTATA");
-    // ogni eccezione porta con se' il motivo
+    // every exception carries its reason with it
     expect(py).toMatch(/"IMG_2913": "[^"]{20,}"/);
   });
 
-  test("l'audit NON confronta col proprio originale", async () => {
+  test("the audit does NOT compare against its own original", async () => {
     const py = await Bun.file(new URL("../scripts/audit_set.py", import.meta.url)).text();
-    // Provato due volte, sbagliato due volte, e la seconda con i numeri in
-    // mano: il confronto mette a paragone il file GRADED (raffreddato dalla
-    // pipeline) con lo scatto originale (caldo di lampade). Su 19A084A4
-    // l'originale misura +114 e ogni render sta sotto, quindi la differenza e'
-    // quasi sempre negativa e non discrimina. Misurato: la prova del veleno
-    // passava da 3/3 a 1/3 — l'audit diventava cieco proprio sui casi che
-    // erano gia' stati bocciati a occhio.
+    // Tried twice, wrong twice, and the second time with the numbers in hand:
+    // the comparison puts the GRADED file (cooled by the pipeline) against the
+    // original shot (warm with lamps). On 19A084A4 the original measures +114
+    // and every render sits below it, so the difference is almost always
+    // negative and does not discriminate. Measured: the poison test went from
+    // 3/3 to 1/3 — the audit went blind on exactly the cases that had already
+    // been rejected by eye.
     expect(py).not.toContain("def originale_ambra");
     expect(py).toContain("AMBRA_SOGLIA = 20.0");
-    // Le scene davvero calde restano gestite a mano, una per una col motivo.
+    // The genuinely warm scenes stay handled by hand, one at a time with the
+    // reason.
     expect(py).toContain("AMBRA_ACCETTATA");
   });
 });
 
-describe("le misure dell'audit non devono degenerare in silenzio", () => {
-  test("una superficie uniforme non produce NaN", () => {
-    // Con ">" stretto, su un'immagine uniforme il filtro sul percentile non
-    // seleziona nessun pixel: media di array vuoto = NaN, e un NaN fallisce
-    // OGNI confronto senza dire niente. Il caso piu' degenere sarebbe stato
-    // anche l'unico invisibile.
+describe("the audit measurements must not degenerate silently", () => {
+  test("a uniform surface does not produce NaN", () => {
+    // With a strict ">", on a uniform image the percentile filter selects no
+    // pixel: the mean of an empty array = NaN, and a NaN fails EVERY comparison
+    // without saying anything. The most degenerate case would also have been
+    // the only invisible one.
     const py = Bun.spawnSync(["python3", "-c", `
 import numpy as np, sys, importlib.util
 from PIL import Image
