@@ -7,35 +7,34 @@ import { leavesQueue, type PickFilter } from "../videoQueue";
 
 import type { OutletCtx } from "../App";
 
-/** Larghezza della clip nella modalita' Scelta, in pixel. Si trascina, e resta
- *  fra una sessione e l'altra: chi giudica a raffica non vuole ritrovarsi la
- *  misura di default ogni volta che riapre.
+/** Width of the clip in Pick mode, in pixels. It is dragged, and it survives
+ *  between sessions: someone judging at speed does not want to find the
+ *  default size again every time they reopen it.
  *
- *  `null` non vuol dire "nessuna misura": vuol dire QUANTO CI STA — la clip
- *  prende tutta l'altezza disponibile e si ferma dove finisce. E' il valore di
- *  partenza perche' una misura fissa (erano 300px) lascia mezza colonna vuota
- *  su uno schermo grande e sborda su uno piccolo, cioe' sbaglia sempre da
- *  qualche parte. Un numero c'e' solo dopo che qualcuno ha trascinato. */
+ *  `null` does not mean "no size": it means AS MUCH AS FITS — the clip takes
+ *  all the height available and stops where that ends. It is the starting
+ *  value because a fixed size (it was 300px) leaves half a column empty on a
+ *  big screen and overflows on a small one, i.e. it is always wrong somewhere.
+ *  There is a number only once somebody has dragged. */
 const KEY_WIDTH = "darkroom.scelta.larghezzaClip";
 
 /**
- * Giudicare le scene, una alla volta.
+ * Judging the shots, one at a time.
  *
- * La griglia serve a sfogliare, questa serve a decidere, e le due cose vogliono
- * layout diversi. Nella griglia due verticali 9:16 dentro una tessera fanno
- * ~80px l'una: a quella dimensione i difetti che contano non si vedono — il
- * buco bianco sulla schiena di `g_scal1` era passato due volte prima che
- * qualcuno aprisse quella ripresa da sola.
+ * The grid is for browsing, this is for deciding, and the two want different
+ * layouts. In the grid two 9:16 verticals inside one tile are ~80px each: at
+ * that size the defects that matter are invisible — the white hole on the back
+ * of `g_scal1` got through twice before anybody opened that shot on its own.
  *
- * Il giudizio e' l'unica cosa della catena che una misura non sa dare. Ne sono
- * state provate tre (bilancio tonale, area di dettaglio, salto della sagoma) e
- * nessuna separa una figura che si scioglie da una che entra in un'onda:
- * l'indice di `d02`, che si sfascia a vista, sta in mezzo al gruppo.
+ * Judgement is the one thing in the chain no measurement can supply. Three were
+ * tried (tonal balance, detail area, silhouette jump) and none separates a
+ * figure that dissolves from one walking into a wave: the index of `d02`, which
+ * visibly falls apart, sits in the middle of the pack.
  */
 
-/** Una scena e' una PRESA, non un file: `z43_0` e `z43_1` sono due meta' della
- *  stessa generazione e giudicarle separate e' la ragione per cui il montaggio
- *  sembrava pieno di doppioni pur avendo 122 nomi diversi. */
+/** A shot is a TAKE, not a file: `z43_0` and `z43_1` are two halves of the
+ *  same generation, and judging them apart is why the cut looked full of
+ *  duplicates despite having 122 different names. */
 type Scene = {
   origine: string;
   pezzi: VideoShot[];
@@ -43,15 +42,15 @@ type Scene = {
   minute: number | null;
   inEdit: number;
   kept: boolean;
-  /** Il verdetto dato, se c'è. `null` vuol dire mai passata sotto gli occhi —
-   *  che non è la stessa cosa di "tenuta": tenere è lo stato di partenza. */
+  /** The verdict given, if any. `null` means never looked at — which is not
+   *  the same as "kept": keeping is the starting state. */
   verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
   annotated: boolean;
-  /** Perché guardarla per prima. Non è un verdetto: è un ordine di lettura. */
+  /** Why to watch it first. Not a verdict: a reading order. */
   suspect: string | null;
-  /** Ogni volta che entra nel montaggio. Un totale di secondi non dice se sono
-   *  un blocco solo o tre lampi sparsi, e da giudicare sono due cose diverse. */
+  /** Every time it enters the cut. A total in seconds does not say whether it
+   *  is one block or three scattered flashes, and those judge differently. */
   apparizioni: { t: number; dur: number; act: string | null }[];
 };
 
@@ -69,17 +68,17 @@ function group(shots: VideoShot[]): Scene[] {
         act: inM[0]?.act ?? null,
         minute: inM.length ? Math.min(...inM.map((p) => p.minute!)) : null,
         inEdit: pezzi.reduce((n, p) => n + p.inEdit, 0),
-        // Una presa e' "tenuta" se almeno un pezzo lo e'.
+        // A take is "kept" if at least one piece is.
         kept: pezzi.some((p) => p.kept),
-        // Il verdetto della presa: basta un pezzo scartato perche' lo sia, e
-        // serve almeno un si' esplicito perche' conti come approvata.
+        // The take's verdict: one discarded piece is enough to make it so, and
+        // it takes at least one explicit yes to count as approved.
         verdict: (pezzi.some((p) => p.verdict === "scartata") ? "scartata"
                  : pezzi.some((p) => p.verdict === "tenuta") ? "tenuta"
                  : null) as Scene["verdict"],
         judgedAt: pezzi.reduce<number | null>(
           (m, p) => (p.judgedAt && (!m || p.judgedAt > m) ? p.judgedAt : m), null),
         annotated: pezzi.some((p) => p.problems.length > 0),
-        // Il sospetto della presa e' quello del primo pezzo che ne ha uno.
+        // The take's suspicion is that of the first piece that has one.
         suspect: pezzi.find((p) => p.suspect)?.suspect ?? null,
         apparizioni: pezzi.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
       };
@@ -87,11 +86,11 @@ function group(shots: VideoShot[]): Scene[] {
     .sort((a, b) => (a.minute ?? 1e9) - (b.minute ?? 1e9) || a.origine.localeCompare(b.origine));
 }
 
-/** Una sola definizione, accanto alla regola che dice chi esce dall'elenco:
- *  due elenchi di filtri che divergono sono un salto di scena che ritorna. */
+/** One definition only, next to the rule that says who leaves the list:
+ *  two filter lists that drift apart are a jump cut that keeps coming back. */
 type Filter = PickFilter;
 
-/** Dodici istanti in una striscia. Ogni casella porta il video al suo. */
+/** Twelve instants in a strip. Each cell takes the video to its own. */
 function Take({ shot, take, onVaiA }: {
   shot: string; take: string; onVaiA: (frazione: number) => void;
 }) {
@@ -126,13 +125,13 @@ function Take({ shot, take, onVaiA }: {
 
 
 /**
- * La durezza: quanto l'immagine picchia, messa in fila con tutte le altre.
+ * The hardness: how hard the image hits, lined up against all the others.
  *
- * Il cursore serve perche' la misura sbaglia in un modo preciso: guarda
- * movimento, contrasto e luce, e la forza di un'immagine non sempre sta li'
- * dentro. Una figura ferma che riempie il quadro picchia piu' di un'onda
- * lontana che si agita. Senza cursore l'unico rimedio era scartare la ripresa,
- * cioe' buttarla invece di rimetterla al posto giusto.
+ * The slider exists because the measurement is wrong in a specific way: it
+ * looks at motion, contrast and light, and an image's force is not always in
+ * there. A still figure filling the frame hits harder than a distant wave
+ * thrashing about. Without the slider the only remedy was discarding the shot,
+ * i.e. throwing it away instead of putting it back in the right place.
  */
 function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }: {
   shot: string;
@@ -143,13 +142,13 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
   const [tocco, setTocco] = useState<number | null>(null);
 
   /**
-   * Si salva UNA volta, quando il cursore si ferma.
+   * It saves ONCE, when the slider settles.
    *
-   * Salvando a ogni scatto le scritture si sorpassano fra loro: dodici colpi di
-   * freccia da 0.60 partono come dodici POST, e sul server resta l'ultima che
-   * ARRIVA, non l'ultima che parte. Misurato: il cursore diceva 0.48, dopo la
-   * ricarica tornava 0.53. Con l'attesa parte una scrittura sola, quella
-   * giusta, e non c'e' nessuna corsa da vincere.
+   * Saving on every notch makes the writes overtake each other: twelve arrow
+   * taps from 0.60 leave as twelve POSTs, and what survives on the server is
+   * the last one to ARRIVE, not the last one sent. Measured: the slider said
+   * 0.48, after a reload it was back to 0.53. With the wait one write leaves,
+   * the right one, and there is no race to win.
    */
   const attesa = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = (v: number) => {
@@ -208,13 +207,13 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
 }
 
 /**
- * Cosa si vede, in una riga.
+ * What you see, in one line.
  *
- * Quella automatica e' il prompt meno le frasi che hanno tutte le riprese:
- * resta l'inquadratura, che e' l'unica parte che distingue questa dalle altre
- * trecento. Si puo' riscrivere, e allora vince la tua — perche' un ritaglio
- * dice cosa e' stato CHIESTO, e dopo aver guardato la clip si sa cosa e'
- * VENUTO, che non e' la stessa cosa.
+ * The automatic one is the prompt minus the sentences every shot carries: what
+ * is left is the framing, the only part that tells this one apart from the
+ * other three hundred. It can be rewritten, and then yours wins — because a
+ * crop says what was ASKED FOR, and after watching the clip you know what came
+ * OUT, which is not the same thing.
  */
 function Descrizione({ shot, text, manual, onSave }: {
   shot: string; text: string | null; manual: boolean; onSave: (t: string) => void;
@@ -276,22 +275,23 @@ function Descrizione({ shot, text, manual, onSave }: {
   );
 }
 
-/** Se la ripresa sta bene dov'e' finita. E' il metro che alla durezza manca:
- *  0.95 e' tanto se li' il brano respira, giusto se li' picchia. Soglia 0.20,
- *  che e' dove lo scarto comincia a vedersi guardando. */
+/** Whether the shot sits well where it landed. It is the yardstick hardness
+ *  lacks: 0.95 is a lot if the track breathes there, right if it hits there.
+ *  Threshold 0.20, which is where the gap starts to be visible. */
 /**
- * Il trasporto della clip.
+ * The clip's transport.
  *
- * Prima c'era `autoPlay muted loop` e basta: la clip girava e non si poteva
- * fare niente. Ma qui non si guarda una clip, la si ESAMINA — «si sfalda a
- * fine giro», «la mano sparisce a meta'» — e per dirlo bisogna poterla
- * fermare sul fotogramma in cui succede. Un giudizio dato al volo su un ciclo
- * che scorre e' un'impressione, non un'osservazione.
+ * It used to be `autoPlay muted loop` and nothing else: the clip span and you
+ * could do nothing about it. But here you do not watch a clip, you EXAMINE it —
+ * «it falls apart at the end of the loop», «the hand disappears halfway» — and
+ * to say that you have to be able to stop it on the frame where it happens. A
+ * judgement given on the fly over a running loop is an impression, not an
+ * observation.
  *
- * Il passo di un fotogramma si ricava da `fotogrammi / durata`, non da un 24
- * scritto qui: la durata la dice il file e i fotogrammi li dice il server, e
- * una costante sarebbe muta proprio sulle riprese generate a lunghezza
- * diversa (2.5s contro 3.4s).
+ * The frame step comes from `frames / duration`, not from a 24 written here:
+ * the file gives the duration and the server gives the frames, and a constant
+ * would be mute on exactly the shots generated at a different length (2.5s
+ * against 3.4s).
  */
 function Transport({ video, frameCount }: {
   video: React.RefObject<HTMLVideoElement | null>;
@@ -303,9 +303,9 @@ function Transport({ video, frameCount }: {
   const [velocita, setVelocita] = useState(1);
   const [ciclo, setCiclo] = useState(true);
 
-  // I listener si riagganciano a ogni cambio di clip: `key` sul <video> lo fa
-  // ricreare, quindi un effetto agganciato una volta sola parlerebbe a un nodo
-  // che non e' piu' nel documento.
+  // The listeners re-attach on every clip change: `key` on the <video> makes
+  // it be recreated, so an effect attached once would be talking to a node no
+  // longer in the document.
   useEffect(() => {
     const v = video.current;
     if (!v) return;
@@ -345,8 +345,8 @@ function Transport({ video, frameCount }: {
     if (v.paused) void v.play(); else v.pause();
   };
 
-  // Le frecce giudicano, quindi il fotogramma si sposta con `,` e `.` — gli
-  // stessi tasti di ogni programma di montaggio — e `k` ferma e riparte.
+  // The arrows judge, so the frame moves with `,` and `.` — the same keys as
+  // every editing program — and `k` stops and starts.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -359,8 +359,8 @@ function Transport({ video, frameCount }: {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // Tosato all'ultimo fotogramma: a clip finita `tempo` vale esattamente la
-  // durata, e la divisione dava "f82/81" — un fotogramma che non esiste.
+  // Clamped at the last frame: with the clip finished `time` is exactly the
+  // duration, and the division gave "f82/81" — a frame that does not exist.
   const n = step > 0 && frameCount
     ? Math.min(frameCount, Math.floor(time / step) + 1)
     : step > 0 ? Math.floor(time / step) + 1 : 0;
@@ -419,9 +419,10 @@ function Combacia({ suono, shot }: { suono: number | null; shot: number | null }
   );
 }
 
-/** Lo stato come selezione fra tre, non come frase. Si vede dov'e' messo e si
- *  sposta da qui: prima "scorda il voto" era un tastino in coda a una riga di
- *  testo, e cambiare idea voleva dire cercarlo. */
+/** The state as a choice between three, not as a sentence. You see where it
+ *  is set and you move it from here: "forget the verdict" used to be a small
+ *  button at the end of a line of text, and changing your mind meant hunting
+ *  for it. */
 function State({ value, onChange }: {
   value: "tenuta" | "scartata" | null;
   onChange: (v: "tenuta" | "scartata" | null) => void;
@@ -463,13 +464,13 @@ export default function VideoPick() {
   const [par, setPar] = useState({ width: 640, height: 1152, length: 61, steps: 20 });
   const [jobs, setJobs] = useState<VideoJob[]>([]);
 
-  /** Anche qui l'altezza si misura: la clip deve prendere lo schermo che c'è,
-   *  e la pagina non deve scorrere mentre si giudica a raffica. */
+  /** Here too the height is measured: the clip must take the screen there is,
+   *  and the page must not scroll while you judge at speed. */
   const shell = useRef<HTMLDivElement>(null);
   const [shellHeight, setHGuscio] = useState(700);
   useLayoutEffect(() => {
-    // Anche questa pagina si prende tutta l'altezza: lo spazio che il guscio
-    // dell'app mette sopra le altre, qui e' altezza rubata alla clip.
+    // This page takes the full height too: the space the app shell puts above
+    // the others is, here, height stolen from the clip.
     ctx?.setFlush?.(true);
     const measure = () => {
       const el = shell.current;
@@ -480,8 +481,9 @@ export default function VideoPick() {
     };
     measure();
     window.addEventListener("resize", measure);
-    // La misura va rifatta anche quando cambia il contenitore, non solo la
-    // finestra: navigando da Montaggio a Scelta il padding cambia sotto i piedi.
+    // The measurement must be redone when the container changes as well, not
+    // just the window: navigating from Cut to Pick the padding changes under
+    // your feet.
     const ro = new ResizeObserver(measure);
     if (shell.current?.parentElement) ro.observe(shell.current.parentElement);
     return () => {
@@ -511,29 +513,30 @@ export default function VideoPick() {
     } catch { /* niente */ }
   }, [wantedWidth]);
 
-  /** Il rapporto VERO del fotogramma, letto dal file quando parte.
-   *  Non si suppone 9:16: le anteprime stanno fra 0.550 e 0.556, e supporlo
-   *  vuol dire deformare la figura fino al 2% proprio mentre la si giudica. */
+  /** The frame's REAL ratio, read from the file when it starts.
+   *  9:16 is not assumed: the previews sit between 0.550 and 0.556, and
+   *  assuming it means deforming the figure by up to 2% exactly while it is
+   *  being judged. */
   const [rapporto, setRapporto] = useState(9 / 16);
 
-  /** L'altezza si misura sull'AREA DEL VIDEO, non sul pannello: sotto la clip
-   *  c'e' la fila degli spezzoni, e misurare il pannello intero regalerebbe
-   *  alla clip un'altezza che non ha — cioe' la farebbe sbordare esattamente
-   *  sulle prese in due pezzi. */
+  /** The height is measured on the VIDEO AREA, not the panel: under the clip
+   *  is the row of pieces, and measuring the whole panel would hand the clip a
+   *  height it does not have — i.e. make it overflow on precisely the takes
+   *  that come in two pieces. */
   const [areaHeight, setHArea] = useState(0);
   const [panelWidth, setPanelWidth] = useState(0);
 
   /**
-   * L'osservatore si aggancia con un ref-callback, NON con un effetto.
+   * The observer attaches with a ref callback, NOT with an effect.
    *
-   * Con `useLayoutEffect(..., [])` c'era un difetto vero e silenzioso: l'area
-   * del video vive dentro il ramo `{!scena ? ... : ...}`, quindi al primo
-   * render — quando le riprese non sono ancora arrivate dal server — il
-   * riferimento e' nullo, l'effetto esce subito e non viene mai rieseguito.
-   * Risultato: `hArea` restava 0, il limite d'altezza spariva del tutto
-   * (`hArea || Infinity`) e trascinando la clip cresceva fino a finire sotto
-   * la finestra. Un ref-callback viene invece chiamato ogni volta che il nodo
-   * entra o esce dal DOM, che e' proprio la cosa da seguire.
+   * With `useLayoutEffect(..., [])` there was a real, silent defect: the video
+   * area lives inside the `{!shot ? ... : ...}` branch, so on the first render
+   * — when the shots have not arrived from the server yet — the ref is null,
+   * the effect returns immediately and is never re-run. Result: `hArea` stayed
+   * 0, the height limit vanished entirely (`hArea || Infinity`) and dragging
+   * the clip grew it until it went off the bottom of the window. A ref callback
+   * is instead called every time the node enters or leaves the DOM, which is
+   * exactly the thing to follow.
    */
   const snapArea = useCallback((el: HTMLDivElement | null) => {
     osservatore.current?.disconnect();
@@ -551,31 +554,30 @@ export default function VideoPick() {
     osservatore.current = ro;
   }, []);
 
-  /** Quanto spazio resta al pannello di destra, come minimo. Sotto questa
-   *  soglia il prompt e il provino diventano illeggibili, e allargare la clip
-   *  fino a schiacciarli non e' una scelta che valga la pena poter fare. */
+  /** How much room is left to the right-hand panel, at minimum. Below this
+   *  threshold the prompt and the strip become unreadable, and widening the
+   *  clip until they are crushed is not a choice worth being able to make. */
   const MIN_RIGHT = 320;
 
   /**
-   * Si fissa l'ALTEZZA, non la larghezza, e la larghezza resta `auto`.
+   * The HEIGHT is fixed, not the width, and the width stays `auto`.
    *
-   * Sembra un dettaglio ed e' la differenza fra "non sborda" e "sborda del
-   * 2%". Fissando la larghezza, l'altezza esce da una divisione per
-   * `rapporto` — e `rapporto` e' una stima finche' il file non ha caricato i
-   * metadati: parte da 9/16 (0.5625) mentre le anteprime vere stanno a 0.550.
-   * Basta quel 2% e la clip finisce sotto il bordo e viene tagliata, che e'
-   * esattamente cio' che si vedeva.
+   * It looks like a detail and it is the difference between "does not overflow"
+   * and "overflows by 2%". Fixing the width makes the height come out of a
+   * division by `ratio` — and `ratio` is a guess until the file has loaded its
+   * metadata: it starts at 9/16 (0.5625) while the real previews sit at 0.550.
+   * That 2% is enough for the clip to end up under the edge and be cut off,
+   * which is exactly what could be seen.
    *
-   * Fissando l'altezza il vincolo diventa esatto: `hArea` e' misurato, non
-   * stimato, e la clip non puo' essere piu' alta dello spazio che ha. Il
-   * `rapporto` resta usato solo per tradurre la larghezza VOLUTA in
-   * un'altezza: se e' un po' sbagliato la clip esce leggermente piu' stretta
-   * o piu' larga di quanto chiesto — cosa che non si nota — invece di
-   * sbordare, che si nota subito.
+   * Fixing the height makes the constraint exact: `hArea` is measured, not
+   * estimated, and the clip cannot be taller than the space it has. `ratio`
+   * stays in use only to translate the WANTED width into a height: if it is a
+   * little wrong the clip comes out slightly narrower or wider than asked —
+   * which nobody notices — instead of overflowing, which is noticed at once.
    *
-   * E la larghezza `auto` la deduce il fotogramma dal suo rapporto vero:
-   * niente deformazione e niente bande, perche' non c'e' nessun riquadro con
-   * una forma decisa da noi da riempire.
+   * And the `auto` width is deduced by the frame from its real ratio: no
+   * deformation and no bars, because there is no box with a shape we decided
+   * for it to fill.
    */
   const clipHeight = Math.max(
     120,
@@ -593,18 +595,18 @@ export default function VideoPick() {
   }, []);
 
   const scenes = useMemo(() => group(shots), [shots]);
-  /** Gli atti col loro `perche`. Vengono dal piano, non dedotti dalle riprese:
-   *  e' li' che sta la riga di storia. */
+  /** The beats with their `why`. They come from the plan, not deduced from the
+   *  shots: that is where the line of story lives. */
   const [fullActs, setFullActs] = useState<VideoAct[]>([]);
-  /** I tagli servono per una cosa sola qui: dire quanto e' duro il BRANO nel
-   *  punto in cui la ripresa cade. Senza, la durezza della ripresa e' un
-   *  numero senza metro — 0.95 e' tanto o poco? Dipende da cosa chiede il
-   *  brano li', ed e' esattamente l'aggancio su cui il montaggio e' costruito. */
+  /** The cuts serve one purpose here: saying how hard the TRACK is at the point
+   *  the shot falls on. Without them a shot's hardness is a number with no
+   *  yardstick — is 0.95 a lot or a little? It depends on what the track asks
+   *  for there, and that is exactly the hook the cut is built on. */
   const [cuts, setTagli] = useState<VideoCut[]>([]);
   useEffect(() => {
     api.videoCuts().then((r) => { setFullActs(r.acts ?? []); setTagli(r.cuts ?? []); }).catch(() => {});
   }, []);
-  /** La durezza del suono al secondo `t`, dal taglio che ci cade sopra. */
+  /** The hardness of the sound at second `t`, from the cut that lands on it. */
   const suonoA = useCallback(
     (t: number) => cuts.find((c) => Math.abs(c.t - t) < 0.25)?.soundIntensity ?? null,
     [cuts],
@@ -636,8 +638,8 @@ export default function VideoPick() {
   const scene = queue[Math.min(i, Math.max(0, queue.length - 1))] ?? null;
   const current = scene?.pezzi[Math.min(piece, scene.pezzi.length - 1)] ?? null;
 
-  // Le generazioni si guardano solo mentre ce n'e' una viva: una scheda sola,
-  // e un sondaggio a vuoto ogni tre secondi per tutta la sessione non serve.
+  // Generations are watched only while one is alive: a single tab, and an
+  // empty poll every three seconds for the whole session serves nobody.
   useEffect(() => {
     let alive = true;
     const pass = async () => {
@@ -658,21 +660,21 @@ export default function VideoPick() {
   const avanti = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, queue.length - 1))), [queue.length]);
 
   /**
-   * L'ultimo verdetto, con com'era prima.
+   * The last verdict, with what it was before.
    *
-   * Si giudica a raffica con le frecce, quindi prima o poi si preme quella
-   * sbagliata — e la scena e' gia' passata. Finche' l'unica traccia era una
-   * riga in `scelte.json`, "ho scartato qualcosa per sbaglio?" era una domanda
-   * a cui si poteva rispondere solo aprendo il file. Adesso l'ultimo resta
-   * scritto in pagina, con il suo annulla, finche' non se ne fa un altro.
+   * You judge at speed with the arrows, so sooner or later you press the wrong
+   * one — and the shot has already gone by. As long as the only trace was a
+   * line in `scelte.json` on disk, "did I discard something by mistake?" was a question
+   * you could only answer by opening the file. Now the last one stays written
+   * on the page, with its undo, until another is made.
    */
   /**
-   * Si ricorda il GIUDIZIO di prima, non `kept`.
+   * It remembers the previous JUDGEMENT, not `kept`.
    *
-   * `kept` è un booleano, e una ripresa mai giudicata ce l'ha vero — nessuno
-   * l'ha scartata. Ripristinando quello, l'annulla di uno scarto la scriveva
-   * fra le tenute: premevi «annulla» e al posto di tornare indietro davi un sì.
-   * Il terzo stato (`null` = mai giudicata) è l'unico che sa disfare davvero.
+   * `kept` is a boolean, and a never-judged shot has it true — nobody discarded
+   * it. Restoring that, undoing a discard wrote it among the kept ones: you
+   * pressed «undo» and instead of going back you gave a yes. The third state
+   * (`null` = never judged) is the only one that can really undo.
    */
   const [last, setLast] = useState<
     { ids: string[]; name: string; kept: boolean; before: Map<string, VideoShot["verdict"]>; index: number } | null
@@ -683,7 +685,7 @@ export default function VideoPick() {
       if (!scene) return;
       const ids = scene.pezzi.map((p) => p.id);
       const before = new Map(scene.pezzi.map((p) => [p.id, p.verdict]));
-      // Ottimismo: la riga resta come l'utente l'ha messa anche se la rete tarda.
+      // Optimistic: the row stays as the user set it even if the network lags.
       setShots((prev) =>
         prev.map((s) =>
           ids.includes(s.id) ? { ...s, kept, verdict: kept ? "tenuta" : "scartata" } : s));
@@ -693,20 +695,21 @@ export default function VideoPick() {
         for (const id of ids) u = (await api.videoPick(id, kept, why)).shots;
         setShots(u);
       } catch { /* la riga resta come l'utente l'ha messa */ }
-      // Avanzare DOPO aver giudicato salta una scena, e la salta in silenzio:
-      // la giudicata e' gia' uscita dall'elenco e quella dopo e' scalata da
-      // sola in posizione `i`. La regola sta in `videoCoda.ts`, con il suo test.
+      // Advancing AFTER judging skips a shot, and skips it silently: the judged
+      // one has already left the list and the next has moved up into slot `i`
+      // by itself. The rule lives in `videoQueue.ts`, with its test.
       if (!leavesQueue(filter, kept)) avanti();
     },
     [scene, shots, avanti, i, filter],
   );
 
-  /** Rimette ogni pezzo com'era e torna sulla scena, così la si può riguardare. */
+  /** Puts every piece back as it was and returns to the shot, so it can be
+ *  watched again. */
   const undoLast = useCallback(async () => {
     if (!last) return;
     const u = last;
     setLast(null);
-    /** "tenuta" -> sì · "scartata" -> no · mai giudicata -> nessun verdetto. */
+    /** "kept" -> yes · "discarded" -> no · never judged -> no verdict. */
     const toward = (g: VideoShot["verdict"]) => (g === null ? null : g === "tenuta");
     setShots((prev) =>
       prev.map((s) => {
@@ -729,14 +732,14 @@ export default function VideoPick() {
     try { setShots((await api.videoProblem(scene.pezzi[0]!.id, t)).shots); } catch { /* niente */ }
   }, [text, scene]);
 
-  // Tastiera: le mani restano ferme e si giudica a raffica.
+  // Keyboard: the hands stay put and you judge at speed.
   //
-  // DOVE si sta scrivendo o si sta muovendo un cursore, pero', i tasti tornano
-  // a essere tasti. Senza questa guardia il difetto non e' estetico: il cursore
-  // della durezza non si muoveva affatto (la freccia sinistra apriva "scarta" e
-  // faceva preventDefault), e portare il cursore dentro la descrizione con le
-  // frecce SCARTAVA la ripresa che si stava descrivendo. Trovato provando il
-  // cursore da fuori, non leggendo il codice.
+  // WHERE text is being typed or a slider is being moved, though, the keys go
+  // back to being keys. Without this guard the defect is not cosmetic: the
+  // hardness slider would not move at all (the left arrow opened "discard" and
+  // called preventDefault), and moving the caret inside the description with
+  // the arrows DISCARDED the shot being described. Found by trying the slider
+  // from the outside, not by reading the code.
   const onOneField = (t: EventTarget | null) => {
     const el = t as HTMLElement | null;
     if (!el || !el.tagName) return false;
@@ -845,10 +848,10 @@ export default function VideoPick() {
                   title={`${s.origine} — ${s.verdict ?? "mai giudicata"}${
                     s.minute !== null ? ` · ${mmss(s.minute)}` : " · non in montaggio"}`}
                   onClick={() => {
-                    // Saltare a una presa che il filtro corrente nasconde non
-                    // puo' fallire in silenzio: si allarga il filtro e ci si
-                    // va. Il contrario — un clic che non fa niente — e' il modo
-                    // piu' rapido per far credere che la mappa sia decorativa.
+                    // Jumping to a take the current filter hides cannot fail
+                    // silently: the filter is widened and you go there. The
+                    // opposite — a click that does nothing — is the fastest way
+                    // to make people think the map is decorative.
                     const where = queue.findIndex((c) => c.origine === s.origine);
                     if (where >= 0) setI(where);
                     else { setFilter("all"); setAct(""); setI(scenes.indexOf(s)); }
@@ -952,9 +955,9 @@ export default function VideoPick() {
             onPointerDown={(e) => {
               e.preventDefault();
               (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-              // Si parte dalla larghezza VISIBILE, non da quella voluta: finche'
-              // nessuno ha trascinato la voluta e' `null`, e il trascinamento
-              // deve continuare da dove la clip sta adesso, non da un numero.
+              // Start from the VISIBLE width, not the wanted one: until
+              // somebody has dragged, the wanted one is `null`, and the drag
+              // has to continue from where the clip is now, not from a number.
               trascino.current = { x0: e.clientX, w0: wantedWidth ?? clipHeight * rapporto };
             }}
             onPointerMove={(e) => {
@@ -1190,10 +1193,10 @@ export default function VideoPick() {
                 </div>
               </div>
             ) : (
-              /* La scorciatoia sta SUL tasto, non in una legenda a fianco:
-                 una legenda si legge una volta e poi diventa arredamento,
-                 mentre il tasto lo si guarda ogni volta che si esita. Il
-                 tasto la insegna, e chi la impara smette di usarlo. */
+              /* The shortcut lives ON the button, not in a legend beside it:
+                 a legend is read once and then becomes furniture, while the
+                 button is looked at every time you hesitate. The button
+                 teaches it, and whoever learns it stops using the button. */
               <div className="mt-4 flex gap-2 items-center flex-wrap">
                 <VerdictButton onClick={() => setNota("scarto")} tasto="←"
                   className="border-rose-800 text-rose-300 hover:bg-rose-950/50">

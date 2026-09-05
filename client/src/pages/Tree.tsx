@@ -4,13 +4,13 @@ import { useViewState, readBool, readOneOf, readNumber } from "../viewState";
 import { Pills } from "../ui";
 import { VERDICTS, type Verdict, filterTree, countVerdicts } from "../treeFilter";
 
-// Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
-// configurazione.
+// Pick view (LIN-02): each shot and its branches, grouped by configuration.
 //
-// Perche' non un filtro sulla griglia: la griglia ordina per foto e risponde a
-// "quali foto ho". Qui la domanda e' "quale variante tengo, e da cosa e' nata",
-// che e' una relazione. Con 162 varianti in sei configurazioni, sulla griglia
-// non si rispondeva senza interrogare il database a mano.
+// Why not a filter on the grid: the grid sorts by photo and answers "which
+// photos do I have". Here the question is "which variant do I keep, and what
+// was it born from", which is a relation. With 162 variants across six
+// configurations, the grid could not answer it without querying the database by
+// hand.
 
 type Variant = {
   id: number;
@@ -18,28 +18,29 @@ type Variant = {
   verdict: string | null;
   note: string | null;
   favorite: boolean;
-  /** Il prompt esatto con cui e' nata. Prima stava solo nel database: per
-   *  capire perche' due varianti differiscono bisognava aprire sqlite. */
+  /** The exact prompt it was born from. It used to live only in the database:
+   *  understanding why two variants differ meant opening sqlite. */
   prompt?: string;
-  /** I nomi veri dei file di ingresso, non gli id tradotti per le miniature. */
+  /** The real names of the input files, not the ids translated for thumbnails. */
   source_files?: string[];
   file_refs?: string[];
-  /** Gli id-foto delle sorgenti, paralleli a `file_sorgenti`. Servono per la
-   *  miniatura: il client non puo' ricavarli dal nome, "1.PNG" -> "1" funziona
-   *  per caso e su un'estensione inattesa darebbe un'immagine rotta. */
+  /** The photo ids of the sources, parallel to `source_files`. Needed for the
+   *  thumbnail: the client cannot derive them from the name, "1.PNG" -> "1"
+   *  works by accident and on an unexpected extension would give a broken
+   *  image. */
   source_ids?: (string | null)[];
-  /** Il motore che l'ha prodotta: cdp, codex-http, openai. */
+  /** The engine that produced it: cdp, codex-http, openai. */
   backend?: string | null;
-  /** Modello e resa: lo stesso modello in `low` e in `high` sono due
-   *  esperimenti diversi, e senza questo dato sembrano lo stesso. */
+  /** Model and quality: the same model at `low` and at `high` are two
+   *  different experiments, and without this field they look like one. */
   model?: string | null;
   quality?: string | null;
   /** Costo stimato in dollari. */
   cost_usd?: number | null;
-  /** Quando e' nata, in millisecondi. */
+  /** When it was born, in milliseconds. */
   created_at?: number;
-  /** Il file non c'e' sul disco. Una variante cosi' mostrava un rettangolo
-   *  vuoto senza spiegazione: sembrava una miniatura ancora da caricare. */
+  /** The file is not on disk. A variant like this showed an empty rectangle
+   *  with no explanation: it looked like a thumbnail still loading. */
   missing?: boolean;
 };
 type Group = {
@@ -47,14 +48,14 @@ type Group = {
   refset: string;
   preamble: string | null;
   sources: string[];
-  /** File di stile allegati a questa generazione, se ce ne sono. */
+  /** Style files attached to this generation, if any. */
   refs?: string[];
   variants: Variant[];
 };
 type Node = {
-  /** Prima foto dell'insieme: copertina e link. */
+  /** First photo of the set: cover and link. */
   photo: string;
-  /** L'insieme di ingresso per intero. Una sola foto = insieme di 1. */
+  /** The whole input set. A single photo = a set of 1. */
   photos?: string[];
   variants: number;
   recipes: number;
@@ -64,15 +65,15 @@ type Node = {
 const CYCLE = [null, "keep", "maybe", "discard"] as const;
 
 /**
- * Una riga del pannello dettagli: le immagini di ingresso, non i loro nomi.
+ * A row of the details panel: the input images, not their names.
  *
- * Un elenco di nomi non dice QUALE foto e': "1.PNG" e "ChatGPT Image Aug
- * 15..." sono etichette, e per sapere cosa e' entrato in una generazione
- * bisognava andarle a cercare a mano nella cartella.
+ * A list of names does not say WHICH photo it is: "1.PNG" and "ChatGPT Image
+ * Aug 15..." are labels, and to know what went into a generation you had to go
+ * hunting through the folder by hand.
  *
- * Esiste anche per dire il VUOTO: una sezione che non compare si legge come un
- * guasto, una che dice "nessuno" si legge come un fatto — e sono due cose
- * diverse quando si cerca di capire perche' due varianti sono uscite diverse.
+ * It also exists to state EMPTINESS: a section that does not appear reads as a
+ * fault, one that says "none" reads as a fact — and those are two different
+ * things when you are trying to work out why two variants came out different.
  */
 function Item({
   title,
@@ -85,13 +86,13 @@ function Item({
   title: string;
   values?: string[];
   empty: string;
-  /** Id-foto paralleli a `valori`, quando la miniatura si chiede per id. */
+  /** Photo ids parallel to `values`, when the thumbnail is asked for by id. */
   ids?: (string | null)[];
-  /** Come costruire la miniatura, quando si chiede per nome di file. */
+  /** How to build the thumbnail, when it is asked for by file name. */
   preview?: (f: string) => string;
-  /** Ingrandimento: una miniatura da 64px serve a riconoscere un'immagine gia'
-   *  nota, non a giudicarla. Senza, per vedere cosa era davvero entrato nella
-   *  generazione bisognava aprire il file dal Finder. */
+  /** Zoom: a 64px thumbnail is for recognising an image you already know, not
+   *  for judging it. Without it, seeing what really went into the generation
+   *  meant opening the file from the Finder. */
   onZoom?: (large: string, didascalia: string) => void;
 }) {
   return (
@@ -101,7 +102,7 @@ function Item({
         <div className="mt-1 flex flex-wrap gap-1.5">
           {values!.map((f, i) => {
             const src = ids?.[i] ? thumbRawUrl(ids[i]!, 120) : preview?.(f);
-            // A schermo intero si vuole l'originale, non la miniatura ingrandita.
+            // Full screen wants the original, not the thumbnail blown up.
             const large = ids?.[i] ? thumbRawUrl(ids[i]!, 1600) : refUrl(f);
             return (
               <figure key={f} className="m-0 w-16">
@@ -135,8 +136,8 @@ function Item({
   );
 }
 
-/** Modello, resa e motore in una riga sola. Sono la differenza fra due
- *  varianti che dichiarano la stessa ricetta e non si somigliano. */
+/** Model, quality and engine on one line. They are the difference between
+ *  two variants that declare the same recipe and look nothing alike. */
 function How({ v }: { v: Variant }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -172,12 +173,12 @@ function How({ v }: { v: Variant }) {
 }
 
 /**
- * La ricetta del gruppo: ingressi, motore e prompt, sempre a schermo.
+ * The group's recipe: inputs, engine and prompt, always on screen.
  *
- * Il prompt e' lungo e in una colonna stretta diventa una colonna di parole
- * singole, quindi qui sta su tutta la riga. Resta comunque limitato in altezza:
- * mille caratteri di prompt spingerebbero le varianti sotto la piega, e le
- * varianti sono cio' che si e' venuti a guardare.
+ * The prompt is long and in a narrow column becomes a column of single words,
+ * so here it takes the whole row. It stays height-limited all the same: a
+ * thousand characters of prompt would push the variants below the fold, and the
+ * variants are what you came to look at.
  */
 function Recipe({
   v,
@@ -188,18 +189,18 @@ function Recipe({
 }) {
   if (!v) return null;
   return (
-    // Due colonne con ruoli diversi: a sinistra CON COSA (motore, modello,
-    // costo, e le immagini di ingresso), a destra COSA E' STATO CHIESTO.
+    // Two columns with different jobs: on the left WITH WHAT (engine, model,
+    // cost, and the input images), on the right WHAT WAS ASKED FOR.
     //
-    // La colonna di sinistra ha una larghezza sua: le miniature sono 64px e i
-    // dati tecnici sono corti, quindi allargarla non aggiunge niente. Il prompt
-    // invece e' l'unica cosa lunga qui dentro e si prende tutto il resto.
+    // The left column has a width of its own: the thumbnails are 64px and the
+    // technical data is short, so widening it adds nothing. The prompt is
+    // instead the only long thing in here and takes all the rest.
     //
-    // `items-stretch` piu' `h-full` sul prompt e' cio' che lo fa arrivare in
-    // fondo alla riga: senza, la sua altezza era fissa (`max-h-28`) e restava
-    // un buco sotto quando la colonna di sinistra era piu' alta. Ora il testo
-    // riempie l'altezza disponibile e scorre solo se eccede, quindi la riga non
-    // si allunga per i prompt lunghi.
+    // `items-stretch` plus `h-full` on the prompt is what makes it reach the
+    // bottom of the row: without them its height was fixed (`max-h-28`) and a
+    // hole was left underneath when the left column was taller. Now the text
+    // fills the height available and only scrolls if it exceeds it, so the row
+    // does not stretch for long prompts.
     <div className="flex flex-wrap items-stretch gap-x-5 gap-y-2 border-l-2 border-neutral-800 pl-3">
       <div className="flex shrink-0 flex-col gap-2">
         <How v={v} />
@@ -237,7 +238,7 @@ function Recipe({
 }
 const GLYPH: Record<string, string> = { "": "○", keep: "●", maybe: "?", discard: "✕" };
 
-/** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
+/** What the filters are called in here. The logic lives in `treeFilter`. */
 const VERDICT_LABEL: Record<Verdict, string> = {
   all: "tutte",
   keep: "tenute",
@@ -246,9 +247,9 @@ const VERDICT_LABEL: Record<Verdict, string> = {
   unseen: "da vedere",
 };
 
-/** Le ricette hanno una chiave tecnica e un nome leggibile. La chiave resta nel
- *  dato (e' quella che si passa al generatore); qui si mostra il nome, e una
- *  ricetta sconosciuta mostra la propria chiave invece di sparire. */
+/** Recipes have a technical key and a readable name. The key stays in the
+ *  data (it is what gets passed to the generator); here the name is shown, and
+ *  an unknown recipe shows its own key instead of disappearing. */
 const RECIPE_LABEL: Record<string, string> = {
   "bw-hard": "B/N luce dura",
   "bw-soft": "B/N luce morbida",
@@ -260,15 +261,16 @@ const RECIPE_LABEL: Record<string, string> = {
 export default function TreePage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   /**
-   * Sovrapposizione del riferimento, spenta di default.
+   * Reference overlay, off by default.
    *
-   * Serve perche' la distanza dalla reference si puo' misurare (fondo, area,
-   * rapporto di luce) ma "quanto ci somiglia" resta un giudizio che si fa con
-   * gli occhi, e alternare due immagini in due schede non e' guardarle: le
-   * differenze piccole si perdono nel tempo che passa fra un tab e l'altro.
+   * It exists because distance from the reference can be measured (background,
+   * area, light ratio) but "how much it resembles it" stays a judgement made
+   * with the eyes, and alternating two images in two tabs is not looking at
+   * them: the small differences are lost in the time between one tab and the
+   * other.
    *
-   * Sempre opzionale: acceso di default coprirebbe le varianti proprio mentre
-   * le si sfoglia, che e' l'uso normale di questa pagina.
+   * Always optional: on by default it would cover the variants exactly while
+   * they are being browsed, which is this page's normal use.
    */
   const [overlay, setOverlay] = useViewState("rif", false, {
     read: readBool,
@@ -283,18 +285,18 @@ export default function TreePage() {
     memory: "darkroom.albero.modo",
   });
   /**
-   * Il filtro per giudizio. Nell'URL e non solo in memoria: dopo aver segnato
-   * trenta varianti, "mostrami solo le tenute" e' cio' che si stava guardando,
-   * e ricaricare la pagina non deve riportare tutto in mezzo.
+   * The filter by verdict. In the URL and not only in memory: after marking
+   * thirty variants, "show me only the kept ones" is what you were looking at,
+   * and reloading the page must not bring everything back into the middle.
    */
   const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "all", {
     read: readOneOf(VERDICTS),
     memory: "darkroom.albero.giudizio",
   });
   /**
-   * Distanza dalla reference, per id di variante. Calcolata a richiesta e non
-   * al caricamento: e' una misura che apre un processo per immagine, e su una
-   * pagina con centinaia di varianti la si pagherebbe tutta per guardarne tre.
+   * Distance from the reference, by variant id. Computed on demand and not at
+   * load: it is a measurement that opens a process per image, and on a page
+   * with hundreds of variants you would pay for all of it to look at three.
    */
   const [gaps, setScarti] = useState<Record<number, number | null>>({});
   const [measuring, setMeasuring] = useState(false);
@@ -311,8 +313,8 @@ export default function TreePage() {
     load();
   }, [load]);
 
-  /** Aggiorna in locale e poi salva: il giudizio deve rispondere subito al
-   *  click, altrimenti si vota due volte credendo che il primo non abbia preso. */
+  /** Updates locally and then saves: the verdict must answer the click at
+   *  once, otherwise you vote twice believing the first did not take. */
   async function patch(v: Variant, patchBody: { verdict?: string | null; note?: string }) {
     setNodes((prev) =>
       prev.map((n) => ({
@@ -332,23 +334,23 @@ export default function TreePage() {
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
   const kept = all.filter((v) => v.verdict === "keep");
-  /** Quante varianti per giudizio: un filtro che porta a una pagina vuota va
-   *  saputo PRIMA di cliccarlo, non dopo. */
+  /** How many variants per verdict: a filter leading to an empty page should
+   *  be known BEFORE clicking it, not after. */
   const counts = useMemo(() => countVerdicts(all), [all]);
 
   /**
-   * L'albero filtrato. Si potano i gruppi rimasti vuoti e poi le radici rimaste
-   * senza gruppi: una sorgente con l'intestazione e nessuna variante sotto
-   * sembra un caricamento a meta', non un filtro che ha funzionato.
+   * The filtered tree. Groups left empty are pruned, and then roots left
+   * without groups: a source with its header and no variants underneath looks
+   * like a half-finished load, not a filter that worked.
    */
   const visibili = useMemo(() => filterTree(nodes, verdict), [nodes, verdict]);
-  // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
-  // senza riferimenti sarebbero un interruttore che non accende niente.
+  // The controls appear only if there is something to overlay: on a project
+  // without references they would be a switch that turns nothing on.
   const hasReferences = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
 
-  /** Misura le varianti che hanno una reference. In sequenza: sono processi
-   *  python, e lanciarne trenta insieme mette in ginocchio la macchina su cui
-   *  sta girando anche la generazione. */
+  /** Measures the variants that have a reference. In sequence: they are python
+   *  processes, and launching thirty at once brings the machine that is also
+   *  running the generation to its knees. */
   async function measure() {
     setMeasuring(true);
     const daFare = nodes.flatMap((n) =>
@@ -359,8 +361,8 @@ export default function TreePage() {
         const r = await jsonFetch<{ gap: { distance: number; saturated?: boolean } | null }>(
           `/api/versions/${id}/gap`,
         );
-        // Oltre la saturazione la distanza e' un limite inferiore: si mostra
-        // col "≥" invece di far credere che sia il valore esatto.
+        // Past saturation the distance is a lower bound: it is shown with "≥"
+        // instead of letting it pass for the exact value.
         setScarti((s) => ({
           ...s,
           [id]: r.gap ? (r.gap.saturated ? -r.gap.distance : r.gap.distance) : null,
@@ -689,13 +691,14 @@ function Leaf({
 }: {
   photo: string;
   v: Variant;
-  /** Distanza dalla reference: undefined = non misurata, null = non misurabile. */
+  /** Distance from the reference: undefined = not measured, null = not
+ *  measurable. */
   gap?: number | null;
-  /** Riferimento da sovrapporre, o null quando la sovrapposizione e' spenta. */
+  /** Reference to overlay, or null when the overlay is off. */
   rif?: string | null;
   opacita?: number;
-  /** "sopra" giudica la somiglianza, "differenza" mostra DOVE differiscono:
-   *  le zone che combaciano restano nere. */
+  /** "over" judges the resemblance, "difference" shows WHERE they differ:
+   *  the areas that match stay black. */
   overlayMode?: "over" | "difference";
   onVote: () => void;
   onNote: (t: string) => void;
@@ -742,15 +745,15 @@ function Leaf({
             src={refUrl(rif)}
             alt=""
             aria-hidden="true"
-            // A scomparsa: il riferimento serve per il confronto, non per
-            // guardarlo. Fisso sopra copriva la variante proprio mentre la si
-            // sfogliava, e per vedere cosa c'era sotto bisognava spegnere
-            // l'interruttore e riaccenderlo. Ora basta togliere il mouse.
+            // Reveal on hover: the reference is for comparison, not for looking at.
+            // Pinned on top it covered the variant exactly while it was being
+            // browsed, and seeing what was underneath meant switching the
+            // toggle off and on again. Now it is enough to move the mouse away.
             //
-            // L'opacita' e' inline e non una classe: Tailwind genera le utility
-            // a build time leggendo il sorgente, quindi `opacity-[var(--op)]`
-            // compilava senza errori e non produceva nessuna regola -- la
-            // classe c'era nel DOM e non faceva niente.
+            // The opacity is inline and not a class: Tailwind generates the
+            // utilities at build time by reading the source, so
+            // `opacity-[var(--op)]` compiled without errors and produced no
+            // rule at all -- the class was in the DOM and did nothing.
             style={{ opacity: hover ? (opacita ?? 0.5) : 0, transition: "opacity 150ms" }}
             className={
               "absolute inset-0 w-full h-full object-cover pointer-events-none " +

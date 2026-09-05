@@ -2,34 +2,32 @@ import { createContext, useContext, useEffect, useId, useRef, useState } from "r
 import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
 
 /**
- * I pezzi di interfaccia dell'app.
+ * The app's interface pieces.
  *
- * Due ragioni per averli in un posto solo.
+ * Two reasons to keep them in one place.
  *
- * La prima è la scocca del sistema: `<select>` e `<input>` nativi portano
- * dentro un menu disegnato da macOS, un anello di fuoco azzurro e un carattere
- * che non è quello della pagina. Disegnarli vuol dire però rifare anche ciò
- * che il nativo dava gratis, ed è la parte che di solito si scorda: tastiera
- * (frecce, invio, esc, Home/Fine), chiusura al clic fuori, ruolo e stato per
- * chi legge lo schermo, e il fuoco che torna dove stava.
+ * The first is the system's shell: native `<select>` and `<input>` bring in a
+ * menu drawn by macOS, a ring of blue fire and a typeface that is not the
+ * page's. Drawing them yourself means redoing what the native ones gave for
+ * free, though, and that is the part usually forgotten: keyboard (arrows,
+ * enter, esc, Home/End), closing on an outside click, role and state for anyone
+ * reading the screen, and focus returning where it was.
  *
- * La seconda è la gerarchia. Un bottone dice, prima ancora di essere letto,
- * quanto conta: se ogni azione si disegna da sé, "apri" e "cancella per
- * sempre" finiscono con lo stesso peso, e chi guarda deve leggere per sapere
- * quale delle due gli rovina la giornata. Qui i pesi sono quattro e sono
- * dichiarati:
+ * The second is hierarchy. A button says, before it is even read, how much it
+ * matters: if every action draws itself, "open" and "delete forever" end up
+ * with the same weight, and whoever looks has to read to find out which of the
+ * two ruins their day. Here the weights are four and they are declared:
  *
- *   primario   l'azione per cui quella vista esiste. Piena. Una per vista.
- *   normale    un'azione ordinaria. Contornata.
- *   quieto     di servizio: c'è, ma non chiede attenzione. Solo testo.
- *   pericolo   distrugge qualcosa. **Non si mostra mai per prima**: è la
- *              seconda faccia di `<Conferma>`, non un bottone che si mette
- *              in giro.
+ *   primary   the action that view exists for. Filled. One per view.
+ *   normal    an ordinary action. Outlined.
+ *   quiet     utility: it is there, but it does not ask for attention. Text only.
+ *   danger    destroys something. **Never shown first**: it is the second face
+ *             of `<Confirm>`, not a button you leave lying around.
  */
 
-// ---- misure ---------------------------------------------------------------
-// Tre taglie, non quattordici. `s` per le barre dense di un editor, `m` per i
-// pannelli, `l` per le azioni di pagina.
+// ---- sizes ----------------------------------------------------------------
+// Three sizes, not fourteen. `s` for the dense bars of an editor, `m` for
+// panels, `l` for page actions.
 const SIZE = {
   s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1",
   m: "text-[12px] px-2 py-1 rounded gap-1.5",
@@ -52,7 +50,7 @@ export function Bott({
 }: {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
-  /** Stato acceso di un interruttore: si vede senza doverlo leggere. */
+  /** A switch's on state: visible without having to read it. */
   active?: boolean;
   weight?: Weight;
   size?: Size;
@@ -84,21 +82,21 @@ export function Bott({
 }
 
 /**
- * Un'azione che distrugge qualcosa.
+ * An action that destroys something.
  *
- * Il primo tocco non fa niente: apre la domanda. Il bottone rosso esiste solo
- * dentro la domanda, e accanto ha sempre la via d'uscita. Così la cosa
- * pericolosa non sta ferma sullo schermo con l'aria di essere cliccabile per
- * sbaglio, e chi la vede la vede insieme a cosa succede davvero.
+ * The first touch does nothing: it opens the question. The red button exists
+ * only inside the question, and the way out is always beside it. So the
+ * dangerous thing does not sit still on screen looking clickable by accident,
+ * and whoever sees it sees it together with what actually happens.
  */
 export function Confirm({
   children, question, confirm, onConfirm, size = "m", title, className = "",
 }: {
   /** Il richiamo, sempre quieto. */
   children: React.ReactNode;
-  /** Che cosa succede, detto per intero. */
+  /** What happens, said in full. */
   question: string;
-  /** Il testo del bottone rosso: un verbo, non "ok". */
+  /** The red button's text: a verb, not "ok". */
   confirm: string;
   onConfirm: () => void;
   size?: Size;
@@ -132,15 +130,15 @@ export function Confirm({
   );
 }
 
-/** Un'etichetta di stato. Non si clicca e non deve sembrare che si possa. */
+/** A status label. It is not clicked and must not look like it could be. */
 /**
- * La scorciatoia da tastiera, stampata DENTRO il tasto che esegue.
+ * The keyboard shortcut, printed INSIDE the key that runs it.
  *
- * Prima stava in una legenda a fianco («← scarta · → tieni · ↑ annota»). Una
- * legenda si legge una volta e poi diventa arredamento: sta sempre nello stesso
- * posto, non cambia mai, e l'occhio smette di vederla proprio quando servirebbe
- * — cioe' al momento di esitare su un tasto. Sul tasto invece la si guarda ogni
- * volta che ci si guarda il tasto, e chi la impara smette da solo di usarlo.
+ * It used to be in a legend beside it («← discard · → keep · ↑ note»). A legend
+ * is read once and then becomes furniture: it is always in the same place, it
+ * never changes, and the eye stops seeing it exactly when it would be needed —
+ * at the moment of hesitating over a key. On the key you look at it every time
+ * you look at the key, and whoever learns it stops using the key by themselves.
  */
 export function Shortcut({ children }: { children: React.ReactNode }) {
   return (
@@ -153,7 +151,7 @@ export function Shortcut({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Un tasto d'azione con la sua scorciatoia stampata sopra. */
+/** An action key with its shortcut printed on it. */
 export function VerdictButton({
   onClick,
   tasto,
@@ -200,7 +198,7 @@ export function Badge({
   );
 }
 
-/** Un interruttore: acceso/spento si legge dalla forma, non dalla parola. */
+/** A switch: on/off reads from the shape, not from the word. */
 export function Toggle({
   on, onChange, onText, offText, title,
 }: {
@@ -226,7 +224,7 @@ export function Toggle({
   );
 }
 
-/** L'intestazione di una pagina: titolo e, sotto, cosa ci si fa. */
+/** A page's heading: a title and, below it, what you do here. */
 export function Header({
   title, below, children,
 }: { title: string; below?: string; children?: React.ReactNode }) {
@@ -243,14 +241,14 @@ export function Header({
 
 // ---- campi ----------------------------------------------------------------
 
-/** Un menu a tendina. Il valore è una stringa; le voci possono avere
- *  un'etichetta diversa dal valore e una nota a destra. */
+/** A drop-down menu. The value is a string; entries can have a label
+ *  different from the value and a note on the right. */
 export function Choose<T extends string>({
   value, items, onChange, width = 120, title, size = "s",
 }: {
   value: T;
-  /** `gruppo` mette una riga di titolo prima della voce: serve quando l'elenco
-   *  è lungo e diviso per famiglia (le LUT, per dire). */
+  /** `group` puts a title row before the entry: needed when the list is long
+   *  and divided by family (the LUTs, say). */
   items: { v: T; text: string; note?: string; group?: string }[];
   onChange: (v: T) => void;
   width?: number;
@@ -332,8 +330,8 @@ export function Choose<T extends string>({
   );
 }
 
-/** Un campo di testo senza la scocca del sistema. `onInvio`/`onEsc` sono i due
- *  tasti che in un editor contano. */
+/** A text field without the system's shell. `onEnter`/`onEsc` are the two
+ *  keys that matter in an editor. */
 export function Field({
   value, onChange, placeholder, onInvio, onEsc, autoFocus, size = "s", className = "",
 }: {
@@ -354,8 +352,8 @@ export function Field({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       onKeyDown={(e) => {
-        // La pagina ascolta lettere singole (spazio, m, z…): mentre si scrive,
-        // quelle sono testo, non comandi.
+        // The page listens for single letters (space, m, z…): while typing, those
+        // are text, not commands.
         e.stopPropagation();
         if (e.key === "Enter") onInvio?.();
         if (e.key === "Escape") onEsc?.();
@@ -367,7 +365,7 @@ export function Field({
   );
 }
 
-/** Un'area di testo, stesso trattamento del campo. */
+/** A text area, same treatment as the field. */
 export function Area({
   value, onChange, placeholder, onEsc, onInvia, autoFocus, className = "",
 }: {
@@ -375,7 +373,7 @@ export function Area({
   onChange: (v: string) => void;
   placeholder?: string;
   onEsc?: () => void;
-  /** ⌘invio: mandare a capo dev'essere possibile, quindi il solo invio no. */
+  /** ⌘enter: a newline has to be possible, so plain enter is not it. */
   onInvia?: () => void;
   autoFocus?: boolean;
   className?: string;
@@ -398,8 +396,8 @@ export function Area({
   );
 }
 
-/** Un numero con i suoi passi: le frecce lo cambiano, e non compare la doppia
- *  freccina del sistema che nessuno riesce mai a centrare. */
+/** A number with its steps: the arrows change it, and the system's double
+ *  arrow that nobody ever manages to hit does not appear. */
 export function NumberField({
   value, onChange, min = 1, max = 4096, step = 1, width = 62, title,
 }: {
@@ -433,12 +431,12 @@ export function NumberField({
 }
 
 /**
- * Una casella da spuntare.
+ * A checkbox.
  *
- * Quella nativa su macOS è azzurra, quadrata e col suo bordo di sistema: in una
- * riga scura è l'unico pezzo che viene da un altro programma. Questa ha lo
- * stesso comportamento — spazio la cambia, il fuoco si vede, l'etichetta è
- * cliccabile — e la stessa grafica del resto.
+ * The native one on macOS is blue, square and carries its system border: in a
+ * dark row it is the only piece coming from another program. This one behaves
+ * the same — space toggles it, focus is visible, the label is clickable — and
+ * looks like the rest.
  */
 export function Checkbox({
   segnata, onChange, children, title, disabilitata,
@@ -472,16 +470,16 @@ export function Checkbox({
 }
 
 /**
- * Un menu di azioni dietro tre puntini.
+ * A menu of actions behind three dots.
  *
- * Le cose che si fanno di rado — e quelle che non si annullano — non devono
- * stare ferme sullo schermo con l'aria di essere cliccabili per sbaglio. Il ✕
- * per togliere un progetto era su ogni scheda, sempre, a un dito dal titolo:
- * qui ci si arriva in due gesti e con la sua etichetta scritta per intero.
+ * Things done rarely — and those that cannot be undone — must not sit still on
+ * screen looking clickable by accident. The ✕ that removed a project was on
+ * every card, always, a finger away from the title: here you get to it in two
+ * gestures and with its label written out in full.
  */
-/** Come chiudere il menu da dentro. Una voce che fa la sua cosa e lascia il
- *  menu aperto costringe a un clic in più per togliersi di torno il pannello,
- *  e a quel punto non si sa se l'azione è andata. */
+/** How to close the menu from inside. An entry that does its thing and
+ *  leaves the menu open forces one more click to get the panel out of the way,
+ *  and at that point you cannot tell whether the action went through. */
 const CloseMenu = createContext<() => void>(() => {});
 export const useCloseMenu = () => useContext(CloseMenu);
 
@@ -491,9 +489,9 @@ export function Altro({
   children: React.ReactNode;
   title?: string;
   className?: string;
-  /** Si vede solo passandoci sopra o arrivandoci col tasto di tabulazione —
-   *  ma **mai** mentre è aperto: un menu semitrasparente sotto il dito che si
-   *  sposta per scegliere una voce è un menu che non si può usare. */
+  /** Visible only on hover or on arriving with the tab key — but **never**
+   *  while it is open: a semi-transparent menu under the finger moving to
+   *  choose an entry is a menu that cannot be used. */
   discreto?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -531,24 +529,24 @@ export function Altro({
 }
 
 /**
- * Le pastiglie di filtro con il conteggio.
+ * The filter pills with their count.
  *
- * Nate nella griglia, ricopiate a mano nell'albero, e in procinto di esserlo
- * una terza volta nei riferimenti: tre copie della stessa cosa divergono al
- * primo ritocco, ed e' cosi' che una sezione si ritrova con i filtri di ieri.
+ * Born in the grid, copied by hand into the tree, and about to be copied a
+ * third time into the references: three copies of the same thing diverge at the
+ * first tweak, and that is how a section ends up with yesterday's filters.
  *
- * Il conteggio non e' decorazione: un filtro che porta a una pagina vuota va
- * saputo PRIMA di cliccarlo. Per la stessa ragione una voce a zero si disabilita
- * invece di sparire — sparire sposterebbe le altre sotto il dito proprio mentre
- * si sta per premere.
+ * The count is not decoration: a filter leading to an empty page should be
+ * known BEFORE clicking it. For the same reason an entry at zero disables
+ * itself instead of disappearing — disappearing would move the others under the
+ * finger exactly while it is about to press.
  */
 export function Pills<T extends string>({
   items,
   pick,
   onChoose,
   counts,
-  /** La voce che non filtra: resta sempre premibile anche a zero, perche' e'
-   *  la via d'uscita da un filtro che non mostra niente. */
+  /** The entry that does not filter: it stays pressable even at zero, because
+   *  it is the way out of a filter showing nothing. */
   neutral,
   className = "",
 }: {
@@ -587,13 +585,13 @@ export function Pills<T extends string>({
 }
 
 /**
- * Una voce di filtro con il suo numero.
+ * A filter entry with its number.
  *
- * Il numero non è decorazione: un filtro senza conteggio non dice se vale la
- * pena aprirlo, e quello a zero si spegne da solo invece di portare su un
- * elenco vuoto. Sta qui perché lo usano la home degli strumenti e l'elenco dei
- * progetti, e due barre di filtri che si somigliano ma non coincidono si
- * leggono come due cose diverse.
+ * The number is not decoration: a filter without a count does not say whether
+ * it is worth opening, and the one at zero switches itself off instead of
+ * leading to an empty list. It lives here because the tools home and the
+ * project list both use it, and two filter bars that resemble each other
+ * without matching read as two different things.
  */
 export function Filter({
   children, active, onClick, n, title,
@@ -612,8 +610,8 @@ export function Filter({
       title={title}
       aria-pressed={active}
       className={
-        // py-1, non py-0.5: a 22px di altezza il bersaglio era sotto la soglia
-        // sotto la quale si sbaglia pastiglia, e queste stanno appaiate.
+        // py-1, not py-0.5: at 22px tall the target was below the threshold under
+        // which you hit the wrong pill, and these sit side by side.
         "px-2 py-1 border rounded-sm text-[11px] leading-[14px] transition-colors disabled:opacity-30 " +
         (active
           ? "border-neutral-300 text-neutral-100"
@@ -626,7 +624,7 @@ export function Filter({
   );
 }
 
-/** Il campo di ricerca di una barra filtri: la lente sta dentro, non accanto. */
+/** The search field of a filter bar: the lens goes inside, not beside. */
 export function Search({
   value, onChange, placeholder, width = "13rem",
 }: {

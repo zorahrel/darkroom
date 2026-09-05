@@ -54,23 +54,23 @@ type Filter =
 type Accent = "amber" | "red" | "star" | "rose" | "emerald";
 
 /**
- * Collage: unire più foto in una sola slide. Spento di default — vale la pena
- * solo quando le foto sono lo stesso soggetto ripetuto (quattro vicoli uguali,
- * un Buddha da tre angoli), e mescolare soggetti diversi peggiora il post
- * invece di accorciarlo. Il codice e le API restano: si riaccende da qui.
- * I collage già creati continuano a mostrarsi comunque.
+ * Collage: merging several photos into one slide. Off by default — it only
+ * earns its keep when the photos are the same subject repeated (four identical
+ * alleys, a Buddha from three angles), and mixing different subjects makes the
+ * post worse instead of shorter. The code and the APIs stay: it is switched
+ * back on from here. Collages already created keep showing regardless.
  */
 const COLLAGE_ENABLED = localStorage.getItem("darkroom.collage") === "1";
 
 type GroupMode = "scene" | "day" | "post" | "none";
 
-/** Una slide del carosello: una foto singola, oppure un collage che ne tiene più d'una. */
+/** A slide of the carousel: a single photo, or a collage holding several. */
 type Slide =
   | { kind: "photo"; photo: PhotoListItem }
   | { kind: "collage"; collage: Collage };
 
-/** Un blocco della griglia. `slides` c'è solo per i post: altrove non esiste
- *  un ordine di pubblicazione, solo l'ora di scatto. */
+/** A block of the grid. `slides` exists only for posts: elsewhere there is no
+ *  publication order, only the time it was taken. */
 type GridGroup = {
   label: string;
   photos: PhotoListItem[];
@@ -78,36 +78,36 @@ type GridGroup = {
   slides?: Slide[];
 };
 /**
- * I filtri raggruppati per DOMANDA, non messi in fila.
+ * Filters grouped by QUESTION, not lined up in a row.
  *
- * Tredici pulsanti affiancati non entrano in una barra e obbligano a scorrere
- * lateralmente per trovarne uno. Qui restano fuori solo i tre che si usano di
- * continuo (tutte, mi piace, da guardare); gli altri stanno in tre menu che
- * rispondono ognuno a una domanda diversa: dove sta questa foto? a che punto è
- * la lavorazione? cosa devo ancora sistemare?
+ * Thirteen side-by-side buttons do not fit in a bar and force sideways
+ * scrolling to find one. Only the three used constantly stay outside (all,
+ * liked, to review); the others sit in three menus, each answering a different
+ * question: where is this photo? how far along is the work? what do I still
+ * have to fix?
  */
 const FILTER_GROUPS: { label: string; ids: Filter[] }[] = [
   { label: "Nei post", ids: ["covers", "covers_todo", "assigned", "unassigned"] },
   { label: "Stato", ids: ["pro_todo", "pro", "recent", "with_versions", "no_versions", "in_queue"] },
   { label: "Da fare", ids: ["no_favorite", "with_favorite", "failed", "with_override"] },
 ];
-/** Sempre visibili: sono le tre viste con cui si lavora davvero. */
+/** Always visible: these are the three views actually worked in. */
 const PRIMARY_FILTERS: Filter[] = ["all", "picked", "not_picked"];
 
 const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[] = [
   { id: "all", label: "Tutte", icon: LayoutGrid },
-  // La curatela viene prima di tutto il resto: è quel che si fa scorrendo.
+  // Curation comes before all the rest: it is what you do while scrolling.
   { id: "picked", label: "Mi piace", icon: Heart, accent: "rose" },
   { id: "not_picked", label: "Da guardare", icon: HeartOff },
   { id: "recent", label: "Rigenerate ora", icon: Clock3, accent: "amber" },
   { id: "covers", label: "Copertine", icon: Star, accent: "star" },
-  // Il primo lotto sensato da pagare: la copertina decide se il carosello
-  // viene aperto, quindi viene prima di ogni altra foto del post.
+  // The first sensible batch to pay for: the cover decides whether the
+  // carousel gets opened, so it comes before every other photo in the post.
   { id: "covers_todo", label: "Copertine da fare pro", icon: Star, accent: "amber" },
   { id: "pro", label: "Ha un master pro", icon: Sparkles, accent: "emerald" },
-  // La domanda che ci si fa prima di spendere: cosa manca da rifinire. Solo
-  // foto che usciranno davvero (in un post, non saltate) e guardando la
-  // PREFERITA, perche' e' quella che finisce nel carosello.
+  // The question you ask before spending: what is left to refine. Only photos
+  // that will really go out (in a post, not skipped) and looking at the
+  // FAVOURITE, because that is the one that ends up in the carousel.
   { id: "pro_todo", label: "Da fare in pro", icon: Sparkles, accent: "amber" },
   { id: "with_versions", label: "Con versioni", icon: Images },
   { id: "no_versions", label: "Senza versioni", icon: ImageOff },
@@ -116,7 +116,7 @@ const FILTERS: { id: Filter; label: string; icon: LucideIcon; accent?: Accent }[
   { id: "in_queue", label: "In coda", icon: Clock3, accent: "amber" },
   { id: "failed", label: "Falliti", icon: AlertTriangle, accent: "red" },
   { id: "with_override", label: "Con override", icon: SlidersHorizontal },
-  // Curatela: quel che non è ancora in un post è il lavoro che resta.
+  // Curation: what is not in a post yet is the work that remains.
   { id: "unassigned", label: "Non assegnate", icon: Layers },
   { id: "assigned", label: "Nei post", icon: Layers, accent: "star" },
 ];
@@ -149,16 +149,16 @@ export default function GridPage({
   reloadKey = 0,
 }: {
   graded?: boolean;
-  /** Il grade è stato caricato: prima di allora `graded` è solo il default. */
+  /** The grade has loaded: before that, `graded` is only the default. */
   gradeReady?: boolean;
   bust?: number;
   reloadKey?: number;
 } = {}) {
-  // L'URL e' la sorgente di verita' per filtro/raggruppamento/zoom, cosi' lo
-  // stato sopravvive al ricaricamento e un link mostra a un altro la stessa
-  // cosa. La meccanica sta in `useStatoVista`, condivisa con l'albero: era
-  // scritta a mano qui e da nessun'altra parte, ed e' il motivo per cui
-  // l'albero perdeva i suoi filtri a ogni visita.
+  // The URL is the source of truth for filter/grouping/zoom, so the state
+  // survives a reload and a link shows somebody else the same thing. The
+  // mechanics live in `useViewState`, shared with the tree: it was written by
+  // hand here and nowhere else, which is why the tree lost its filters on
+  // every visit.
   const [photos, setPhotos] = useState<PhotoListItem[] | null>(null);
   const [filter, setFilter] = useViewState<Filter>("filter", "all", {
     read: readOneOf(FILTERS.map((f) => f.id) as Filter[]),
@@ -172,40 +172,40 @@ export default function GridPage({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionPhotos, setCollectionPhotos] = useState<Record<string, string[]>>({});
   const [collages, setCollages] = useState<Collage[]>([]);
-  // Quale foto detta il colore di ciascun post, indicizzata per lookup diretto
-  // durante il render della griglia.
+  // Which photo dictates the colour of each post, indexed for direct lookup
+  // while the grid renders.
   const refByCollection = useMemo<Record<string, string>>(() => {
     const m: Record<string, string> = {};
     for (const c of collections) if (c.reference_photo_id) m[c.id] = c.reference_photo_id;
     return m;
   }, [collections]);
   const [collectionsBusy, setCollectionsBusy] = useState(false);
-  // Riordino dentro un post: l'ordine È il carosello, quindi si sistema
-  // trascinando le foto, non da un file. HTML5 drag nativo: nessuna dipendenza,
-  // e la griglia resta una griglia.
+  // Reordering inside a post: the order IS the carousel, so it is arranged by
+  // dragging the photos, not from a file. Native HTML5 drag: no dependency,
+  // and the grid stays a grid.
   const [dragging, setDragging] = useState<{ collectionId: string; photoId: string } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  // Post evidenziato quando ci si trascina sopra l'intestazione.
+  // Post highlighted while something is dragged over its header.
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
-  /** Quale menu di filtri è aperto (uno per volta). */
+  /** Which filter menu is open (one at a time). */
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
-  // Altezza reale della barra: le intestazioni dei post ci si agganciano sotto,
-  // e un valore fisso sbaglierebbe appena compare la riga di selezione.
+  // The bar's real height: the post headers stick underneath it, and a fixed
+  // value would be wrong the moment the selection row appears.
   const barRef = useRef<HTMLDivElement | null>(null);
   const [barH, setBarH] = useState(48);
   useEffect(() => {
     const el = barRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    // offsetHeight, non contentRect: serve l'altezza REALE occupata, padding e
-    // bordo compresi. Con contentRect le intestazioni si agganciavano troppo in
-    // alto e sparivano sotto la barra.
+    // offsetHeight, not contentRect: the REAL occupied height is what is
+    // needed, padding and border included. With contentRect the headers stuck
+    // too high and disappeared under the bar.
     const ro = new ResizeObserver(() => setBarH(el.offsetHeight));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  // Menu contestuale: le stesse azioni dei bottoni, ma raggiungibili con il
-  // tasto destro — che è dove le cerca chiunque abbia mai usato un gestore di
-  // foto, e che finora non faceva nulla.
+  // Context menu: the same actions as the buttons, but reachable with the
+  // right button — which is where anybody who has ever used a photo manager
+  // looks for them, and which until now did nothing.
   const [menu, setMenu] = useState<
     { x: number; y: number; photoId: string; collectionId: string | null } | null
   >(null);
@@ -297,8 +297,8 @@ export default function GridPage({
     refreshCollections();
   }, [refreshCollections, reloadKey]);
 
-  // Esc chiude il menu contestuale: cliccare fuori funziona, ma non è quello
-  // che fanno le dita quando si vuole annullare.
+  // Esc closes the context menu: clicking outside works, but it is not what
+  // fingers do when you want to cancel.
   useEffect(() => {
     if (!menu) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
@@ -349,7 +349,7 @@ export default function GridPage({
   const allPhotos = photos ?? [];
 
   // Split photos into scene groups by time gap (default 10 min).
-  // Photos without taken_at land in a trailing "Senza data" bucket.
+  // Photos without taken_at land in a trailing "No date" bucket.
   const SCENE_GAP_MS = 10 * 60 * 1000;
   const sceneGroups = useMemo(() => {
     const dated = allPhotos.filter((p) => p.taken_at != null);
@@ -393,11 +393,11 @@ export default function GridPage({
   // has a first slide. Everything unassigned lands in a trailing bucket, which
   // is the working queue while you're still splitting the trip into posts.
   /**
-   * Le SLIDE di un post: una foto singola vale una slide, un collage ne vale
-   * una sola pur assorbendone diverse. L'ordine è quello di
-   * `collection_photos`; il collage prende il posto della sua prima foto e le
-   * altre spariscono dalla fila (sono dentro di lui), così quel che vedi nella
-   * griglia è esattamente il carosello che pubblichi.
+   * The SLIDES of a post: a single photo is worth one slide, a collage is worth
+   * one as well despite absorbing several. The order is that of
+   * `collection_photos`; the collage takes the place of its first photo and the
+   * others leave the row (they are inside it), so what you see in the grid is
+   * exactly the carousel you publish.
    */
   const slidesFor = useCallback(
     (collectionId: string, byId: Map<string, PhotoListItem>) => {
@@ -411,7 +411,7 @@ export default function GridPage({
       for (const id of ids) {
         const cg = owner.get(id);
         if (cg) {
-          if (seen.has(cg.id)) continue; // già emesso alla sua prima foto
+          if (seen.has(cg.id)) continue; // already emitted at its first photo
           seen.add(cg.id);
           out.push({ kind: "collage", collage: cg });
           continue;
@@ -444,12 +444,12 @@ export default function GridPage({
       const nCollages = slides.filter((x) => x.kind === "collage").length;
       const nSkipped = photos.filter((p) => p.skipped === 1).length;
       groups.push({
-        // Il conteggio che conta è quello delle SLIDE (il carosello ha un
-        // limite di 20), con le foto fra parentesi quando un collage ne
-        // assorbe più d'una.
-        // Le foto saltate (ChatGPT le rifiuta, non avranno mai un render) non
-        // usciranno nel post: dirlo qui evita di scoprire a pubblicazione che
-        // il carosello ha una slide in meno di quelle annunciate.
+        // The count that counts is the one of SLIDES (the carousel has a
+        // limit of 20), with the photos in brackets when a collage absorbs
+        // more than one.
+        // Skipped photos (ChatGPT refuses them, they will never have a render)
+        // will not go out in the post: saying so here avoids discovering at
+        // publication that the carousel has one slide fewer than announced.
         label:
           `${col.title} · ${slides.length} slide` +
           (nCollages ? ` (${photos.length} foto, ${nCollages} collage)` : "") +
@@ -467,10 +467,10 @@ export default function GridPage({
   // Final groups rendered, driven by the selected grouping mode.
   const displayGroups = useMemo<GridGroup[]>(() => {
     if (groupMode === "none") return [{ label: "", photos: allPhotos }];
-    // Un filtro stretto (3 copertine, 2 fallite) unito al raggruppamento per
-    // scena produce gruppetti da una foto ciascuno, separati da intestazioni:
-    // sembra che il filtro non abbia trovato niente. Sotto una manciata di
-    // risultati la divisione non informa piu', li nasconde.
+    // A narrow filter (3 covers, 2 failed) combined with grouping by scene
+    // produces clusters of one photo each, separated by headers: it looks like
+    // the filter found nothing. Below a handful of results the division stops
+    // informing and starts hiding.
     if (allPhotos.length <= 8 && filter !== "all") {
       return [{ label: "", photos: allPhotos }];
     }
@@ -480,10 +480,10 @@ export default function GridPage({
   }, [groupMode, allPhotos, dayGroups, sceneGroups, postGroups, filter]);
 
   /**
-   * Sposta la selezione in un post (o la libera con null, o ne crea uno nuovo
-   * con "__new__"). Dopo l'assegnazione la selezione si svuota: il gesto è
-   * finito, e chi sta lavorando col filtro "Non assegnate" vede la coda
-   * accorciarsi da sola invece di dover deselezionare a mano.
+   * Moves the selection into a post (or frees it with null, or creates a new
+   * one with "__new__"). After assignment the selection empties: the gesture is
+   * over, and somebody working with the "Unassigned" filter sees the queue get
+   * shorter by itself instead of having to deselect by hand.
    */
   const assignSelection = useCallback(
     async (target: string | null) => {
@@ -500,8 +500,8 @@ export default function GridPage({
         }
         await refreshCollections();
         setSelected(new Set());
-        // La griglia filtrata su "non assegnate" deve perdere le foto appena
-        // assegnate, altrimenti restano lì e sembra che il click non abbia fatto nulla.
+        // The grid filtered on "unassigned" must lose the photos just assigned,
+        // otherwise they sit there and it looks like the click did nothing.
         const r = await api.listPhotos(filter);
         setPhotos(r.photos);
         api.photoCounts().then((x) => setFilterCounts(x.counts)).catch(() => {});
@@ -513,10 +513,10 @@ export default function GridPage({
   );
 
   /**
-   * Un "mi piace" aggiorna il contatore della barra e lo stato locale della
-   * foto, senza rifare la lista: chi sta scorrendo 190 foto non deve vedere la
-   * griglia saltare a ogni click. Sotto il filtro "Mi piace"/"Da guardare" la
-   * foto che non appartiene più al filtro esce, altrimenti resta dov'è.
+   * A "like" updates the bar's counter and the photo's local state, without
+   * refetching the list: somebody scrolling 190 photos must not see the grid
+   * jump on every click. Under the "Liked"/"To review" filter the photo that no
+   * longer belongs to the filter leaves, otherwise it stays where it is.
    */
   const handlePicked = useCallback(
     (id: string, isPicked: boolean) => {
@@ -540,9 +540,9 @@ export default function GridPage({
   );
 
   /**
-   * Sposta `photoId` prima di `beforeId` dentro lo stesso post e persiste il
-   * nuovo ordine. Si riordina solo dentro un post: trascinare tra post diversi
-   * sarebbe un'assegnazione travestita, e per quella ci sono i bottoni.
+   * Moves `photoId` before `beforeId` inside the same post and persists the new
+   * order. Reordering happens only inside a post: dragging between different
+   * posts would be an assignment in disguise, and there are buttons for that.
    */
   const reorderWithin = useCallback(
     async (collectionId: string, photoId: string, beforeId: string) => {
@@ -553,7 +553,7 @@ export default function GridPage({
       const at = next.indexOf(beforeId);
       if (at < 0) return;
       next.splice(at, 0, photoId);
-      // Ottimistico: il trascinamento deve sembrare istantaneo.
+      // Optimistic: the drag has to feel instant.
       setCollectionPhotos((m) => ({ ...m, [collectionId]: next }));
       try {
         await api.setCollectionPhotos(collectionId, next);
@@ -565,16 +565,16 @@ export default function GridPage({
   );
 
   /**
-   * Sposta una foto in un ALTRO post. `beforeId` è la foto su cui è stata
-   * lasciata: la nuova arriva al suo posto, non in fondo, perché chi trascina
-   * sta indicando una posizione. Con `null` va in coda (drop sull'intestazione).
+   * Moves a photo into ANOTHER post. `beforeId` is the photo it was dropped on:
+   * the new one arrives in its place, not at the end, because whoever drags is
+   * pointing at a position. With `null` it goes to the end (drop on the header).
    */
   const moveAcross = useCallback(
     async (photoId: string, toCollection: string, beforeId: string | null) => {
       const dest = [...(collectionPhotos[toCollection] ?? [])];
       const from = Object.entries(collectionPhotos).find(([, ids]) => ids.includes(photoId));
-      // Ottimistico: il trascinamento deve sembrare istantaneo, il server
-      // conferma dopo.
+      // Optimistic: the drag has to feel instant, the server confirms
+      // afterwards.
       setCollectionPhotos((m) => {
         const next = { ...m };
         if (from) next[from[0]] = from[1].filter((x) => x !== photoId);
@@ -615,9 +615,10 @@ export default function GridPage({
   const selectedCount = selected.size;
 
   /**
-   * Il post in cui stanno TUTTE le foto selezionate, se ce n'è uno solo e
-   * nessuna è già dentro un collage. È la condizione perché "unisci in collage"
-   * abbia senso: null = il bottone non compare, invece di comparire e fallire.
+   * The post ALL the selected photos are in, if there is exactly one and none
+   * is already inside a collage. It is the condition for "merge into collage"
+   * to make sense: null = the button does not appear, instead of appearing and
+   * failing.
    */
   const selectedCollectionId = useMemo(() => {
     if (selected.size < 2) return null;
@@ -662,8 +663,8 @@ export default function GridPage({
           scorrevano via. Il riepilogo è diventato una riga sola qui dentro. */}
       <div
         ref={barRef}
-        // Niente sconfinamento orizzontale: `-mx-4` faceva finire la barra
-        // SOTTO la colonna della pipeline, e il "+" dello zoom spariva.
+        // No horizontal overhang: `-mx-4` made the bar end up UNDER the
+        // pipeline column, and the zoom "+" disappeared.
         className="sticky top-[var(--h-testata,57px)] z-20 border-b border-neutral-800
                    bg-neutral-950/95 py-1.5 backdrop-blur"
       >
@@ -711,8 +712,8 @@ export default function GridPage({
               disabled={collectionsBusy}
               onClick={async () => {
                 const ids = [...selected];
-                // Default sensato: due foto stanno bene divise a metà, di più
-                // vogliono una gerarchia. Si cambia con un click sulla slide.
+                // Sensible default: two photos sit well split in half, more
+                // want a hierarchy. Changed with a click on the slide.
                 const mode = ids.length === 2 ? "split" : ids.length <= 5 ? "hero" : "grid";
                 const layout = ids.length <= 6 ? "3x2" : "3x3";
                 setCollectionsBusy(true);
@@ -796,9 +797,9 @@ export default function GridPage({
             const empty = known && n === 0;
             const isActive = filter === f.id;
             const hot = !!f.accent && !!n && n > 0; // colored emphasis when non-empty
-            // `h-7` e `whitespace-nowrap`: senza, "Mi piace" e "Da guardare"
-            // andavano a capo dentro il bottone e la barra si ritrovava con
-            // tre altezze diverse sulla stessa riga.
+            // `h-7` and `whitespace-nowrap`: without them, "Liked" and "To
+            // review" wrapped inside the button and the bar ended up with three
+            // different heights on the same row.
             const base =
               "inline-flex h-7 items-center gap-1 px-2 rounded border transition-colors whitespace-nowrap ";
             let cls: string;
@@ -1131,23 +1132,24 @@ export default function GridPage({
       ) : (
         <div className="space-y-4">
           {displayGroups.map((g, i) => (
-            // Scorrendo 85 foto il titolo del gruppo è l'unico punto di
-            // riferimento: deve leggersi senza cercarlo, non essere una riga
-            // grigia come tutto il resto. Un post ha anche una barra di colore,
-            // così si vede dove finisce uno e comincia l'altro.
-            // Nessuno space-y: lo stacco fra intestazione e foto lo mette il
-            // padding dell'intestazione stessa. Con space-y restava una fascia
-            // trasparente sotto il titolo mentre era sticky, e ci si vedeva
-            // scorrere la griglia sotto.
+            // Scrolling 85 photos the group title is the only point of
+            // reference: it must read without being hunted for, not be a grey
+            // line like everything else. A post also has a colour bar, so you
+            // can see where one ends and the next begins.
+            // No space-y: the gap between header and photos is put there by the
+            // header's own padding. With space-y a transparent band was left
+            // under the title while it was sticky, and you could see the grid
+            // scrolling underneath.
             <section key={i}>
               {g.label && (
               <header
-                // top-[104px]: subito sotto la barra unificata (header 57 +
-                // barra ~47). Un valore fisso è fragile ma l'alternativa —
-                // misurare a runtime — introdurrebbe un salto a ogni render.
-                // L'intestazione è anche una zona di rilascio: trascinarci sopra una
-                // foto la sposta in fondo a quel post. Serve per spostare in un
-                // post che in quel momento è scrollato fuori vista, o vuoto.
+                // top-[104px]: right below the unified bar (header 57 +
+                // bar ~47). A fixed value is fragile but the alternative —
+                // measuring at runtime — would introduce a jump on every
+                // render.
+                // The header is also a drop zone: dragging a photo onto it
+                // moves it to the end of that post. Useful for moving into a
+                // post that is scrolled out of sight at that moment, or empty.
                 onDragOver={(e) => {
                   if (!dragging || !g.collectionId || dragging.collectionId === g.collectionId) return;
                   e.preventDefault();
@@ -1258,9 +1260,9 @@ export default function GridPage({
                     );
                   }
                   const p = slide.photo;
-                  // Dentro un post ogni foto è una slide numerata e trascinabile;
-                  // fuori (scena/giorno/non assegnate) l'ordine è dato dall'ora
-                  // di scatto e non c'è niente da riordinare.
+                  // Inside a post every photo is a numbered, draggable slide;
+                  // outside (scene/day/unassigned) the order comes from the
+                  // time it was taken and there is nothing to reorder.
                   const inPost = !!g.collectionId && !selectMode;
                   return (
                     <div
@@ -1269,9 +1271,9 @@ export default function GridPage({
                       onDragStart={(e) => {
                         if (!g.collectionId) return;
                         setDragging({ collectionId: g.collectionId, photoId: p.id });
-                        // Anteprima: la miniatura della foto, non il rettangolo
-                        // dell'intera cella coi suoi controlli — così mentre
-                        // trascini vedi COSA stai spostando.
+                        // Preview: the photo's thumbnail, not the rectangle of
+                        // the whole cell with its controls — so while you drag
+                        // you see WHAT you are moving.
                         const img = e.currentTarget.querySelector("img");
                         if (img instanceof HTMLImageElement && img.complete) {
                           e.dataTransfer.setDragImage(img, img.width / 2, img.height / 2);
@@ -1283,9 +1285,10 @@ export default function GridPage({
                         setDragOver(null);
                       }}
                       onDragOver={(e) => {
-                        // Si accetta anche il trascinamento da un ALTRO post:
-                        // spostare una foto fra due gruppi è il gesto naturale,
-                        // e prima era bloccato senza dirlo — restava lì e basta.
+                        // A drag from ANOTHER post is accepted too: moving a
+                        // photo between two groups is the natural gesture, and
+                        // it used to be blocked without saying so — it just
+                        // sat there.
                         if (!dragging || !g.collectionId) return;
                         e.preventDefault();
                         setDragOver(p.id);
@@ -1296,8 +1299,8 @@ export default function GridPage({
                         if (dragging.collectionId === g.collectionId) {
                           reorderWithin(g.collectionId, dragging.photoId, p.id);
                         } else {
-                          // Da un altro post: si sposta E si mette nel punto
-                          // dove è stata lasciata, non in fondo.
+                          // From another post: it moves AND lands at the point
+                          // where it was dropped, not at the end.
                           moveAcross(dragging.photoId, g.collectionId, p.id);
                         }
                         setDragging(null);
@@ -1313,15 +1316,15 @@ export default function GridPage({
                         });
                       }}
                       className={
-                        // `group/tile`: un gruppo NOMINATO. Senza nome,
-                        // group-hover risaliva al `group` di PhotoCard più
-                        // vicino trovato nel DOM e i comandi comparivano su
-                        // tutte le foto insieme invece che su quella sotto il
-                        // mouse.
+                        // `group/tile`: a NAMED group. Without the name,
+                        // group-hover walked up to the nearest `group` of a
+                        // PhotoCard found in the DOM and the controls appeared
+                        // on every photo at once instead of on the one under
+                        // the mouse.
                         "relative group/tile " +
                         (inPost ? "cursor-grab active:cursor-grabbing " : "") +
-                        // La foto trascinata sbiadisce: si vede che è "in mano"
-                        // e non più al suo posto.
+                        // The dragged photo fades: you can see it is "in hand"
+                        // and no longer in its place.
                         (dragging?.photoId === p.id ? " opacity-30" : "")
                       }
                     >
@@ -1388,11 +1391,11 @@ export default function GridPage({
                         </button>
                       )}
                       {g.collectionId && !selectMode && zoom >= 150 && (
-                        // In alto a sinistra, SOTTO il cuore: in basso passa la
-                        // nota (che occupa tutta la larghezza della card) e a
-                        // destra c'è la stella della versione preferita. Questi
-                        // due comandi riguardano il POST, non la foto, quindi
-                        // stanno insieme e lontano dagli altri.
+                        // Top left, UNDER the heart: along the bottom runs the
+                        // note (which takes the card's full width) and on the
+                        // right is the favourite version's star. These two
+                        // controls concern the POST, not the photo, so they sit
+                        // together and away from the others.
                         <div className="absolute left-1 top-9 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover/tile:opacity-100">
                           {slot !== 0 && (
                             <button
@@ -1437,8 +1440,8 @@ export default function GridPage({
                         </div>
                       )}
                       {refByCollection[g.collectionId ?? ""] === p.id && (
-                        // Sotto il numero di slide, non in alto a destra: lì
-                        // vive la stella della versione preferita.
+                        // Below the slide number, not top right: the favourite
+                        // version's star lives there.
                         <span
                           title="Questa foto detta il colore del post"
                           className="pointer-events-none absolute bottom-1 left-8 z-30 rounded bg-sky-500/90 px-1.5 py-0.5 text-[9px] font-semibold text-white"
@@ -1465,8 +1468,8 @@ export default function GridPage({
           <div
             className="fixed z-50 min-w-[13rem] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-900 py-1 text-sm shadow-2xl"
             style={{
-              // Il menu non deve uscire dallo schermo quando si clicca vicino
-              // al bordo destro o in fondo alla pagina.
+              // The menu must not leave the screen when you click near the right
+              // edge or at the bottom of the page.
               left: Math.min(menu.x, window.innerWidth - 230),
               top: Math.min(menu.y, window.innerHeight - 320),
             }}
@@ -1541,8 +1544,8 @@ export default function GridPage({
             </MenuItem>
             <MenuItem
               onClick={() => {
-                // URL assoluto: serve a incollarlo altrove, e un percorso
-                // relativo fuori da qui non significherebbe niente.
+                // Absolute URL: it is meant to be pasted elsewhere, and a
+                // relative path outside here would mean nothing.
                 const url = `${window.location.origin}/p/${currentProject()}/photo/${encodeURIComponent(menu.photoId)}`;
                 void navigator.clipboard.writeText(url);
                 setMenu(null);
@@ -1552,8 +1555,8 @@ export default function GridPage({
             </MenuItem>
             <MenuItem
               onClick={() => {
-                // L'immagine servita, non il file su disco: è quella che si
-                // vede, con il grade applicato.
+                // The served image, not the file on disk: that is the one you
+                // see, with the grade applied.
                 void navigator.clipboard.writeText(
                   `${window.location.origin}${rawUrl(menu.photoId)}`,
                 );
