@@ -8,12 +8,12 @@ import { getPhoto } from "./photos.ts";
 import { gradeActive, gradedFile, runColorGrade } from "./gradeCache.ts";
 
 /**
- * Rendering di un collage: più foto composte in una sola slide del carosello.
+ * Rendering a collage: several photos composed into one carousel slide.
  *
- * Il file è cache su disco, con una chiave che comprende tutto ciò che ne
- * cambia i pixel (layout, gutter, fondo, elenco e ordine delle foto, e il
- * mtime di ogni sorgente). Cambia un parametro → cambia il nome → si rigenera
- * senza dover invalidare niente a mano.
+ * The file is cached on disk, with a key covering everything that changes its
+ * pixels (layout, gutter, background, the list and order of the photos, and
+ * each source's mtime). Change a parameter → the name changes → it is
+ * regenerated with nothing to invalidate by hand.
  */
 
 const SCRIPT = join(REPO_ROOT, "scripts", "collage.py");
@@ -34,7 +34,7 @@ export function getCollage(id: string): CollageWithPhotos | null {
   return { ...row, photo_ids: ids };
 }
 
-/** Quante celle ha un layout '2x2'. Un layout illeggibile vale una cella sola. */
+/** How many cells a '2x2' layout has. An unreadable layout is worth one cell. */
 export function layoutCells(layout: string): number {
   const m = /^(\d+)x(\d+)$/.exec(layout.trim().toLowerCase());
   if (!m) return 1;
@@ -44,19 +44,20 @@ export function layoutCells(layout: string): number {
 export const COLLAGE_MODES: CollageMode[] = ["hero", "mosaic", "grid", "stack", "split"];
 
 /**
- * Quante foto regge una composizione. Sono limiti di leggibilità, non tecnici:
- * oltre, i riquadri diventano francobolli e la slide non si legge sul telefono.
+ * How many photos a composition holds. These are limits of legibility, not
+ * technical ones: beyond them the panes become postage stamps and the slide
+ * cannot be read on a phone.
  */
 export function modeCapacity(mode: CollageMode, layout: string): number {
   switch (mode) {
     case "split":
       return 2;
     case "stack":
-      return 4; // una di fondo + tre appoggiate
+      return 4; // one in the background + three laid on top
     case "hero":
-      return 5; // una grande + quattro in striscia
+      return 5; // one large + four in a strip
     case "mosaic":
-      return 4; // una grande + tre in colonna
+      return 4; // one large + three in a column
     default:
       return layoutCells(layout);
   }
@@ -67,20 +68,20 @@ function cacheDir(): string {
 }
 
 function hash(s: string): string {
-  // djb2: basta a distinguere due combinazioni di parametri, e resta corto
-  // abbastanza da stare in un nome di file leggibile.
+  // djb2: enough to tell two parameter combinations apart, and short enough to
+  // fit in a readable file name.
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
 
 /**
- * Percorso del JPG del collage, generandolo se manca.
+ * Path of the collage's JPG, generating it if it is missing.
  *
- * `graded` compone le versioni con il color grade applicato (quel che si vede
- * nella griglia e quel che finisce nell'export), altrimenti gli originali.
- * Se una foto non ha un render graded si ricade sul suo originale: un collage
- * a metà è comunque più utile di un errore.
+ * `graded` composes the versions with the colour grade applied (what you see in
+ * the grid and what ends up in the export), otherwise the originals. If a photo
+ * has no graded render it falls back to its original: half a collage is still
+ * more useful than an error.
  */
 export function collageFile(
   collage: CollageWithPhotos,
@@ -93,9 +94,9 @@ export function collageFile(
   for (const pid of collage.photo_ids) {
     const photo = getPhoto(pid);
     if (!photo) continue;
-    // Il collage si compone dalla stessa immagine che si vede nella griglia:
-    // la versione preferita (o l'ultima) di quella foto, gradata come il resto
-    // del set. Senza render, l'originale.
+    // The collage is composed from the same image you see in the grid: that
+    // photo's favourite version (or the last), graded like the rest of the set.
+    // With no render, the original.
     const version = db()
       .query<{ image_path: string }, [string, string]>(
         `SELECT image_path FROM versions

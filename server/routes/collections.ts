@@ -17,10 +17,10 @@ type CollectionWithCount = CollectionRow & { photo_count: number; publishable_co
 function listCollections(): CollectionWithCount[] {
   return db()
     .query<CollectionWithCount, []>(
-      // photo_count e' quante foto sono NEL post; publishable_count quante ne
-      // usciranno davvero. Divergono quando una foto e' saltata (ChatGPT la
-      // rifiuta e non avra' mai un render): un carosello annunciato a 9 che ne
-      // pubblica 8 e' una sorpresa al momento sbagliato.
+      // photo_count is how many photos are IN the post; publishable_count how
+      // many will really go out. They diverge when a photo is skipped (ChatGPT
+      // refuses it and it will never have a render): a carousel announced at 9
+      // that publishes 8 is a surprise at the wrong moment.
       `SELECT c.*,
               (SELECT COUNT(*) FROM collection_photos cp WHERE cp.collection_id = c.id) AS photo_count,
               (SELECT COUNT(*) FROM collection_photos cp
@@ -127,8 +127,8 @@ collectionRoutes.patch("/api/collections/:id", async (c) => {
   if (body.reference_photo_id !== undefined) {
     const ref = body.reference_photo_id;
     if (ref) {
-      // Il riferimento deve stare NEL post: una foto di un altro gruppo
-      // porterebbe dentro il colore sbagliato senza che si veda perché.
+      // The reference must be IN the post: a photo from another group would
+      // bring in the wrong colour with no way of seeing why.
       const inPost = db()
         .query("SELECT 1 FROM collection_photos WHERE collection_id = ? AND photo_id = ?")
         .get(id, ref);
@@ -149,9 +149,9 @@ collectionRoutes.delete("/api/collections/:id", (c) => {
 /** Replace a collection's members, in the given order. */
 function setMembers(collectionId: string, photoIds: string[]): void {
   const d = db();
-  // Se il post ha una copertina scelta a mano e resta fra i membri, torna in
-  // testa: chi riscrive l'ordine (un riordino cronologico, un import) non deve
-  // poter cancellare quella decisione di sfuggita.
+  // If the post has a hand-picked cover and it is still among the members, it
+  // goes back to the front: whoever rewrites the order (a chronological
+  // reorder, an import) must not be able to erase that decision in passing.
   const cover = d
     .query<{ cover: string | null }, [string]>(
       "SELECT cover_photo_id AS cover FROM collections WHERE id = ?",
@@ -185,11 +185,11 @@ collectionRoutes.put("/api/collections/:id/photos", async (c) => {
   return c.json({ ok: true, count: body.photo_ids.length });
 });
 
-/** Porta una foto in testa al suo post: diventa la copertina.
+/** Brings a photo to the front of its post: it becomes the cover.
  *
- *  Riordinare trascinando funziona ma è un gesto di precisione per un'azione
- *  che è una decisione: "questa apre il carosello". Un click la mette prima e
- *  fa scalare le altre di uno, senza toccarne l'ordine relativo. */
+ *  Reordering by dragging works but is a precision gesture for an action that
+ *  is a decision: "this one opens the carousel". A click puts it first and
+ *  shifts the others by one, without touching their relative order. */
 collectionRoutes.post("/api/collections/:id/cover", async (c) => {
   const collectionId = c.req.param("id");
   const body = (await c.req.json().catch(() => ({}))) as { photo_id?: string };
@@ -210,9 +210,9 @@ collectionRoutes.post("/api/collections/:id/cover", async (c) => {
     next.forEach((x, i) =>
       d.run("UPDATE collection_photos SET position = ? WHERE photo_id = ?", [i, x]),
     );
-    // La copertina si registra anche come campo suo: la posizione 0 è comoda da
-    // leggere ma fragile — un riordino cronologico la sovrascrive e la scelta
-    // umana sparisce senza lasciare traccia. È già successo.
+    // The cover is also recorded as a field of its own: position 0 is handy to
+    // read but fragile — a chronological reorder overwrites it and the human
+    // choice disappears without a trace. It has already happened.
     d.run("UPDATE collections SET cover_photo_id = ? WHERE id = ?", [pid, collectionId]);
   });
   tx();
@@ -262,16 +262,16 @@ collectionRoutes.post("/api/collections/assign", async (c) => {
   return c.json({ ok: true, moved: ids.length, collection_id: target });
 });
 
-// ---- Collage: una slide del carosello fatta di più foto --------------------
+// ---- Collage: one carousel slide made of several photos --------------------
 
 /**
- * Rende il JPG del collage in background, gradato e no.
+ * Renders the collage's JPG in the background, graded and not.
  *
- * Comporre costa secondi (decodifica + grade di ogni sorgente), quindi farlo
- * alla prima richiesta del browser significa una cella vuota per tutto quel
- * tempo. Farlo qui, appena il collage cambia, sposta l'attesa dove nessuno la
- * guarda. Gli errori si ingoiano: è una cache, non un risultato — se fallisce,
- * la rotta immagine ci riproverà e riporterà l'errore vero.
+ * Composing costs seconds (decoding + grading every source), so doing it on the
+ * browser's first request means an empty cell for all that time. Doing it here,
+ * as soon as the collage changes, moves the wait to where nobody is looking.
+ * Errors are swallowed: it is a cache, not a result — if it fails, the image
+ * route will retry and report the real error.
  */
 function warmCollage(id: string): void {
   queueMicrotask(() => {
@@ -288,10 +288,10 @@ function warmCollage(id: string): void {
 }
 
 /**
- * Crea un collage con le foto date. Le foto devono già stare nel post: un
- * collage raggruppa quel che hai scelto, non lo aggiunge di straforo. Non le
- * toglie da `collection_photos` — così scioglierlo le rimette in fila dov'erano
- * senza dover ricordare niente.
+ * Creates a collage with the given photos. The photos must already be in the
+ * post: a collage groups what you chose, it does not smuggle it in. It does not
+ * remove them from `collection_photos` — so dissolving it puts them back in
+ * line where they were with nothing to remember.
  */
 collectionRoutes.post("/api/collections/:id/collages", async (c) => {
   const collectionId = c.req.param("id");
@@ -318,7 +318,7 @@ collectionRoutes.post("/api/collections/:id/collages", async (c) => {
   if (outside.length) {
     return c.json({ error: `foto non in questo post: ${outside.join(", ")}` }, 400);
   }
-  // Una foto in due collage renderebbe ambiguo l'ordine delle slide.
+  // One photo in two collages would make the slide order ambiguous.
   const taken = db()
     .query<{ photo_id: string }, []>("SELECT photo_id FROM collage_photos")
     .all()
@@ -336,8 +336,8 @@ collectionRoutes.post("/api/collections/:id/collages", async (c) => {
   }
 
   const id = `cg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-  // La slide prende il posto della PRIMA foto che assorbe: il collage resta
-  // dov'era il gruppo, invece di saltare in fondo al carosello.
+  // The slide takes the place of the FIRST photo it absorbs: the collage stays
+  // where the group was, instead of jumping to the end of the carousel.
   const first =
     db()
       .query<{ position: number }, [string, string]>(
@@ -360,8 +360,8 @@ collectionRoutes.post("/api/collections/:id/collages", async (c) => {
     );
   });
   tx();
-  // Compone subito, senza far aspettare la risposta: quando la griglia si
-  // ridisegna il JPG è già su disco e la slide appare piena invece che vuota.
+  // Composes at once, without making the response wait: when the grid redraws
+  // the JPG is already on disk and the slide appears full instead of empty.
   warmCollage(id);
   return c.json({ ok: true, id });
 });
@@ -380,8 +380,8 @@ collectionRoutes.patch("/api/collages/:id", async (c) => {
   if (!/^[1-6]x[1-6]$/.test(nextLayout)) return c.json({ error: "layout non valido" }, 400);
   const nextMode = (body.mode ?? row.mode) as CollageMode;
   if (!COLLAGE_MODES.includes(nextMode)) return c.json({ error: "composizione non valida" }, 400);
-  // La capienza si controlla sulla combinazione FINALE: cambiare modo e numero
-  // di foto insieme non deve poter far sparire uno scatto.
+  // The capacity is checked on the FINAL combination: changing the layout and
+  // the number of photos together must not be able to make a shot disappear.
   const cap = modeCapacity(nextMode, nextLayout);
   if (n > cap) {
     return c.json({ error: `«${nextMode}» tiene ${cap} foto, qui ce ne sono ${n}` }, 400);
@@ -416,7 +416,7 @@ collectionRoutes.delete("/api/collages/:id", (c) => {
   return c.json({ ok: true });
 });
 
-/** Il JPG composto. `graded=0` per vederlo senza color grade. */
+/** The composed JPG. `graded=0` to see it without the colour grade. */
 collectionRoutes.get("/api/collages/:id/image", (c) => {
   const row = getCollage(c.req.param("id"));
   if (!row) return new Response("not found", { status: 404 });

@@ -2,14 +2,14 @@ import { useState } from "react";
 import { api, collageUrl, type Collage } from "../api";
 
 /**
- * Una slide di collage dentro la griglia del post. È una slide sola: occupa una
- * cella come una foto e mostra il JPG realmente composto (lo stesso file che
- * finirà nell'export, non un'anteprima finta in CSS), così quel che scegli è
- * quel che pubblichi.
+ * A collage slide inside the post's grid. It is a single slide: it takes one
+ * cell like a photo and shows the JPG actually composed (the same file that
+ * will end up in the export, not a fake CSS preview), so what you choose is
+ * what you publish.
  *
- * Le composizioni sono tutte a pieno formato — niente cornici, niente fondo a
- * vista — perché una slide con i bordi bianchi legge come una pagina d'album,
- * non come una foto.
+ * The compositions are all full-bleed — no frames, no visible background —
+ * because a slide with white borders reads like an album page, not like a
+ * photo.
  */
 
 const MODES: { id: Collage["mode"]; label: string; cap: number; hint: string }[] = [
@@ -30,16 +30,17 @@ export default function CollageCard({
   collage: Collage;
   slot: number;
   graded: boolean;
-  /** Finché il grade non è noto, `graded` vale il suo default: chiedere subito
-   *  l'immagine significherebbe comporla due volte (una sbagliata, una giusta),
-   *  e comporre un collage costa secondi, non millisecondi. */
+  /** Until the grade is known, `graded` holds its default: asking for the
+   *  image right away would mean composing it twice (once wrong, once right),
+   *  and composing a collage costs seconds, not milliseconds. */
   gradeReady?: boolean;
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  // Il file è cache su chiave dei parametri: cambiando composizione il nome
-  // cambia da solo, ma il browser ha già in cache l'URL — questo lo bussa.
+  // The file is cached on a key of the parameters: changing the composition
+  // changes the name by itself, but the browser already has the URL cached —
+  // this knocks on it.
   const [bust, setBust] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
@@ -54,8 +55,8 @@ export default function CollageCard({
       setBust(Date.now());
       onChanged();
     } catch (e) {
-      // Un rifiuto del server non deve restare in console: qui si sta
-      // cliccando e ci si aspetta di vedere l'immagine cambiare.
+      // A refusal from the server must not stay in the console: here somebody
+      // is clicking and expects to see the image change.
       alert(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
@@ -64,19 +65,19 @@ export default function CollageCard({
 
   return (
     <div className="group relative aspect-square overflow-hidden rounded-md border-2 border-fuchsia-500/80 bg-black">
-      {/* Comporre un collage è un lavoro vero (secondi, non millisecondi): la
-          cella dice cosa sta succedendo invece di restare un buco nero. Niente
-          `loading="lazy"`: una slide che si compone solo quando la scrolli
-          sotto gli occhi arriva sempre in ritardo. */}
+      {/* Composing a collage is real work (seconds, not milliseconds): the
+          cell says what is happening instead of staying a black hole. No
+          `loading="lazy"`: a slide that composes only when you scroll it under
+          your eyes always arrives late. */}
       {gradeReady && (
         <img
           src={collageUrl(collage.id, { graded, bust })}
           alt={`collage ${collage.mode}`}
           onLoad={() => setLoaded(true)}
-          // `contain`, non `cover`: la slide è 4:5 e la cella è quadrata, quindi
-          // ritagliarla nasconderebbe un quinto della composizione — proprio la
-          // cosa che si sta cercando di giudicare. Meglio vederla intera con due
-          // bande scure ai lati che vederne un pezzo a schermo pieno.
+          // `contain`, not `cover`: the slide is 4:5 and the cell is square, so
+          // cropping it would hide a fifth of the composition — precisely the
+          // thing being judged. Better to see it whole with two dark bands at
+          // the sides than to see a piece of it full screen.
           className={
             "h-full w-full object-contain transition-opacity duration-200 " +
             (loaded ? "opacity-100" : "opacity-0")
@@ -108,8 +109,9 @@ export default function CollageCard({
         <div className="absolute inset-x-0 bottom-0 z-30 space-y-1.5 bg-black/85 p-2 backdrop-blur">
           <div className="flex flex-wrap items-center gap-1">
             {MODES.map((m) => {
-              // Una composizione che non tiene tutte le foto ne perderebbe una
-              // senza dirlo: si mostra spenta, col motivo nel tooltip.
+              // A composition that does not hold all the photos would lose one
+              // without saying so: it is shown greyed out, with the reason in
+              // the tooltip.
               const fits = m.cap >= n;
               return (
                 <button

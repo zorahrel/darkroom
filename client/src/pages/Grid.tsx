@@ -657,10 +657,10 @@ export default function GridPage({
 
   return (
     <div className="space-y-4">
-      {/* Tutto ciò che comanda la vista sta in UNA barra appiccicata
-          all'header: prima c'erano una riga di riepilogo, una di azioni e una
-          di filtri, tre fasce che si mangiavano il primo schermo di foto e
-          scorrevano via. Il riepilogo è diventato una riga sola qui dentro. */}
+      {/* Everything that commands the view sits in ONE bar stuck to the
+          header: there used to be a summary row, an actions row and a filters
+          row, three bands that ate the first screen of photos and scrolled
+          away. The summary has become a single line in here. */}
       <div
         ref={barRef}
         // No horizontal overhang: `-mx-4` made the bar end up UNDER the
@@ -703,10 +703,11 @@ export default function GridPage({
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </button>
-          {/* Unire in collage vale solo dentro UN post: foto di post diversi non
-              fanno una slide. Il bottone è dietro il flag perché nella pratica
-              serve di rado — una slide composta regge solo quando le foto sono
-              lo STESSO soggetto ripetuto, e capita meno di quanto sembri. */}
+          {/* Merging into a collage only applies inside ONE post: photos from
+              different posts do not make a slide. The button is behind the flag
+              because in practice it is rarely needed — a composed slide only
+              holds up when the photos are the SAME subject repeated, and that
+              happens less than it seems. */}
           {COLLAGE_ENABLED && selectedCollectionId && selectedCount >= 2 && selectedCount <= 9 && (
             <button
               disabled={collectionsBusy}
@@ -733,9 +734,10 @@ export default function GridPage({
               ▣ Unisci in collage ({selectedCount})
             </button>
           )}
-          {/* Assegnare è IL gesto della curatela, quindi è un bottone per post,
-              non una tendina da aprire: con pochi post il click è uno solo. La
-              tendina resta accanto per crearne uno nuovo o per toglierle. */}
+          {/* Assigning is THE gesture of curation, so it is a button per post,
+              not a drop-down to open: with few posts it is a single click. The
+              drop-down stays beside it for creating a new one or removing
+              them. */}
           {collections.map((col) => (
             <button
               key={col.id}
@@ -836,9 +838,9 @@ export default function GridPage({
                 className={base + cls + (empty && !isActive ? " cursor-not-allowed" : "")}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                {/* Su una barra stretta resta la sola icona: il conteggio e il
-                    tooltip bastano a riconoscere il filtro, e l'alternativa era
-                    lo scroll orizzontale. */}
+                {/* On a narrow bar only the icon stays: the count and the tooltip
+                    are enough to recognise the filter, and the alternative was
+                    horizontal scrolling. */}
                 <span className="hidden xl:inline">{f.label}</span>
                 {known && (
                   <span
@@ -857,8 +859,9 @@ export default function GridPage({
           })}
         </div>
 
-        {/* Gli altri filtri, in tre menu per famiglia. Un menu che porta il
-            conteggio del filtro attivo dice già tutto senza doverlo aprire. */}
+        {/* The other filters, in three menus by family. A menu carrying the
+            active filter's count already says everything without being
+            opened. */}
         {FILTER_GROUPS.map((grp) => {
           const active = grp.ids.includes(filter);
           const cur = FILTERS.find((f) => f.id === filter);
@@ -908,9 +911,9 @@ export default function GridPage({
                         </button>
                       );
                     })}
-                    {/* Le run vivono qui, sotto "Lavorazione": è la stessa
-                        domanda (a che punto è la generazione?) e non serve
-                        tenerle sempre in barra. */}
+                    {/* The runs live here, under "Work": it is the same question
+                        (how far along is the generation?) and there is no need
+                        to keep them in the bar all the time. */}
                     {grp.label === "Stato" && runs.length > 0 && (
                       <>
                         <div className="my-1 border-t border-neutral-800" />
@@ -943,13 +946,13 @@ export default function GridPage({
           );
         })}
 
-        {/* Raggruppamento: un select nativo invece di quattro bottoni. Sono
-            300px risparmiati, ed è una scelta fra alternative esclusive —
-            esattamente ciò per cui un menu a tendina esiste. */}
-        {/* Menu proprio, non una select nativa: quella eredita il widget di
-            sistema — su macOS chiaro, col suo font e la sua freccia — e in
-            mezzo a una barra scura si vede solo lui. Stessa forma dei menu dei
-            filtri, così la barra ha una grammatica sola. */}
+        {/* Grouping: a native select instead of four buttons. That is 300px
+            saved, and it is a choice between exclusive alternatives — exactly
+            what a drop-down exists for. */}
+        {/* Our own menu, not a native select: that one inherits the system
+            widget — light on macOS, with its own font and its own arrow — and
+            in the middle of a dark bar it is all you see. Same shape as the
+            filter menus, so the bar has a single grammar. */}
         <div className="relative shrink-0">
           <button
             onClick={() => setOpenFilterMenu(openFilterMenu === "__group" ? null : "__group")}
@@ -989,9 +992,9 @@ export default function GridPage({
             </>
           )}
         </div>
-        {/* Il selettore di run è un attrezzo di diagnosi, non di curatela: sta
-            in barra solo quando è già in uso, altrimenti ruba 220px a chi sta
-            semplicemente guardando le foto. */}
+        {/* The run selector is a diagnostic tool, not a curation one: it sits
+            in the bar only when it is already in use, otherwise it steals 220px
+            from somebody who is simply looking at the photos. */}
         {runs.length > 0 && selectedRun != null && (
           <div className="flex items-center gap-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 px-2 py-1">
             <span className="text-[10px] uppercase tracking-wider text-neutral-400 mr-1">
@@ -1008,9 +1011,9 @@ export default function GridPage({
             />
           </div>
         )}
-        {/* Azioni e conteggio in coda alla stessa riga: erano una fascia a
-            parte sopra i filtri, e su una griglia di foto ogni fascia in più è
-            una fila di foto in meno sul primo schermo. */}
+        {/* Actions and count at the end of the same row: they were a separate
+            band above the filters, and on a photo grid every extra band is one
+            row of photos fewer on the first screen. */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {counts.missing > 0 && (
             <button
@@ -1050,9 +1053,9 @@ export default function GridPage({
           </button>
         </div>
 
-        {/* Zoom a passi invece che a cursore: un range da 100 a 400 occupa
-            140px per una scelta che nella pratica è fra quattro dimensioni.
-            Due bottoni ne prendono 50 e si usano senza mirare. */}
+        {/* Zoom in steps instead of a slider: a range from 100 to 400 takes
+            140px for a choice that in practice is between four sizes. Two
+            buttons take 50 and are used without aiming. */}
         <div className="flex h-7 shrink-0 items-center rounded border border-neutral-800">
           <button
             onClick={() => {
@@ -1206,8 +1209,8 @@ export default function GridPage({
                     {groupMode === "post" ? "post" : "scena"}
                   </button>
                 )}
-                {/* Un post si gestisce da dove lo vedi: rinomina e cancella
-                    stanno sull'intestazione del gruppo, non in una pagina a parte. */}
+                {/* A post is managed from where you see it: rename and delete sit on
+                    the group's header, not on a separate page. */}
                 {g.collectionId && (
                   <span className="text-[10px] text-neutral-400">
                     trascina per riordinare · la 1 è la copertina
@@ -1328,15 +1331,15 @@ export default function GridPage({
                         (dragging?.photoId === p.id ? " opacity-30" : "")
                       }
                     >
-                      {/* Barra di inserimento: dice DOVE finirà la foto, non
-                          solo su quale cella sei sopra. Un anello attorno alla
-                          cella è ambiguo — prima o dopo? — mentre una barra sul
-                          bordo sinistro indica il punto esatto. */}
+                      {/* Insertion bar: it says WHERE the photo will land, not just
+                          which cell you are over. A ring around the cell is
+                          ambiguous — before or after? — while a bar on the left
+                          edge points at the exact spot. */}
                       {dragOver === p.id && dragging && dragging.photoId !== p.id && (
                         <span className="pointer-events-none absolute -left-1 top-0 z-30 h-full w-1.5 rounded-full bg-sky-400 shadow-[0_0_10px] shadow-sky-400/70" />
                       )}
-                      {/* Da un altro post: si evidenzia anche la cella, perché
-                          l'azione non è "riordina" ma "sposta qui dentro". */}
+                      {/* From another post: the cell is highlighted too, because the
+                          action is not "reorder" but "move in here". */}
                       {dragOver === p.id &&
                         dragging &&
                         dragging.collectionId !== g.collectionId && (
@@ -1355,22 +1358,23 @@ export default function GridPage({
                         }
                         onPickedChange={handlePicked}
                       />
-      {/* Il numero della slide non sparisce MAI: a zoom basso si guarda la
-          griglia proprio per controllare l'ordine di pubblicazione, ed è
-          l'unica informazione che conta davvero. */}
+      {/* The slide number NEVER disappears: at low zoom you look at the grid
+          precisely to check the publication order, and it is the only piece of
+          information that really counts. */}
                       {g.collectionId && (
                         <span className="pointer-events-none absolute bottom-1 left-1 z-30 min-w-[1.25rem] rounded bg-black/80 px-1 text-center text-[10px] font-semibold tabular-nums text-white">
                           {slot + 1}
                         </span>
                       )}
-                      {/* Copertina e riferimento colore: due decisioni, due
-                          click. Trascinare una foto in prima posizione funziona,
-                          ma è un gesto di precisione per dire "questa apre il
-                          carosello" — e il riferimento colore non ha nemmeno un
-                          gesto, vive solo nell'ordine invisibile del DB. */}
-                      {/* Sotto una certa dimensione i due comandi non ci stanno
-                          senza coprire la foto: si collassano in un bottone
-                          solo che apre lo stesso menu del tasto destro. */}
+                      {/* Cover and colour reference: two decisions, two clicks.
+                          Dragging a photo into first place works, but it is a
+                          precision gesture for saying "this one opens the
+                          carousel" — and the colour reference does not even
+                          have a gesture, it lives only in the DB's invisible
+                          order. */}
+                      {/* Below a certain size the two controls do not fit without
+                          covering the photo: they collapse into a single button
+                          that opens the same menu as the right click. */}
                       {g.collectionId && !selectMode && zoom < 150 && (
                         <button
                           title="Azioni su questa foto"
@@ -1459,9 +1463,10 @@ export default function GridPage({
         </div>
       )}
 
-      {/* Menu contestuale. Un gestore di foto ha il tasto destro: qui non
-          faceva nulla, e le azioni erano raggiungibili solo passando il mouse
-          in un punto preciso della card. Le stesse azioni, dove uno le cerca. */}
+      {/* Context menu. A photo manager has a right button: here it did
+          nothing, and the actions were only reachable by moving the mouse to a
+          precise point on the card. The same actions, where one looks for
+          them. */}
       {menu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />

@@ -221,8 +221,9 @@ function Recipe({
           />
         </div>
       </div>
-      {/* `min-w-[16rem]` e' la soglia sotto cui il prompt torna una colonna di
-          parole singole: sotto quella, `flex-wrap` lo manda a capo da solo. */}
+      {/* `min-w-[16rem]` is the threshold below which the prompt goes back to
+          being a column of single words: under that, `flex-wrap` sends it to a
+          new line by itself. */}
       <div className="flex min-w-[16rem] flex-1 flex-col">
         <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">prompt</span>
         {v.prompt ? (
@@ -396,14 +397,14 @@ export default function TreePage() {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Una barra sola, compatta. Prima i controlli del riferimento
-          occupavano una riga alta con etichette per esteso e una frase di
-          spiegazione sempre accesa: tanto spazio verticale rubato alle
-          varianti, che sono il motivo per cui si apre questa pagina. Ora e'
-          una striscia sottile, e le spiegazioni stanno nei `title`. */}
+      {/* One bar, compact. The reference controls used to take a tall row with
+          labels written out in full and an always-on sentence of explanation:
+          a lot of vertical space stolen from the variants, which are the reason
+          this page is opened. Now it is a thin strip, and the explanations live
+          in the `title`s. */}
       <div className="sticky top-14 z-30 flex items-center gap-2 flex-wrap text-[11px] border border-neutral-800 bg-neutral-950/95 backdrop-blur px-2 py-1">
-        {/* I filtri per giudizio: stessa forma dei filtri della griglia
-            (pastiglie con il conteggio), perche' e' la stessa domanda. */}
+        {/* The filters by verdict: same shape as the grid's filters (pills with
+            the count), because it is the same question. */}
         <Pills
           items={VERDICTS.map((k) => ({ id: k, name: VERDICT_LABEL[k] }))}
           pick={verdict}
@@ -486,10 +487,10 @@ export default function TreePage() {
           className="grid grid-cols-[168px_1fr] gap-5 py-5 border-b border-neutral-800 items-start"
         >
           <div className="sticky top-20 flex flex-col gap-1.5">
-            {/* La radice e' l'INSIEME di ingresso. Quando le foto sono piu' di
-                una si mostrano tutte: mostrarne una sola la spacciava per
-                l'unico scatto usato, ed e' il motivo per cui le altre
-                risultavano "0 varianti" pur avendo contribuito a tutte. */}
+            {/* The root is the input SET. When the photos are more than one they
+                are all shown: showing only one passed it off as the only shot
+                used, and it is why the others came out as "0 variants" despite
+                having contributed to all of them. */}
             <span className="font-mono text-[10px] tracking-widest uppercase text-amber-500">
               {(n.photos?.length ?? 1) > 1
                 ? `sorgenti ${String(i + 1).padStart(2, "0")} · ${n.photos!.length} scatti`
@@ -532,18 +533,18 @@ export default function TreePage() {
                     (gi === n.groups.length - 1 ? "h-3" : "bottom-0")
                   }
                 />
-                {/* Che cosa e' stato chiesto, SEMPRE a schermo.
+                {/* What was asked for, ALWAYS on screen.
 
-                    Stava dentro un pannello a scomparsa sulla singola card:
-                    una colonna da 160px dove il prompt usciva alto e strettissimo
-                    e le miniature non ci stavano. Ma quei dati sono identici per
-                    tutte le varianti del gruppo — sono cio' che DEFINISCE il
-                    gruppo — quindi ripeterli per card era anche sbagliato oltre
-                    che illeggibile.
+                    It used to be inside a collapsible panel on the individual
+                    card: a 160px column where the prompt came out tall and very
+                    narrow and the thumbnails did not fit. But that data is
+                    identical for every variant in the group — it is what
+                    DEFINES the group — so repeating it per card was wrong as
+                    well as unreadable.
 
-                    Qui c'e' tutta la larghezza della riga, e non serve aprire
-                    niente: la domanda "cosa ho chiesto" viene prima di guardare
-                    i risultati, non dopo. */}
+                    Here there is the full width of the row, and nothing needs
+                    opening: the question "what did I ask for" comes before
+                    looking at the results, not after. */}
                 <div className="mb-2">
                   <div className="flex items-baseline gap-2.5 flex-wrap">
                     <span className="font-semibold text-sm">
@@ -563,10 +564,10 @@ export default function TreePage() {
                     </span>
                   </div>
                 </div>
-                {/* La striscia serviva quando la colonna a sinistra mostrava una
-                    foto sola: ora la radice e' gia' l'insieme, quindi si ripete
-                    solo se questo gruppo usa un insieme DIVERSO da quello della
-                    radice (caso che oggi non capita, ma il dato lo permette). */}
+                {/* The strip was needed when the left-hand column showed a single
+                    photo: now the root is already the set, so it repeats only
+                    if this group uses a set DIFFERENT from the root's (a case
+                    that does not arise today, but the data allows it). */}
                 {g.sources.length > 1 &&
                   g.sources.join("|") !== (n.photos ?? [n.photo]).join("|") && (
                   <div className="flex items-center gap-1.5 mb-2">
@@ -584,32 +585,32 @@ export default function TreePage() {
                     ))}
                   </div>
                 )}
-                {/* I RISULTATI a sinistra, la ricetta a destra.
+                {/* The RESULTS on the left, the recipe on the right.
 
-                    Sopra le varianti, la ricetta le spingeva sotto la piega: si
-                    apriva l'albero per guardare cosa era uscito e si trovava un
-                    muro di testo. Ma nasconderla dietro un pannello era peggio,
-                    perche' dentro una card da 160px il prompt diventa una
-                    colonna di parole singole.
+                    Above the variants, the recipe pushed them below the fold:
+                    you opened the tree to look at what came out and found a
+                    wall of text. But hiding it behind a panel was worse,
+                    because inside a 160px card the prompt becomes a column of
+                    single words.
 
-                    Di fianco: le immagini restano il primo oggetto a sinistra,
-                    dove l'occhio comincia, e il "perche' sono cosi'" e' li'
-                    accanto senza aprire niente. La colonna della ricetta non si
-                    restringe sotto le 18rem, altrimenti il prompt torna
-                    illeggibile; sotto i 1024px vanno una sopra l'altra. */}
+                    Side by side: the images stay the first object on the left,
+                    where the eye starts, and the "why they look like this" is
+                    right there without opening anything. The recipe's column
+                    does not shrink below 18rem, otherwise the prompt becomes
+                    unreadable again; under 1024px they stack. */}
                 <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                  {/* Le colonne sono LARGHE 160px, non "almeno 160px".
+                  {/* The columns are 160px WIDE, not "at least 160px".
 
-                      Con `minmax(160px,1fr)` e `flex-1` la griglia si allargava
-                      a tutta la riga anche per UNA sola variante: la card
-                      restava a sinistra, seguiva un buco, e la ricetta finiva
-                      contro il bordo destro a 1200px dalla foto che descrive.
-                      Accostare due cose che si spiegano a vicenda e' l'unico
-                      motivo per cui stanno sulla stessa riga.
+                      With `minmax(160px,1fr)` and `flex-1` the grid stretched
+                      to the whole row even for ONE single variant: the card
+                      stayed on the left, a hole followed, and the recipe ended
+                      up against the right edge 1200px from the photo it
+                      describes. Putting two things that explain each other side
+                      by side is the only reason they are on the same row.
 
-                      A larghezza fissa la griglia occupa quanto le serve e la
-                      ricetta le sta subito accanto; `shrink` la lascia comunque
-                      cedere spazio quando le varianti sono tante. */}
+                      At a fixed width the grid takes what it needs and the
+                      recipe sits right beside it; `shrink` still lets it give
+                      up space when there are many variants. */}
                   <div className="min-w-0 grid gap-3 [grid-template-columns:repeat(auto-fill,160px)]">
                     {g.variants.map((v) => (
                       <Leaf
@@ -635,9 +636,9 @@ export default function TreePage() {
                       />
                     ))}
                   </div>
-                  {/* Prende lo spazio che avanza invece di fermarsi a 288px:
-                      su uno schermo largo restava mezza riga bianca a destra
-                      mentre il prompt si leggeva in una colonna stretta. */}
+                  {/* It takes the space left over instead of stopping at 288px: on a
+                      wide screen half a row stayed white on the right while the
+                      prompt was read in a narrow column. */}
                   <div className="min-w-0 lg:flex-1">
                     <Recipe
                       v={g.variants[0]}
@@ -753,10 +754,10 @@ function Leaf({
           className="w-full h-full object-cover cursor-zoom-in"
           onClick={onZoom}
         />
-        {/* Il riferimento sopra la variante, in trasparenza. `object-cover`
-            come sotto: due inquadrature diverse renderebbero il confronto
-            bugiardo prima ancora di guardarlo. Non intercetta i click, cosi'
-            l'ingrandimento resta raggiungibile. */}
+        {/* The reference over the variant, transparent. `object-cover` like the
+            one underneath: two different framings would make the comparison lie
+            before you even looked at it. It does not intercept clicks, so the
+            zoom stays reachable. */}
         {rif && (
           <img
             src={refUrl(rif)}
@@ -778,11 +779,12 @@ function Leaf({
             }
           />
         )}
-        {/* Un file che non c'e' va DETTO. Senza etichetta la cella restava un
-            rettangolo grigio identico a una miniatura ancora da caricare: si
-            aspetta, si ricarica la pagina, e solo dopo un po' viene il dubbio
-            che il problema non sia la rete. Con due cover su ventitre e'
-            costato mezz'ora prima che qualcuno andasse a guardare il DB. */}
+        {/* A file that is not there has to be SAID. With no label the cell
+            stayed a grey rectangle identical to a thumbnail still loading: you
+            wait, you reload the page, and only after a while does the doubt
+            arrive that the problem is not the network. With two covers out of
+            twenty-three it cost half an hour before anybody went to look at the
+            DB. */}
         {v.missing && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-neutral-950/90 text-center px-2">
             <span className="font-mono text-[10px] uppercase tracking-wide text-red-400">
@@ -793,11 +795,12 @@ function Leaf({
             </span>
           </div>
         )}
-        {/* Lo scarto sta sull'immagine perche' e' di QUESTA variante: in una
-            colonna a parte si perderebbe il collegamento fra il numero e cio'
-            che descrive. Verde sotto 0.5 (praticamente uguale alla reference),
-            ambra fino a 1.5, rosso sopra: sono le soglie che separano le
-            calibrazioni riuscite da quelle andate a vuoto su profilo. */}
+        {/* The gap sits on the image because it belongs to THIS variant: in a
+            separate column the link between the number and what it describes
+            would be lost. Green under 0.5 (practically identical to the
+            reference), amber up to 1.5, red above: they are the thresholds that
+            separate the successful calibrations from the ones that went nowhere
+            on profilo. */}
         {gap !== undefined && (
           <span
             title={
@@ -823,8 +826,8 @@ function Leaf({
             {gap === null ? "—" : gap < 0 ? `≥${(-gap).toFixed(2)}` : gap.toFixed(2)}
           </span>
         )}
-        {/* Il glifo e' decorazione: se intercettasse il click, l'ingrandimento
-            non si aprirebbe e si giudicherebbe senza aver guardato da vicino. */}
+        {/* The glyph is decoration: if it intercepted the click, the zoom would
+            not open and you would judge without having looked closely. */}
         <svg
           viewBox="0 0 120 120"
           aria-hidden="true"
@@ -843,16 +846,17 @@ function Leaf({
           {cross && <path d="M18 20 L102 100 M102 22 L20 98" />}
         </svg>
       </div>
-      {/* I comandi con la loro PAROLA, non solo il glifo.
+      {/* The controls with their WORD, not just the glyph.
 
-          Erano tre simboli da 11px affiancati (ⓘ ✎ ○): per sapere cosa
-          facessero bisognava passarci sopra e aspettare il tooltip, uno per
-          uno. Un'icona che va spiegata ogni volta non risparmia spazio, sposta
-          il costo su chi guarda — e qui il gesto piu' frequente e' proprio
-          giudicare, che era il glifo piu' oscuro dei tre.
+          They were three 11px symbols side by side (ⓘ ✎ ○): to know what they
+          did you had to hover and wait for the tooltip, one at a time. An icon
+          that needs explaining every time does not save space, it moves the
+          cost onto whoever is looking — and here the most frequent gesture is
+          judging, which was the most obscure glyph of the three.
 
-          La riga sopra dice cosa E' la variante (numero, resa, costo), quella
-          sotto cosa ci si puo' FARE: due domande diverse, due righe. */}
+          The row above says what the variant IS (number, quality, cost), the
+          one below what can be DONE with it: two different questions, two
+          rows. */}
       <figcaption className="border-t border-neutral-800 px-2 py-1.5 font-mono text-[11px]">
         <div className="flex items-center gap-2">
           <span className="text-neutral-400">v{String(v.version_number).padStart(2, "0")}</span>
@@ -912,12 +916,11 @@ function Leaf({
           </button>
         </div>
       </figcaption>
-      {/* Il prompt ESATTO e i file veri.
-          Stavano solo nel database: per sapere perche' due varianti
-          differiscono bisognava aprire sqlite, ed e' il motivo per cui si
-          ri-generava alla cieca invece di leggere cosa era gia' stato chiesto.
-          Il testo e' selezionabile perche' il gesto utile e' copiarlo e
-          cambiarne un pezzo. */}
+      {/* The EXACT prompt and the real files.
+          They lived only in the database: to know why two variants differ you
+          had to open sqlite, and it is why people re-generated blind instead of
+          reading what had already been asked for. The text is selectable
+          because the useful gesture is copying it and changing a piece. */}
       {open && (
         <div className="px-2 pb-2">
           <textarea
