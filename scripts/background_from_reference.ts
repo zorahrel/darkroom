@@ -29,7 +29,7 @@ const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
-const giri = Math.max(1, Number(arg("--giri") ?? 1));
+const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 
 /** Il blocco che descrive il LUOGO a parole: e' cio' che si sostituisce. */
 const LUOGO = /LUOGO:.*?(?=OCCHIALI DA SOLE)/s;
@@ -83,7 +83,7 @@ withProject(PID, () => {
     .all()
     .map((r) => r.original_path.split("/").pop());
 
-  for (let g = 1; g <= giri; g++) {
+  for (let g = 1; g <= rounds; g++) {
     for (const fondo of fondi) {
       const refs = [OCCHIALI_REF, join(refDir, fondo)];
       const lineage = JSON.stringify({

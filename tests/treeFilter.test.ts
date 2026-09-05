@@ -129,10 +129,10 @@ describe("the write queue on the URL", () => {
   // `?zoom=180&group=scene` (both defaults) made only one of them disappear.
   function simulate(
     edits: [string, string | null][],
-    partenza: string,
+    start: string,
     unite: boolean,
   ): string {
-    let url = new URLSearchParams(partenza);
+    let url = new URLSearchParams(start);
     if (unite) {
       const next = new URLSearchParams(url);
       for (const [k, v] of edits) v === null ? next.delete(k) : next.set(k, v);

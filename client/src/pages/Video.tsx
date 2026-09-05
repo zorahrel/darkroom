@@ -315,30 +315,30 @@ export default function Video() {
    *  is ready. */
   useEffect(() => {
     let alive = true;
-    const chiedi = async () => {
+    const ask = async () => {
       try {
         const b = await api.videoGate();
         if (!alive) return;
         setGate(b);
-        if (b.computing) setTimeout(chiedi, 3000);
+        if (b.computing) setTimeout(ask, 3000);
       } catch { /* niente */ }
     };
-    void chiedi();
+    void ask();
     return () => { alive = false; };
   }, []);
 
   /** The peaks are computed on the first pass and stay on disk. */
   useEffect(() => {
     let alive = true;
-    const chiedi = async () => {
+    const ask = async () => {
       try {
         const o = await api.videoWave();
         if (!alive) return;
         setWave(o);
-        if (!o.pronta) setTimeout(chiedi, 2500);
+        if (!o.ready) setTimeout(ask, 2500);
       } catch { /* niente */ }
     };
-    void chiedi();
+    void ask();
     return () => { alive = false; };
   }, []);
 
@@ -554,13 +554,16 @@ export default function Video() {
   }, [selectedShots, compi]);
 
   const selectionDuration = useCallback((bars: number) => {
-    const barre = molti.map((i) => shownCuts[i]!.bar);
-    if (!barre.length) return;
-    const before = new Map(barre.map((b) => [b, forz?.duration.find((f) => f.bar === b)?.bars ?? null]));
+    // `bars` is the length being SET; `atBars` are the bars it is set on. The
+    // two were `bars` and `barre`, which the rename would have collapsed into
+    // one name -- and the shorter one silently wins.
+    const atBars = molti.map((i) => shownCuts[i]!.bar);
+    if (!atBars.length) return;
+    const before = new Map(atBars.map((b) => [b, forz?.duration.find((f) => f.bar === b)?.bars ?? null]));
     void compi(
-      `${barre.length} tagli: ${bars} battute`,
-      async () => { for (const b of barre) await api.videoDuration(b, bars); },
-      async () => { for (const b of barre) await api.videoDuration(b, before.get(b) ?? null); },
+      `${atBars.length} tagli: ${bars} battute`,
+      async () => { for (const b of atBars) await api.videoDuration(b, bars); },
+      async () => { for (const b of atBars) await api.videoDuration(b, before.get(b) ?? null); },
     );
   }, [molti, shownCuts, forz, compi]);
 

@@ -77,7 +77,7 @@ const ASPECTS: { key: string; question: string }[] = [
   { key: "resa", question: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
 ];
 
-async function chiedi(image: string, question: string): Promise<string | null> {
+async function ask(image: string, question: string): Promise<string | null> {
   const p = Bun.spawn([moondreamBin(), image, question], {
     stdout: "pipe",
     stderr: "pipe",
@@ -106,7 +106,7 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
   const parts: string[] = [];
   const missing: string[] = [];
   for (const a of ASPECTS) {
-    const r = await chiedi(path, a.question);
+    const r = await ask(path, a.question);
     if (r) parts.push(r);
     else missing.push(a.key);
   }

@@ -67,7 +67,7 @@ export default function Timeline(p: Props) {
   const [height, setHeight] = useState(220);
   /** Where the window sits on the track. It is read by scrolling, not guessed:
    *  it is what the overview map draws as a rectangle. */
-  const [scorrimento, setScorrimento] = useState(0);
+  const [scroll, setScroll] = useState(0);
 
   useEffect(() => {
     const el = scroller.current, c = body.current;
@@ -287,9 +287,9 @@ export default function Timeline(p: Props) {
   };
 
   /** The stretch of track in the window right now. */
-  const finestra = useMemo(
-    () => ({ da: scorrimento / pps, a: (scorrimento + viewWidth) / pps }),
-    [scorrimento, viewWidth, pps],
+  const viewport = useMemo(
+    () => ({ da: scroll / pps, a: (scroll + viewWidth) / pps }),
+    [scroll, viewWidth, pps],
   );
 
   const viewPort = (e: React.PointerEvent) => {
@@ -379,8 +379,8 @@ export default function Timeline(p: Props) {
                  style={{ left: `${(t / duration) * 100}%` }} />
             <div className="absolute inset-y-0 border border-neutral-300/70 bg-neutral-100/10 pointer-events-none"
                  style={{
-                   left: `${(finestra.da / duration) * 100}%`,
-                   width: `${Math.max(0.6, ((finestra.a - finestra.da) / duration) * 100)}%`,
+                   left: `${(viewport.da / duration) * 100}%`,
+                   width: `${Math.max(0.6, ((viewport.a - viewport.da) / duration) * 100)}%`,
                  }} />
           </div>
         </div>
@@ -407,7 +407,7 @@ export default function Timeline(p: Props) {
         <div
           ref={scroller}
           className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden"
-          onScroll={(e) => setScorrimento((e.currentTarget as HTMLElement).scrollLeft)}
+          onScroll={(e) => setScroll((e.currentTarget as HTMLElement).scrollLeft)}
           onWheel={(e) => {
             if (!e.altKey) return;
             e.preventDefault();
@@ -455,7 +455,7 @@ export default function Timeline(p: Props) {
                         style={{
                           transform: `translateX(${Math.max(
                             0,
-                            Math.min(scorrimento - x(a.t0), x(a.t1 - a.t0) - 46),
+                            Math.min(scroll - x(a.t0), x(a.t1 - a.t0) - 46),
                           )}px)`,
                         }}>
                     {a.name}
@@ -474,7 +474,7 @@ export default function Timeline(p: Props) {
               {wave?.bars.map((b, i) => (
                 <div key={`m${i}`} className="absolute inset-y-0 w-px bg-neutral-500/50 pointer-events-none" style={{ left: x(b) }} />
               ))}
-              {!wave?.pronta && (
+              {!wave?.ready && (
                 <div className="absolute inset-0 grid place-items-center text-[10px] text-neutral-400">
                   calcolo la forma d'onda…
                 </div>

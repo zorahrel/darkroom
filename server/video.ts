@@ -618,8 +618,8 @@ export function shots(): Shot[] {
         id,
         prompt: prompts[id]?.prompt ?? prompts[`${id}_b`]?.prompt ?? "",
         // The hand-written one wins: it is a judgement, the other is an excerpt.
-        descrizione: manual[id] ?? descr[id] ?? descr[`${id}_b`] ?? null,
-        descrizioneAMano: manual[id] !== undefined,
+        description: manual[id] ?? descr[id] ?? descr[`${id}_b`] ?? null,
+        descriptionByHand: manual[id] !== undefined,
         takes,
         intensity: manualIntensity[id] ?? m.durezza ?? null,
         measuredIntensity: m.durezza ?? null,
@@ -699,7 +699,7 @@ export function cuts(): {
  * The peaks are computed once and stay in `onda.json`: decoding two and a half
  * minutes of mp3 costs a second, but not on every page open.
  */
-export type Wave = { peaks: number[]; beats: number[]; bars: number[]; duration: number; pronta: boolean };
+export type Wave = { peaks: number[]; beats: number[]; bars: number[]; duration: number; ready: boolean };
 
 let waveRunning = false;
 
@@ -715,11 +715,11 @@ export function wave(): Wave {
   if (existsSync(f)) {
     const d = readJson<any>(f, {});
     if (Array.isArray(d.picchi) && d.picchi.length) {
-      return { peaks: d.picchi, beats, bars, duration: duration, pronta: true };
+      return { peaks: d.picchi, beats, bars, duration: duration, ready: true };
     }
   }
   if (!waveRunning) { waveRunning = true; void computeWave().finally(() => { waveRunning = false; }); }
-  return { peaks: [], beats, bars, duration: duration, pronta: false };
+  return { peaks: [], beats, bars, duration: duration, ready: false };
 }
 
 /**

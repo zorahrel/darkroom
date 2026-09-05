@@ -537,7 +537,7 @@ export const tools: Tool[] = [
       return {
         active: d.active,
         output: d.output ?? null,
-        avanzamento: attese ? `${done}/${attese} riprese montate` : null,
+        progress: attese ? `${done}/${attese} riprese montate` : null,
         minuti: d.iniziata ? +((Date.now() - d.iniziata) / 60000).toFixed(1) : null,
         log: rows > 0 ? tutte.slice(-rows).join("\n") : log,
         log_troncato: rows > 0 && tutte.length > rows ? `${tutte.length - rows} righe prima` : null,

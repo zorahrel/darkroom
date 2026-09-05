@@ -73,11 +73,11 @@ export function timecode(s: number, fps = 24): string {
 
 /** Le velocita' della navetta J/K/L, come su qualunque banco di montaggio:
  *  premere piu' volte accelera, K ferma, e indietro e' lo specchio di avanti. */
-export function shuttle(attuale: number, tasto: "j" | "k" | "l"): number {
+export function shuttle(current: number, key: "j" | "k" | "l"): number {
   const scala = [1, 2, 4, 8];
-  if (tasto === "k") return 0;
-  const toward = tasto === "l" ? 1 : -1;
-  if (Math.sign(attuale) !== toward) return toward;                 // cambio di verso: riparti da 1x
-  const i = scala.indexOf(Math.abs(attuale));
+  if (key === "k") return 0;
+  const toward = key === "l" ? 1 : -1;
+  if (Math.sign(current) !== toward) return toward;                 // cambio di verso: riparti da 1x
+  const i = scala.indexOf(Math.abs(current));
   return toward * (scala[Math.min(scala.length - 1, i + 1)] ?? 1);
 }

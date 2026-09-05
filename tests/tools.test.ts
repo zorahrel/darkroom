@@ -5,34 +5,34 @@ import { STARTABLE } from "../server/routes/tools.ts";
 import { tools as MCP } from "../mcp/server.ts";
 
 /**
- * Il catalogo degli strumenti deve restare vero.
+ * The tool catalogue must stay true.
  *
- * Un elenco di capacità scritto a mano è una brochure il giorno dopo: dice
- * «Darkroom sviluppa il colore anche da MCP» quando quello strumento MCP non
- * esiste più, e chi legge ci crede. Questi test lo tengono ancorato a due
- * cose che il programma possiede davvero — le rotte registrate su Hono e i
- * nomi degli strumenti MCP — nelle DUE direzioni: niente promesse false, e
- * niente capacità nuove che il catalogo non racconta.
+ * A hand-written list of capabilities is a brochure the next day: it says
+ * «Darkroom develops the colour from MCP too» when that MCP tool no longer
+ * exists, and whoever reads it believes it. These tests anchor it to two things
+ * the program really owns — the routes registered on Hono and the names of the
+ * MCP tools — in BOTH directions: no false promises, and no new capability the
+ * catalogue does not tell about.
  */
 
-/** Le rotte davvero montate, nella forma "METODO /percorso". */
+/** The routes really mounted, in the form "METHOD /path". */
 const ROUTES = new Set(app.routes.map((r) => `${r.method} ${r.path}`));
 const MCP_NAMES = new Set(MCP.map((t) => t.name));
 
 /**
- * I due strumenti che parlano DEL catalogo, non che ci stanno dentro. Sono
- * l'unica eccezione ammessa alla copertura, ed è scritta qui invece che
- * dedotta con una regola: due nomi si leggono, una regola si aggira.
+ * The two tools that talk ABOUT the catalogue rather than living in it. They
+ * are the only allowed exception to the coverage, and it is written here
+ * instead of deduced by a rule: two names are read, a rule is worked around.
  */
 const META = new Set(["list_tools", "start_tool"]);
 
-describe("il catalogo degli strumenti non promette roba che non c'è", () => {
-  test("ogni rotta dichiarata è montata sul server", () => {
+describe("the tool catalogue does not promise things that are not there", () => {
+  test("every declared route is mounted on the server", () => {
     const ghosts: string[] = [];
     for (const s of TOOLS) {
       for (const route of s.api) {
-        // Le rotte dello storyboard sono montate su un prefisso: il catalogo
-        // le scrive per intero perché è così che si chiamano da fuori.
+        // The storyboard routes are mounted on a prefix: the catalogue writes
+        // them in full because that is what they are called from outside.
         const [method, path] = route.split(" ") as [string, string];
         const variants = [
           `${method} ${path}`,
@@ -45,7 +45,7 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
     expect(ghosts).toEqual([]);
   });
 
-  test("ogni strumento MCP dichiarato esiste davvero", () => {
+  test("every declared MCP tool really exists", () => {
     const ghosts: string[] = [];
     for (const s of TOOLS) {
       for (const name of s.mcp) if (!MCP_NAMES.has(name)) ghosts.push(`${s.id} → ${name}`);
@@ -53,13 +53,13 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
     expect(ghosts).toEqual([]);
   });
 
-  test("ogni strumento MCP è raccontato da qualche voce del catalogo", () => {
+  test("every MCP tool is told about by some entry in the catalogue", () => {
     const covered = new Set(TOOLS.flatMap((s) => s.mcp));
     const orphans = [...MCP_NAMES].filter((n) => !covered.has(n) && !META.has(n));
     expect(orphans).toEqual([]);
   });
 
-  test("aree, id e avvii sono ben formati", () => {
+  test("areas, ids and starts are well formed", () => {
     const areas = new Set(AREAS.map((a) => a.id));
     const visti = new Set<string>();
     for (const s of TOOLS) {
@@ -76,14 +76,14 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
 });
 
 describe("GET /api/tools", () => {
-  test("elenca tutto, con cosa è pronto e cosa manca", async () => {
+  test("it lists everything, with what is ready and what is missing", async () => {
     const r = await app.request("/api/tools");
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
     expect(j.tools).toHaveLength(TOOLS.length);
     expect(j.areas.length).toBe(AREAS.length);
-    // Ogni strumento non pronto dice PERCHÉ, non solo che non lo è: uno
-    // strumento grigio senza motivo è una porta chiusa senza cartello.
+    // Every tool that is not ready says WHY, not just that it is not: a grey
+    // tool with no reason is a closed door with no sign.
     for (const s of j.tools) {
       expect(typeof s.ready).toBe("boolean");
       if (!s.ready) {
@@ -93,7 +93,7 @@ describe("GET /api/tools", () => {
     }
   });
 
-  test("i progetti di uno strumento sono quelli con la vista giusta", async () => {
+  test("a tool's projects are the ones with the right view", async () => {
     const r = await app.request("/api/tools/edit/projects");
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
@@ -110,7 +110,7 @@ describe("POST /api/tools/:id/start", () => {
     expect(r.status).toBe(404);
   });
 
-  test("uno strumento che si apre e basta lo dice, invece di fingere di partire", async () => {
+  test("a tool that only opens says so, instead of pretending to start", async () => {
     const r = await app.request("/api/tools/tree/start", {
       method: "POST",
       body: JSON.stringify({}),
@@ -128,7 +128,7 @@ describe("POST /api/tools/:id/start", () => {
     expect(((await r.json()) as any).error).toContain("nome");
   });
 
-  test("«progetto vuoto» crea davvero il progetto e dice dove atterrare", async () => {
+  test("«empty project» really creates the project and says where to land", async () => {
     const name = `catalogo-${Date.now()}`;
     const r = await app.request("/api/tools/projects/start", {
       method: "POST",
@@ -144,15 +144,15 @@ describe("POST /api/tools/:id/start", () => {
     expect(list.projects.some((p: any) => p.id === j.project)).toBe(true);
   });
 
-  test("una scaletta diventa uno storyboard con i suoi pannelli", async () => {
+  test("a beat sheet becomes a storyboard with its panels", async () => {
     const r = await app.request("/api/tools/storyboard/start", {
       method: "POST",
       body: JSON.stringify({
         values: { name: `board-${Date.now()}`, beats: "lei entra\nprimo piano\nla strada vuota" },
       }),
     });
-    // Senza generatore vivo l'avvio si ferma prima, e lo dice: è il
-    // comportamento voluto (409), non un fallimento del catalogo.
+    // With no live generator the start stops earlier, and says so: it is the
+    // intended behaviour (409), not a failure of the catalogue.
     if (r.status === 409) {
       expect(((await r.json()) as any).missing).toContain("generator");
       return;
@@ -166,16 +166,17 @@ describe("POST /api/tools/:id/start", () => {
     expect(board.panels).toHaveLength(3);
   });
 
-  test("ogni strumento con un avvio rapido ha chi lo esegue", () => {
-    // Contro il motore, non contro la rotta: chiamare gli avvii per davvero
-    // vorrebbe dire far partire Chrome e creare progetti veri dentro la suite.
+  test("every tool with a quick start has something that runs it", () => {
+    // Against the engine, not against the route: really calling the starts
+    // would mean launching Chrome and creating real projects inside the
+    // suite.
     const withoutEngine = TOOLS.filter(
       (s) => s.starters.some((a) => a.mode !== "open") && !STARTABLE.has(s.id),
     ).map((s) => s.id);
     expect(withoutEngine).toEqual([]);
   });
 
-  test("e nessun motore avanza senza il suo strumento nel catalogo", () => {
+  test("and no engine advances without its tool in the catalogue", () => {
     const orphans = [...STARTABLE].filter((id) => !TOOLS.some((s) => s.id === id));
     expect(orphans).toEqual([]);
   });

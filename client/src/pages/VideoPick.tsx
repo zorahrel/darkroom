@@ -92,7 +92,7 @@ type Filter = PickFilter;
 
 /** Twelve instants in a strip. Each cell takes the video to its own. */
 function Take({ shot, take, onVaiA }: {
-  shot: string; take: string; onVaiA: (frazione: number) => void;
+  shot: string; take: string; onVaiA: (fraction: number) => void;
 }) {
   const N = 12;
   const [broken, setBroken] = useState(false);
@@ -215,7 +215,7 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
  * crop says what was ASKED FOR, and after watching the clip you know what came
  * OUT, which is not the same thing.
  */
-function Descrizione({ shot, text, manual, onSave }: {
+function Description({ shot, text, manual, onSave }: {
   shot: string; text: string | null; manual: boolean; onSave: (t: string) => void;
 }) {
   const [edit, setEdit] = useState(false);
@@ -1004,11 +1004,11 @@ export default function VideoPick() {
                 was not there: you had the name, the numbers and the whole
                 prompt, i.e. everything except the answer to "what is this
                 thing". */}
-            <Descrizione
+            <Description
               shot={current.id}
-              text={current.descrizione}
-              manual={current.descrizioneAMano}
-              onSave={async (t) => setShots((await api.videoDescrizione(current.id, t)).shots)}
+              text={current.description}
+              manual={current.descriptionByHand}
+              onSave={async (t) => setShots((await api.videoDescription(current.id, t)).shots)}
             />
 
             {scene.verdict === "scartata" && current.why && (
@@ -1201,24 +1201,24 @@ export default function VideoPick() {
                  button is looked at every time you hesitate. The button
                  teaches it, and whoever learns it stops using the button. */
               <div className="mt-4 flex gap-2 items-center flex-wrap">
-                <VerdictButton onClick={() => setNota("scarto")} tasto="←"
+                <VerdictButton onClick={() => setNota("scarto")} key="←"
                   className="border-rose-800 text-rose-300 hover:bg-rose-950/50">
                   ✕ scarta
                 </VerdictButton>
-                <VerdictButton onClick={() => void judge(true)} tasto="→"
+                <VerdictButton onClick={() => void judge(true)} key="→"
                   className="border-emerald-800 text-emerald-300 hover:bg-emerald-950/50">
                   ♥ tieni
                 </VerdictButton>
-                <VerdictButton onClick={() => setNota("nota")} tasto="↑"
+                <VerdictButton onClick={() => setNota("nota")} key="↑"
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ✎ annota
                 </VerdictButton>
-                <VerdictButton onClick={() => avanti()} tasto="↓"
+                <VerdictButton onClick={() => avanti()} key="↓"
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ↷ salta
                 </VerdictButton>
                 <VerdictButton onClick={() => { const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }}
-                  tasto="spazio"
+                  key="spazio"
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ↻ rivedi
                 </VerdictButton>
@@ -1247,11 +1247,11 @@ export default function VideoPick() {
             <Take
               shot={current.id}
               take={current.takes[0]?.take ?? "a"}
-              onVaiA={(frazione) => {
+              onVaiA={(fraction) => {
                 const v = video.current;
                 if (!v || !Number.isFinite(v.duration)) return;
                 v.pause();
-                v.currentTime = frazione * v.duration;
+                v.currentTime = fraction * v.duration;
               }}
             />
 

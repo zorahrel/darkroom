@@ -10,14 +10,14 @@ export type PhotoListItem = {
   version_count: number;
   taken_at: number | null;
   feedback: string | null;
-  /** "Mi piace": 1 = la tengo. Scelta umana sulla foto, non sul render. */
+  /** "Like": 1 = I keep it. A human choice about the photo, not the render. */
   picked: number;
-  /** 1 = ChatGPT la rifiuta: non viene piu' accodata. */
+  /** 1 = ChatGPT refuses it: it is not queued any more. */
   skipped: number;
   skip_reason: string | null;
-  /** Titolo del post di cui questa foto e' la copertina, se lo e'. */
+  /** Title of the post this photo is the cover of, if it is. */
   cover_of?: string | null;
-  /** Provider del render mostrato: 'higgsfield' = master, altro = bozza web. */
+  /** Provider of the render shown: 'higgsfield' = master, anything else = web draft. */
   shown_provider: string | null;
 };
 
@@ -207,15 +207,15 @@ export type StudioProject = {
   root: string;
   /** La vista su cui si atterra aprendo il progetto. */
   kind: ProjectKind;
-  /** Le viste accese: un progetto può essere foto E storyboard E video. */
+  /** The views switched on: a project can be photo AND storyboard AND video. */
   views: ProjectKind[];
   active: boolean;
   created_at: number;
   db_path: string;
   root_exists: boolean;
   stats: ProjectStats | null;
-  /** Solo per i progetti video: i numeri che per un montaggio vogliono dire
-   *  qualcosa. Nullo altrove. */
+  /** Video projects only: the numbers that mean something for an edit. Null
+   *  elsewhere. */
   video: { cuts: number; shots: number; duration: number } | null;
   error: string | null;
 };
@@ -226,9 +226,9 @@ export type StudioOverview = {
     backend: string;
     browser_alive: boolean | null;
     runner: RunnerStatus;
-    /** Solo per i backend a pagamento: quanto e' costato finora, sommato dai
-     *  job. Il saldo residuo non e' leggibile con una chiave di progetto
-     *  (403 "Missing scopes: api.usage.read"), quindi si mostra la spesa. */
+    /** Paid backends only: how much it has cost so far, summed from the
+     *  jobs. The remaining balance is not readable with a project key
+     *  (403 "Missing scopes: api.usage.read"), so the spend is shown. */
     spend?: { usd: number; images: number; model: string; quality: string } | null;
     openai_key?: boolean | null;
   };
@@ -284,9 +284,9 @@ export type PipelineStatus = {
   grade: ColorGrade;
   favorites: number;
   queue: Record<string, number>;
-  /** Avviso se il build servito e' piu' vecchio dei sorgenti del client. */
+  /** A warning if the build being served is older than the client sources. */
   stale_dist?: string | null;
-  /** Conflitti nel grade che si vedono nelle foto, non nella lista di step. */
+  /** Grade conflicts that show up in the photos, not in the step list. */
   grade_warnings?: string[];
 };
 
@@ -475,18 +475,18 @@ export type Collection = {
   title: string;
   caption: string | null;
   position: number;
-  /** Foto che detta il colore del post: allegata a ogni sua rigenerazione. */
+  /** The photo that dictates the post's colour: attached to every regeneration of it. */
   reference_photo_id: string | null;
   created_at: number;
   photo_count: number;
-  /** Quante ne usciranno davvero: esclude le foto saltate (rifiutate da
-   *  ChatGPT, quindi senza render). Diverge da photo_count quando il post
-   *  contiene una foto che non verra' mai pubblicata. */
+  /** How many will really go out: it excludes skipped photos (refused by
+   *  ChatGPT, hence with no render). It diverges from photo_count when the post
+   *  contains a photo that will never be published. */
   publishable_count?: number;
 };
 
-/** Una slide del carosello composta da più foto (collage). */
-/** Composizioni: tutte a pieno formato, senza cornici né fondo a vista. */
+/** A carousel slide made of several photos (a collage). */
+/** Compositions: all full-bleed, with no frames and no visible background. */
 export type CollageMode = "hero" | "mosaic" | "grid" | "stack" | "split";
 
 export type Collage = {
@@ -512,13 +512,13 @@ export type VideoShot = {
   id: string;
   prompt: string;
   takes: VideoTake[];
-  /** Quella che conta: la forzatura a mano se c'è, altrimenti la misurata. */
+  /** The one that counts: the hand-set forcing if there is one, else the measured value. */
   intensity: number | null;
   measuredIntensity: number | null;
   manualIntensity: number | null;
-  /** Una riga su cosa si vede. Scritta a mano, o ritagliata dal prompt. */
-  descrizione: string | null;
-  descrizioneAMano: boolean;
+  /** One line on what you see. Written by hand, or cropped from the prompt. */
+  description: string | null;
+  descriptionByHand: boolean;
   moto: number | null;
   dettaglio: number | null;
   inEdit: number;
@@ -527,16 +527,16 @@ export type VideoShot = {
   verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
   problems: string[];
-  /** Perché merita di essere guardata per prima. Non è un verdetto. */
+  /** Why it deserves to be looked at first. It is not a verdict. */
   suspect: string | null;
-  /** Due meta' della stessa presa condividono questa: `z43_0` e `z43_1` -> `z43`. */
+  /** Two halves of the same take share this: `z43_0` and `z43_1` -> `z43`. */
   origine: string;
   act: string | null;
-  /** Secondo del film in cui compare la prima volta, null se non e' in montaggio. */
+  /** Second of the film it first appears at, null if it is not in the cut. */
   minute: number | null;
-  /** OGNI volta che entra nel montaggio, in ordine. Vuoto se non e' montata. */
+  /** EVERY time it enters the cut, in order. Empty if it is not cut in. */
   apparizioni: { t: number; dur: number; act: string | null }[];
-  /** Perche' il pianificatore l'ha escluso, quando non e' stato scartato a mano. */
+  /** Why the planner excluded it, when it was not discarded by hand. */
   excluded: string | null;
 };
 export type VideoCut = {
@@ -561,8 +561,9 @@ export type VideoRebuild = {
   iniziata: number | null; finita: number | null; output: number | null;
 };
 
-/** Una generazione sulla 3090. Il tempo che ci mette dipende dai parametri, non
- *  dal prompt: e' la memoria della scheda a decidere se sono 90 secondi o mai. */
+/** A generation on the 3090. How long it takes depends on the parameters, not
+ *  on the prompt: it is the card's memory that decides between 90 seconds and
+ *  never. */
 export type VideoJob = {
   id: number;
   shot: string;
@@ -579,30 +580,30 @@ export type VideoJob = {
   finished_at: number | null;
 };
 
-/** Il suono sotto la timeline: profilo di ampiezza, beat misurati, confini di
- *  battuta. `pronta` e' falso finche' i picchi non sono stati calcolati. */
+/** The sound under the timeline: amplitude profile, measured beats, bar
+ *  boundaries. `ready` is false until the peaks have been computed. */
 export type VideoWave = {
   peaks: number[];
   beats: number[];
   bars: number[];
   duration: number;
-  pronta: boolean;
+  ready: boolean;
 };
 
-/** Un appunto attaccato a un istante del montaggio. */
+/** A note pinned to an instant of the cut. */
 export type VideoMarker = { t: number; note: string };
 
-/** Ciò che è stato forzato a mano sopra il piano derivato. */
+/** What has been forced by hand over the derived plan. */
 export type VideoOverrides = {
   pin: { bar: number; shot: string }[];
   duration: { bar: number; bars: number }[];
   discardedByHand: { shot: string; reason: string }[];
 };
 
-// ---- catalogo degli strumenti ---------------------------------------------
-// Le forme arrivano da `server/tools.ts`, che è la fonte: qui si
-// dichiarano solo per leggerle. Se le due divergono, è il server ad avere
-// ragione — questa è la copia, non l'originale.
+// ---- tool catalogue -------------------------------------------------------
+// The shapes come from `server/tools.ts`, which is the source: here they are
+// only declared in order to read them. If the two diverge, the server is
+// right — this is the copy, not the original.
 
 export type ToolArea =
   | "immagini" | "colore" | "qualita" | "libreria" | "racconto" | "montaggio" | "sistema";
@@ -634,9 +635,9 @@ export type Tool = {
   mcp: string[];
   needs: Requirement[];
   starters: Start[];
-  /** Usabile adesso su questa macchina. */
+  /** Usable right now on this machine. */
   ready: boolean;
-  /** Cosa manca, detto con il gesto che lo sistema. */
+  /** What is missing, said as the gesture that fixes it. */
   missing: { requirement: Requirement; how: string }[];
 };
 
@@ -647,7 +648,7 @@ export type Catalogue = {
   tools: Tool[];
 };
 
-/** Cosa è successo avviando uno strumento, e dove si atterra. */
+/** What happened when a tool was started, and where you land. */
 export type StartOutcome = {
   ok: true;
   route: string;

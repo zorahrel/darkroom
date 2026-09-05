@@ -154,12 +154,12 @@ export function Shortcut({ children }: { children: React.ReactNode }) {
 /** An action key with its shortcut printed on it. */
 export function VerdictButton({
   onClick,
-  tasto,
+  key,
   className = "",
   children,
 }: {
   onClick: () => void;
-  tasto: string;
+  key: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -169,7 +169,7 @@ export function VerdictButton({
       className={`px-3 py-1.5 rounded-sm border text-[13px] inline-flex items-center gap-2 ${className}`}
     >
       {children}
-      <Shortcut>{tasto}</Shortcut>
+      <Shortcut>{key}</Shortcut>
     </button>
   );
 }
@@ -272,7 +272,7 @@ export function Choose<T extends string>({
     return () => window.removeEventListener("pointerdown", outside);
   }, [open, items, value]);
 
-  const tasti = (e: React.KeyboardEvent) => {
+  const keys = (e: React.KeyboardEvent) => {
     if (!open) {
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
       return;
@@ -294,7 +294,7 @@ export function Choose<T extends string>({
     <div ref={box} className="relative" style={{ width: width }}>
       <button
         type="button" title={title} aria-haspopup="listbox" aria-expanded={open}
-        onClick={() => setOpen((a) => !a)} onKeyDown={tasti}
+        onClick={() => setOpen((a) => !a)} onKeyDown={keys}
         className={`w-full flex items-center gap-1 rounded-sm border border-neutral-700
                     bg-neutral-950 text-neutral-200 text-left ${t}
                     hover:border-neutral-500 focus:outline-none focus:border-neutral-300`}>

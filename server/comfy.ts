@@ -171,7 +171,7 @@ const write = (id: number, fields: Record<string, unknown>) => {
   getDb().run(`UPDATE video_jobs SET ${k.map((x) => `${x}=?`).join(", ")} WHERE id=?`, [...k.map((x) => fields[x] as any), id]);
 };
 
-const appendi = (id: number, row: string) => {
+const append = (id: number, row: string) => {
   const j = getDb().query(`SELECT log FROM video_jobs WHERE id=?`).get(id) as { log: string | null } | null;
   write(id, { log: ((j?.log ?? "") + row + "\n").slice(-20_000) });
 };
@@ -204,7 +204,7 @@ function riprendiIn(_pid: string): void {
   const db = getDb();
   const persi = db.query(`SELECT * FROM video_jobs WHERE status='running'`).all() as VideoJob[];
   for (const j of persi) {
-    appendi(j.id, j.prompt_id
+    append(j.id, j.prompt_id
       ? "-- il server e' ripartito: mi riaggancio alla generazione --"
       : "-- il server e' ripartito prima che partisse: torna in coda --");
     write(j.id, { status: "pending" });
@@ -237,7 +237,7 @@ async function run(job: VideoJob): Promise<void> {
   const p = JSON.parse(job.params) as ComfyParams;
   const prefix = `${job.shot}_${job.take}_${job.id}`;
   write(job.id, { status: "running", started_at: Date.now(), log: "" });
-  appendi(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
+  append(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
 
   /**
    * First, empty the card.
@@ -271,15 +271,15 @@ async function run(job: VideoJob): Promise<void> {
   if (job.prompt_id) {
     const h = await fetch(`${HOST}/history/${job.prompt_id}`).then((x) => x.json() as any).catch(() => ({}));
     if (h[job.prompt_id]) {
-      appendi(job.id, `ripreso: ${job.prompt_id} era gia' finito`);
+      append(job.id, `ripreso: ${job.prompt_id} era gia' finito`);
       return await collect(job, prefix);
     }
     if (await queuedOnComfy(job.prompt_id)) {
-      appendi(job.id, `ripreso: ${job.prompt_id} sta ancora girando, torno ad aspettarlo`);
+      append(job.id, `ripreso: ${job.prompt_id} sta ancora girando, torno ad aspettarlo`);
       await aspetta(job, job.prompt_id, prefix, p);
       return await collect(job, prefix);
     }
-    appendi(job.id, `${job.prompt_id} non e' ne' finito ne' in coda: lo rimando`);
+    append(job.id, `${job.prompt_id} non e' ne' finito ne' in coda: lo rimando`);
   }
 
   const r = await fetch(`${HOST}/prompt`, {
@@ -290,7 +290,7 @@ async function run(job: VideoJob): Promise<void> {
   if (!r.ok) throw new Error(`ComfyUI ha rifiutato: ${r.status} ${(await r.text()).slice(0, 400)}`);
   const promptId = ((await r.json()) as any).prompt_id as string;
   write(job.id, { prompt_id: promptId });
-  appendi(job.id, `in coda su ComfyUI: ${promptId}`);
+  append(job.id, `in coda su ComfyUI: ${promptId}`);
 
   await aspetta(job, promptId, prefix, p);
   return await collect(job, prefix);
@@ -328,7 +328,7 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Comfy
     const n = await countFrames(prefix);
     if (n > lastCount) { lastCount = n; lastMove = Date.now(); }
     const attesa = Math.round((Date.now() - t0) / 1000);
-    appendi(job.id, `  ${attesa}s — ${n} fotogrammi`);
+    append(job.id, `  ${attesa}s — ${n} fotogrammi`);
     if (Date.now() - lastMove > LIMIT_WITHOUT_FRAMES) {
       throw new Error(
         `nessun fotogramma nuovo per 15 minuti (${attesa}s totali, ${n} fotogrammi). ` +
@@ -341,16 +341,16 @@ async function aspetta(job: VideoJob, promptId: string, prefix: string, p: Comfy
 
 /** From PNGs to a shot: it happens on the PC, and only the preview comes across. */
 async function collect(job: VideoJob, prefix: string): Promise<void> {
-  appendi(job.id, "-> raccolta sul PC");
+  append(job.id, "-> raccolta sul PC");
   const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.shot} ${job.take}"`);
-  appendi(job.id, (rac.out + rac.err).trim());
+  append(job.id, (rac.out + rac.err).trim());
   if (rac.code !== 0) throw new Error(`raccogli.sh e' uscito ${rac.code}: ${(rac.err || rac.out).slice(0, 600)}`);
 
   // Only the light clip comes across: it is the only thing the browser has to open.
   const name = `${job.shot}__${job.take}`;
   for (const est of ["mp4", "jpg"]) {
     const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${name}.${est}`, join(videoRoot(), "prev", `${name}.${est}`)], { stdout: "pipe", stderr: "pipe" });
-    if ((await scp.exited) !== 0) appendi(job.id, `!! anteprima ${est} non ritirata`);
+    if ((await scp.exited) !== 0) append(job.id, `!! anteprima ${est} non ritirata`);
   }
   const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
 
@@ -367,7 +367,7 @@ async function collect(job: VideoJob, prefix: string): Promise<void> {
   writeFileSync(reg, JSON.stringify(prec, null, 1));
 
   write(job.id, { status: "done", frames, finished_at: Date.now() });
-  appendi(job.id, `fatto: ${frames} fotogrammi, anteprima ${existsSync(join(videoRoot(), "prev", `${name}.mp4`)) ? "pronta" : "MANCANTE"}`);
+  append(job.id, `fatto: ${frames} fotogrammi, anteprima ${existsSync(join(videoRoot(), "prev", `${name}.mp4`)) ? "pronta" : "MANCANTE"}`);
 }
 
 async function countFrames(prefix: string): Promise<number> {

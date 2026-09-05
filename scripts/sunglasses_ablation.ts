@@ -33,7 +33,7 @@ const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
-const giri = Math.max(1, Number(arg("--giri") ?? 1));
+const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 
 /** Il blocco che descrive la forma degli occhiali a parole: e' la leva. */
 const WORDS =
@@ -61,7 +61,7 @@ withProject(PID, () => {
   const REF = join(refDir, "occhiali-gascan-ritagliato.jpg");
   if (!existsSync(REF)) throw new Error(`reference mancante: ${REF}`);
 
-  const celle = [
+  const cells = [
     { key: "occhiali-A-controllo", prompt: base.prompt_used, refs: [] as string[] },
     { key: "occhiali-B-ref-piu-parole", prompt: base.prompt_used + RUOLO, refs: [REF] },
     { key: "occhiali-C-solo-ref", prompt: base.prompt_used.replace(WORDS, RINVIO) + RUOLO, refs: [REF] },
@@ -72,8 +72,8 @@ withProject(PID, () => {
     .all()
     .map((r) => r.original_path);
 
-  for (let g = 1; g <= giri; g++) {
-    for (const c of celle) {
+  for (let g = 1; g <= rounds; g++) {
+    for (const c of cells) {
       const lineage = JSON.stringify({
         recipe: c.key,
         refset: c.refs.length ? "3 sorgenti + occhiali (reference)" : "3 sorgenti, occhiali a parole",

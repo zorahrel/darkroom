@@ -93,7 +93,7 @@ function Item({
   /** Zoom: a 64px thumbnail is for recognising an image you already know, not
    *  for judging it. Without it, seeing what really went into the generation
    *  meant opening the file from the Finder. */
-  onZoom?: (large: string, didascalia: string) => void;
+  onZoom?: (large: string, caption: string) => void;
 }) {
   return (
     <div>
@@ -185,7 +185,7 @@ function Recipe({
   onZoom,
 }: {
   v?: Variant;
-  onZoom?: (large: string, didascalia: string) => void;
+  onZoom?: (large: string, caption: string) => void;
 }) {
   if (!v) return null;
   return (

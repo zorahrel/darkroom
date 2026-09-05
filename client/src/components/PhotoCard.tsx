@@ -5,9 +5,9 @@ import { thumbRawUrl, thumbGenUrl, gradedUrl } from "../api";
 
 type JobStatus = "pending" | "running" | "failed";
 
-/** Sotto questa larghezza la cella non ha spazio per badge multipli: si tiene
- *  solo l'essenziale (cuore e stella) e il resto sparisce. Meglio niente che
- *  tre etichette sovrapposte illeggibili. */
+/** Below this width the cell has no room for multiple badges: only the
+ *  essentials are kept (heart and star) and the rest disappears. Better nothing
+ *  than three unreadable overlapping labels. */
 const COMPACT_PX = 150;
 
 export default function PhotoCard({
@@ -35,10 +35,10 @@ export default function PhotoCard({
 }) {
   const [isFavorite, setIsFavorite] = useState(photo.favorite_version_id !== null);
   const [busy, setBusy] = useState(false);
-  // "Mi piace": la scelta che si prende scorrendo la griglia. Ottimistica —
-  // scegliere 190 foto è un gesto ripetuto, non deve aspettare la rete.
+  // "Like": the choice made while scrolling the grid. Optimistic — choosing
+  // 190 photos is a repeated gesture, it must not wait for the network.
   const [picked, setPicked] = useState(photo.picked === 1);
-  // Larghezza reale della cella: i badge si mostrano solo se ci stanno.
+  // The cell's real width: the badges are shown only if they fit.
   const cardRef = useRef<HTMLAnchorElement | null>(null);
   const [compact, setCompact] = useState(false);
   useEffect(() => {
@@ -95,22 +95,23 @@ export default function PhotoCard({
   // Freeform review jot per photo. Read in bulk later to steer the next run;
   // deliberately NOT injected into the prompt (that's extra_instructions).
   //
-  // MODIFICA (nota vecchia in preview): prima il box textarea si pre-riempiva
-  // con la nota salvata, quindi rivedendo il risultato di una run ti ritrovavi
-  // la vecchia nota già dentro il campo e la editavi sopra. Ora la nota salvata
-  // ("vecchia") è mostrata read-only sopra il campo (vedi overlay più sotto) e
-  // il box parte SEMPRE vuoto: serve a scrivere la nota NUOVA per il giro
-  // corrente. Salvare una nota nuova sostituisce quella di record; il box vuoto
-  // è un no-op (non azzera la nota esistente) — per questo non si può più
-  // "cancellare" una nota dalla griglia, scelta voluta per non perderle a vuoto.
+  // CHANGE (old note in preview): the textarea used to be pre-filled with the
+  // saved note, so reviewing a run's result you found the old note already in
+  // the field and edited over it. Now the saved ("old") note is shown read-only
+  // above the field (see the overlay further down) and the box ALWAYS starts
+  // empty: it is for writing the NEW note for the current round. Saving a new
+  // note replaces the one on record; an empty box is a no-op (it does not clear
+  // the existing note) — which is why a note can no longer be "deleted" from
+  // the grid, a deliberate choice so they are not lost for nothing.
   const [fb, setFb] = useState("");
   const [savedFb, setSavedFb] = useState(photo.feedback ?? "");
   const [fbSaving, setFbSaving] = useState(false);
   const [fbSaved, setFbSaved] = useState(false);
   const [fbFocused, setFbFocused] = useState(false);
-  // Adotta la verità del server quando la lista si aggiorna — ma solo la nota
-  // salvata (read-only). Il box `fb` (nota nuova) non si tocca mai qui: resta
-  // vuoto/quello che stai scrivendo, così non ti ricompare la nota vecchia dentro.
+  // Adopt the server's truth when the list refreshes — but only the saved
+  // (read-only) note. The `fb` box (the new note) is never touched here: it
+  // stays empty, or whatever you are typing, so the old note does not reappear
+  // inside it.
   useEffect(() => {
     if (fbFocused) return;
     setSavedFb(photo.feedback ?? "");
@@ -118,7 +119,7 @@ export default function PhotoCard({
 
   async function saveFb() {
     const value = fb.trim();
-    if (!value) return; // box vuoto = nessuna nota nuova → non azzerare la vecchia
+    if (!value) return; // empty box = no new note → do not clear the old one
     if (value === savedFb.trim()) {
       setFb("");
       return;
@@ -173,10 +174,10 @@ export default function PhotoCard({
       : jobStatus === "pending"
         ? "ring-1 ring-blue-400/60"
         : jobStatus === "failed"
-          // Sottile e smorzato, non `ring-2 ring-red-500`: un fallimento e' da
-          // sapere, non da inseguire. Alla stessa intensita' di un elemento
-          // SELEZIONATO, dodici celle fallite gridavano piu' forte dell'unica
-          // cella su cui si stava lavorando.
+          // Thin and muted, not `ring-2 ring-red-500`: a failure is to be known
+          // about, not chased. At the same intensity as a SELECTED element,
+          // twelve failed cells shouted louder than the one cell being worked
+          // on.
           ? "ring-1 ring-red-500/50"
           : "";
 
@@ -190,10 +191,10 @@ export default function PhotoCard({
           onToggleSelect?.();
         }
       }}
-      // 4:5, non quadrata. Le versioni generate escono verticali (il prompt
-      // chiede un crop 4:5), quindi una cella quadrata con object-cover ne
-      // tagliava via un quinto: si giudicava una foto senza vederne il bordo,
-      // ed e' proprio il bordo che il reframe dell'AI cambia.
+      // 4:5, not square. The generated versions come out vertical (the prompt
+      // asks for a 4:5 crop), so a square cell with object-cover cut a fifth
+      // off: you judged a photo without seeing its edge, and the edge is
+      // precisely what the AI's reframe changes.
       className={`group relative block aspect-[4/5] overflow-hidden rounded-md bg-neutral-900 border ${selected ? "border-blue-500" : "border-neutral-800"} hover:border-neutral-600 transition-colors ${ringClass}`}
     >
       {/* Base layer: best preview (favorite/latest or RAW) */}
@@ -232,25 +233,25 @@ export default function PhotoCard({
         <div className="absolute inset-0 bg-black/40 pointer-events-none" />
       )}
 
-      {/* Badge PRO: questo render viene dal modello a pagamento (GPT Image 2 via
-          Higgsfield), non dalla versione web. La web è una bozza — 1 MP, neri
-          schiacciati — e senza un segno visibile non si sa quali foto sono già
-          state portate a master. */}
-      {/* Render dal modello pro: un punto verde accanto alla stella, non una
-          etichetta. Serve a distinguere master e bozza con la coda dell'occhio
-          mentre si scorre — e a differenza di una scritta resta leggibile
-          anche sulla cella più piccola, dove tutto il resto sparisce. */}
-      {/* Copertina: nella vista "Copertine" le foto arrivano da post diversi e
-          senza il titolo non si sa cosa promettono.
-          NON in alto a sinistra: li' ci sono gia' il cuore "mi piace" (z-20) e
-          il numero di slot (z-10), e con z-30 li copriva entrambi. Qui sta in
-          BASSO, largo quanto la cella meno i margini, sopra la striscia della
-          nota ma sotto l'overlay di caricamento. */}
+      {/* PRO badge: this render comes from the paid model (GPT Image 2 via
+          Higgsfield), not the web version. The web one is a draft — 1 MP,
+          crushed blacks — and without a visible mark there is no telling which
+          photos have already been taken to master. */}
+      {/* Render from the pro model: a green dot beside the star, not a
+          label. It is for telling master and draft apart out of the corner of
+          the eye while scrolling — and unlike a word it stays readable even on
+          the smallest cell, where everything else disappears. */}
+      {/* Cover: in the "Covers" view the photos come from different posts
+          and without the title there is no telling what they promise.
+          NOT top left: the "like" heart (z-20) and the slot number (z-10) are
+          already there, and at z-30 it covered both. Here it sits at the
+          BOTTOM, as wide as the cell minus the margins, above the note's strip
+          but below the loading overlay. */}
       {photo.cover_of && (
         <span
-          // Larga fino al bordo destro copriva il contatore versioni su tutte
-          // e 7 le card (misurato: ~500px di sovrapposizione). Si ferma prima,
-          // lasciandogli il suo angolo.
+          // Reaching the right edge it covered the version counter on all 7
+          // cards (measured: ~500px of overlap). It stops earlier, leaving it
+          // its corner.
           className={
             "pointer-events-none absolute bottom-1 left-1 z-20 truncate rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-black " +
             (selectMode ? "right-16" : "right-9")
@@ -263,24 +264,25 @@ export default function PhotoCard({
       {photo.shown_provider === "higgsfield" && (
         <span
           title="Foto pronta: render dal modello pro (GPT Image 2)"
-          // Sul filtro "Copertine" convivono con la fascia gialla del titolo:
-          // stesso bordo inferiore, si coprirebbero. Qui salgono sopra di essa.
+          // On the "Covers" filter they coexist with the title's yellow band:
+          // same bottom edge, they would cover each other. Here they rise above
+          // it.
           className={`pointer-events-none absolute ${photo.cover_of ? "bottom-7" : "bottom-1"} left-1/2 z-30 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-emerald-950 shadow ring-1 ring-emerald-300/60`}
         >
           ✓ PRONTA
         </span>
       )}
 
-      {/* Contatore versioni. Sta in BASSO a destra: in alto a sinistra c'è il
-          cuore, e i due si sovrapponevano — si intravedeva il badge da sotto il
-          bottone, senza capire cosa fosse. In selezione scala per non finire
-          sotto la spunta. */}
+      {/* Version counter. It sits BOTTOM right: top left is the heart, and
+          the two overlapped — you glimpsed the badge from under the button,
+          without understanding what it was. In selection it shifts so as not to
+          end up under the tick. */}
       <div
         className={
           "absolute bottom-1 flex items-center gap-1 pointer-events-none " +
           (selectMode ? "right-9 " : "right-1 ") +
-          // Su una cella piccola sparisce: il numero di versioni è un dettaglio
-          // di servizio, non vale il posto che ruberebbe alla foto.
+          // On a small cell it disappears: the number of versions is a service
+          // detail, not worth the room it would steal from the photo.
           ""
         }
       >
@@ -292,30 +294,30 @@ export default function PhotoCard({
                 ? "bg-red-900/70 text-red-100"
                 : "bg-black/60 text-neutral-200"
           }`}
-          // Zero versioni e' rosso perche' e' un lavoro da fare. Una foto
-          // rifiutata da ChatGPT ha zero versioni per sempre: se resta rossa
-          // sembra un errore da inseguire, e ogni volta si riapre per scoprire
-          // la stessa cosa. Ambra = e' ferma, e si sa perche'.
+          // Zero versions is red because it is work to do. A photo refused by
+          // ChatGPT has zero versions for ever: if it stays red it looks like
+          // an error to chase, and every time you reopen it to discover the
+          // same thing. Amber = it is stopped, and you know why.
           title={photo.skipped === 1 ? (photo.skip_reason ?? "saltata") : undefined}
         >
           {photo.skipped === 1 ? "skip" : `${photo.version_count}${compact ? "" : "v"}`}
         </span>
       </div>
 
-      {/* Un errore è un PUNTINO in basso, non un cartello rosso in mezzo.
+      {/* An error is a DOT at the bottom, not a red sign in the middle.
 
-          Era una pastiglia rossa piena, centrata sul bordo alto: il punto di
-          massima attenzione della cella, addosso al viso, e con una dozzina di
-          fallimenti la griglia diventava una fila di cartelli rossi in cui le
-          foto sparivano. Ma il fallimento è quasi sempre un inciampo del
-          generatore, e intanto la foto resta l'unica cosa da guardare per
-          decidere se tenerla: deve restare visibile.
+          It used to be a filled red pill, centred on the top edge: the cell's
+          point of maximum attention, right on the face, and with a dozen
+          failures the grid became a row of red signs in which the photos
+          disappeared. But a failure is almost always a stumble of the
+          generator, and meanwhile the photo stays the only thing to look at to
+          decide whether to keep it: it has to stay visible.
 
-          Sta in basso a sinistra, dalla parte opposta al conteggio delle
-          versioni, così le due informazioni non si accavallano. Il colore basta
-          a trovarlo scorrendo; la parola compare al passaggio del mouse, che è
-          quando si vuole davvero sapere cos'è. Il bordo rosso della cella
-          (`ringClass`) dice già che qualcosa è andato storto. */}
+          It sits bottom left, opposite the version count, so the two pieces of
+          information do not pile up. The colour is enough to find it while
+          scrolling; the word appears on hover, which is when you really want to
+          know what it is. The cell's red border (`ringClass`) already says
+          something went wrong. */}
       {jobStatus === "failed" && (
         <span
           title="L'ultima generazione è fallita"
@@ -328,8 +330,8 @@ export default function PhotoCard({
         </span>
       )}
 
-      {/* Lavorazione in corso: qui il velo ha senso, perché la foto sta per
-          cambiare e non è ancora quella definitiva. */}
+      {/* Work in progress: here the veil makes sense, because the photo is
+          about to change and is not the final one yet. */}
       {jobStatus && jobStatus !== "failed" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] pointer-events-none">
           {jobStatus === "running" && (
@@ -370,10 +372,10 @@ export default function PhotoCard({
         </div>
       )}
 
-      {/* In alto a sinistra: "mi piace". È l'azione più frequente della
-          griglia (si scorre e si sceglie), quindi ha il posto migliore e non
-          richiede né selezione né menu. Distinta dalla stella, che riguarda
-          quale RENDER di questa foto è quello buono. */}
+      {/* Top left: "like". It is the grid's most frequent action (you scroll
+          and you choose), so it gets the best spot and requires neither
+          selection nor a menu. Distinct from the star, which is about which
+          RENDER of this photo is the good one. */}
       <button
         onClick={togglePicked}
         aria-label={picked ? "Non mi piace più" : "Mi piace"}
@@ -388,11 +390,10 @@ export default function PhotoCard({
       </button>
 
       {/* Top-right: favorite toggle.
-          NB sugli z-index di questa card: restano tutti sotto z-30, che è il
-          livello dell'header sticky dell'app. A parità di z-index vince chi
-          viene dopo nel DOM — e la griglia viene dopo l'header — quindi un
-          controllo a z-30 qui dentro scavalcava la barra in alto mentre si
-          scorreva. */}
+          NB on this card's z-indexes: they all stay below z-30, which is the
+          level of the app's sticky header. At equal z-index whoever comes later
+          in the DOM wins — and the grid comes after the header — so a control
+          at z-30 in here jumped over the top bar while scrolling. */}
       {(hasEdit || isFavorite) && (
         <button
           onClick={toggleFavorite}
@@ -415,10 +416,9 @@ export default function PhotoCard({
           e.preventDefault();
           e.stopPropagation();
         }}
-        // bottom-7, non bottom-0: sotto passa la striscia con il numero della
-        // slide, il badge del colore e il contatore versioni. Una nota che
-        // arriva fino al bordo li copre, e quelli sono i due dati che si
-        // leggono mentre si scorre.
+        // bottom-7, not bottom-0: underneath runs the strip with the slide
+        // number, the colour badge and the version counter. A note reaching the
+        // edge covers them, and those are the two facts read while scrolling.
         className={`absolute inset-x-0 bottom-7 z-10 p-1.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity ${compact ? "hidden " : ""}${
           fbFocused
             ? "opacity-100 pointer-events-auto"
@@ -426,8 +426,8 @@ export default function PhotoCard({
         }`}
       >
         <div className="relative">
-          {/* Nota vecchia (già salvata): read-only, come riferimento mentre
-              scrivi quella nuova. Sta nella preview, non dentro il box. */}
+          {/* Old note (already saved): read-only, as a reference while you
+              write the new one. It lives in the preview, not inside the box. */}
           {savedFb.trim().length > 0 && (
             <div className="mb-1 max-h-16 overflow-y-auto whitespace-pre-wrap rounded border border-amber-500/30 bg-black/50 px-1.5 py-1 text-[10px] leading-snug text-amber-200/80">
               <span className="font-semibold text-amber-300/90">nota vecchia</span>{" "}

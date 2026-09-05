@@ -16,19 +16,19 @@ const f = join(dir, "clip.mp4");
 const BODY = "0123456789ABCDEF";
 writeFileSync(f, BODY);
 
-const chiedi = (range?: string) =>
+const ask = (range?: string) =>
   serveFile(f, undefined, new Request("http://x/clip.mp4", range ? { headers: { range } } : {}));
 
 describe("serveFile e i pezzi di file", () => {
   test("senza Range: tutto il file, ma dichiara di saperli fare", async () => {
-    const r = chiedi();
+    const r = ask();
     expect(r.status).toBe(200);
     expect(r.headers.get("accept-ranges")).toBe("bytes");
     expect(await r.text()).toBe(BODY);
   });
 
   test("un pezzo in mezzo torna 206 con il content-range giusto", async () => {
-    const r = chiedi("bytes=4-7");
+    const r = ask("bytes=4-7");
     expect(r.status).toBe(206);
     expect(r.headers.get("content-range")).toBe(`bytes 4-7/${BODY.length}`);
     expect(r.headers.get("content-length")).toBe("4");
@@ -36,26 +36,26 @@ describe("serveFile e i pezzi di file", () => {
   });
 
   test("senza fine: da li' fino in fondo", async () => {
-    const r = chiedi("bytes=12-");
+    const r = ask("bytes=12-");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("CDEF");
   });
 
   test("il suffisso sono gli ULTIMI byte, non i primi", async () => {
-    const r = chiedi("bytes=-4");
+    const r = ask("bytes=-4");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("CDEF");
     expect(r.headers.get("content-range")).toBe(`bytes 12-15/${BODY.length}`);
   });
 
   test("una fine oltre il file si accorcia, non esplode", async () => {
-    const r = chiedi("bytes=10-9999");
+    const r = ask("bytes=10-9999");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("ABCDEF");
   });
 
   test("un inizio oltre il file e' 416, non un corpo vuoto qualsiasi", async () => {
-    const r = chiedi("bytes=99-");
+    const r = ask("bytes=99-");
     expect(r.status).toBe(416);
     expect(r.headers.get("content-range")).toBe(`bytes */${BODY.length}`);
   });

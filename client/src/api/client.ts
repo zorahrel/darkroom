@@ -436,7 +436,7 @@ export const api = {
     jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/intensity", {
       method: "POST", body: JSON.stringify({ shot, value }),
     }),
-  videoDescrizione: (shot: string, text: string) =>
+  videoDescription: (shot: string, text: string) =>
     jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/description", {
       method: "POST", body: JSON.stringify({ shot, text }),
     }),
