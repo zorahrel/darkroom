@@ -15,8 +15,8 @@ const at = (p: string, secondsAgo: number) => {
   utimesSync(p, t, t);
 };
 
-describe("il dist servito non deve essere piu' vecchio del client", () => {
-  test("un build piu' recente dei sorgenti va bene", () => {
+describe("the dist being served must not be older than the client", () => {
+  test("a build more recent than the sources is fine", () => {
     const root = repo("fresh");
     writeFileSync(join(root, "client", "src", "App.tsx"), "x");
     at(join(root, "client", "src", "App.tsx"), 600);
@@ -25,9 +25,9 @@ describe("il dist servito non deve essere piu' vecchio del client", () => {
     expect(staleDistWarning(root)).toBeNull();
   });
 
-  test("un sorgente toccato dopo il build viene segnalato, col nome del file", () => {
-    // Il caso reale: dist del 10 agosto, PhotoCard.tsx modificato il 18. La
-    // dashboard mostrava la UI vecchia e nulla lo diceva.
+  test("a source touched after the build is flagged, with the file name", () => {
+    // The real case: dist from 10 August, PhotoCard.tsx modified on the 18th.
+    // The dashboard showed the old UI and nothing said so.
     const root = repo("stale");
     writeFileSync(join(root, "dist", "index.html"), "<html>");
     at(join(root, "dist", "index.html"), 7200);
@@ -38,13 +38,13 @@ describe("il dist servito non deve essere piu' vecchio del client", () => {
     expect(staleDistWarning(root)).toContain("VECCHIO");
   });
 
-  test("dist mancante e' un avviso, non un crash", () => {
+  test("a missing dist is a warning, not a crash", () => {
     const root = join(TEST_ROOT, "distfresh", "nodist");
     mkdirSync(join(root, "client"), { recursive: true });
     expect(staleDistWarning(root)).toContain("MANCA");
   });
 
-  test("node_modules non conta: renderebbe l'allarme sempre acceso", () => {
+  test("node_modules does not count: it would keep the alarm permanently on", () => {
     const root = repo("nm");
     writeFileSync(join(root, "dist", "index.html"), "<html>");
     at(join(root, "dist", "index.html"), 3600);

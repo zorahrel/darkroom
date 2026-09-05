@@ -47,7 +47,7 @@ beforeEach(() => {
 });
 
 describe("collections API", () => {
-  test("creare un post lo restituisce con le sue foto in ordine", async () => {
+  test("creating a post returns it with its photos in order", async () => {
     const created = await call("POST", "/api/collections", {
       title: "Tokyo, il primo colpo",
       caption: "Atterrati di notte",
@@ -120,7 +120,7 @@ describe("collections API", () => {
     expect(db().query("SELECT 1 FROM collection_photos").get()).toBeNull();
   });
 
-  test("sciogliere un post libera le foto ma non le cancella", async () => {
+  test("dissolving a post frees the photos but does not delete them", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     await call("DELETE", "/api/collections/uno");
 
@@ -138,7 +138,7 @@ describe("collections API", () => {
     expect(json.photos["uno"]).toEqual(["b"]);
   });
 
-  test("rinominare cambia il titolo e lascia stare le foto", async () => {
+  test("renaming changes the title and leaves the photos alone", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a"] });
     await call("PATCH", "/api/collections/uno", { title: "Tokyo di notte" });
 
@@ -166,7 +166,7 @@ describe("filtro non assegnate", () => {
 });
 
 describe("mi piace", () => {
-  test("un click marca la foto, un altro la smarca, e i filtri seguono", async () => {
+  test("one click marks the photo, another unmarks it, and the filters follow", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     const put = (id: string, picked: boolean) =>
@@ -225,7 +225,7 @@ describe("mi piace", () => {
 });
 
 describe("carousel order", () => {
-  test("riordinare non perde né duplica foto, e la prima resta la prima", async () => {
+  test("reordering neither loses nor duplicates photos, and the first stays first", async () => {
     await call("POST", "/api/collections", {
       id: "uno",
       title: "Uno",
@@ -321,7 +321,7 @@ describe("collage", () => {
     expect(r.status).toBe(400);
   });
 
-  test("sciogliere il collage lascia il post intatto", async () => {
+  test("dissolving the collage leaves the post intact", async () => {
     await post(["a", "b", "c"]);
     const made = await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["a", "b"],
@@ -363,7 +363,7 @@ describe("the post's colour reference", () => {
     expect(r.status).toBe(400);
   });
 
-  test("si può togliere il riferimento", async () => {
+  test("the reference can be removed", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a"] });
     await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
     await call("PATCH", "/api/collections/uno", { reference_photo_id: null });
@@ -371,7 +371,7 @@ describe("the post's colour reference", () => {
     expect(json.collections[0].reference_photo_id).toBeNull();
   });
 
-  test("colorReferenceFor non restituisce la foto a sé stessa", async () => {
+  test("colorReferenceFor does not return the photo itself", async () => {
     const { colorReferenceFor } = await import("../server/colorReference.ts");
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b"] });
     await call("PATCH", "/api/collections/uno", { reference_photo_id: "a" });
@@ -381,7 +381,7 @@ describe("the post's colour reference", () => {
   });
 });
 
-describe("copertina con un click", () => {
+describe("cover with one click", () => {
   test("it brings the photo to the front without disturbing the others", async () => {
     await call("POST", "/api/collections", {
       id: "uno", title: "Uno", photo_ids: ["a", "b", "c", "d"],
@@ -399,7 +399,7 @@ describe("copertina con un click", () => {
     expect(r.status).toBe(400);
   });
 
-  test("mettere in copertina la prima non cambia nulla", async () => {
+  test("making the first one the cover changes nothing", async () => {
     await call("POST", "/api/collections", { id: "uno", title: "Uno", photo_ids: ["a", "b", "c"] });
     await call("POST", "/api/collections/uno/cover", { photo_id: "a" });
     const { json } = await call("GET", "/api/collections");
@@ -467,7 +467,7 @@ describe("filtro pro", () => {
     expect(counts.pro).toBe(1);
   });
 
-  test("shown_provider riflette il render mostrato, non uno qualsiasi", async () => {
+  test("shown_provider reflects the render shown, not just any one", async () => {
     const { photoRoutes } = await import("../server/routes/photos.ts");
     const grid = new Hono().route("/", photoRoutes);
     const now = Date.now();
@@ -494,7 +494,7 @@ describe("filtro pro", () => {
 });
 
 describe("a post says how many photos will really go out", () => {
-  test("publishable_count esclude le foto saltate", async () => {
+  test("publishable_count excludes skipped photos", async () => {
     const cid = "pub_test";
     db().run("INSERT INTO collections (id, title, position, created_at) VALUES (?, 'T', 99, ?)", [cid, Date.now()]);
     for (const [pid, skip] of [["pub_a", 0], ["pub_b", 0], ["pub_c", 1]] as const) {

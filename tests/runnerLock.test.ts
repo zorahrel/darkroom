@@ -10,33 +10,33 @@ function lockPath(name: string): string {
   return join(dir, `${name}.lock`);
 }
 
-describe("un solo runner per installazione", () => {
-  test("il primo prende il lock, il secondo viene respinto col pid del titolare", () => {
-    // Il caso reale: due servizi launchd (3535 e 3737) sullo stesso DB e sullo
-    // stesso account ChatGPT. Nessuno dei due sbagliava, ma insieme
-    // acceleravano il cap e si contendevano le scritture.
+describe("one runner per installation", () => {
+  test("the first takes the lock, the second is refused with the holder's pid", () => {
+    // The real case: two launchd services (3535 and 3737) on the same DB and the
+    // same ChatGPT account. Neither was wrong on its own, but together they
+    // sped through the cap and fought over the writes.
     const p = lockPath("dup");
     const a = acquireRunnerLock(p);
     expect(a.ok).toBe(true);
 
-    // Simula un ALTRO processo vivo: il pid di un processo che esiste davvero
-    // ma non e' questo. Il pid 1 (launchd) c'e' sempre su macOS.
+    // Simulates ANOTHER live process: the pid of a process that really exists
+    // but is not this one. Pid 1 (launchd) is always there on macOS.
     writeFileSync(p, "1");
     const b = acquireRunnerLock(p);
     expect(b.ok).toBe(false);
     if (!b.ok) expect(b.holderPid).toBe(1);
   });
 
-  test("un lock lasciato da un processo morto viene ripreso", () => {
-    // Un lockfile che sopravvive a un crash bloccherebbe la coda per sempre:
-    // sarebbe peggio del problema che risolve.
+  test("a lock left by a dead process is taken over", () => {
+    // A lockfile surviving a crash would block the queue for ever: it would be
+    // worse than the problem it solves.
     const p = lockPath("stale");
-    writeFileSync(p, "999999"); // pid che non esiste
+    writeFileSync(p, "999999"); // a pid that does not exist
     const r = acquireRunnerLock(p);
     expect(r.ok).toBe(true);
   });
 
-  test("rilasciare il lock lo rimuove, e un altro processo può prenderlo", () => {
+  test("releasing the lock removes it, and another process can take it", () => {
     const p = lockPath("release");
     const a = acquireRunnerLock(p);
     expect(a.ok).toBe(true);
@@ -45,7 +45,7 @@ describe("un solo runner per installazione", () => {
     expect(acquireRunnerLock(p).ok).toBe(true);
   });
 
-  test("lo stesso processo che riprende il proprio lock non si auto-blocca", () => {
+  test("the same process taking over its own lock does not block itself", () => {
     // Un riavvio a caldo (bun --hot) rientra qui: il pid è lo stesso.
     const p = lockPath("self");
     expect(acquireRunnerLock(p).ok).toBe(true);

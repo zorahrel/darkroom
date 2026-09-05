@@ -37,7 +37,7 @@ const API = (process.env.DARKROOM_API ?? "http://localhost:3737").replace(/\/$/,
  * video_judge, which was thereby unusable from exactly the place it exists for.
  * Whoever wants the list calls video_shots.
  */
-export function ricevuta(d: unknown): unknown {
+export function receipt(d: unknown): unknown {
   if (!d || typeof d !== "object") return d;
   const o = { ...(d as Record<string, unknown>) };
   for (const grosso of ["shots", "cuts", "pictures", "segments"]) {
@@ -77,7 +77,7 @@ async function call(
       `${method} ${path} → ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`,
     );
   }
-  return method === "POST" ? ricevuta(data) : data;
+  return method === "POST" ? receipt(data) : data;
 }
 
 type Tool = {

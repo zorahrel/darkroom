@@ -274,27 +274,27 @@ describe.skipIf(!existsSync(REAL_DB))("real gallery DB", () => {
   });
 });
 
-describe("due scrittori non devono far esplodere il server", () => {
-  test("il busy_timeout e' impostato, non lasciato a zero", () => {
-    // Caso reale: uno script di manutenzione con una transazione aperta e ogni
-    // scrittura del server rispondeva 500 (SQLITE_BUSY). WAL separa lettori e
-    // scrittore, non due scrittori: senza timeout SQLite fallisce all'istante.
+describe("two writers must not blow up the server", () => {
+  test("busy_timeout is set, not left at zero", () => {
+    // Real case: a maintenance script with an open transaction and every server
+    // write answered 500 (SQLITE_BUSY). WAL separates readers from the writer,
+    // not two writers: with no timeout SQLite fails instantly.
     const v = db().query<{ timeout: number }, []>("PRAGMA busy_timeout").get();
     expect(v!.timeout).toBeGreaterThanOrEqual(5000);
   });
 
-  test("il WAL resta attivo", () => {
+  test("WAL stays on", () => {
     const v = db().query<{ journal_mode: string }, []>("PRAGMA journal_mode").get();
     expect(v!.journal_mode.toLowerCase()).toBe("wal");
   });
 });
 
-describe("l'ordine dei PRAGMA all'apertura", () => {
-  test("busy_timeout viene impostato PRIMA di journal_mode", async () => {
+describe("the order of the PRAGMAs at open", () => {
+  test("busy_timeout is set BEFORE journal_mode", async () => {
     const src = await Bun.file(new URL("../server/db.ts", import.meta.url)).text();
-    // `journal_mode = WAL` e' una scrittura: con un altro processo sul DB
-    // falliva con SQLITE_BUSY_RECOVERY prima ancora che il timeout esistesse,
-    // e il server moriva all'avvio. Visto davvero sul backend.
+    // `journal_mode = WAL` is a write: with another process on the DB it failed
+    // with SQLITE_BUSY_RECOVERY before the timeout even existed, and the server
+    // died at boot. Really seen on the backend.
     const iBusy = src.indexOf('PRAGMA busy_timeout');
     const iWal = src.indexOf('PRAGMA journal_mode');
     expect(iBusy).toBeGreaterThan(0);

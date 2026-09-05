@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
 /**
- * Riagganciarsi a una generazione, invece di rifarla.
+ * Re-attaching to a generation, instead of redoing it.
  *
- * Un prompt gia' mandato sta in tre posti: finito (cronologia), ancora vivo
- * (coda), o da nessuna parte. Solo il terzo va rimandato — ma il ramo "ancora
- * vivo" non esisteva, e ogni riavvio del server durante una generazione ne
- * pubblicava una copia nuova sulla scheda. Misurato: tre riavvii in una
- * sessione, tre copie identiche dello stesso piano in coda sulla 3090.
+ * A prompt already sent is in one of three places: finished (history), still
+ * alive (queue), or nowhere. Only the third should be resent — but the "still
+ * alive" branch did not exist, and every server restart during a generation
+ * published a fresh copy of it on the card. Measured: three restarts in one
+ * session, three identical copies of the same plan queued on the 3090.
  *
- * Qui si prova il pezzo che quel ramo decide: leggere la coda di ComfyUI.
+ * What is tested here is the piece that branch decides on: reading ComfyUI's
+ * queue.
  */
 export function queued(q: any, promptId: string): boolean {
   if (!q) return false;
@@ -20,23 +21,23 @@ export function queued(q: any, promptId: string): boolean {
 // La forma vera di /queue: [numero, prompt_id, grafo, extra, uscite].
 const item = (id: string) => [7, id, {}, {}, ["10"]];
 
-describe("un prompt vivo si riconosce", () => {
-  test("mentre gira", () => {
+describe("a live prompt is recognised", () => {
+  test("while it runs", () => {
     expect(queued({ queue_running: [item("abc")], queue_pending: [] }, "abc")).toBe(true);
   });
-  test("mentre aspetta il suo turno", () => {
+  test("while it waits its turn", () => {
     expect(queued({ queue_running: [], queue_pending: [item("abc"), item("def")] }, "def")).toBe(true);
   });
-  test("e uno che non c'e' non c'e'", () => {
+  test("and one that is not there is not there", () => {
     expect(queued({ queue_running: [item("abc")], queue_pending: [item("def")] }, "zzz")).toBe(false);
   });
-  test("coda vuota: non c'e'", () => {
+  test("empty queue: not there", () => {
     expect(queued({ queue_running: [], queue_pending: [] }, "abc")).toBe(false);
   });
-  test("ComfyUI muto non e' 'e' vivo': meglio rimandarlo che aspettare per sempre", () => {
+  test("a mute ComfyUI is not 'it is alive': better to resend it than to wait for ever", () => {
     expect(queued(null, "abc")).toBe(false);
   });
-  test("campi assenti non fanno esplodere niente", () => {
+  test("absent fields blow nothing up", () => {
     expect(queued({}, "abc")).toBe(false);
   });
 });
