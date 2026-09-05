@@ -146,13 +146,13 @@ export function cancelVideoJob(id: number): boolean {
   if (!j || j.status === "done" || j.status === "cancelled") return false;
 
   if (j.status === "running") {
-    fermatiSuComfy(j.prompt_id).catch(() => { /* la riga si segna comunque */ });
+    stopOnComfy(j.prompt_id).catch(() => { /* la riga si segna comunque */ });
   }
   const r = db.run(`UPDATE video_jobs SET status='cancelled', finished_at=? WHERE id=? AND status IN ('pending','running')`, [Date.now(), id]);
   return r.changes > 0;
 }
 
-async function fermatiSuComfy(promptId: string | null): Promise<void> {
+async function stopOnComfy(promptId: string | null): Promise<void> {
   if (promptId) {
     await fetch(`${HOST}/queue`, {
       method: "POST",
@@ -176,7 +176,7 @@ const append = (id: number, row: string) => {
   write(id, { log: ((j?.log ?? "") + row + "\n").slice(-20_000) });
 };
 
-let inCorso = false;
+let inProgress = false;
 
 /**
  * The jobs a restart left half-done.
@@ -191,40 +191,40 @@ let inCorso = false;
  * go back to waiting on that prompt and collect it as if nothing had happened.
  * Anything without a `prompt_id` had not started yet and goes back to the queue.
  */
-export function riprendiInterrotti(): void {
+export function resumeInterrupted(): void {
   // At boot there is no "current" project: the context is per request, and
   // outside a request `getDb()` falls back to the first registered project —
   // which is a photo project and has no video jobs. So we step into each one.
   for (const p of listProjects().filter((x) => x.views.includes("video"))) {
-    withProject(p.id, () => riprendiIn(p.id));
+    withProject(p.id, () => resumeIn(p.id));
   }
 }
 
-function riprendiIn(_pid: string): void {
+function resumeIn(_pid: string): void {
   const db = getDb();
-  const persi = db.query(`SELECT * FROM video_jobs WHERE status='running'`).all() as VideoJob[];
-  for (const j of persi) {
+  const lost = db.query(`SELECT * FROM video_jobs WHERE status='running'`).all() as VideoJob[];
+  for (const j of lost) {
     append(j.id, j.prompt_id
       ? "-- il server e' ripartito: mi riaggancio alla generazione --"
       : "-- il server e' ripartito prima che partisse: torna in coda --");
     write(j.id, { status: "pending" });
   }
-  if (persi.length) startQueue();
+  if (lost.length) startQueue();
 }
 
 /** One card, one generation: the queue advances by itself while there is work. */
 export function startQueue(): void {
-  if (inCorso) return;
+  if (inProgress) return;
   const next = getDb().query(`SELECT * FROM video_jobs WHERE status='pending' ORDER BY id LIMIT 1`).get() as VideoJob | null;
   if (!next) return;
-  inCorso = true;
+  inProgress = true;
   void run(next)
     .catch((e) => {
       const ora = getDb().query(`SELECT status FROM video_jobs WHERE id=?`).get(next.id) as { status: string } | null;
       if (ora?.status === "cancelled") return;   // stopped on purpose, not a fault
       write(next.id, { status: "failed", error: String(e), finished_at: Date.now() });
     })
-    .finally(() => { inCorso = false; startQueue(); });
+    .finally(() => { inProgress = false; startQueue(); });
 }
 
 const ssh = async (command: string) => {
@@ -327,11 +327,11 @@ async function waitFor(job: VideoJob, promptId: string, prefix: string, p: Comfy
     }
     const n = await countFrames(prefix);
     if (n > lastCount) { lastCount = n; lastMove = Date.now(); }
-    const attesa = Math.round((Date.now() - t0) / 1000);
-    append(job.id, `  ${attesa}s — ${n} fotogrammi`);
+    const waited = Math.round((Date.now() - t0) / 1000);
+    append(job.id, `  ${waited}s — ${n} fotogrammi`);
     if (Date.now() - lastMove > LIMIT_WITHOUT_FRAMES) {
       throw new Error(
-        `nessun fotogramma nuovo per 15 minuti (${attesa}s totali, ${n} fotogrammi). ` +
+        `nessun fotogramma nuovo per 15 minuti (${waited}s totali, ${n} fotogrammi). ` +
         `Parametri: ${p.width}x${p.height}/${p.length}/${p.steps}. A 704x1280 con 81 fotogrammi ` +
         `la scheda satura la memoria e non scrive nulla: prova piu' piccolo.`,
       );
@@ -342,9 +342,9 @@ async function waitFor(job: VideoJob, promptId: string, prefix: string, p: Comfy
 /** From PNGs to a shot: it happens on the PC, and only the preview comes across. */
 async function collect(job: VideoJob, prefix: string): Promise<void> {
   append(job.id, "-> raccolta sul PC");
-  const rac = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.shot} ${job.take}"`);
-  append(job.id, (rac.out + rac.err).trim());
-  if (rac.code !== 0) throw new Error(`raccogli.sh e' uscito ${rac.code}: ${(rac.err || rac.out).slice(0, 600)}`);
+  const collected = await ssh(`"${BASH}" -lc "${remoteBash()}/raccogli.sh ${prefix} ${job.shot} ${job.take}"`);
+  append(job.id, (collected.out + collected.err).trim());
+  if (collected.code !== 0) throw new Error(`raccogli.sh e' uscito ${collected.code}: ${(collected.err || collected.out).slice(0, 600)}`);
 
   // Only the light clip comes across: it is the only thing the browser has to open.
   const name = `${job.shot}__${job.take}`;
@@ -352,7 +352,7 @@ async function collect(job: VideoJob, prefix: string): Promise<void> {
     const scp = Bun.spawn(["scp", "-q", `${PC}:${remoteScp()}/prev/${name}.${est}`, join(videoRoot(), "prev", `${name}.${est}`)], { stdout: "pipe", stderr: "pipe" });
     if ((await scp.exited) !== 0) append(job.id, `!! anteprima ${est} non ritirata`);
   }
-  const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(rac.out)?.[1] ?? 0);
+  const frames = Number(/src\/[^:]+: (\d+) fotogrammi/.exec(collected.out)?.[1] ?? 0);
 
   /**
    * The frames stay on the PC, and that is fine — but `shots()` builds the list
@@ -363,7 +363,7 @@ async function collect(job: VideoJob, prefix: string): Promise<void> {
    */
   const reg = join(videoRoot(), "raccolte.json");
   const prec = existsSync(reg) ? JSON.parse(readFileSync(reg, "utf8")) as Record<string, any> : {};
-  prec[`${job.shot}__${job.take}`] = { frames, when: Date.now(), prompt: job.prompt, remota: true };
+  prec[`${job.shot}__${job.take}`] = { frames, when: Date.now(), prompt: job.prompt, remote: true };
   writeFileSync(reg, JSON.stringify(prec, null, 1));
 
   write(job.id, { status: "done", frames, finished_at: Date.now() });

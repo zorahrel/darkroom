@@ -448,7 +448,7 @@ export const api = {
     jsonFetch<{ pin: Record<string, string> }>("/api/video/swap", {
       method: "POST", body: JSON.stringify({ barA, shotA, barB, shotB }),
     }),
-  videoSganciaPin: (bars: number[]) =>
+  videoUnpin: (bars: number[]) =>
     jsonFetch<{ pin: Record<string, string> }>("/api/video/unpin", {
       method: "POST", body: JSON.stringify({ bars }),
     }),
@@ -458,7 +458,7 @@ export const api = {
     jsonFetch<{ markers: VideoMarker[] }>("/api/video/marker", {
       method: "POST", body: JSON.stringify({ t, note }),
     }),
-  videoRipresa: (shot: string, take: string, kept: boolean) =>
+  videoTake: (shot: string, take: string, kept: boolean) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/take", {
       method: "POST",
       body: JSON.stringify({ shot, take, kept }),

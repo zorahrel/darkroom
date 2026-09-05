@@ -20,7 +20,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStar
 type Props = {
   sel: VideoCut;
   shots: VideoShot[];
-  candidati: VideoShot[];
+  candidates: VideoShot[];
   close: () => void;
   /** Called after every forcing, so the list on the page stays true. */
   onForced: () => void;
@@ -28,7 +28,7 @@ type Props = {
 
 type Done = { text: string; undo: () => Promise<unknown> };
 
-export default function Inspector({ sel, shots, candidati, close, onForced }: Props) {
+export default function Inspector({ sel, shots, candidates, close, onForced }: Props) {
   const [done, setDone] = useState<Done | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The candidate being looked at. Choosing it changes nothing: only the
@@ -38,17 +38,17 @@ export default function Inspector({ sel, shots, candidati, close, onForced }: Pr
   const [trying, setTrying] = useState<VideoShot | null>(null);
   useEffect(() => { setTrying(null); setDone(null); setError(null); }, [sel.bar, sel.shot]);
 
-  const mio = shots.find((s) => s.id === sel.shot) ?? null;
+  const own = shots.find((s) => s.id === sel.shot) ?? null;
 
   /** Ordered the way the plan ordered them: by the distance between the
    *  image's hardness and the sound's on this bar. */
   const sorted = useMemo(() => {
     const target = sel.soundIntensity;
-    return [...candidati]
+    return [...candidates]
       .map((s) => ({ s, d: Math.abs((s.intensity ?? 0.5) - target) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 24);
-  }, [candidati, sel.soundIntensity]);
+  }, [candidates, sel.soundIntensity]);
 
   const act = async (text: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>) => {
     setError(null);
@@ -56,7 +56,7 @@ export default function Inspector({ sel, shots, candidati, close, onForced }: Pr
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
-  const stacco = sel.shotIntensity !== null && Math.abs(sel.soundIntensity - sel.shotIntensity) > 0.35;
+  const gap = sel.shotIntensity !== null && Math.abs(sel.soundIntensity - sel.shotIntensity) > 0.35;
 
   return (
     <div className="p-2.5">
@@ -71,11 +71,11 @@ export default function Inspector({ sel, shots, candidati, close, onForced }: Pr
       </div>
 
       <div className="mt-2.5 flex gap-2.5 items-start">
-        {mio?.takes[0] && (
+        {own?.takes[0] && (
           <video
-            key={mio.takes[0].clip}
-            src={pq(mio.takes[0].clip)}
-            poster={pq(mio.takes[0].poster)}
+            key={own.takes[0].clip}
+            src={pq(own.takes[0].clip)}
+            poster={pq(own.takes[0].poster)}
             autoPlay muted loop playsInline
             className="w-[86px] shrink-0 aspect-[9/16] object-cover bg-black border border-orange-500/60 rounded-sm"
           />
@@ -85,14 +85,14 @@ export default function Inspector({ sel, shots, candidati, close, onForced }: Pr
             durezza suono <span className="text-neutral-300">{sel.soundIntensity.toFixed(2)}</span><br />
             durezza immagine <span className="text-neutral-300">{sel.shotIntensity?.toFixed(2) ?? "—"}</span>
           </div>
-          {stacco && <div className="mt-1 text-amber-500/90">si staccano parecchio</div>}
+          {gap && <div className="mt-1 text-amber-500/90">si staccano parecchio</div>}
           {/* The shots of the same setup: `a` is not necessarily the best, and
               until now they could only be compared from the library. */}
-          {mio && mio.takes.length > 1 && (
+          {own && own.takes.length > 1 && (
             <div className="mt-1.5">
               <div className="text-neutral-400">riprese</div>
               <div className="mt-0.5 flex gap-1">
-                {mio.takes.map((tk) => (
+                {own.takes.map((tk) => (
                   <span key={tk.take}
                         title={`${tk.frames} fotogrammi${tk.kept ? "" : " · scartata"}`}
                         className={`px-1 rounded-sm border text-[9.5px] ${

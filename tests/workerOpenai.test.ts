@@ -292,9 +292,9 @@ describe("the daily cap bites before spending", () => {
     // with both active the other would fire and the test would be describing a
     // different brake.
     process.env.OPENAI_SYNC_BUDGET_USD = "0";
-    let chiamate = 0;
+    let calls = 0;
     globalThis.fetch = (async () => {
-      chiamate++;
+      calls++;
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch;
     try {
@@ -309,7 +309,7 @@ describe("the daily cap bites before spending", () => {
       expect(r.status).toBe("error");
       expect(r.error).toContain("tetto giornaliero");
       // The point: blocking AFTER the fetch would save nothing.
-      expect(chiamate).toBe(0);
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -358,10 +358,10 @@ describe("the batch is not a back door", () => {
     const prevExit = process.exit;
     process.env.OPENAI_API_KEY = "sk-test-batchcap";
     process.env.OPENAI_DAILY_CAP_USD = "0.01";
-    let chiamate = 0;
+    let calls = 0;
     let exited = false;
     globalThis.fetch = (async () => {
-      chiamate++;
+      calls++;
       return new Response(JSON.stringify({ id: "x" }), { status: 200 });
     }) as unknown as typeof fetch;
     // process.exit(1) here is the intended behaviour: it is intercepted so it
@@ -385,7 +385,7 @@ describe("the batch is not a back door", () => {
       });
       expect(exited).toBe(true);
       // The point: no upload, no batch created, nothing spent.
-      expect(chiamate).toBe(0);
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = prevFetch;
       process.argv = prevArgv;
@@ -423,9 +423,9 @@ describe("the expensive road must not be the comfortable one", () => {
     const prevBudget = process.env.OPENAI_SYNC_BUDGET_USD;
     process.env.OPENAI_API_KEY = "sk-test-budget";
     process.env.OPENAI_SYNC_BUDGET_USD = "0.01";
-    let chiamate = 0;
+    let calls = 0;
     globalThis.fetch = (async () => {
-      chiamate++;
+      calls++;
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch;
     try {
@@ -440,7 +440,7 @@ describe("the expensive road must not be the comfortable one", () => {
       expect(r.status).toBe("error");
       // The message must say WHAT to do, not only that it is forbidden.
       expect(r.error).toContain("openai_batch.ts");
-      expect(chiamate).toBe(0);
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -500,9 +500,9 @@ describe("the expensive road must not be the comfortable one", () => {
     process.env.OPENAI_API_KEY = "sk-test-refs";
     process.env.OPENAI_SYNC_BUDGET_USD = "0.01";
     process.env.OPENAI_IMAGE_QUALITY = "high";
-    let chiamate = 0;
+    let calls = 0;
     globalThis.fetch = (async () => {
-      chiamate++;
+      calls++;
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch;
     const { writeFileSync } = await import("node:fs");
@@ -517,7 +517,7 @@ describe("the expensive road must not be the comfortable one", () => {
       expect(r.status).toBe("error");
       expect(r.error).not.toContain("openai_batch.ts");
       expect(r.error).toContain("low");
-      expect(chiamate).toBe(0);
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevKey === undefined) delete process.env.OPENAI_API_KEY;

@@ -36,44 +36,44 @@ describe("which cut is under the playhead", () => {
 
   test("it agrees with the linear search over the whole duration", () => {
     // 64 tagli come il montaggio vero, a passo irregolare come i beat.
-    const molti = Array.from({ length: 64 }, (_, i) => ({ t: i * 2.1 + (i % 3) * 0.31 }));
+    const multi = Array.from({ length: 64 }, (_, i) => ({ t: i * 2.1 + (i % 3) * 0.31 }));
     const linear = (t: number) => {
       let r = 0;
-      for (let i = 0; i < molti.length; i++) if ((molti[i]?.t ?? 0) <= t) r = i;
+      for (let i = 0; i < multi.length; i++) if ((multi[i]?.t ?? 0) <= t) r = i;
       return r;
     };
-    for (let t = 0; t < 150; t += 0.37) expect(cutIndex(molti, t)).toBe(linear(t));
+    for (let t = 0; t < 150; t += 0.37) expect(cutIndex(multi, t)).toBe(linear(t));
   });
 });
 
 describe("the lanes share out the space", () => {
   test("below the minimum they stay at their minimums, and the sum overflows: the timeline scrolls", () => {
     const c = laneHeights(80);
-    expect(c).toEqual({ suono: MIN_SUONO, cuts: MIN_CUTS, quadri: MIN_QUADRI });
-    expect(c.suono + c.cuts + c.quadri).toBeGreaterThan(80 - H_RULER - H_ACTS);
+    expect(c).toEqual({ sound: MIN_SUONO, cuts: MIN_CUTS, frames: MIN_QUADRI });
+    expect(c.sound + c.cuts + c.frames).toBeGreaterThan(80 - H_RULER - H_ACTS);
   });
 
   test("with room, they fill the panel without any left over", () => {
     for (const h of [200, 300, 420, 700]) {
       const c = laneHeights(h);
-      const used = c.suono + c.cuts + c.quadri + H_RULER + H_ACTS;
+      const used = c.sound + c.cuts + c.frames + H_RULER + H_ACTS;
       expect(Math.abs(used - h)).toBeLessThanOrEqual(4);   // solo l'arrotondamento
     }
   });
 
   test("more room = every lane taller, never the other way round", () => {
     const a = laneHeights(240), b = laneHeights(560);
-    expect(b.suono).toBeGreaterThan(a.suono);
+    expect(b.sound).toBeGreaterThan(a.sound);
     expect(b.cuts).toBeGreaterThan(a.cuts);
-    expect(b.quadri).toBeGreaterThan(a.quadri);
+    expect(b.frames).toBeGreaterThan(a.frames);
   });
 
   test("no lane goes below its minimum", () => {
     for (const h of [0, 60, 130, 200, 900]) {
       const c = laneHeights(h);
-      expect(c.suono).toBeGreaterThanOrEqual(MIN_SUONO);
+      expect(c.sound).toBeGreaterThanOrEqual(MIN_SUONO);
       expect(c.cuts).toBeGreaterThanOrEqual(MIN_CUTS);
-      expect(c.quadri).toBeGreaterThanOrEqual(MIN_QUADRI);
+      expect(c.frames).toBeGreaterThanOrEqual(MIN_QUADRI);
     }
   });
 });

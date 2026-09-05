@@ -30,9 +30,9 @@ export function serveFile(absPath: string, mime?: string, req?: Request): Respon
   if (m) {
     // "bytes=-500" means the LAST 500 bytes, not the first: the suffix form is
     // a case of its own, not a missing start.
-    const suffisso = m[1] === "";
-    let da = suffisso ? Math.max(0, size - Number(m[2] || 0)) : Number(m[1]);
-    let a = suffisso || m[2] === "" ? size - 1 : Number(m[2]);
+    const suffix = m[1] === "";
+    let da = suffix ? Math.max(0, size - Number(m[2] || 0)) : Number(m[1]);
+    let a = suffix || m[2] === "" ? size - 1 : Number(m[2]);
     if (!Number.isFinite(da) || da >= size) {
       return new Response("range non soddisfacibile", {
         status: 416, headers: { ...common, "content-range": `bytes */${size}` },

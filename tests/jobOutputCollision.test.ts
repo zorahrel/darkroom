@@ -57,8 +57,8 @@ describe("handing the file over to the version number", () => {
     // jobs really write their own result before handing it over.
     const d = testDir("d");
     const jobs = [235, 236, 237];
-    const contenuti = ["controllo", "ref+parole", "solo-ref"];
-    for (const [i, id] of jobs.entries()) writeFileSync(workingFile(d, id), contenuti[i]!);
+    const contents = ["controllo", "ref+parole", "solo-ref"];
+    for (const [i, id] of jobs.entries()) writeFileSync(workingFile(d, id), contents[i]!);
 
     // Le consegne avvengono in ordine di arrivo, ognuna col numero calcolato
     // in quel momento — come fa `processJob`.
@@ -67,7 +67,7 @@ describe("handing the file over to the version number", () => {
     expect(new Set(finals).size).toBe(3);
     for (const [i, f] of finals.entries()) {
       expect(existsSync(f)).toBe(true);
-      expect(readFileSync(f, "utf8")).toBe(contenuti[i]!);
+      expect(readFileSync(f, "utf8")).toBe(contents[i]!);
     }
   });
 });

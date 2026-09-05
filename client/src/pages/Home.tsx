@@ -97,12 +97,12 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
   const active = projects.find((p) => p.id === pid) ?? null;
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { tutte: cat?.tools.length ?? 0 };
+    const c: Record<string, number> = { all: cat?.tools.length ?? 0 };
     for (const s of cat?.tools ?? []) c[s.area] = (c[s.area] ?? 0) + 1;
     return c;
   }, [cat]);
 
-  const visibili = useMemo(() => {
+  const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (cat?.tools ?? []).filter((s) => {
       if (area !== "all" && s.area !== area) return false;
@@ -120,11 +120,11 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
   }, [cat, search, area, onlyReady]);
 
   /** The tools grouped into their crafts, in the catalogue's order. */
-  const reparti = useMemo(() => {
+  const sections = useMemo(() => {
     return (cat?.areas ?? [])
-      .map((a) => ({ area: a, tools: visibili.filter((s) => s.area === a.id) }))
+      .map((a) => ({ area: a, tools: visible.filter((s) => s.area === a.id) }))
       .filter((r) => r.tools.length > 0);
-  }, [cat, visibili]);
+  }, [cat, visible]);
 
   const off = (cat?.tools ?? []).filter((s) => !s.ready).length;
 
@@ -138,7 +138,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
         <div className="flex flex-wrap items-center gap-2">
           <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…" />
           <div className="flex items-center gap-1 flex-wrap">
-            <Filter active={area === "all"} onClick={() => setArea("all")} n={counts.tutte ?? 0}>
+            <Filter active={area === "all"} onClick={() => setArea("all")} n={counts.all ?? 0}>
               tutti
             </Filter>
             {cat?.areas.map((a) => (
@@ -155,7 +155,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
           </div>
           <Bott
             size="m"
-            weight="quieto"
+            weight="quiet"
             active={onlyReady}
             onClick={() => setOnlyReady((v) => !v)}
             title={
@@ -212,7 +212,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
 
       {!cat && <div className="text-[12px] text-neutral-400">Carico il catalogo…</div>}
 
-      {cat && visibili.length === 0 && (
+      {cat && visible.length === 0 && (
         <div className="text-[12px] text-neutral-400">
           Niente con questi filtri.{" "}
           <button
@@ -226,7 +226,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       )}
 
       <div className="space-y-6">
-        {reparti.map(({ area: a, tools }) => (
+        {sections.map(({ area: a, tools }) => (
           <section key={a.id} className="space-y-2">
             <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1.5">
               <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.name}</h2>
@@ -316,7 +316,7 @@ function ToolCard({
               <Bott
                 key={i}
                 size="m"
-                weight={i === 0 ? "primario" : "normale"}
+                weight={i === 0 ? "primary" : "normal"}
                 disabled={!s.ready}
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
@@ -429,14 +429,14 @@ function Form({
   const [values, setValues] = useState<Record<string, string | number>>(() =>
     Object.fromEntries(start.fields.map((c) => [c.name, c.fallback ?? ""])),
   );
-  const [inCorso, setInCorso] = useState(false);
+  const [inProgress, setInProgress] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<{ text: string; route: string } | null>(null);
 
   const missing = start.fields.find((c) => c.required && !String(values[c.name] ?? "").trim());
 
   async function vai() {
-    setInCorso(true);
+    setInProgress(true);
     setErr(null);
     try {
       const r = await api.startTool(tool.id, {
@@ -449,7 +449,7 @@ function Form({
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
-      setInCorso(false);
+      setInProgress(false);
     }
   }
 
@@ -458,10 +458,10 @@ function Form({
       <div className="mt-2 rounded border border-emerald-900/70 bg-emerald-950/20 p-2.5 space-y-2">
         <div className="text-[12px] text-emerald-200 leading-snug">{done.text}</div>
         <div className="flex items-center gap-1.5">
-          <Bott size="m" weight="primario" onClick={() => onDone(done.route)}>
+          <Bott size="m" weight="primary" onClick={() => onDone(done.route)}>
             Vai a vedere
           </Bott>
-          <Bott size="m" weight="quieto" onClick={onCancel}>Resta qui</Bott>
+          <Bott size="m" weight="quiet" onClick={onCancel}>Resta qui</Bott>
         </div>
       </div>
     );
@@ -495,14 +495,14 @@ function Form({
       <div className="flex items-center gap-1.5">
         <Bott
           size="m"
-          weight="primario"
-          disabled={inCorso || !!missing}
+          weight="primary"
+          disabled={inProgress || !!missing}
           title={missing ? `Manca: ${missing.label}` : undefined}
           onClick={vai}
         >
-          {inCorso ? "Vado…" : start.label}
+          {inProgress ? "Vado…" : start.label}
         </Bott>
-        <Bott size="m" weight="quieto" onClick={onCancel}>Annulla</Bott>
+        <Bott size="m" weight="quiet" onClick={onCancel}>Annulla</Bott>
       </div>
     </div>
   );

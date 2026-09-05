@@ -50,8 +50,8 @@ async function submit(file: string): Promise<void> {
   // on its own: fifty prompts in high is ~$5 that appeared nowhere and that no
   // limit stopped. Here it is estimated BEFORE queueing, because afterwards the
   // batch has left and is paid for regardless.
-  const tokAttesi = OPENAI_IMAGE_QUALITY === "low" ? 200 : OPENAI_IMAGE_QUALITY === "medium" ? 1100 : 7000;
-  const estimate = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokAttesi);
+  const tokExpected = OPENAI_IMAGE_QUALITY === "low" ? 200 : OPENAI_IMAGE_QUALITY === "medium" ? 1100 : 7000;
+  const estimate = prompts.length * batchCost(OPENAI_IMAGE_MODEL, tokExpected);
   const cap = openaiDailyCapUsd();
   if (cap > 0 && spentToday() + estimate > cap) {
     console.error(

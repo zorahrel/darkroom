@@ -68,29 +68,29 @@ withProject(PID, () => {
   if (!existsSync(SUNGLASSES_REF)) throw new Error(`reference occhiali mancante: ${SUNGLASSES_REF}`);
 
   // The backgrounds: the ones asked for, or every file named `fondo-*`.
-  const chiesti = arg("--fondi")?.split(",").map((s) => s.trim()).filter(Boolean);
+  const requested = arg("--fondi")?.split(",").map((s) => s.trim()).filter(Boolean);
   const available = readdirSync(refDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f));
-  const fondi = chiesti ?? available.filter((f) => f.startsWith("fondo-"));
-  const mancanti = fondi.filter((f) => !available.includes(f));
-  if (mancanti.length) throw new Error(`fondi inesistenti: ${mancanti.join(", ")}`);
-  if (!fondi.length) throw new Error("nessun fondo da provare");
+  const backgrounds = requested ?? available.filter((f) => f.startsWith("fondo-"));
+  const missing = backgrounds.filter((f) => !available.includes(f));
+  if (missing.length) throw new Error(`fondi inesistenti: ${missing.join(", ")}`);
+  if (!backgrounds.length) throw new Error("nessun fondo da provare");
 
   const prompt =
     base.prompt_used.replace(PLACE, SFONDO_DA_REF).replace(SUNGLASSES, SUNGLASSES_FROM_REF) + RUOLI;
 
-  const sorgenti = db()
+  const sources2 = db()
     .query<{ original_path: string }, []>("SELECT original_path FROM photos ORDER BY id")
     .all()
     .map((r) => r.original_path.split("/").pop());
 
   for (let g = 1; g <= rounds; g++) {
-    for (const background of fondi) {
+    for (const background of backgrounds) {
       const refs = [SUNGLASSES_REF, join(refDir, background)];
       const lineage = JSON.stringify({
         recipe: `fondo-ref-${background.replace(/\.[a-z]+$/i, "")}`,
         refset: "3 sorgenti + occhiali (ref) + fondo (ref)",
         preamble: "sfondo e occhiali presi dalle immagini invece che descritti: la citta' non piace e le parole non producono un luogo",
-        sources: sorgenti,
+        sources: sources2,
         refs: refs.map((r) => r.split("/").pop()),
         backend: "cdp",
       });

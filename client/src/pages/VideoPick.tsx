@@ -133,10 +133,10 @@ function Take({ shot, take, onVaiA }: {
  * thrashing about. Without the slider the only remedy was discarding the shot,
  * i.e. throwing it away instead of putting it back in the right place.
  */
-function Intensity({ shot, value, measured, manual, moto, detail, onChange }: {
+function Intensity({ shot, value, measured, manual, motion, detail, onChange }: {
   shot: string;
   value: number | null; measured: number | null; manual: number | null;
-  moto: number | null; detail: number | null;
+  motion: number | null; detail: number | null;
   onChange: (v: number | null) => void;
 }) {
   const [touch, setTouch] = useState<number | null>(null);
@@ -150,14 +150,14 @@ function Intensity({ shot, value, measured, manual, moto, detail, onChange }: {
    * 0.48, after a reload it was back to 0.53. With the wait one write leaves,
    * the right one, and there is no race to win.
    */
-  const attesa = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waited = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = (v: number) => {
-    if (attesa.current) clearTimeout(attesa.current);
-    attesa.current = setTimeout(() => { attesa.current = null; onChange(v); }, 300);
+    if (waited.current) clearTimeout(waited.current);
+    waited.current = setTimeout(() => { waited.current = null; onChange(v); }, 300);
   };
-  useEffect(() => () => { if (attesa.current) clearTimeout(attesa.current); }, []);
+  useEffect(() => () => { if (waited.current) clearTimeout(waited.current); }, []);
   useEffect(() => {
-    if (attesa.current) { clearTimeout(attesa.current); attesa.current = null; }
+    if (waited.current) { clearTimeout(waited.current); waited.current = null; }
     setTouch(null);
   }, [shot]);
   const shown = touch ?? value;
@@ -195,9 +195,9 @@ function Intensity({ shot, value, measured, manual, moto, detail, onChange }: {
       </div>
       <p className="mt-1 text-[10.5px] text-neutral-400 leading-snug">
         Decide <b>dove</b> cade nel brano, non se è bella: dura sui colpi, molle sui respiri.
-        {(moto !== null || detail !== null) && (
+        {(motion !== null || detail !== null) && (
           <span className="tabular-nums">
-            {" "}Da movimento {moto?.toFixed(1) ?? "—"} · dettaglio{" "}
+            {" "}Da movimento {motion?.toFixed(1) ?? "—"} · dettaglio{" "}
             {detail !== null ? `${Math.round(detail * 100)}%` : "—"}.
           </span>
         )}
@@ -299,9 +299,9 @@ function Transport({ video, frameCount }: {
 }) {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [gira, setGira] = useState(true);
+  const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [ciclo, setCiclo] = useState(true);
+  const [loop, setLoop] = useState(true);
 
   // The listeners re-attach on every clip change: `key` on the <video> makes
   // it be recreated, so an effect attached once would be talking to a node no
@@ -311,14 +311,14 @@ function Transport({ video, frameCount }: {
     if (!v) return;
     const t = () => setTime(v.currentTime);
     const d = () => setDuration(Number.isFinite(v.duration) ? v.duration : 0);
-    const p = () => setGira(true);
-    const f = () => setGira(false);
+    const p = () => setPlaying(true);
+    const f = () => setPlaying(false);
     v.addEventListener("timeupdate", t);
     v.addEventListener("durationchange", d);
     v.addEventListener("loadedmetadata", d);
     v.addEventListener("play", p);
     v.addEventListener("pause", f);
-    d(); t(); setGira(!v.paused);
+    d(); t(); setPlaying(!v.paused);
     return () => {
       v.removeEventListener("timeupdate", t);
       v.removeEventListener("durationchange", d);
@@ -329,7 +329,7 @@ function Transport({ video, frameCount }: {
   });
 
   useEffect(() => { if (video.current) video.current.playbackRate = speed; }, [speed, video]);
-  useEffect(() => { if (video.current) video.current.loop = ciclo; }, [ciclo, video]);
+  useEffect(() => { if (video.current) video.current.loop = loop; }, [loop, video]);
 
   const step = frameCount && duration ? duration / frameCount : 1 / 24;
   const seekTo = (t: number) => {
@@ -369,7 +369,7 @@ function Transport({ video, frameCount }: {
       <button onClick={startStop} title="ferma o riparti (k)"
               className="w-6 h-6 shrink-0 grid place-items-center rounded-sm border border-neutral-800
                          hover:border-neutral-600 text-neutral-200 text-[11px]">
-        {gira ? "❚❚" : "▶"}
+        {playing ? "❚❚" : "▶"}
       </button>
       <button onClick={() => nudge(-1)} title="un fotogramma indietro (,)"
               className="px-1 h-6 shrink-0 rounded-sm border border-neutral-800 hover:border-neutral-600">◀|</button>
@@ -396,24 +396,24 @@ function Transport({ video, frameCount }: {
           </button>
         ))}
       </span>
-      <button onClick={() => setCiclo((c) => !c)} title="ripeti da capo"
+      <button onClick={() => setLoop((c) => !c)} title="ripeti da capo"
               className={`px-1 h-6 shrink-0 rounded-sm border ${
-                ciclo ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
+                loop ? "border-neutral-500 text-neutral-200" : "border-neutral-800 hover:border-neutral-600"}`}>
         ↻
       </button>
     </div>
   );
 }
 
-function Combacia({ suono, shot }: { suono: number | null; shot: number | null }) {
-  if (suono === null || shot === null) return null;
-  const d = shot - suono;
+function Match({ sound, shot }: { sound: number | null; shot: number | null }) {
+  if (sound === null || shot === null) return null;
+  const d = shot - sound;
   if (Math.abs(d) <= 0.2) {
-    return <span className="text-[10.5px] text-emerald-400/80" title={`brano ${suono.toFixed(2)}`}>combacia</span>;
+    return <span className="text-[10.5px] text-emerald-400/80" title={`brano ${sound.toFixed(2)}`}>combacia</span>;
   }
   return (
     <span className={`text-[10.5px] ${d > 0 ? "text-amber-400/90" : "text-sky-400/80"}`}
-          title={`brano ${suono.toFixed(2)} · ripresa ${shot.toFixed(2)}`}>
+          title={`brano ${sound.toFixed(2)} · ripresa ${shot.toFixed(2)}`}>
       {d > 0 ? "più dura del brano" : "più molle del brano"} ({d > 0 ? "+" : ""}{d.toFixed(2)})
     </span>
   );
@@ -457,9 +457,9 @@ export default function VideoPick() {
   const [act, setAct] = useState<string>("");
   const [i, setI] = useState(0);
   const [piece, setPiece] = useState(0);
-  const [note, setNota] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const [rigen, setRigen] = useState(false);
+  const [regen, setRegen] = useState(false);
   const [promptMod, setPromptMod] = useState("");
   const [par, setPar] = useState({ width: 640, height: 1152, length: 61, steps: 20 });
   const [jobs, setJobs] = useState<VideoJob[]>([]);
@@ -518,7 +518,7 @@ export default function VideoPick() {
    *  9:16 is not assumed: the previews sit between 0.550 and 0.556, and
    *  assuming it means deforming the figure by up to 2% exactly while it is
    *  being judged. */
-  const [rapporto, setRapporto] = useState(9 / 16);
+  const [ratio, setRatio] = useState(9 / 16);
 
   /** The height is measured on the VIDEO AREA, not the panel: under the clip
    *  is the row of pieces, and measuring the whole panel would hand the clip a
@@ -585,8 +585,8 @@ export default function VideoPick() {
     Math.min(
       ...[
         areaHeight || Infinity,                                    // no taller than the area
-        wantedWidth === null ? Infinity : wantedWidth / rapporto, // se e' stata chiesta
-        panelWidth ? (panelWidth - MIN_RIGHT) / rapporto : Infinity, // lascia vivere la colonna destra
+        wantedWidth === null ? Infinity : wantedWidth / ratio, // se e' stata chiesta
+        panelWidth ? (panelWidth - MIN_RIGHT) / ratio : Infinity, // lascia vivere la colonna destra
       ],
     ),
   );
@@ -608,7 +608,7 @@ export default function VideoPick() {
     api.videoCuts().then((r) => { setFullActs(r.acts ?? []); setCuts(r.cuts ?? []); }).catch(() => {});
   }, []);
   /** The hardness of the sound at second `t`, from the cut that lands on it. */
-  const suonoA = useCallback(
+  const soundAt = useCallback(
     (t: number) => cuts.find((c) => Math.abs(c.t - t) < 0.25)?.soundIntensity ?? null,
     [cuts],
   );
@@ -653,7 +653,7 @@ export default function VideoPick() {
     };
     void pass();
     return () => { alive = false; };
-  }, [rigen]);
+  }, [regen]);
 
   useEffect(() => { setPiece(0); }, [scene?.origin]);
   useEffect(() => { if (i >= queue.length) setI(Math.max(0, queue.length - 1)); }, [queue.length, i]);
@@ -726,9 +726,9 @@ export default function VideoPick() {
     setI(u.index); setPiece(0);
   }, [last, shots]);
 
-  const annota = useCallback(async () => {
+  const annotate = useCallback(async () => {
     const t = text.trim();
-    setNota(null); setText("");
+    setNote(null); setText("");
     if (!t || !scene) return;
     try { setShots((await api.videoProblem(scene.pieces[0]!.id, t)).shots); } catch { /* nothing */ }
   }, [text, scene]);
@@ -750,20 +750,20 @@ export default function VideoPick() {
     const onKey = (e: KeyboardEvent) => {
       if (onOneField(e.target)) return;
       if (note !== null) {
-        if (e.key === "Escape") { setNota(null); setText(""); }
-        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void annota();
+        if (e.key === "Escape") { setNote(null); setText(""); }
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void annotate();
         return;
       }
-      if (e.key === "ArrowLeft") { e.preventDefault(); setNota("scarto"); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); setNote("scarto"); }
       else if (e.key === "ArrowRight") { e.preventDefault(); void judge(true); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setNota("nota"); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setNote("nota"); }
       else if (e.key === "z") { e.preventDefault(); void undoLast(); }
       else if (e.key === " ") { e.preventDefault(); const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }
       else if (e.key === "ArrowDown") { e.preventDefault(); advance(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [note, annota, judge, advance, undoLast]);
+  }, [note, annotate, judge, advance, undoLast]);
 
   useEffect(() => { if (note !== null) field.current?.focus(); }, [note]);
 
@@ -842,7 +842,7 @@ export default function VideoPick() {
                 : s.verdict === "scartata" ? "bg-rose-500/60 hover:bg-rose-400"
                 : s.suspect ? "bg-amber-500/50 hover:bg-amber-400"
                 : "bg-neutral-700/70 hover:bg-neutral-500";
-              const suo = scene?.origin === s.origin;
+              const itsOwn = scene?.origin === s.origin;
               return (
                 <button
                   key={s.origin}
@@ -858,7 +858,7 @@ export default function VideoPick() {
                     else { setFilter("all"); setAct(""); setI(scenes.indexOf(s)); }
                   }}
                   className={`flex-1 min-w-0 rounded-[1px] transition-colors ${color} ${
-                    suo ? "ring-1 ring-neutral-100 ring-inset" : ""}`}
+                    itsOwn ? "ring-1 ring-neutral-100 ring-inset" : ""}`}
                 />
               );
             })}
@@ -915,7 +915,7 @@ export default function VideoPick() {
                 autoPlay muted loop playsInline
                 onLoadedMetadata={(e) => {
                   const v = e.currentTarget;
-                  if (v.videoWidth && v.videoHeight) setRapporto(v.videoWidth / v.videoHeight);
+                  if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
                 }}
                 onClick={(e) => { const v = e.currentTarget; if (v.paused) void v.play(); else v.pause(); }}
                 style={{ height: clipHeight, width: "auto" }}
@@ -958,7 +958,7 @@ export default function VideoPick() {
               // Start from the VISIBLE width, not the wanted one: until
               // somebody has dragged, the wanted one is `null`, and the drag
               // has to continue from where the clip is now, not from a number.
-              drag.current = { x0: e.clientX, w0: wantedWidth ?? clipHeight * rapporto };
+              drag.current = { x0: e.clientX, w0: wantedWidth ?? clipHeight * ratio };
             }}
             onPointerMove={(e) => {
               const t = drag.current;
@@ -989,7 +989,7 @@ export default function VideoPick() {
                   if (v === null) {
                     for (const pz of scene.pieces) setShots((await api.videoClearVerdict(pz.id)).shots);
                   } else if (v === "tenuta") await judge(true);
-                  else setNota("scarto");
+                  else setNote("scarto");
                 }}
               />
               {scene.verdict && scene.judgedAt && (
@@ -1038,7 +1038,7 @@ export default function VideoPick() {
                     the column, so the road was: read the problem, scroll, open,
                     find the prompt. From here it is one key. */}
                 <button
-                  onClick={() => { setPromptMod(current.prompt ?? ""); setRigen(true); }}
+                  onClick={() => { setPromptMod(current.prompt ?? ""); setRegen(true); }}
                   className="mt-1.5 px-2 py-0.5 rounded-sm border border-amber-700/70 text-amber-200/90
                              text-[11px] hover:bg-amber-950/40"
                 >
@@ -1052,7 +1052,7 @@ export default function VideoPick() {
               value={current.intensity}
               measured={current.measuredIntensity}
               manual={current.manualIntensity}
-              moto={current.moto}
+              motion={current.motion}
               detail={current.detail}
               onChange={async (v) => setShots((await api.videoIntensity(current.id, v)).shots)}
             />
@@ -1083,7 +1083,7 @@ export default function VideoPick() {
                           )}
                         </>
                       )}
-                      <Combacia suono={suonoA(ap.t)} shot={current.intensity} />
+                      <Match sound={soundAt(ap.t)} shot={current.intensity} />
                     </li>
                   ))}
                 </ul>
@@ -1111,9 +1111,9 @@ export default function VideoPick() {
             {/* The prompt is where you fix what the note says. As long as they
                 were in two different windows, the loop "this one deforms" ->
                 new prompt -> generation was closed by hand. */}
-            <details className="mt-3" open={rigen} onToggle={(e) => {
+            <details className="mt-3" open={regen} onToggle={(e) => {
               const open = (e.currentTarget as HTMLDetailsElement).open;
-              setRigen(open);
+              setRegen(open);
               if (open && !promptMod) setPromptMod(current.prompt ?? "");
             }}>
               <summary className="text-[11px] text-neutral-400 cursor-pointer">
@@ -1170,7 +1170,7 @@ export default function VideoPick() {
               <div className="mt-4">
                 <Area
                   autoFocus value={text} onChange={setText}
-                  onEsc={() => setNota(null)} onSubmit={() => void annota()}
+                  onEsc={() => setNote(null)} onSubmit={() => void annotate()}
                   placeholder={note === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
                   className="h-20 text-[12px]"
                 />
@@ -1180,8 +1180,8 @@ export default function VideoPick() {
                                inline-flex items-center gap-1.5"
                     onClick={async () => {
                       const t = text;
-                      if (note === "scarto") { setNota(null); setText(""); await judge(false, t); }
-                      else await annota();
+                      if (note === "scarto") { setNote(null); setText(""); await judge(false, t); }
+                      else await annotate();
                     }}
                   >
                     {note === "scarto" ? "discard" : "annota"}
@@ -1189,7 +1189,7 @@ export default function VideoPick() {
                   </button>
                   <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400
                                      inline-flex items-center gap-1.5"
-                          onClick={() => { setNota(null); setText(""); }}>
+                          onClick={() => { setNote(null); setText(""); }}>
                     lascia stare
                     <Shortcut>esc</Shortcut>
                   </button>
@@ -1201,7 +1201,7 @@ export default function VideoPick() {
                  button is looked at every time you hesitate. The button
                  teaches it, and whoever learns it stops using the button. */
               <div className="mt-4 flex gap-2 items-center flex-wrap">
-                <VerdictButton onClick={() => setNota("scarto")} key="←"
+                <VerdictButton onClick={() => setNote("scarto")} key="←"
                   className="border-rose-800 text-rose-300 hover:bg-rose-950/50">
                   ✕ scarta
                 </VerdictButton>
@@ -1209,7 +1209,7 @@ export default function VideoPick() {
                   className="border-emerald-800 text-emerald-300 hover:bg-emerald-950/50">
                   ♥ tieni
                 </VerdictButton>
-                <VerdictButton onClick={() => setNota("nota")} key="↑"
+                <VerdictButton onClick={() => setNote("nota")} key="↑"
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ✎ annota
                 </VerdictButton>

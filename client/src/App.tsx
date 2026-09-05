@@ -291,7 +291,7 @@ export default function App() {
                 "Export favourites" on a video project meant nothing, and
                 despite that it was the most conspicuous thing on screen. */}
             {health && !health.browser && (
-              <Bott weight="pericolo" size="m" disabled={launching}
+              <Bott weight="danger" size="m" disabled={launching}
                     title={health.hint ?? ""}
                     onClick={async () => {
                       setLaunching(true);
@@ -316,7 +316,7 @@ export default function App() {
             )}
 
             {activeProject?.views.includes("photo") && (
-              <Bott weight="quieto" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
+              <Bott weight="quiet" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
                     title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
                     className="hidden lg:inline-flex">
                 <SlidersHorizontal className="w-4 h-4" aria-hidden />

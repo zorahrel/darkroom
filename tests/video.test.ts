@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { origin, setPick } from "../server/video.ts";
+import { flagProblem, origin, picks, setPick } from "../server/video.ts";
 import { addProject, rootDir, withProject } from "../server/project.ts";
 import { workflow } from "../server/comfy.ts";
 
@@ -112,11 +112,11 @@ describe.if(readable(PIANIFICA))("origin, the same in Python", () => {
 const GEN = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/gen.py` : "";
 
 describe.if(readable(GEN))("the ComfyUI graph is the same in Python and in TypeScript", () => {
-  const casi = [
+  const cases = [
     { name: "without tiles", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
     { name: "with tiles, today's defaults", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
   ];
-  for (const { name, p } of casi) {
+  for (const { name, p } of cases) {
     test(name, () => {
       const py = [
         "import importlib.util, json",
@@ -188,6 +188,49 @@ describe("removing a verdict is a third state, not a yes", () => {
       const s = readPicks();
       expect(s.scartati["mare6"]).toBe("si sfascia");
       expect(s.tenuti["mare6"]).toBeUndefined();
+    });
+  });
+});
+
+/**
+ * The keys inside `scelte.json` are written by the Python that lives outside
+ * this repo, so they are a contract and not our naming. Nothing enforced that:
+ * during the Italian→English rename `problemi` and `riprese` were renamed to
+ * `problemsOf` and `takesOf` on the type, the whole suite stayed green, and the
+ * only thing that broke was reading a file the pipeline had already written —
+ * silently, because every one of those reads is optional and falls back to `{}`.
+ *
+ * A round-trip test cannot catch that: it writes with the same names it reads.
+ * So this one hard-codes the on-disk spelling, exactly as `pianifica.py` emits
+ * it, and never goes through our writer.
+ */
+describe("the on-disk keys of scelte.json are a contract with the Python", () => {
+  const seeded = <T,>(picks: unknown, fn: () => T): T => {
+    const dir = mkdtempSync(join(tmpdir(), "video-contract-"));
+    writeFileSync(join(dir, "scelte.json"), JSON.stringify(picks));
+    const p = addProject({ name: `contract-${Date.now()}`, root: dir, kind: "video" });
+    return withProject(p.id, fn);
+  };
+
+  test("a problem written by the pipeline reaches the reader", () => {
+    seeded({ scartati: {}, problemi: { mare6: ["si sfascia a metà"] } }, () => {
+      expect(picks().problemi?.["mare6"]).toEqual(["si sfascia a metà"]);
+    });
+  });
+
+  test("a per-take rejection written by the pipeline reaches the reader", () => {
+    seeded({ scartati: {}, riprese: { mare6: ["mare6__b"] } }, () => {
+      expect(picks().riprese?.["mare6"]).toEqual(["mare6__b"]);
+    });
+  });
+
+  test("our writer keeps spelling them the way the Python reads them", () => {
+    seeded({ scartati: {} }, () => {
+      flagProblem("z43", "mosso");
+      const onDisk = JSON.parse(readFileSync(join(rootDir(), "scelte.json"), "utf8"));
+      // Not `problemsOf`, not `problems`: the Python greps for this exact key.
+      expect(Object.keys(onDisk)).toContain("problemi");
+      expect(onDisk.problemi.z43).toEqual(["mosso"]);
     });
   });
 });

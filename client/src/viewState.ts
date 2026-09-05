@@ -31,7 +31,7 @@ let flushScheduled = false;
 function enqueue(
   key: string,
   value: string | null,
-  applica: (fn: (prev: URLSearchParams) => URLSearchParams, opt: { replace: boolean }) => void,
+  apply: (fn: (prev: URLSearchParams) => URLSearchParams, opt: { replace: boolean }) => void,
 ) {
   held.set(key, value);
   if (flushScheduled) return;
@@ -43,7 +43,7 @@ function enqueue(
     if (held.size === 0) return;
     const edits = [...held.entries()];
     held.clear();
-    applica(
+    apply(
       (prev) => {
         const next = new URLSearchParams(prev);
         for (const [k, v] of edits) {
@@ -121,9 +121,9 @@ export const readBool = (s: string): boolean | null =>
   s === "1" || s === "true" ? true : s === "0" || s === "false" ? false : null;
 
 export const readOneOf =
-  <T extends string>(ammessi: readonly T[]) =>
+  <T extends string>(allowed: readonly T[]) =>
   (s: string): T | null =>
-    (ammessi as readonly string[]).includes(s) ? (s as T) : null;
+    (allowed as readonly string[]).includes(s) ? (s as T) : null;
 
 export const readNumber =
   (min: number, max: number) =>

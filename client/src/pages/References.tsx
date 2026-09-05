@@ -95,7 +95,7 @@ export default function ReferencesPage() {
     );
   }
 
-  async function estrai() {
+  async function extract() {
     setState({ kind: "waiting", msg: "Leggo il riferimento…" });
     try {
       const r = await jsonFetch<{ text: string; aspects: number; missing: string[]; from_reference: string }>(
@@ -249,7 +249,7 @@ export default function ReferencesPage() {
           className="flex-1 bg-transparent border border-neutral-700 px-3 py-2 text-sm font-mono"
         />
         <button
-          onClick={estrai}
+          onClick={extract}
           disabled={!path || state?.kind === "waiting"}
           className="px-4 py-2 text-sm border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
         >

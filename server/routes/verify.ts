@@ -112,9 +112,9 @@ verifyRoutes.get("/batch", (c) => c.json(batch));
  * tread on each other and the second adds nothing. Outside the route because
  * the home's quick start calls it too.
  */
-export function startVerification(limite = 100, recheck = false): { started: number } | null {
+export function startVerification(requestedLimit = 100, recheck = false): { started: number } | null {
   if (batch.running) return null;
-  const limit = Math.min(Math.max(Number(limite) || 100, 1), 2000);
+  const limit = Math.min(Math.max(Number(requestedLimit) || 100, 1), 2000);
 
   const rows = db()
     .query<{ id: number; photo_id: string }, [number]>(

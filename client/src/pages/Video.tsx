@@ -70,27 +70,27 @@ const WHAT_IT_CHECKS: Record<string, string> = {
  * pass out of how many, and opened it says what each one checks.
  */
 function State({ gate, master, onRedo }: { gate: VideoGate | null; master: string | null; onRedo: () => void }) {
-  const [aperta, setAperta] = useState(false);
+  const [open, setOpen] = useState(false);
   const rows = gate?.rows ?? [];
-  const cadute = gate?.failed.length ?? 0;
+  const failures = gate?.failed.length ?? 0;
   const outcome = gate?.outcome ?? "sconosciuto";
 
   const [text, color, dot] =
     gate?.computing ? ["controllo il video…", "text-neutral-400", "bg-neutral-500 animate-pulse"]
     : outcome === "verde" ? [`il video passa tutti i ${rows.length} controlli`, "text-emerald-300", "bg-emerald-500"]
-    : outcome === "rosso" ? [`${cadute} ${cadute === 1 ? "controllo non passa" : "controlli non passano"}`, "text-rose-300", "bg-rose-500"]
+    : outcome === "rosso" ? [`${failures} ${failures === 1 ? "controllo non passa" : "controlli non passano"}`, "text-rose-300", "bg-rose-500"]
     : ["video mai controllato", "text-neutral-400", "bg-neutral-600"];
 
   return (
     <div className="relative">
-      <button onClick={() => setAperta((a) => !a)}
+      <button onClick={() => setOpen((a) => !a)}
               title="cosa è stato verificato sul video costruito"
               className={`flex items-center gap-1.5 text-[10.5px] ${color} hover:brightness-125`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
         {text}
-        <span className="text-neutral-400">{aperta ? "▴" : "▾"}</span>
+        <span className="text-neutral-400">{open ? "▴" : "▾"}</span>
       </button>
-      {aperta && (
+      {open && (
         <div className="absolute z-40 mt-1 w-[720px] max-w-[88vw] bg-neutral-950 border border-neutral-700
                         rounded-sm p-3 shadow-2xl">
           <div className="flex items-baseline gap-2 mb-2">
@@ -101,7 +101,7 @@ function State({ gate, master, onRedo }: { gate: VideoGate | null; master: strin
             <button onClick={onRedo} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">
               ricontrolla
             </button>
-            <button onClick={() => setAperta(false)} className="text-[10.5px] text-neutral-400 hover:text-neutral-100">
+            <button onClick={() => setOpen(false)} className="text-[10.5px] text-neutral-400 hover:text-neutral-100">
               chiudi
             </button>
           </div>
@@ -142,15 +142,15 @@ function Transport({ v, t, duration, cuts, vaiA }: {
   v: HTMLVideoElement | null; t: number; duration: number;
   cuts: VideoCut[]; vaiA: (s: number, parts?: boolean) => void;
 }) {
-  const [gira, setGira] = useState(false);
-  const [vel, setVel] = useState(1);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
   useEffect(() => {
     if (!v) return;
-    const a = () => setGira(true), b = () => setGira(false);
+    const a = () => setPlaying(true), b = () => setPlaying(false);
     v.addEventListener("play", a); v.addEventListener("pause", b);
     return () => { v.removeEventListener("play", a); v.removeEventListener("pause", b); };
   }, [v]);
-  useEffect(() => { if (v) v.playbackRate = vel; }, [v, vel]);
+  useEffect(() => { if (v) v.playbackRate = speed; }, [v, speed]);
 
   const i = cutIndex(cuts, t);
   const B = "px-1.5 py-0.5 rounded-sm border border-neutral-800 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600";
@@ -158,16 +158,16 @@ function Transport({ v, t, duration, cuts, vaiA }: {
     <div className="mt-1.5 flex items-center gap-1 text-[10.5px] justify-center flex-wrap">
       <button className={B} title="taglio prima  [" onClick={() => vaiA(cuts[Math.max(0, i - 1)]?.t ?? 0)}>⏮</button>
       <button className={B} title="un fotogramma indietro  ←" onClick={() => vaiA(t - 1 / FPS)}>◀|</button>
-      <button className={`${B} w-8`} title="spazio" onClick={() => (gira ? v?.pause() : v?.play())}>{gira ? "❚❚" : "▶"}</button>
+      <button className={`${B} w-8`} title="spazio" onClick={() => (playing ? v?.pause() : v?.play())}>{playing ? "❚❚" : "▶"}</button>
       <button className={B} title="un fotogramma avanti  →" onClick={() => vaiA(t + 1 / FPS)}>|▶</button>
       <button className={B} title="taglio dopo  ]" onClick={() => vaiA(cuts[Math.min(cuts.length - 1, i + 1)]?.t ?? duration)}>⏭</button>
       <span className="ml-1.5 tabular-nums text-neutral-100 text-[11.5px] tracking-tight">{timecode(t)}</span>
       <span className="tabular-nums text-neutral-400">/ {timecode(duration)}</span>
       <div className="ml-1">
         <Choose
-          value={String(vel)} width={62} title="velocità di riproduzione"
+          value={String(speed)} width={62} title="velocità di riproduzione"
           items={[0.25, 0.5, 1, 1.5, 2].map((x) => ({ v: String(x), text: `${x}x` }))}
-          onChange={(v) => setVel(Number(v))}
+          onChange={(v) => setSpeed(Number(v))}
         />
       </div>
     </div>
@@ -193,7 +193,7 @@ export default function Video() {
    *  done twenty times: discarding the shots of a beat that does not work,
    *  giving the same duration to a series, looking closely at a stretch. */
   const [selection, setSelection] = useState<Set<number>>(new Set());
-  const [inquadra, setInquadra] = useState<{ da: number; a: number; n: number } | null>(null);
+  const [framed, setFramed] = useState<{ da: number; a: number; n: number } | null>(null);
   const [wave, setWave] = useState<VideoWave | null>(null);
   const [markers, setMarkers] = useState<VideoMarker[]>([]);
   const [forz, setForz] = useState<VideoOverrides | null>(null);
@@ -201,15 +201,15 @@ export default function Video() {
     api.videoOverrides().then(setForz).catch(() => {});
   }, []);
   const [inOut, setInOut] = useState<[number, number] | null>(null);
-  const [gira, setGira] = useState(false);
-  const [ciclo, setCiclo] = useState(false);
-  const [appunto, setAppunto] = useState<{ t: number; text: string } | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [loop, setLoop] = useState(false);
+  const [note, setNote] = useState<{ t: number; text: string } | null>(null);
   const [help, setHelp] = useState(false);
-  const [vediForz, setVediForz] = useState(false);
+  const [showForced, setShowForced] = useState(false);
   const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
   /** The shuttle's speed: 0 stopped, negative backwards. Backwards the browser
    *  cannot go on its own, so we move the playhead ourselves. */
-  const [spola, setSpola] = useState(0);
+  const [shuttleRate, setShuttleRate] = useState(0);
   const video = useRef<HTMLVideoElement | null>(null);
 
   /** The editor draws to the edge: the space the app shell puts above the other
@@ -258,7 +258,7 @@ export default function Video() {
   const save = (k: string) => (v: number) => localStorage.setItem(k, String(Math.round(v)));
 
   // ---- dati ----------------------------------------------------------------
-  const ricarica = useCallback(() => {
+  const reload = useCallback(() => {
     api.videoShots().then((r) => setShots(r.shots)).catch(() => {});
     api.videoCuts().then((r) => {
       setCuts(r.cuts); setBpm(r.bpm); setDuration(r.duration);
@@ -268,7 +268,7 @@ export default function Video() {
     api.videoMarkers().then((r) => setMarkers(r.markers)).catch(() => {});
     api.videoOverrides().then(setForz).catch(() => {});
   }, []);
-  useEffect(() => { ricarica(); }, [ricarica]);
+  useEffect(() => { reload(); }, [reload]);
 
   /**
    * The undo stack.
@@ -279,36 +279,36 @@ export default function Video() {
    * up in `scelte.json`.
    */
   type Move = { what: string; fa: () => Promise<unknown>; undo: () => Promise<unknown> };
-  const [pila, setPila] = useState<Move[]>([]);
+  const [stack, setStack] = useState<Move[]>([]);
   const [redo, setRedo] = useState<Move[]>([]);
 
-  const compi = useCallback(async (
+  const perform = useCallback(async (
     what: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>,
   ) => {
     try {
       await fa();
-      setPila((p) => [...p.slice(-49), { what, fa, undo }]);
+      setStack((p) => [...p.slice(-49), { what, fa, undo }]);
       setRedo([]);
-      ricarica();
+      reload();
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
-  }, [ricarica]);
+  }, [reload]);
 
   const cancel = useCallback(async () => {
-    const last = pila[pila.length - 1];
+    const last = stack[stack.length - 1];
     if (!last) return;
-    setPila((p) => p.slice(0, -1));
+    setStack((p) => p.slice(0, -1));
     setRedo((r) => [...r.slice(-49), last]);
-    try { await last.undo(); ricarica(); } catch { /* nothing */ }
-  }, [pila, ricarica]);
+    try { await last.undo(); reload(); } catch { /* nothing */ }
+  }, [stack, reload]);
 
   /** Undone by mistake: the move is not lost, it goes back in place. */
   const redoLast = useCallback(async () => {
     const m = redo[redo.length - 1];
     if (!m) return;
     setRedo((r) => r.slice(0, -1));
-    setPila((p) => [...p.slice(-49), m]);
-    try { await m.fa(); ricarica(); } catch { /* nothing */ }
-  }, [redo, ricarica]);
+    setStack((p) => [...p.slice(-49), m]);
+    try { await m.fa(); reload(); } catch { /* nothing */ }
+  }, [redo, reload]);
 
   /** The waveform costs a minute and a half of ffmpeg on the PC: the server
    *  puts it in the works and answers at once, the page fishes for it until it
@@ -348,11 +348,11 @@ export default function Video() {
       try {
         const r = await api.videoRebuildStatus();
         setRic(r);
-        if (!r.active) { ricarica(); api.videoGate(true).then(setGate).catch(() => {}); }
+        if (!r.active) { reload(); api.videoGate(true).then(setGate).catch(() => {}); }
       } catch { /* nothing */ }
     }, 1200);
     return () => clearInterval(h);
-  }, [ric?.active, ricarica]);
+  }, [ric?.active, reload]);
 
   /**
    * J K L, the edit bench's shuttle.
@@ -364,21 +364,21 @@ export default function Video() {
    */
   useEffect(() => {
     if (!vEl) return;
-    if (spola === 0) { vEl.playbackRate = 1; return; }
-    if (spola > 0) { vEl.playbackRate = spola; void vEl.play().catch(() => {}); return; }
+    if (shuttleRate === 0) { vEl.playbackRate = 1; return; }
+    if (shuttleRate > 0) { vEl.playbackRate = shuttleRate; void vEl.play().catch(() => {}); return; }
     vEl.pause();
     const h = setInterval(() => {
-      const isNew = Math.max(0, vEl.currentTime + (spola / FPS));
+      const isNew = Math.max(0, vEl.currentTime + (shuttleRate / FPS));
       vEl.currentTime = isNew;
       setT(isNew);
-      if (isNew <= 0) setSpola(0);
+      if (isNew <= 0) setShuttleRate(0);
     }, 1000 / FPS);
     return () => clearInterval(h);
-  }, [vEl, spola]);
+  }, [vEl, shuttleRate]);
 
   useEffect(() => {
     if (!vEl) return;
-    const a = () => setGira(true), b = () => setGira(false);
+    const a = () => setPlaying(true), b = () => setPlaying(false);
     vEl.addEventListener("play", a); vEl.addEventListener("pause", b);
     return () => { vEl.removeEventListener("play", a); vEl.removeEventListener("pause", b); };
   }, [vEl]);
@@ -387,7 +387,7 @@ export default function Video() {
    *  without touching anything, which is how you decide whether a cut lands
    *  late. */
   useEffect(() => {
-    if (!ciclo || !inOut || !vEl) return;
+    if (!loop || !inOut || !vEl) return;
     const h = setInterval(() => {
       if (vEl.currentTime >= inOut[1] || vEl.currentTime < inOut[0] - 0.05) {
         vEl.currentTime = inOut[0];
@@ -395,7 +395,7 @@ export default function Video() {
       }
     }, 80);
     return () => clearInterval(h);
-  }, [ciclo, inOut, vEl]);
+  }, [loop, inOut, vEl]);
 
   /** How many things have been set by hand over the derived plan. It sits in
    *  the bar because it is the only part of the cut no measurement defends. */
@@ -430,11 +430,11 @@ export default function Video() {
     if (parts) void v.play().catch(() => {});
   }, [duration]);
 
-  const openCut = useCallback((i: number, mod?: { estendi?: boolean; add?: boolean }) => {
-    if (mod?.estendi || mod?.add) {
+  const openCut = useCallback((i: number, mod?: { extend?: boolean; add?: boolean }) => {
+    if (mod?.extend || mod?.add) {
       setSelection((s0) => {
         const n = new Set(s0);
-        if (mod.estendi && picked !== null) {
+        if (mod.extend && picked !== null) {
           for (let k = Math.min(picked, i); k <= Math.max(picked, i); k++) n.add(k);
         } else if (n.has(i)) n.delete(i);
         else n.add(i);
@@ -462,7 +462,7 @@ export default function Video() {
     if (!a || !b) return;
     const beforeA = forz?.pin.find((f) => f.bar === a.bar)?.shot ?? null;
     const beforeB = forz?.pin.find((f) => f.bar === b.bar)?.shot ?? null;
-    void compi(
+    void perform(
       `${a.shot} ⇄ ${b.shot}`,
       () => api.videoSwap(a.bar, a.shot, b.bar, b.shot),
       async () => {
@@ -470,27 +470,27 @@ export default function Video() {
         if (beforeB) await api.videoPin(b.bar, beforeB); else await api.videoPin(b.bar, null);
       },
     );
-  }, [cuts, forz, compi]);
+  }, [cuts, forz, perform]);
 
   const changeDuration = useCallback((bar: number, bars: number) => {
     const before = forz?.duration.find((f) => f.bar === bar)?.bars ?? null;
-    void compi(
+    void perform(
       `battuta ${bar}: ${bars} battute`,
       () => api.videoDuration(bar, bars),
       () => api.videoDuration(bar, before),
     );
-  }, [forz, compi]);
+  }, [forz, perform]);
 
   const pose = useCallback((i: number, shot: string) => {
     const c = cuts[i];
     if (!c) return;
     const before = forz?.pin.find((f) => f.bar === c.bar)?.shot ?? null;
-    void compi(
+    void perform(
       `${shot} sulla battuta ${c.bar}`,
       () => api.videoPin(c.bar, shot),
       () => api.videoPin(c.bar, before),
     );
-  }, [cuts, forz, compi]);
+  }, [cuts, forz, perform]);
 
   /**
    * The plan as it will be after the rebuild.
@@ -523,53 +523,53 @@ export default function Video() {
   );
 
   /** I tagli selezionati, in ordine di tempo. */
-  const molti = useMemo(
+  const multi = useMemo(
     () => [...selection].filter((i) => shownCuts[i]).sort((a, b) => a - b),
     [selection, shownCuts],
   );
 
   /** The stretch the selection covers, end to end. */
   const span = useMemo((): [number, number] | null => {
-    if (!molti.length) return null;
-    const a = shownCuts[molti[0]!]!, b = shownCuts[molti[molti.length - 1]!]!;
+    if (!multi.length) return null;
+    const a = shownCuts[multi[0]!]!, b = shownCuts[multi[multi.length - 1]!]!;
     return [a.t, b.t + b.dur];
-  }, [molti, shownCuts]);
+  }, [multi, shownCuts]);
 
   /** The distinct shots under the selection: two beats can show the same shot,
    *  and discarding it twice means nothing. */
   const selectedShots = useMemo(
-    () => [...new Set(molti.map((i) => shownCuts[i]!.shot))],
-    [molti, shownCuts],
+    () => [...new Set(multi.map((i) => shownCuts[i]!.shot))],
+    [multi, shownCuts],
   );
 
   const discardSelection = useCallback(() => {
     const shots = selectedShots;
     if (!shots.length) return;
-    void compi(
+    void perform(
       shots.length === 1 ? `scarta ${shots[0]}` : `scarta ${shots.length} riprese`,
       async () => { for (const sh of shots) await api.videoPick(sh, false, "scartato dalla timeline"); },
       async () => { for (const sh of shots) await api.videoClearVerdict(sh); },
     );
     setSelection(new Set());
-  }, [selectedShots, compi]);
+  }, [selectedShots, perform]);
 
   const selectionDuration = useCallback((bars: number) => {
     // `bars` is the length being SET; `atBars` are the bars it is set on. The
     // two were `bars` and `barre`, which the rename would have collapsed into
     // one name -- and the shorter one silently wins.
-    const atBars = molti.map((i) => shownCuts[i]!.bar);
+    const atBars = multi.map((i) => shownCuts[i]!.bar);
     if (!atBars.length) return;
     const before = new Map(atBars.map((b) => [b, forz?.duration.find((f) => f.bar === b)?.bars ?? null]));
-    void compi(
+    void perform(
       `${atBars.length} tagli: ${bars} battute`,
       async () => { for (const b of atBars) await api.videoDuration(b, bars); },
       async () => { for (const b of atBars) await api.videoDuration(b, before.get(b) ?? null); },
     );
-  }, [molti, shownCuts, forz, compi]);
+  }, [multi, shownCuts, forz, perform]);
 
   const sel = picked !== null ? shownCuts[picked] ?? null : null;
   const active = shownCuts[cutIndex(shownCuts, t)] ?? null;
-  const candidati = useMemo(
+  const candidates = useMemo(
     () => (sel ? shots.filter((s) => s.kept && s.act === sel.act && s.id !== sel.shot) : []),
     [sel, shots],
   );
@@ -585,9 +585,9 @@ export default function Video() {
       const i = cutIndex(cuts, t);
       const step = e.shiftKey ? 1 : 1 / FPS;
       const k = e.key;
-      if (k === " ") { e.preventDefault(); setSpola(0); v.paused ? void v.play() : v.pause(); }
-      else if (k === "ArrowLeft") { e.preventDefault(); setSpola(0); vaiA(t - step); }
-      else if (k === "ArrowRight") { e.preventDefault(); setSpola(0); vaiA(t + step); }
+      if (k === " ") { e.preventDefault(); setShuttleRate(0); v.paused ? void v.play() : v.pause(); }
+      else if (k === "ArrowLeft") { e.preventDefault(); setShuttleRate(0); vaiA(t - step); }
+      else if (k === "ArrowRight") { e.preventDefault(); setShuttleRate(0); vaiA(t + step); }
       else if (k === "[") { e.preventDefault(); openCut(Math.max(0, i - 1)); }
       else if (k === "]") { e.preventDefault(); openCut(Math.min(cuts.length - 1, i + 1)); }
       else if (k === "Home") { e.preventDefault(); vaiA(0); }
@@ -595,15 +595,15 @@ export default function Video() {
       else if (k === "f") { e.preventDefault(); void v.requestFullscreen?.().catch(() => {}); }
       else if (k === "i") { e.preventDefault(); setInOut([t, inOut?.[1] ?? duration]); }
       else if (k === "o") { e.preventDefault(); setInOut([inOut?.[0] ?? 0, t]); }
-      else if (k === "r") { e.preventDefault(); setCiclo((c) => !c); }
-      else if (k === "m") { e.preventDefault(); v.pause(); setAppunto({ t: v.currentTime, text: "" }); }
+      else if (k === "r") { e.preventDefault(); setLoop((c) => !c); }
+      else if (k === "m") { e.preventDefault(); v.pause(); setNote({ t: v.currentTime, text: "" }); }
       else if (k === "?") { e.preventDefault(); setHelp((a) => !a); }
       else if (k === "z") { e.preventDefault(); void cancel(); }
       else if (k === "Z") { e.preventDefault(); void redoLast(); }
       else if (k === "F") {
         e.preventDefault();
         const r = inOut ?? span ?? (active ? [active.t, active.t + active.dur] as [number, number] : null);
-        if (r) setInquadra({ da: r[0], a: r[1], n: Date.now() });
+        if (r) setFramed({ da: r[0], a: r[1], n: Date.now() });
       }
       else if (k === "a") {
         // The whole beat the playhead is in: it is the unit this cut thinks in,
@@ -615,9 +615,9 @@ export default function Video() {
       else if (k === "Backspace" || k === "Delete") {
         if (selection.size) { e.preventDefault(); discardSelection(); }
       }
-      else if (k === "j" || k === "l") { e.preventDefault(); setSpola((v2) => shuttle(v2, k)); }
-      else if (k === "k") { e.preventDefault(); setSpola(0); v.pause(); }
-      else if (k === "Escape") { setPicked(null); setSelection(new Set()); setHelp(false); setAppunto(null); }
+      else if (k === "j" || k === "l") { e.preventDefault(); setShuttleRate((v2) => shuttle(v2, k)); }
+      else if (k === "k") { e.preventDefault(); setShuttleRate(0); v.pause(); }
+      else if (k === "Escape") { setPicked(null); setSelection(new Set()); setHelp(false); setNote(null); }
     };
     window.addEventListener("keydown", su);
     return () => window.removeEventListener("keydown", su);
@@ -639,10 +639,10 @@ export default function Video() {
         </span>
         <State gate={gate} master={assets?.master ?? null}
                onRedo={() => api.videoGate(true).then(setGate).catch(() => {})} />
-        {ciclo && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
-        {spola !== 0 && (
+        {loop && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {shuttleRate !== 0 && (
           <span className="text-[10.5px] text-sky-300 tabular-nums">
-            {spola > 0 ? "▶▶" : "◀◀"} {Math.abs(spola)}x
+            {shuttleRate > 0 ? "▶▶" : "◀◀"} {Math.abs(shuttleRate)}x
           </span>
         )}
         {!!redo.length && (
@@ -653,16 +653,16 @@ export default function Video() {
             rifai
           </button>
         )}
-        {!!pila.length && (
+        {!!stack.length && (
           <button onClick={() => void cancel()}
-                  title={`annulla: ${pila[pila.length - 1]?.what}`}
+                  title={`annulla: ${stack[stack.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
-            ⌫ {pila[pila.length - 1]?.what}
+            ⌫ {stack[stack.length - 1]?.what}
           </button>
         )}
         {!!overrideCount && (
-          <button onClick={() => setVediForz((v) => !v)}
+          <button onClick={() => setShowForced((v) => !v)}
                   title="cose che hai deciso tu, che scavalcano il montaggio calcolato"
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-sky-800 text-sky-300
                              hover:bg-sky-950/50">
@@ -721,20 +721,20 @@ export default function Video() {
             </div>
           )}
 
-          {appunto && (
+          {note && (
             <div className="absolute inset-x-6 bottom-4 border border-amber-900/70 bg-neutral-950 rounded-sm p-2">
               <div className="text-[10px] text-amber-400/80 tabular-nums mb-1">
-                appunto a {mmss(appunto.t)} — f{Math.round(appunto.t * FPS)}
+                appunto a {mmss(note.t)} — f{Math.round(note.t * FPS)}
               </div>
               <Field
-                autoFocus value={appunto.text}
-                onChange={(v) => setAppunto({ ...appunto, text: v })}
-                onEsc={() => setAppunto(null)}
+                autoFocus value={note.text}
+                onChange={(v) => setNote({ ...note, text: v })}
+                onEsc={() => setNote(null)}
                 onEnter={async () => {
-                  if (!appunto.text.trim()) return;
-                  const r = await api.videoMarker(appunto.t, appunto.text.trim()).catch(() => null);
+                  if (!note.text.trim()) return;
+                  const r = await api.videoMarker(note.t, note.text.trim()).catch(() => null);
                   if (r) setMarkers(r.markers);
-                  setAppunto(null);
+                  setNote(null);
                 }}
                 placeholder="cosa non va — invio per segnarlo, esc per lasciar perdere"
                 className="w-full text-[11.5px]"
@@ -747,10 +747,10 @@ export default function Video() {
                   compute={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
                   onChange={setWDx} onEnd={save(KEY_RIGHT)} />
         <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
-          {molti.length > 1 ? (
+          {multi.length > 1 ? (
             <div className="p-2.5 space-y-2.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-[12px] text-neutral-100">{molti.length} tagli scelti</span>
+                <span className="text-[12px] text-neutral-100">{multi.length} tagli scelti</span>
                 <button onClick={() => setSelection(new Set())}
                         className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">
                   lascia
@@ -764,12 +764,12 @@ export default function Video() {
               )}
               <div className="flex flex-wrap gap-1">
                 {span && (
-                  <Bott onClick={() => setInquadra({ da: span[0], a: span[1], n: Date.now() })}>
+                  <Bott onClick={() => setFramed({ da: span[0], a: span[1], n: Date.now() })}>
                     guarda da vicino
                   </Bott>
                 )}
                 {span && <Bott onClick={() => setInOut(span)}>segna il tratto</Bott>}
-                <Bott weight="pericolo" onClick={discardSelection}>
+                <Bott weight="danger" onClick={discardSelection}>
                   scarta {selectedShots.length === 1 ? "la ripresa" : `le ${selectedShots.length} riprese`}
                 </Bott>
               </div>
@@ -781,7 +781,7 @@ export default function Video() {
                 <span className="text-[10.5px] text-neutral-400">battute</span>
               </div>
               <div className="border-t border-neutral-900 pt-2 space-y-0.5">
-                {molti.map((i) => {
+                {multi.map((i) => {
                   const c = shownCuts[i]!;
                   return (
                     <button key={i} onClick={() => openCut(i)}
@@ -796,7 +796,7 @@ export default function Video() {
               </div>
             </div>
           ) : sel ? (
-            <Inspector sel={sel} shots={shots} candidati={candidati} close={() => setPicked(null)}
+            <Inspector sel={sel} shots={shots} candidates={candidates} close={() => setPicked(null)}
                        onForced={readOverrides} />
           ) : (
             <div className="p-2.5 space-y-2.5">
@@ -846,12 +846,12 @@ export default function Video() {
       <div className="shrink-0 min-h-0" style={{ height: hTimeline }}>
         <Timeline
           cuts={shownCuts} acts={acts} wave={wave} duration={duration} t={t}
-          poster={poster} picked={picked} selection={selection} inquadra={inquadra}
+          poster={poster} picked={picked} selection={selection} framed={framed}
           inOut={inOut} setInOut={setInOut}
-          gira={gira} vaiA={vaiA} markers={markers}
+          playing={playing} vaiA={vaiA} markers={markers}
           removeMarker={(m) => { void api.videoMarker(m, null).then((r) => setMarkers(r.markers)); }}
           open={openCut}
-          inchiodate={new Set((forz?.pin ?? []).map((f) => f.bar))}
+          pinned={new Set((forz?.pin ?? []).map((f) => f.bar))}
           onSwap={swap} onDuration={changeDuration} onPose={pose}
           forcedDuration={forcedDuration}
         />
@@ -860,8 +860,8 @@ export default function Video() {
       {/* Everything set by hand, in one place and with its × beside it. It is
           the answer to "did I touch something by mistake?": that question used
           to be answerable only by opening `scelte.json`. */}
-      {vediForz && (
-        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setVediForz(false)}>
+      {showForced && (
+        <div className="fixed inset-0 z-50 bg-black/70 grid place-items-center" onClick={() => setShowForced(false)}>
           <div className="bg-neutral-950 border border-neutral-800 rounded-sm p-4 w-[560px] max-w-[92vw]"
                onClick={(e) => e.stopPropagation()}>
             <div className="flex items-baseline gap-2 mb-1">
@@ -869,7 +869,7 @@ export default function Video() {
               <span className="text-[10.5px] text-neutral-400">
                 scavalcano il montaggio calcolato
               </span>
-              <button onClick={() => setVediForz(false)} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">chiudi</button>
+              <button onClick={() => setShowForced(false)} className="ml-auto text-[10.5px] text-neutral-400 hover:text-neutral-100">chiudi</button>
             </div>
 
             <p className="text-[11px] text-neutral-400 leading-relaxed mb-2">
@@ -929,17 +929,17 @@ export default function Video() {
             rifai
           </button>
         )}
-        {!!pila.length && (
+        {!!stack.length && (
           <button onClick={() => void cancel()}
-                  title={`annulla: ${pila[pila.length - 1]?.what}`}
+                  title={`annulla: ${stack[stack.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
-            ⌫ {pila[pila.length - 1]?.what}
+            ⌫ {stack[stack.length - 1]?.what}
           </button>
         )}
         {!!overrideCount && (
               <div className="mt-3 flex items-center gap-2">
-                <Bott weight="primario" onClick={() => { setVediForz(false); void launch(); }}
+                <Bott weight="primary" onClick={() => { setShowForced(false); void launch(); }}
                       disabled={!!ric?.active}>
                   ricostruisci il video con queste scelte
                 </Bott>

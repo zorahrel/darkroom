@@ -39,22 +39,22 @@ export type Attachment = {
 };
 
 /** How a position is said in English, for the prompt. */
-function position(indici: number[], total: number): string {
+function position(indices: number[], total: number): string {
   if (total === 1) return "The attached image";
-  if (indici.length === 1) {
+  if (indices.length === 1) {
     const ord = [
       "first", "second", "third", "fourth", "fifth",
       "sixth", "seventh", "eighth", "ninth", "tenth",
-    ][indici[0]!];
-    return ord ? `The ${ord} attached image` : `Attached image ${indici[0]! + 1}`;
+    ][indices[0]!];
+    return ord ? `The ${ord} attached image` : `Attached image ${indices[0]! + 1}`;
   }
-  if (indici.length === total) return "The attached images";
+  if (indices.length === total) return "The attached images";
   // A contiguous block is spelled out: "the first two", "the last three".
-  const contiguo = indici.every((n, i) => i === 0 || n === indici[i - 1]! + 1);
-  const howMany = ["", "one", "two", "three", "four", "five", "six"][indici.length] ?? String(indici.length);
-  if (contiguo && indici[0] === 0) return `The first ${howMany} attached images`;
-  if (contiguo && indici[indici.length - 1] === total - 1) return `The last ${howMany} attached images`;
-  return `Attached images ${indici.map((n) => n + 1).join(", ")}`;
+  const contiguous = indices.every((n, i) => i === 0 || n === indices[i - 1]! + 1);
+  const howMany = ["", "one", "two", "three", "four", "five", "six"][indices.length] ?? String(indices.length);
+  if (contiguous && indices[0] === 0) return `The first ${howMany} attached images`;
+  if (contiguous && indices[indices.length - 1] === total - 1) return `The last ${howMany} attached images`;
+  return `Attached images ${indices.map((n) => n + 1).join(", ")}`;
 }
 
 /**
@@ -82,9 +82,9 @@ export function preamble(attachments: Attachment[], withSource: boolean): string
     // source exists: with the source alone and no identity attachment it came
     // out as "The SOURCE photograph are of ME", and an ungrammatical sentence
     // is paid for by the model, which reads it worse.
-    const quante = (withSource ? 1 : 0) + ident.length;
+    const counts = (withSource ? 1 : 0) + ident.length;
     phrases.push(
-      `${who} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
+      `${who} ${counts > 1 ? "are" : "is"} of ME, the same person: ` +
         `use them only to keep my face, bone structure and identity exactly as they show it. ` +
         `Ignore their pose, hands, framing, background and lighting.`,
     );

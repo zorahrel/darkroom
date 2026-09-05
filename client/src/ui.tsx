@@ -35,17 +35,17 @@ const SIZE = {
 } as const;
 
 export type Size = keyof typeof SIZE;
-export type Weight = "primario" | "normale" | "quieto" | "pericolo";
+export type Weight = "primary" | "normal" | "quiet" | "danger";
 
 const WEIGHT: Record<Weight, string> = {
-  primario: "border-transparent bg-neutral-100 text-neutral-900 hover:bg-white font-medium",
-  normale: "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100",
-  quieto: "border-transparent text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70",
-  pericolo: "border-rose-800 bg-rose-950/40 text-rose-200 hover:bg-rose-900/50",
+  primary: "border-transparent bg-neutral-100 text-neutral-900 hover:bg-white font-medium",
+  normal: "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100",
+  quiet: "border-transparent text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70",
+  danger: "border-rose-800 bg-rose-950/40 text-rose-200 hover:bg-rose-900/50",
 };
 
 export function Bott({
-  children, onClick, active, weight = "normale", size = "m",
+  children, onClick, active, weight = "normal", size = "m",
   title, disabled, className = "", type = "button",
 }: {
   children: React.ReactNode;
@@ -103,18 +103,18 @@ export function Confirm({
   title?: string;
   className?: string;
 }) {
-  const [chiesto, setChiesto] = useState(false);
+  const [asked, setAsked] = useState(false);
   useEffect(() => {
-    if (!chiesto) return;
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setChiesto(false); };
+    if (!asked) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAsked(false); };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, [chiesto]);
+  }, [asked]);
 
-  if (!chiesto) {
+  if (!asked) {
     return (
-      <Bott weight="quieto" size={size} title={title} className={className}
-            onClick={() => setChiesto(true)}>
+      <Bott weight="quiet" size={size} title={title} className={className}
+            onClick={() => setAsked(true)}>
         {children}
       </Bott>
     );
@@ -122,10 +122,10 @@ export function Confirm({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-[11px] text-neutral-300">{question}</span>
-      <Bott weight="pericolo" size={size} onClick={() => { setChiesto(false); onConfirm(); }}>
+      <Bott weight="danger" size={size} onClick={() => { setAsked(false); onConfirm(); }}>
         {confirm}
       </Bott>
-      <Bott weight="quieto" size={size} onClick={() => setChiesto(false)}>lascia stare</Bott>
+      <Bott weight="quiet" size={size} onClick={() => setAsked(false)}>lascia stare</Bott>
     </span>
   );
 }
@@ -483,8 +483,8 @@ export function Checkbox({
 const CloseMenu = createContext<() => void>(() => {});
 export const useCloseMenu = () => useContext(CloseMenu);
 
-export function Altro({
-  children, title = "Altre azioni", className = "", discreto = false,
+export function Other({
+  children, title = "Altre azioni", className = "", subtle = false,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -492,7 +492,7 @@ export function Altro({
   /** Visible only on hover or on arriving with the tab key — but **never**
    *  while it is open: a semi-transparent menu under the finger moving to
    *  choose an entry is a menu that cannot be used. */
-  discreto?: boolean;
+  subtle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -504,7 +504,7 @@ export function Altro({
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("pointerdown", outside); window.removeEventListener("keydown", esc); };
   }, [open]);
-  const visibility = !discreto || open
+  const visibility = !subtle || open
     ? "opacity-100"
     : "opacity-0 group-hover:opacity-100 focus-within:opacity-100";
   return (

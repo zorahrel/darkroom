@@ -519,7 +519,7 @@ export type VideoShot = {
   /** One line on what you see. Written by hand, or cropped from the prompt. */
   description: string | null;
   descriptionByHand: boolean;
-  moto: number | null;
+  motion: number | null;
   detail: number | null;
   inEdit: number;
   kept: boolean;

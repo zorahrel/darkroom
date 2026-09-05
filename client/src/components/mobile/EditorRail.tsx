@@ -538,7 +538,7 @@ function Section({
                 </Bott>
               )}
               {step.onReset && (
-                <Bott weight="quieto" size="s" onClick={step.onReset}
+                <Bott weight="quiet" size="s" onClick={step.onReset}
                       title="Rimetti i valori di partenza">
                   <IconReset />
                 </Bott>

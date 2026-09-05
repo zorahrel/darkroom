@@ -34,16 +34,16 @@ type Props = {
   /** I tagli selezionati insieme: ⇧clic estende, ⌘clic aggiunge. */
   selection: Set<number>;
   /** Inquadra un tratto: cambia insieme zoom e scorrimento. */
-  inquadra: { da: number; a: number; n: number } | null;
+  framed: { da: number; a: number; n: number } | null;
   inOut: [number, number] | null;
   setInOut: (v: [number, number] | null) => void;
-  open: (i: number, mod?: { estendi?: boolean; add?: boolean }) => void;
+  open: (i: number, mod?: { extend?: boolean; add?: boolean }) => void;
   vaiA: (s: number, parts?: boolean) => void;
-  gira: boolean;
+  playing: boolean;
   markers: VideoMarker[];
   removeMarker: (t: number) => void;
   /** The beats pinned by hand: visible without opening the inspector. */
-  inchiodate: Set<number>;
+  pinned: Set<number>;
   /** Dragging a block over another: the two swap places. */
   onSwap: (i: number, j: number) => void;
   /** Tirare il bordo destro di un blocco: quante battute dura. */
@@ -55,7 +55,7 @@ type Props = {
 };
 
 export default function Timeline(p: Props) {
-  const { cuts, acts, wave, duration, t, poster, picked, selection, inquadra, inOut, open, vaiA, gira, markers, removeMarker, inchiodate, onSwap, onDuration, onPose, forcedDuration } = p;
+  const { cuts, acts, wave, duration, t, poster, picked, selection, framed, inOut, open, vaiA, playing, markers, removeMarker, pinned, onSwap, onDuration, onPose, forcedDuration } = p;
   const [zoom, setZoom] = useState(0);           // 0 = everything in view
   const [above, setAbove] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -93,13 +93,13 @@ export default function Timeline(p: Props) {
    *  every click on a cut would make the timeline jump under your finger. */
   useEffect(() => {
     const el = scroller.current;
-    if (!el || !gira || zoom === 0) return;
+    if (!el || !playing || zoom === 0) return;
     const px = x(t);
     const m = el.clientWidth * 0.15;
     if (px < el.scrollLeft + m || px > el.scrollLeft + el.clientWidth - m) {
       el.scrollLeft = px - el.clientWidth / 2;
     }
-  }, [t, gira, zoom, x]);
+  }, [t, playing, zoom, x]);
 
   /** While zooming, the point under the cursor stays where it is: zooming in
    *  and then having to find the point again is like not having zoomed. */
@@ -143,9 +143,9 @@ export default function Timeline(p: Props) {
   }, [duration]);
 
   useEffect(() => {
-    if (inquadra) fit(inquadra.da, inquadra.a);
+    if (framed) fit(framed.da, framed.a);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inquadra?.n]);
+  }, [framed?.n]);
 
   const position = (e: { clientX: number; currentTarget: EventTarget | null }) => {
     const el = e.currentTarget as HTMLElement;
@@ -174,13 +174,13 @@ export default function Timeline(p: Props) {
     return out;
   }, [duration, step]);
 
-  const onde = useRef<HTMLCanvasElement>(null);
+  const waves = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const c = onde.current;
+    const c = waves.current;
     if (!c || !wave?.peaks.length) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.min(width, 16000);
-    const H = lanes.suono;
+    const H = lanes.sound;
     c.width = W * dpr; c.height = H * dpr;
     c.style.width = `${W}px`; c.style.height = `${H}px`;
     const g = c.getContext("2d");
@@ -194,7 +194,7 @@ export default function Timeline(p: Props) {
       const h = (wave.peaks[k] ?? 0) * (H - 4);
       g.fillRect(i, (H - h) / 2, 1, Math.max(1, h));
     }
-  }, [wave, width, lanes.suono]);
+  }, [wave, width, lanes.sound]);
 
   /**
    * Dragging.
@@ -247,7 +247,7 @@ export default function Timeline(p: Props) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
       setDrag(null);
-      if (!moved) { open(i, { estendi: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
+      if (!moved) { open(i, { extend: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
       const a = which(ev.clientX, box);
       if (a === null || a === i) return;
       onSwap(i, a);
@@ -393,13 +393,13 @@ export default function Timeline(p: Props) {
             tempo <span className="text-amber-500/70">◆</span>
           </div>
           <div style={{ height: H_ACTS }} className="border-b border-neutral-900 px-1.5 leading-4">atti</div>
-          <div style={{ height: lanes.suono }} className="border-b border-neutral-900 px-1.5 pt-0.5 leading-tight">
+          <div style={{ height: lanes.sound }} className="border-b border-neutral-900 px-1.5 pt-0.5 leading-tight">
             suono<br /><span className="text-neutral-400">onda · battute</span>
           </div>
           <div style={{ height: lanes.cuts }} className="border-b border-neutral-900 px-1.5 pt-0.5 leading-tight">
             tagli<br /><span className="text-neutral-400">alt. = durezza</span>
           </div>
-          <div style={{ height: lanes.quadri }} className="px-1.5 pt-0.5 leading-tight">
+          <div style={{ height: lanes.frames }} className="px-1.5 pt-0.5 leading-tight">
             quadri<br /><span className="text-neutral-400">un piano</span>
           </div>
         </div>
@@ -465,9 +465,9 @@ export default function Timeline(p: Props) {
             </div>
 
             {/* suono */}
-            <div style={{ height: lanes.suono }}
+            <div style={{ height: lanes.sound }}
                  className="relative border-b border-neutral-900 cursor-text" onPointerDown={search}>
-              <canvas ref={onde} className="absolute inset-y-0 left-0 pointer-events-none" />
+              <canvas ref={waves} className="absolute inset-y-0 left-0 pointer-events-none" />
               {pps > 12 && wave?.beats.map((b, i) => (
                 <div key={i} className="absolute inset-y-0 w-px bg-neutral-700/40 pointer-events-none" style={{ left: x(b) }} />
               ))}
@@ -492,7 +492,7 @@ export default function Timeline(p: Props) {
                    if (shot && i !== null) onPose(i, shot);
                  }}>
               {cuts.map((c, i) => {
-                const sposto = drag?.kind === "move" && drag.da === i;
+                const dragged = drag?.kind === "move" && drag.da === i;
                 const target = drag?.kind === "move" && drag.a === i && drag.da !== i;
                 const wide = drag?.kind === "stretch" && drag.i === i
                   ? Math.max(1, x(c.dur * (drag.bars / Math.max(0.5, barsOf(i)))))
@@ -503,7 +503,7 @@ export default function Timeline(p: Props) {
                        title={`${c.shot} · ${mmss(c.t)} · ${c.dur.toFixed(2)}s · ${c.speed.toFixed(2)}x
 trascina per scambiarlo · tira il bordo destro per la durata`}
                        className={`absolute bottom-0 border-r border-black/60 cursor-grab active:cursor-grabbing
-                                   ${sposto ? "opacity-40" : "hover:brightness-150"}
+                                   ${dragged ? "opacity-40" : "hover:brightness-150"}
                                    ${target ? "outline outline-2 -outline-offset-2 outline-sky-400 z-20" : ""}
                                    ${picked === i && !target ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}
                                    ${selection.has(i) && picked !== i && !target ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10" : ""}`}
@@ -547,7 +547,7 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
               ) : null))}
               {/* A bar forced by hand is no longer derived: it is visible from
                   here, without having to open the cut to find out. */}
-              {cuts.filter((c) => inchiodate.has(c.bar)).map((c, i) => (
+              {cuts.filter((c) => pinned.has(c.bar)).map((c, i) => (
                 <div key={`f${i}`} title="battuta inchiodata a mano"
                      className="absolute top-0 h-[3px] bg-sky-400 pointer-events-none"
                      style={{ left: x(c.t), width: Math.max(2, x(c.dur)) }} />
@@ -555,12 +555,12 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
             </div>
 
             {/* quadri */}
-            <div style={{ height: lanes.quadri }} className="relative">
+            <div style={{ height: lanes.frames }} className="relative">
               {cuts.map((c, i) => {
                 const src = poster.get(c.shot);
                 return (
                   <button key={i}
-                          onClick={(e) => open(i, { estendi: e.shiftKey, add: e.metaKey || e.ctrlKey })}
+                          onClick={(e) => open(i, { extend: e.shiftKey, add: e.metaKey || e.ctrlKey })}
                           title={`${c.shot} · ${mmss(c.t)}`}
                           className={`absolute inset-y-0 border-r border-black/70 bg-cover bg-center ${
                             picked === i ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10"

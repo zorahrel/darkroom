@@ -87,7 +87,7 @@ type Tool = {
   handler: (args: Record<string, any>) => Promise<unknown>;
   /** A tool that makes no sense to scope to a project (the list, the backend's
    *  health) does not carry the field. */
-  globale?: boolean;
+  global?: boolean;
 };
 
 /** The `project` field, added to every tool that is not global. */
@@ -380,7 +380,7 @@ export const tools: Tool[] = [
     description:
       "Every project on this machine: id, name, folder, which views are on, whether the generator works on it, and its headline numbers (photos/favorites/versions, or cuts/shots/duration for a video project). Start here: the `id` is what every other tool's `project` argument takes.",
     inputSchema: { type: "object", properties: {} },
-    globale: true,
+    global: true,
     handler: () => call("GET", "/api/studio/projects"),
   },
   {
@@ -401,7 +401,7 @@ export const tools: Tool[] = [
       },
       required: ["name"],
     },
-    globale: true,
+    global: true,
     handler: (a) => call("POST", "/api/studio/projects", a),
   },
   {
@@ -419,7 +419,7 @@ export const tools: Tool[] = [
       },
       required: ["id"],
     },
-    globale: true,
+    global: true,
     handler: (a) => {
       const { id, ...patch } = a;
       return call("PATCH", `/api/studio/projects/${encodeURIComponent(id)}`, patch);
@@ -532,15 +532,15 @@ export const tools: Tool[] = [
       // tail because the tail only says where it is now, not how far it has
       // come.
       const done = (log.match(/^ {2}\S+ +\d+ frame -> +\d+ quadri/gm) ?? []).length;
-      const attese = (log.match(/^ {2}\S+ +\d+ frame sorgente$/gm) ?? []).length;
-      const tutte = log.split("\n");
+      const waits = (log.match(/^ {2}\S+ +\d+ frame sorgente$/gm) ?? []).length;
+      const all = log.split("\n");
       return {
         active: d.active,
         output: d.output ?? null,
-        progress: attese ? `${done}/${attese} riprese montate` : null,
-        minuti: d.startedAt ? +((Date.now() - d.startedAt) / 60000).toFixed(1) : null,
-        log: rows > 0 ? tutte.slice(-rows).join("\n") : log,
-        log_truncated: rows > 0 && tutte.length > rows ? `${tutte.length - rows} righe prima` : null,
+        progress: waits ? `${done}/${waits} riprese montate` : null,
+        minutes: d.startedAt ? +((Date.now() - d.startedAt) / 60000).toFixed(1) : null,
+        log: rows > 0 ? all.slice(-rows).join("\n") : log,
+        log_truncated: rows > 0 && all.length > rows ? `${all.length - rows} righe prima` : null,
       };
     },
   },
@@ -673,12 +673,12 @@ export const tools: Tool[] = [
       properties: {
         area: {
           type: "string",
-          description: "Only one area: immagini | colore | qualita | libreria | racconto | montaggio | sistema",
+          description: "Only one area: images | color | quality | library | story | edit | system",
         },
-        pronti: { type: "boolean", description: "Only the ones usable right now" },
+        ready: { type: "boolean", description: "Only the ones usable right now" },
       },
     },
-    globale: true,
+    global: true,
     handler: async (a) => {
       const d = (await call("GET", "/api/tools")) as {
         areas: unknown[];
@@ -688,7 +688,7 @@ export const tools: Tool[] = [
       };
       const picked = d.tools
         .filter((s) => (a.area ? s.area === a.area : true))
-        .filter((s) => (a.pronti ? s.ready : true));
+        .filter((s) => (a.ready ? s.ready : true));
       return {
         backend: d.backend,
         requirements: d.requirements,
@@ -733,7 +733,7 @@ export const tools: Tool[] = [
       },
       required: ["tool"],
     },
-    globale: true,
+    global: true,
     handler: (a) =>
       call("POST", `/api/tools/${encodeURIComponent(a.tool)}/start`, {
         project: a.project,
@@ -751,7 +751,7 @@ export const tools: Tool[] = [
         launch: { type: "boolean", description: "Launch the browser if offline" },
       },
     },
-    globale: true,
+    global: true,
     handler: async (a) => {
       if (a.launch) return call("POST", "/api/browser/launch", undefined, a.project);
       return call("GET", "/api/health", undefined, a.project);
@@ -765,12 +765,12 @@ const server = new Server(
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: tools.map(({ name, description, inputSchema, globale }) => ({
+  tools: tools.map(({ name, description, inputSchema, global }) => ({
     name,
     description,
     // Added here once only: writing it into twenty schemas means forgetting
     // it in one, and that one writes into the wrong project silently.
-    inputSchema: globale
+    inputSchema: global
       ? inputSchema
       : {
           ...inputSchema,

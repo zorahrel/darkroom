@@ -118,7 +118,7 @@ export function recordCall(
   /** The batch pays half: the tariff is one thing, the tokens another.
    *  Halving the tokens to get the right cost would falsify the column that
    *  says how much the model produced. */
-  sconto = 1,
+  discount = 1,
 ): void {
   try {
     db().run(
@@ -128,7 +128,7 @@ export function recordCall(
         model,
         OPENAI_IMAGE_QUALITY,
         outputTokens,
-        costUsd(model, outputTokens) * sconto,
+        costUsd(model, outputTokens) * discount,
         ok ? 1 : 0,
         origin,
         Date.now(),
@@ -208,9 +208,9 @@ async function saveResult(
   if (!existsSync(output)) return { status: "error", error: `scrittura fallita: ${output}`, duration_s };
   // It looks at the BYTES, not at rounded kilobytes: `size_kb` of a 500-byte
   // file is 0, and the guard discarded as "empty" a file that was there.
-  const bytes_reali = statSync(output).size;
-  if (bytes_reali === 0) return { status: "error", error: `file vuoto: ${basename(output)}`, duration_s };
-  const size_kb = Math.round(bytes_reali / 1024);
+  const actual_bytes = statSync(output).size;
+  if (actual_bytes === 0) return { status: "error", error: `file vuoto: ${basename(output)}`, duration_s };
+  const size_kb = Math.round(actual_bytes / 1024);
   // The tokens are read from the response: the docs table gave 4160 for a high
   // 1024 where 7024 were consumed, 69% more.
   const tok = json.usage?.output_tokens;

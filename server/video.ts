@@ -46,7 +46,7 @@ export type Shot = {
   takes: Take[];
   /** Measured, from durezza.json: 0 = calmest shot of the set, 1 = hardest. */
   intensity: number | null;
-  moto: number | null;
+  motion: number | null;
   detail: number | null;
   /** Seconds of screen time the current plan gives it. */
   inEdit: number;
@@ -136,6 +136,14 @@ function beatClock(bm: any): (bar: number) => number {
   };
 }
 
+/**
+ * The literal shape of `scelte.json`. The key names are Italian **on purpose**:
+ * this file is shared with the Python that lives outside this repo, so they are
+ * a contract, not our naming. Renaming one here does not rename it on disk — it
+ * makes the data already written invisible, silently, because every read is
+ * optional. Translate at the boundary instead (see `setPick`, which returns
+ * `discarded`), and leave these alone.
+ */
 type Picks = {
   scartati: Record<string, string>;
   problemi?: Record<string, string[]>;
@@ -467,13 +475,13 @@ function suspect(
   m: Record<string, number | undefined>,
   art?: { sporchi: number; visti: number },
 ): string | null {
-  const moto = m.moto, contrasto = m.contrasto, nero = m.nero, luce = m.luce;
+  const motion = m.moto, contrasto = m.contrasto, nero = m.nero, luce = m.luce;
   const reasons: string[] = [];
   // First, because it is the only one that says "it is broken" instead of
   // "it is weak".
   if (art && art.sporchi > 0)
     reasons.push(`macchie bianche in ${art.sporchi} fotogrammi su ${art.visti}`);
-  if (typeof moto === "number" && moto < 2.5) reasons.push(`si muove poco (${moto.toFixed(1)})`);
+  if (typeof motion === "number" && motion < 2.5) reasons.push(`si muove poco (${motion.toFixed(1)})`);
   if (typeof contrasto === "number" && contrasto < 38) reasons.push(`poco contrasto (${Math.round(contrasto)})`);
   if (typeof nero === "number" && nero > 0.9) reasons.push(`quasi tutta nera (${Math.round(nero * 100)}%)`);
   if (typeof luce === "number" && luce < 0.015) reasons.push("buia");
@@ -493,29 +501,29 @@ function suspect(
  * out of four describes the style, not the scene.
  */
 function descriptions(prompts: Record<string, any>): Record<string, string> {
-  const frasi = (t: string) =>
+  const phrases = (t: string) =>
     String(t ?? "")
       .split(/(?<=[.!?])\s+/)
       .map((f) => f.trim())
       .filter((f) => f.length > 12);
 
-  const quante = new Map<string, number>();
+  const counts = new Map<string, number>();
   const perId = new Map<string, string[]>();
   for (const [id, v] of Object.entries(prompts)) {
-    const fs = frasi(v?.prompt);
+    const fs = phrases(v?.prompt);
     if (!fs.length) continue;
     perId.set(id, fs);
-    for (const f of new Set(fs)) quante.set(f, (quante.get(f) ?? 0) + 1);
+    for (const f of new Set(fs)) counts.set(f, (counts.get(f) ?? 0) + 1);
   }
   const common = Math.max(2, Math.ceil(perId.size / 4));
 
   const out: Record<string, string> = {};
   for (const [id, fs] of perId) {
-    const proprie = fs.filter((f) => (quante.get(f) ?? 0) < common);
+    const ownPhrases = fs.filter((f) => (counts.get(f) ?? 0) < common);
     // If they are all shared the shot has nothing of its own to say, and
     // writing the boilerplate would be worse than writing nothing.
-    if (!proprie.length) continue;
-    let t = proprie.slice(0, 2).join(" ");
+    if (!ownPhrases.length) continue;
+    let t = ownPhrases.slice(0, 2).join(" ");
     if (t.length > 180) t = `${t.slice(0, 177)}…`;
     out[id] = t;
   }
@@ -530,8 +538,8 @@ export function shots(): Shot[] {
   const t = beatClock(bm);
   const sc = picks();
   const as = acts();
-  const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
-  const arte = artifacts();
+  const excludedOf = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
+  const artsByKey = artifacts();
   const descr = descriptions(prompts);
   const manualIntensity = ((sc as any).durezze ?? {}) as Record<string, number>;
   const manual = ((sc as any).descriptions ?? {}) as Record<string, string>;
@@ -563,7 +571,7 @@ export function shots(): Shot[] {
   }
 
   const srcDir = at("src");
-  const locali = existsSync(srcDir)
+  const localNames = existsSync(srcDir)
     ? readdirSync(srcDir).filter((n) => !n.startsWith("."))
     : [];
 
@@ -584,7 +592,7 @@ export function shots(): Shot[] {
       if (m?.[1] && m[2]) fromPreview.set(m[1], [...(fromPreview.get(m[1]) ?? []), m[2]]);
     }
   }
-  const names = [...new Set([...locali, ...fromPreview.keys()])].sort();
+  const names = [...new Set([...localNames, ...fromPreview.keys()])].sort();
 
   return names
     .map((id) => {
@@ -610,7 +618,7 @@ export function shots(): Shot[] {
       // The key in artefatti.json is "<shot>__<take>": it takes only ONE take
       // being dirty for the shot to deserve a look.
       const art = (["a", "b", "c"]
-        .map((tk) => arte[`${id}__${tk}`])
+        .map((tk) => artsByKey[`${id}__${tk}`])
         .filter(Boolean) as { sporchi: number; visti: number; dev: number }[])
         .sort((x, y) => y.sporchi - x.sporchi)[0];
       const sos = suspect(m, art);
@@ -624,7 +632,7 @@ export function shots(): Shot[] {
         intensity: manualIntensity[id] ?? m.durezza ?? null,
         measuredIntensity: m.durezza ?? null,
         manualIntensity: manualIntensity[id] ?? null,
-        moto: m.moto ?? null,
+        motion: m.moto ?? null,
         detail: m.detail ?? null,
         inEdit: Math.round((inEdit[id] ?? 0) * 10) / 10,
         kept: !(id in discarded),
@@ -639,7 +647,7 @@ export function shots(): Shot[] {
         appearances: appearances[id] ?? [],
         // Discarded by hand and excluded by the planner are two different things:
         // the first is undone from here, the second has a written reason.
-        excluded: id in discarded ? null : (esclusi.esclusi?.[id] ?? null),
+        excluded: id in discarded ? null : (excludedOf.esclusi?.[id] ?? null),
       };
     })
     .sort((a, b) => (b.intensity ?? -1) - (a.intensity ?? -1));
@@ -868,13 +876,13 @@ async function measure(key: string): Promise<Gate> {
   const out = `${so}\n${se}`;
   const rows: GateRow[] = [];
   const failed: string[] = [];
-  let inRosso = false;
+  let inRed = false;
   let repeated = 0;
 
   for (const raw of out.split("\n")) {
     const l = raw.trimEnd();
-    if (/^ROSSO:/.test(l)) { inRosso = true; continue; }
-    if (inRosso && /^\s+-\s/.test(l)) { failed.push(l.replace(/^\s+-\s/, "")); continue; }
+    if (/^ROSSO:/.test(l)) { inRed = true; continue; }
+    if (inRed && /^\s+-\s/.test(l)) { failed.push(l.replace(/^\s+-\s/, "")); continue; }
     const m = /^(\d+b?)\.\s+(.*)$/.exec(l);
     if (!m) continue;
     const n = m[1] ?? "";
@@ -930,14 +938,14 @@ export function startRebuild(): { ok: boolean; error?: string } {
   rebuild = { active: true, log: "", startedAt: Date.now(), finishedAt: null, output: null };
   const proc = Bun.spawn([sh], { cwd: videoRoot(), stdout: "pipe", stderr: "pipe" });
 
-  const bevi = async (stream: ReadableStream<Uint8Array> | null) => {
+  const drain = async (stream: ReadableStream<Uint8Array> | null) => {
     if (!stream) return;
     const dec = new TextDecoder();
     for await (const chunk of stream as any) {
       rebuild.log = (rebuild.log + dec.decode(chunk)).slice(-60_000);
     }
   };
-  void Promise.all([bevi(proc.stdout as any), bevi(proc.stderr as any)]);
+  void Promise.all([drain(proc.stdout as any), drain(proc.stderr as any)]);
   void proc.exited.then((code) => {
     rebuild.active = false;
     rebuild.finishedAt = Date.now();

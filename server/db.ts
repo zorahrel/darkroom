@@ -932,7 +932,7 @@ export function pathOutsideConvention(
  * here on this is what gets called, instead of writing the expression by hand
  * every time.
  */
-export function adesso(): number {
+export function now(): number {
   return Date.now();
 }
 

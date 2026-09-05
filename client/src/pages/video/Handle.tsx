@@ -25,7 +25,7 @@ type Props = {
 };
 
 export default function Handle({ toward, value, compute, onChange, onEnd, title }: Props) {
-  const giu = useCallback((e: React.PointerEvent) => {
+  const down = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const p0 = toward === "col" ? e.clientX : e.clientY;
     const v0 = value;
@@ -47,7 +47,7 @@ export default function Handle({ toward, value, compute, onChange, onEnd, title 
   const col = toward === "col";
   return (
     <div
-      onPointerDown={giu}
+      onPointerDown={down}
       title={title}
       className={`shrink-0 group bg-neutral-900 hover:bg-neutral-600 transition-colors
                   flex items-center justify-center

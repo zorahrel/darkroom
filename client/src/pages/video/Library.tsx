@@ -19,22 +19,31 @@ type Props = {
   open: (id: string) => void;
 };
 
-type Filter = "tutti" | "in montaggio" | "tenuti" | "scartati" | "annotati";
+/** Id in English (it is code), word in Italian (it is read). One array, so the
+ *  two cannot drift apart. */
+const FILTERS = [
+  ["all", "tutti"],
+  ["in-edit", "in montaggio"],
+  ["kept", "tenuti"],
+  ["discarded", "scartati"],
+  ["flagged", "annotati"],
+] as const;
+type Filter = (typeof FILTERS)[number][0];
 
 export default function Library({ shots, inEdit, setShots, open }: Props) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<Filter>("tutti");
-  const [scrivo, setScrivo] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [writing, setWriting] = useState<string | null>(null);
   const [text, setText] = useState("");
 
-  const visibili = useMemo(() => {
+  const visible = useMemo(() => {
     const t = q.trim().toLowerCase();
     return shots.filter((s) => {
       if (t && !s.id.toLowerCase().includes(t) && !(s.prompt ?? "").toLowerCase().includes(t)) return false;
-      if (filter === "tenuti") return s.kept;
-      if (filter === "scartati") return !s.kept;
-      if (filter === "in montaggio") return (inEdit.get(s.id) ?? 0) > 0;
-      if (filter === "annotati") return s.problems.length > 0;
+      if (filter === "kept") return s.kept;
+      if (filter === "discarded") return !s.kept;
+      if (filter === "in-edit") return (inEdit.get(s.id) ?? 0) > 0;
+      if (filter === "flagged") return s.problems.length > 0;
       return true;
     });
   }, [shots, q, filter, inEdit]);
@@ -45,16 +54,16 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
   };
   const flag = async (id: string) => {
     const t = text.trim();
-    setScrivo(null); setText("");
+    setWriting(null); setText("");
     if (!t) return;
     try { setShots((await api.videoProblem(id, t)).shots); } catch { /* nothing */ }
   };
 
-  const F = (k: Filter) => (
+  const F = ([k, label]: (typeof FILTERS)[number]) => (
     <button key={k} onClick={() => setFilter(k)}
       className={`px-1.5 py-0.5 rounded-sm border text-[9.5px] ${
         filter === k ? "border-neutral-500 text-neutral-200" : "border-neutral-900 text-neutral-400 hover:text-neutral-400"}`}>
-      {k}
+      {label}
     </button>
   );
 
@@ -65,12 +74,12 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                placeholder={`cerca fra ${shots.length} piani…`}
                className="w-full text-[11px]" />
         <div className="flex flex-wrap gap-1">
-          {(["tutti", "in montaggio", "tenuti", "scartati", "annotati"] as const).map(F)}
+          {FILTERS.map(F)}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {visibili.map((s) => {
+        {visible.map((s) => {
           const tk = s.takes.find((x) => x.kept) ?? s.takes[0];
           const inside = (inEdit.get(s.id) ?? 0) > 0;
           return (
@@ -117,7 +126,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                     <span className="text-[9px] text-neutral-400">· {s.takes.length} riprese</span>
                   )}
                   <button
-                    onClick={() => { setScrivo(scrivo === s.id ? null : s.id); setText(""); }}
+                    onClick={() => { setWriting(writing === s.id ? null : s.id); setText(""); }}
                     title="annota un problema"
                     className="ml-auto text-[9.5px] px-1 rounded-sm border border-neutral-900 text-neutral-400
                                hover:text-amber-400 hover:border-amber-800">!</button>
@@ -128,9 +137,9 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                     {s.kept ? "tenuto" : "scartato"}
                   </button>
                 </div>
-                {scrivo === s.id && (
+                {writing === s.id && (
                   <Field autoFocus value={text} onChange={setText}
-                         onEnter={() => void flag(s.id)} onEsc={() => setScrivo(null)}
+                         onEnter={() => void flag(s.id)} onEsc={() => setWriting(null)}
                          placeholder="cosa non va — invio"
                          className="mt-1 w-full text-[10px] border-amber-900/60" />
                 )}
@@ -146,13 +155,13 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
             </div>
           );
         })}
-        {!visibili.length && (
+        {!visible.length && (
           <div className="p-4 text-center text-[11px] text-neutral-400">niente con questi filtri</div>
         )}
       </div>
 
       <div className="shrink-0 px-2 py-1 border-t border-neutral-900 text-[9.5px] text-neutral-400">
-        {visibili.length} di {shots.length} · {shots.filter((s) => s.kept).length} tenuti
+        {visible.length} di {shots.length} · {shots.filter((s) => s.kept).length} tenuti
       </div>
     </div>
   );

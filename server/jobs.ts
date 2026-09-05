@@ -403,8 +403,8 @@ export function stopRunner() {
 }
 
 async function loop() {
-  const mia = ++loopEpoch;
-  while (!runnerStopping && mia === loopEpoch) {
+  const mine = ++loopEpoch;
+  while (!runnerStopping && mine === loopEpoch) {
     loopBeatMs = Date.now();
     const now = loopBeatMs;
     if (now < pausedUntilMs) {

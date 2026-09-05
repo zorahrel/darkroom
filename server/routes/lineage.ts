@@ -91,7 +91,7 @@ function configOf(v: VersionRow): {
 function costPerVersion(): Map<number, { usd: number; model: string; quality: string | null }> {
   const out = new Map<number, { usd: number; model: string; quality: string | null }>();
   try {
-    const chiamate = db()
+    const calls = db()
       .query<{ cost_usd: number; model: string; quality: string | null; created_at: number }, []>(
         "SELECT cost_usd, model, quality, created_at FROM api_calls WHERE ok = 1 ORDER BY created_at",
       )
@@ -102,9 +102,9 @@ function costPerVersion(): Map<number, { usd: number; model: string; quality: st
       )
       .all();
     for (const v of versions) {
-      let best: (typeof chiamate)[number] | null = null;
+      let best: (typeof calls)[number] | null = null;
       let dist = 60_000; // one minute: beyond that, it is not the same generation
-      for (const ch of chiamate) {
+      for (const ch of calls) {
         const d = Math.abs(ch.created_at - v.created_at);
         if (d < dist) { dist = d; best = ch; }
       }

@@ -47,7 +47,7 @@ export type PortOutcome =
    *  cannot know has no right to block the work. */
   | { state: "ignoto"; why: string };
 
-export interface GuardiaDeps {
+export interface GuardDeps {
   /** The LISTENing sockets on that port, or `null` if we could not find out. */
   listeners: (port: number) => Occupant[] | null;
   /** Our own pid, so we do not accuse ourselves (or a hot-reload of ourselves). */
@@ -55,14 +55,14 @@ export interface GuardiaDeps {
 }
 
 /** Is the port free for us? */
-export function checkPort(port: number, deps: GuardiaDeps): PortOutcome {
+export function checkPort(port: number, deps: GuardDeps): PortOutcome {
   const found = deps.listeners(port);
   if (found === null) {
     return { state: "ignoto", why: "impossibile leggere i socket in ascolto" };
   }
-  const altrui = found.filter((o) => o.pid !== deps.ourPid);
-  if (altrui.length === 0) return { state: "free" };
-  return { state: "busy", occupants: altrui };
+  const foreign = found.filter((o) => o.pid !== deps.ourPid);
+  if (foreign.length === 0) return { state: "free" };
+  return { state: "busy", occupants: foreign };
 }
 
 /**

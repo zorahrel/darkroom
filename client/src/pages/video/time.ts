@@ -26,7 +26,7 @@ export const MIN_SUONO = 34;
 export const MIN_CUTS = 44;
 export const MIN_QUADRI = 40;
 
-export type LaneHeights = { suono: number; cuts: number; quadri: number };
+export type LaneHeights = { sound: number; cuts: number; frames: number };
 
 /**
  * How the three tall lanes share out the panel's space.
@@ -39,12 +39,12 @@ export type LaneHeights = { suono: number; cuts: number; quadri: number };
 export function laneHeights(height: number): LaneHeights {
   const remains = Math.max(0, height - H_RULER - H_ACTS - 2);
   const minimums = MIN_SUONO + MIN_CUTS + MIN_QUADRI;
-  if (remains <= minimums) return { suono: MIN_SUONO, cuts: MIN_CUTS, quadri: MIN_QUADRI };
+  if (remains <= minimums) return { sound: MIN_SUONO, cuts: MIN_CUTS, frames: MIN_QUADRI };
   const extra = remains - minimums;
   return {
-    suono: Math.round(MIN_SUONO + extra * 0.24),
+    sound: Math.round(MIN_SUONO + extra * 0.24),
     cuts: Math.round(MIN_CUTS + extra * 0.40),
-    quadri: Math.round(MIN_QUADRI + extra * 0.36),
+    frames: Math.round(MIN_QUADRI + extra * 0.36),
   };
 }
 

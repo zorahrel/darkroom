@@ -8,7 +8,7 @@ import {
   type StudioProject,
 } from "../api";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Altro, Bott, Field, Search, Confirm, Filter, Badge, Header, useCloseMenu } from "../ui";
+import { Other, Bott, Field, Search, Confirm, Filter, Badge, Header, useCloseMenu } from "../ui";
 import { VIEWS, view } from "../views";
 
 /**
@@ -22,16 +22,25 @@ import { VIEWS, view } from "../views";
  * that does not undo itself.
  */
 /** How the list is viewed: by what a project can do, or by how it is. */
-type State = "tutti" | "in_corso" | "falliti" | "pausa" | "rotti";
-type SortOrder = "recenti" | "nome" | "grandi";
+/** Filter ids are English because they are code; the words on the chips are
+ *  Italian because they are read. Both come out of STATES, so they cannot
+ *  drift apart the way an id and its `<option>` label once did. */
+const STATES = [
+  ["running", "in corso", "Hanno lavori in coda o in corso"],
+  ["failed", "falliti", "Hanno generazioni fallite da guardare"],
+  ["paused", "in pausa", "Il generatore li salta"],
+  ["broken", "da sistemare", "Cartella sparita o database che non si apre"],
+] as const;
+type State = "all" | (typeof STATES)[number][0];
+type SortOrder = "recent" | "name" | "largest";
 
 export default function StudioPage() {
   const [data, setData] = useState<StudioOverview | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ProjectKind | "all">("all");
-  const [state, setState] = useState<State>("tutti");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("recenti");
+  const [state, setState] = useState<State>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recent");
   const navigate = useNavigate();
 
   async function refresh() {
@@ -45,50 +54,49 @@ export default function StudioPage() {
     return () => clearInterval(id);
   }, []);
 
-  const pausa = data?.worker.runner;
-  const tutti = data?.projects ?? [];
+  const paused = data?.worker.runner;
+  const projects = data?.projects ?? [];
 
   /** How many projects would fall into each filter. A filter with no number
    *  does not say whether it is worth opening, and at zero it switches itself
    *  off. */
   const count = useMemo(() => {
-    const q = (f: (p: StudioProject) => boolean) => tutti.filter(f).length;
+    const q = (f: (p: StudioProject) => boolean) => projects.filter(f).length;
     return {
-      tutte: tutti.length,
+      all: projects.length,
       photo: q((p) => p.views.includes("photo")),
       storyboard: q((p) => p.views.includes("storyboard")),
       video: q((p) => p.views.includes("video")),
-      tutti: tutti.length,
-      in_corso: q((p) => ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) > 0),
-      falliti: q((p) => (p.stats?.queue?.failed ?? 0) > 0),
-      pausa: q((p) => !p.active),
-      rotti: q((p) => !p.root_exists || !!p.error),
+      running: q((p) => ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) > 0),
+      failed: q((p) => (p.stats?.queue?.failed ?? 0) > 0),
+      paused: q((p) => !p.active),
+      broken: q((p) => !p.root_exists || !!p.error),
     };
-  }, [tutti]);
+  }, [projects]);
 
-  const visibili = useMemo(() => {
+  const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const inside = tutti.filter((p) => {
+    const inside = projects.filter((p) => {
       if (view !== "all" && !p.views.includes(view)) return false;
-      if (state === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
-      if (state === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
-      if (state === "pausa" && p.active) return false;
-      if (state === "rotti" && p.root_exists && !p.error) return false;
+      if (state === "running" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
+      if (state === "failed" && (p.stats?.queue?.failed ?? 0) === 0) return false;
+      if (state === "paused" && p.active) return false;
+      if (state === "broken" && p.root_exists && !p.error) return false;
       if (!q) return true;
       return p.name.toLowerCase().includes(q) || p.root.toLowerCase().includes(q) || p.id.includes(q);
     });
     const weight = (p: StudioProject) => p.stats?.photos ?? p.video?.cuts ?? 0;
     return inside.sort((a, b) =>
-      sortOrder === "nome"
+      sortOrder === "name"
         ? a.name.localeCompare(b.name)
-        : sortOrder === "grandi"
+        : sortOrder === "largest"
           ? weight(b) - weight(a)
           // "Recent" is the last version generated, not the creation date: the
           // project being worked on is the one that produced something last,
           // not the one opened last.
           : (b.stats?.last_version_at ?? b.created_at) - (a.stats?.last_version_at ?? a.created_at),
     );
-  }, [tutti, search, view, state, sortOrder]);
+  }, [projects, search, view, state, sortOrder]);
 
   return (
     <div className="space-y-4">
@@ -101,10 +109,10 @@ export default function StudioPage() {
         </div>
       )}
 
-      {pausa?.paused && pausa.paused_until && (
+      {paused?.paused && paused.paused_until && (
         <div className="rounded border border-amber-900 bg-amber-950/30 text-amber-200 text-[12px] px-2.5 py-1.5">
           La coda è ferma fino alle{" "}
-          {new Date(pausa.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {new Date(paused.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           : fino a quell'ora nessun progetto genera niente.
         </div>
       )}
@@ -115,7 +123,7 @@ export default function StudioPage() {
       <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
         <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
         <div className="flex items-center gap-1">
-          <Filter active={view === "all"} onClick={() => setView("all")} n={count.tutte}>tutti</Filter>
+          <Filter active={view === "all"} onClick={() => setView("all")} n={count.all}>tutti</Filter>
           {VIEWS.map((v) => (
             <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
                     n={count[v.id]} title={v.explains}>
@@ -125,18 +133,15 @@ export default function StudioPage() {
         </div>
         <span className="w-px h-4 bg-neutral-800" aria-hidden />
         <div className="flex items-center gap-1">
-          <Filter active={state === "in_corso"} onClick={() => setState(state === "in_corso" ? "tutti" : "in_corso")}
-                  n={count.in_corso} title="Hanno lavori in coda o in corso">in corso</Filter>
-          <Filter active={state === "falliti"} onClick={() => setState(state === "falliti" ? "tutti" : "falliti")}
-                  n={count.falliti} title="Hanno generazioni fallite da guardare">falliti</Filter>
-          <Filter active={state === "pausa"} onClick={() => setState(state === "pausa" ? "tutti" : "pausa")}
-                  n={count.pausa} title="Il generatore li salta">in pausa</Filter>
-          <Filter active={state === "rotti"} onClick={() => setState(state === "rotti" ? "tutti" : "rotti")}
-                  n={count.rotti} title="Cartella sparita o database che non si apre">da sistemare</Filter>
+          {STATES.map(([id, label, title]) => (
+            <Filter key={id} active={state === id} title={title}
+                    onClick={() => setState(state === id ? "all" : id)}
+                    n={count[id]}>{label}</Filter>
+          ))}
         </div>
         <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
           ordina
-          {([["recenti", "recenti"], ["nome", "nome"], ["grandi", "più grandi"]] as const).map(([id, text]) => (
+          {([["recent", "recenti"], ["name", "nome"], ["largest", "più grandi"]] as const).map(([id, text]) => (
             <button key={id} type="button" onClick={() => setSortOrder(id)} aria-pressed={sortOrder === id}
                     className={"px-1.5 py-0.5 rounded-sm border transition-colors " +
                       (sortOrder === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
@@ -146,14 +151,14 @@ export default function StudioPage() {
         </div>
       </div>
 
-      {data && visibili.length === 0 && (
+      {data && visible.length === 0 && (
         <div className="text-[12px] text-neutral-400">
-          {tutti.length === 0
+          {projects.length === 0
             ? "Nessun progetto ancora: cominciane uno qui sotto, o dagli strumenti."
             : "Niente con questi filtri. "}
-          {tutti.length > 0 && (
+          {projects.length > 0 && (
             <button className="underline hover:text-neutral-100"
-                    onClick={() => { setSearch(""); setView("all"); setState("tutti"); }}>
+                    onClick={() => { setSearch(""); setView("all"); setState("all"); }}>
               Rimettili a posto
             </button>
           )}
@@ -161,7 +166,7 @@ export default function StudioPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
-        {visibili.map((p) => (
+        {visible.map((p) => (
           <Card
             key={p.id}
             p={p}
@@ -194,8 +199,8 @@ function Card({
 }) {
   const s = p.stats;
   const q = s?.queue ?? {};
-  const principale = view(p.kind);
-  const Icon = principale.icon;
+  const primary = view(p.kind);
+  const Icon = primary.icon;
 
   const numbers = p.video
     ? [["tagli", p.video.cuts], ["riprese", p.video.shots], ["durata", shortDuration(p.video.duration)]] as const
@@ -232,7 +237,7 @@ function Card({
         </div>
         {/* It appears on hover, and stays if you arrive with the tab key: hidden
             does not mean unreachable. */}
-        <Altro discreto className="pointer-events-auto">
+        <Other subtle className="pointer-events-auto">
           <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
           <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
           <MenuItem onClick={() => onGenerate(!p.active)}
@@ -245,7 +250,7 @@ function Card({
                     confirm="togli" onConfirm={onRemove}>
             Togli dall'elenco
           </Confirm>
-        </Altro>
+        </Other>
       </div>
 
       {!p.root_exists && (
@@ -278,19 +283,19 @@ function Card({
       <div className="relative z-10 flex flex-wrap items-center gap-1"
            title="Le viste di questo progetto: accendile e spegnile da qui.">
         {VIEWS.map((v) => {
-          const accesa = p.views.includes(v.id);
-          const fissa = v.id === p.kind;
+          const on = p.views.includes(v.id);
+          const fixed = v.id === p.kind;
           const I = v.icon;
           return (
-            <button key={v.id} type="button" disabled={fissa}
+            <button key={v.id} type="button" disabled={fixed}
                     onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
-                    title={fissa
+                    title={fixed
                       ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
-                      : accesa ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}
+                      : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}
                     className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-[2px] text-[10.5px]
                                 transition-colors ${
-                      !accesa ? "border-dashed border-neutral-700 text-neutral-400 hover:border-solid hover:border-neutral-500 hover:text-neutral-200"
-                      : fissa ? "border-neutral-500 bg-neutral-800 text-neutral-100 cursor-default"
+                      !on ? "border-dashed border-neutral-700 text-neutral-400 hover:border-solid hover:border-neutral-500 hover:text-neutral-200"
+                      : fixed ? "border-neutral-500 bg-neutral-800 text-neutral-100 cursor-default"
                       : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-neutral-500"}`}>
               <I className="w-3 h-3" aria-hidden />
               {v.name}
@@ -412,7 +417,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
       )}
 
       <div>
-        <Bott weight="quieto" size="s" onClick={() => setAdvanced((v) => !v)}>
+        <Bott weight="quiet" size="s" onClick={() => setAdvanced((v) => !v)}>
           {advanced ? "▾" : "▸"} Dove salvare il progetto
         </Bott>
         {advanced && (
@@ -428,10 +433,10 @@ function NewProject({ onDone }: { onDone: () => void }) {
       {err && <div className="text-[11px] text-amber-300">{err}</div>}
 
       <div className="flex items-center gap-1.5">
-        <Bott weight="primario" size="m" onClick={create} disabled={busy || !name.trim()}>
+        <Bott weight="primary" size="m" onClick={create} disabled={busy || !name.trim()}>
           {busy ? "Creo…" : "Crea"}
         </Bott>
-        <Bott weight="quieto" size="m" onClick={() => setOpen(false)}>Annulla</Bott>
+        <Bott weight="quiet" size="m" onClick={() => setOpen(false)}>Annulla</Bott>
       </div>
     </div>
   );

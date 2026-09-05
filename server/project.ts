@@ -57,8 +57,8 @@ export type Project = {
 /** Cleans up a list of views: only known ones, no duplicates, and with
  *  `main` always in there — a main view switched off would be a project that
  *  opens on a page that does not exist. */
-export function normalizeViews(views: unknown, principale: ProjectKind): ProjectKind[] {
-  const inside = new Set<ProjectKind>([principale]);
+export function normalizeViews(views: unknown, primary: ProjectKind): ProjectKind[] {
+  const inside = new Set<ProjectKind>([primary]);
   if (Array.isArray(views)) {
     for (const v of views) {
       if (ALL_VIEWS.includes(v as ProjectKind)) inside.add(v as ProjectKind);

@@ -27,8 +27,8 @@ describe("do not start on a port already served by another project", () => {
   });
 
   test("a hot reload of ourselves is not an intruder", () => {
-    const noi: Occupant = { pid: 999, command: "bun", address: "127.0.0.1:3535" };
-    expect(checkPort(3535, deps([noi], 999))).toEqual({ state: "free" });
+    const us: Occupant = { pid: 999, command: "bun", address: "127.0.0.1:3535" };
+    expect(checkPort(3535, deps([us], 999))).toEqual({ state: "free" });
   });
 
   test("a missing lsof does not block the boot: a check that cannot know does not decide", () => {

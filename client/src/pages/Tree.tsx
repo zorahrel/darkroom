@@ -315,7 +315,7 @@ export default function TreePage() {
    * load: it is a measurement that opens a process per image, and on a page
    * with hundreds of variants you would pay for all of it to look at three.
    */
-  const [gaps, setScarti] = useState<Record<number, number | null>>({});
+  const [gaps, setDiscards] = useState<Record<number, number | null>>({});
   const [measuring, setMeasuring] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
@@ -360,7 +360,7 @@ export default function TreePage() {
    * without groups: a source with its header and no variants underneath looks
    * like a half-finished load, not a filter that worked.
    */
-  const visibili = useMemo(() => filterTree(nodes, verdict), [nodes, verdict]);
+  const visible = useMemo(() => filterTree(nodes, verdict), [nodes, verdict]);
   // The controls appear only if there is something to overlay: on a project
   // without references they would be a switch that turns nothing on.
   const hasReferences = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
@@ -380,12 +380,12 @@ export default function TreePage() {
         );
         // Past saturation the distance is a lower bound: it is shown with "≥"
         // instead of letting it pass for the exact value.
-        setScarti((s) => ({
+        setDiscards((s) => ({
           ...s,
           [id]: r.gap ? (r.gap.saturated ? -r.gap.distance : r.gap.distance) : null,
         }));
       } catch {
-        setScarti((s) => ({ ...s, [id]: null }));
+        setDiscards((s) => ({ ...s, [id]: null }));
       }
     }
     setMeasuring(false);
@@ -473,7 +473,7 @@ export default function TreePage() {
         )}
       </div>
 
-      {visibili.length === 0 && (
+      {visible.length === 0 && (
         <div className="py-16 text-center text-neutral-500 text-sm">
           Nessuna variante {VERDICT_LABEL[verdict]}.{" "}
           <button onClick={() => setVerdict("all")} className="text-amber-500 hover:underline">
@@ -481,7 +481,7 @@ export default function TreePage() {
           </button>
         </div>
       )}
-      {visibili.map((n, i) => (
+      {visible.map((n, i) => (
         <section
           key={(n.photos ?? [n.photo]).join("|")}
           className="grid grid-cols-[168px_1fr] gap-5 py-5 border-b border-neutral-800 items-start"
@@ -618,7 +618,7 @@ export default function TreePage() {
                         photo={n.photo}
                         v={v}
                         gap={gaps[v.id]}
-                        rif={overlay ? (g.refs?.[0] ?? null) : null}
+                        ref={overlay ? (g.refs?.[0] ?? null) : null}
                         opacity={opacity}
                         overlayMode={overlayMode}
                         onVote={() => {
@@ -700,7 +700,7 @@ function Leaf({
   photo,
   v,
   gap,
-  rif,
+  ref,
   opacity,
   overlayMode,
   onVote,
@@ -713,7 +713,7 @@ function Leaf({
  *  measurable. */
   gap?: number | null;
   /** Reference to overlay, or null when the overlay is off. */
-  rif?: string | null;
+  ref?: string | null;
   opacity?: number;
   /** "over" judges the resemblance, "difference" shows WHERE they differ:
    *  the areas that match stay black. */
@@ -758,9 +758,9 @@ function Leaf({
             one underneath: two different framings would make the comparison lie
             before you even looked at it. It does not intercept clicks, so the
             zoom stays reachable. */}
-        {rif && (
+        {ref && (
           <img
-            src={refUrl(rif)}
+            src={refUrl(ref)}
             alt=""
             aria-hidden="true"
             // Reveal on hover: the reference is for comparison, not for looking at.
