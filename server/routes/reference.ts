@@ -76,11 +76,32 @@ const ASPECTS: { key: string; question: string }[] = [
   { key: "resa", question: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
 ];
 
+/** Is the vision CLI actually there? `Bun.spawn` THROWS on a missing binary
+ *  (ENOENT), it does not return a code — so without this the route died with an
+ *  unhandled error and answered a 500 with no JSON body, which the caller could
+ *  not even parse. On a machine without Moondream that is every call. */
+function visionAvailable(): boolean {
+  const bin = moondreamBin();
+  if (bin.includes("/")) return existsSync(bin);
+  try {
+    return Bun.spawnSync(["which", bin]).exitCode === 0;
+  } catch {
+    return false;
+  }
+}
+
 async function ask(image: string, question: string): Promise<string | null> {
-  const p = Bun.spawn([moondreamBin(), image, question], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  let p;
+  try {
+    p = Bun.spawn([moondreamBin(), image, question], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+  } catch {
+    // A binary that disappears between the check and the call is not a reason
+    // to lose the whole request: it counts as an aspect not described.
+    return null;
+  }
   const [out, code] = await Promise.all([new Response(p.stdout).text(), p.exited]);
   if (code !== 0) return null;
   const t = out.trim().replace(/\s+/g, " ");
@@ -101,6 +122,18 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
       ? join(refsDir(), requested)
       : requested;
   if (!path || !existsSync(path)) return c.json({ error: "immagine non trovata" }, 400);
+
+  // What is missing is said by name, with the gesture that fixes it — the same
+  // rule the tool catalogue follows. Before, a machine without Moondream got an
+  // unparsable 500 and no idea why.
+  if (!visionAvailable())
+    return c.json(
+      {
+        error: `il modello di visione non c'e': ${moondreamBin()} non e' installato o non e' nel PATH`,
+        how: "installa la CLI di Moondream, oppure indica il binario con MOONDREAM_BIN",
+      },
+      503,
+    );
 
   const parts: string[] = [];
   const missing: string[] = [];

@@ -128,7 +128,7 @@ describe("la navetta J K L", () => {
     for (const v of [-8, -1, 0, 1, 4]) expect(shuttle(v, "k")).toBe(0);
   });
 
-  test("L accelera 1, 2, 4, 8 e si ferma li'", () => {
+  test("L accelerates 1, 2, 4, 8 and stops there", () => {
     let v = 0;
     const visti: number[] = [];
     for (let i = 0; i < 5; i++) { v = shuttle(v, "l"); visti.push(v); }

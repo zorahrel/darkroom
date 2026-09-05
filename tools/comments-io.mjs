@@ -96,18 +96,28 @@ function ranges(file) {
     }
     // The name of a describe/test/it block is prose too, and reads in the CI
     // output where nobody can see the code beside it.
-    if (
-      ts.isCallExpression(n) &&
-      ts.isIdentifier(n.expression) &&
-      ["describe", "test", "it"].includes(n.expression.text) &&
-      n.arguments.length &&
-      ts.isStringLiteralLike(n.arguments[0])
-    ) {
-      const a = n.arguments[0];
-      const key = `${a.getStart(src)}:${a.getEnd()}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        out.push({ pos: a.getStart(src), end: a.getEnd(), text: text.slice(a.getStart(src), a.getEnd()), kind: "name" });
+    // `describe`, but also `describe.skip` and `describe.if(cond)(...)`. Only
+    // the bare identifier was recognised, so every conditional suite kept its
+    // Italian name -- and those are exactly the ones that show up in the CI
+    // output as skipped, where the name is ALL you see.
+    if (ts.isCallExpression(n) && n.arguments.length && ts.isStringLiteralLike(n.arguments[0])) {
+      const e = n.expression;
+      const base = ts.isIdentifier(e)
+        ? e.text
+        : ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression)
+          ? e.expression.text
+          : ts.isCallExpression(e) &&
+              ts.isPropertyAccessExpression(e.expression) &&
+              ts.isIdentifier(e.expression.expression)
+            ? e.expression.expression.text
+            : null;
+      if (base && ["describe", "test", "it"].includes(base)) {
+        const a = n.arguments[0];
+        const key = `${a.getStart(src)}:${a.getEnd()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push({ pos: a.getStart(src), end: a.getEnd(), text: text.slice(a.getStart(src), a.getEnd()), kind: "name" });
+        }
       }
     }
     ts.forEachChild(n, walk);

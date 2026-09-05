@@ -78,7 +78,7 @@ const readable = (p: string) => {
   try { accessSync(p, constants.R_OK); return true; } catch { return false; }
 };
 
-describe.if(readable(PIANIFICA))("origine, la stessa in Python", () => {
+describe.if(readable(PIANIFICA))("origin, the same in Python", () => {
   test("the two implementations agree on every case", () => {
     const names = CASES.map(([k]) => k);
     // The module imports without running main() (which is under __main__), and
@@ -111,10 +111,10 @@ describe.if(readable(PIANIFICA))("origine, la stessa in Python", () => {
  */
 const GEN = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/gen.py` : "";
 
-describe.if(readable(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
+describe.if(readable(GEN))("the ComfyUI graph is the same in Python and in TypeScript", () => {
   const casi = [
-    { name: "senza tasselli", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
-    { name: "a tasselli, i default di oggi", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
+    { name: "without tiles", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
+    { name: "with tiles, today's defaults", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
   ];
   for (const { name, p } of casi) {
     test(name, () => {

@@ -93,7 +93,7 @@ describe("every role says what to take and what not to", () => {
   });
 });
 
-describe("i file inviati e le posizioni citate coincidono", () => {
+describe("the files sent and the positions cited match", () => {
   test("the real case of v37: 3 shots, 1 style, 2 sunglasses", () => {
     const { files, preamble: p } = prepareAttachments(
       [

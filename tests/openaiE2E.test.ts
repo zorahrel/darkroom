@@ -36,7 +36,7 @@ process.env.WORKER_BACKEND = "openai";
 const outDir = join(TEST_ROOT, "e2e");
 beforeAll(() => mkdirSync(outDir, { recursive: true }));
 
-describe.skipIf(!live)("backend openai: il giro completo produce un file vero", () => {
+describe.skipIf(!live)("openai backend: the full round trip produces a real file", () => {
   test(
     "generate scrive un PNG leggibile sul disco",
     async () => {

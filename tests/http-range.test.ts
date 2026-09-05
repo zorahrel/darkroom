@@ -19,7 +19,7 @@ writeFileSync(f, BODY);
 const ask = (range?: string) =>
   serveFile(f, undefined, new Request("http://x/clip.mp4", range ? { headers: { range } } : {}));
 
-describe("serveFile e i pezzi di file", () => {
+describe("serveFile and byte ranges", () => {
   test("without Range: the whole file, but it declares it can do them", async () => {
     const r = ask();
     expect(r.status).toBe(200);

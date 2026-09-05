@@ -115,7 +115,7 @@ describe("il lineage viaggia dal job alla versione", () => {
   // from a script had the right grouping. The perverse effect is that writing
   // INSERTs by hand paid off — and that is how, in a single day, a path outside
   // the convention and timestamps in seconds were born.
-  test("enqueueJob accetta e conserva il lineage", async () => {
+  test("enqueueJob accepts and preserves the lineage", async () => {
     const { withProject } = await import("../server/project.ts");
     const { initSchema, db } = await import("../server/db.ts");
     const { enqueueJob } = await import("../server/jobs.ts");
