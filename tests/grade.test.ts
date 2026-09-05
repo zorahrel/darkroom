@@ -102,7 +102,7 @@ describe("normalizeGrade", () => {
   });
 });
 
-describe("bloom e sakura: i parametri aggiunti restano retrocompatibili", () => {
+describe("bloom and sakura: the added parameters stay backwards-compatible", () => {
   test("the defaults of the new parameters are neutral", () => {
     // knee 2 (the historical behaviour) haloes only the speculars: on a scene
     // without blinding reflections the bloom disappears entirely, and that was

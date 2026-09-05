@@ -77,7 +77,7 @@ describe("every role says what to take and what not to", () => {
     expect(p).toContain("never copy the face");
   });
 
-  test("nemmeno dagli oggetti", () => {
+  test("not from objects either", () => {
     const p = preamble(sort([io("a.png"), object("occhiali.jpg")]), false);
     expect(p).toContain("Never copy any face");
   });
@@ -114,9 +114,9 @@ describe("the files sent and the positions cited match", () => {
       "/refs/gascan-frontale.jpg",
     ]);
     // The sentence must describe EXACTLY that order
-    expect(p).toContain("the first two attached images");   // gli scatti
-    expect(p).toContain("The third attached image");         // lo stile
-    expect(p).toContain("The last two attached images");     // gli occhiali
+    expect(p).toContain("the first two attached images");   // the shots
+    expect(p).toContain("The third attached image");         // the style
+    expect(p).toContain("The last two attached images");     // the sunglasses
     expect(p).toContain("the deep blue background and hard top light");
     expect(p).toContain("the exact shape of the sunglasses");
   });

@@ -163,7 +163,7 @@ export default function PhotoCard({
       await api.setPicked(photo.id, next);
       onPickedChange?.(photo.id, next);
     } catch {
-      setPicked(!next); // la rete ha detto no: torna com'era
+      setPicked(!next); // the network said no: put it back the way it was
     }
   }
 

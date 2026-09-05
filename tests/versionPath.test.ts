@@ -90,7 +90,7 @@ describe("instants are written in milliseconds", () => {
   test("now() is in milliseconds, like Date.now()", async () => {
     const { now } = await import("../server/db.ts");
     const t = now();
-    // Un valore in secondi sarebbe ~1.7e9, uno in millisecondi ~1.7e12.
+    // A value in seconds would be ~1.7e9, one in milliseconds ~1.7e12.
     expect(t).toBeGreaterThan(1_000_000_000_000);
     expect(Math.abs(t - Date.now())).toBeLessThan(1000);
   });

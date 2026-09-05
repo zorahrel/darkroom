@@ -236,10 +236,10 @@ describe("what is left to refine in pro", () => {
       db().run("UPDATE photos SET favorite_version_id = ? WHERE id = ?", [vid, pid]);
     };
 
-    mk("pt_todo"); inPost("pt_todo"); withFav("pt_todo", "chatgpt");     // da fare
+    mk("pt_todo"); inPost("pt_todo"); withFav("pt_todo", "chatgpt");     // to do
     mk("pt_done"); inPost("pt_done"); withFav("pt_done", "higgsfield");  // already pro
-    mk("pt_skip", 1); inPost("pt_skip"); withFav("pt_skip", "chatgpt");  // non uscira'
-    mk("pt_free"); withFav("pt_free", "chatgpt");                        // fuori dai post
+    mk("pt_skip", 1); inPost("pt_skip"); withFav("pt_skip", "chatgpt");  // won't come out
+    mk("pt_free"); withFav("pt_free", "chatgpt");                        // outside any post
 
     const r = await app.request("/api/photos?filter=pro_todo");
     const ids = ((await r.json()) as { photos: { id: string }[] }).photos.map((p) => p.id);

@@ -410,7 +410,7 @@ collectionRoutes.patch("/api/collages/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-/** Scioglie il collage: le foto tornano slide singole, esattamente dov'erano. */
+/** Dissolves the collage: the photos go back to single slides, exactly where they were. */
 collectionRoutes.delete("/api/collages/:id", (c) => {
   db().run("DELETE FROM collages WHERE id = ?", [c.req.param("id")]);
   return c.json({ ok: true });

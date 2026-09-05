@@ -56,7 +56,7 @@ export function acquireRunnerLock(lockPath: string): RunnerLock {
     try {
       unlinkSync(lockPath);
     } catch {
-      /* se sparisce sotto di noi va bene lo stesso */
+      /* if it vanishes from under us that is fine too */
     }
   }
   writeFileSync(lockPath, String(process.pid));

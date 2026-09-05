@@ -26,7 +26,7 @@ export type Role =
   | "identity"
   /** Luce, tonalita', inquadratura. Mai il volto. */
   | "style"
-  /** Un oggetto da riprodurre nella forma: occhiali, capo, accessorio. */
+  /** An object to reproduce in shape: sunglasses, garment, accessory. */
   | "object";
 
 export type Attachment = {

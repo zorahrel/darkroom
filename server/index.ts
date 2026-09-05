@@ -33,7 +33,7 @@ if (process.env.DARKROOM_PORT_FORCE !== "1") {
 startRunner();
 // Video generation jobs left half-done by a restart re-attach to their prompt
 // instead of staying "in progress" for ever.
-try { (await import("./comfy.ts")).resumeInterrupted(); } catch { /* progetto senza video */ }
+try { (await import("./comfy.ts")).resumeInterrupted(); } catch { /* project with no video */ }
 
 // The client rebuilds itself when the sources are more recent than the build
 // being served. Nine days of an old dashboard went by without a signal: a

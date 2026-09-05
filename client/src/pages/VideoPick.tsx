@@ -585,7 +585,7 @@ export default function VideoPick() {
     Math.min(
       ...[
         areaHeight || Infinity,                                    // no taller than the area
-        wantedWidth === null ? Infinity : wantedWidth / ratio, // se e' stata chiesta
+        wantedWidth === null ? Infinity : wantedWidth / ratio, // if it was asked for
         panelWidth ? (panelWidth - MIN_RIGHT) / ratio : Infinity, // lascia vivere la colonna destra
       ],
     ),

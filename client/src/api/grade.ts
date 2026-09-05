@@ -106,7 +106,7 @@ const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   sakura: { sat: 0, hue_shift: 0 },
   sky: { amount: 40, desat: 0, warm: 0 },
   bloom: { amount: 35, threshold: 68, radius: 14, knee: 2, gain: 1 },
-  // I parametri veri li calcola il server sul gruppo: qui restano vuoti.
+  // The real parameters are computed by the server over the group: empty here.
   match: {},
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },
   hsl: { ...HSL_ZERO },

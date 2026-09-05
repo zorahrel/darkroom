@@ -262,8 +262,8 @@ describe("skies and optics chosen for the scene", () => {
 
   test("extending the edges does not authorise inventing an object in front", () => {
     const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: "recompose" });
-    // Su IMG_2906 il reframe ha piazzato un tetto inesistente davanti alla
-    // pagoda: "extend the edges" veniva letto come "riempi il bordo nuovo".
+    // On IMG_2906 the reframe put a non-existent roof in front of the pagoda:
+    // "extend the edges" was being read as "fill in the new border".
     expect(p).toContain("every pixel of the result comes from the scene as photographed");
     expect(p).toContain("do not add any object, structure, roof");
     expect(p).toContain("Keep the subject unobstructed");

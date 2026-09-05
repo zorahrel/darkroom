@@ -25,7 +25,7 @@ const hasKey = (() => {
     return false;
   }
 })();
-/** Serve sia la chiave sia il consenso esplicito: questi test costano. */
+/** Both the key and an explicit opt-in: these tests cost money. */
 const live = hasKey && process.env.OPENAI_E2E === "1";
 
 // `low` instead of `high`: same code path, ~35x less cost. What is verified

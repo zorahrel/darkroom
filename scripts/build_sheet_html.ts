@@ -244,7 +244,7 @@ ${strips}
 <script>
 const KEY="provino-profilo-v2";
 // {chiave: {v:"si|forse|no", n:"nota"}} \\u2014 voto e nota vivono insieme: una nota
-// senza voto e' comunque un giudizio, e va esportata.
+// no score is still a judgement, and it must be exported.
 let data={};
 try{data=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){}
 const CYCLE=["","si","forse","no"];

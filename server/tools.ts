@@ -87,7 +87,7 @@ export type Tool = {
   area: ToolArea;
   /** The icon's key; the string→icon map lives in the client. */
   icon: string;
-  /** Le viste di progetto in cui compare. Vuoto = vale ovunque. */
+  /** The project views it shows up in. Empty = it applies everywhere. */
   views: ProjectKind[];
   /** The HTTP routes that run it. They are its operational definition. */
   api: string[];

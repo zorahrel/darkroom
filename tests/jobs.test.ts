@@ -135,7 +135,7 @@ describe("the downloaded render must be of THIS photo", () => {
     // images already seen, but not a NEW image generated for another job.
     expect(py).toContain("def looks_like_same_scene");
     expect(py).toContain("does not match the source photo");
-    // Il file sbagliato va cancellato, non lasciato lì a fingersi valido.
+    // The wrong file must be deleted, not left there passing itself off as valid.
     expect(py).toContain("output.unlink(missing_ok=True)");
     // Adjustable threshold: on a heavily recomposed set it might need to be
     // lower.
