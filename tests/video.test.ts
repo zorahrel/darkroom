@@ -3,39 +3,39 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { origine, setPick } from "../server/video.ts";
+import { origin, setPick } from "../server/video.ts";
 import { addProject, rootDir, withProject } from "../server/project.ts";
 import { workflow } from "../server/comfy.ts";
 
 /**
- * `origine()` dice quali riprese vengono dalla stessa generazione, e la stessa
- * definizione vive in `pianifica.py`. Duplicarla e' accettabile — e' una
- * definizione, non una politica — a patto che qualcosa si accorga se le due
- * divergono. Questo file e' quel qualcosa.
+ * `origin()` says which shots come from the same generation, and the same
+ * definition lives in `pianifica.py`. Duplicating it is acceptable — it is a
+ * definition, not a policy — provided something notices if the two diverge.
+ * This file is that something.
  */
 
 /** Casi decisi guardando i descrittori misurati, non a occhio.
  *  Chi si unisce sta fra 0.75 e 0.99 di somiglianza; chi non si unisce sta
  *  sotto (la famiglia "k" tutta insieme misurava 0.705, la "x" 0.761). */
 const CASI: [string, string][] = [
-  // due meta' della stessa presa: stesso seme, stessa inquadratura
+  // two halves of the same take: same seed, same framing
   ["z43_0", "z43"],
   ["z43_1", "z43"],
   ["z109_1", "z109"],
-  // varianti della stessa impostazione
+  // variants of the same setting
   ["g_camm0", "g_camm"],
   ["g_camm3", "g_camm"],
   ["f_spruz0", "f_spruz"],
   ["w_lato2", "w_lato"],
   ["mare8", "mare"],
-  // generazioni DIVERSE che una regola troppo larga univa: k00 e k15 erano
-  // finiti entrambi in "k", cioe' sedici riprese di mare trattate come una
+  // DIFFERENT generations that a too-wide rule joined: k00 and k15 had both
+  // ended up in "k", i.e. sixteen sea shots treated as one
   ["k00", "k00"],
   ["k15", "k15"],
   ["c21", "c21"],
   ["x34", "x34"],
   ["d07", "d07"],
-  // nomi senza cifre: restano se stessi
+  // names with no digits: they stay themselves
   ["decollo", "decollo"],
   ["volo", "volo"],
   ["frangiflutti", "frangiflutti"],
@@ -44,45 +44,45 @@ const CASI: [string, string][] = [
 describe("origine", () => {
   for (const [inside, outside] of CASI) {
     test(`${inside} -> ${outside}`, () => {
-      expect(origine(inside)).toBe(outside);
+      expect(origin(inside)).toBe(outside);
     });
   }
 
-  test("non tocca mai la parte che non e' una cifra finale", () => {
-    expect(origine("w_rasa")).toBe("w_rasa");
-    expect(origine("f_lonta0")).toBe("f_lonta");
+  test("it never touches the part that is not a trailing digit", () => {
+    expect(origin("w_rasa")).toBe("w_rasa");
+    expect(origin("f_lonta0")).toBe("f_lonta");
   });
 });
 
 /**
- * L'accordo con il Python. Si salta quando il progetto video non e' su questa
- * macchina — un test che non puo' misurare non deve fingere di aver misurato —
- * ma quando c'e', deve tornare identico su ogni caso.
+ * The agreement with the Python. It is skipped when the video project is not on
+ * this machine — a test that cannot measure must not pretend it measured — but
+ * when it is there, it must come out identical on every case.
  */
 /** Where the video project's Python lives. One person's folder used to be
  *  hardcoded here, which meant these tests could only ever run for them. */
 const VIDEO_PY_DIR = process.env.VIDEO_PY_DIR ?? "";
 const PIANIFICA = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/pianifica.py` : "";
 
-/** Leggibile, non solo esistente.
+/** Readable, not merely existing.
  *
- *  Il guardiano diceva `existsSync`, e il 27/08/2026 e' capitato il caso che
- *  separa le due cose: il file c'era ma il processo aveva perso il permesso di
- *  aprirlo (EPERM su tutta la cartella del progetto). Il test partiva e moriva
- *  dentro Python su un errore che non c'entra niente con cio' che verifica.
- *  Per quello che questi test vogliono sapere — "il progetto video e' a
- *  disposizione su questa macchina?" — un file che non si puo' leggere e un
- *  file che non c'e' sono la stessa cosa. */
-const leggibile = (p: string) => {
+ *  The guard said `existsSync`, and on 27/08/2026 the case that separates the
+ *  two came up: the file was there but the process had lost permission to open
+ *  it (EPERM on the project's whole folder). The test started and died inside
+ *  Python on an error that has nothing to do with what it verifies. For what
+ *  these tests want to know — "is the video project available on this
+ *  machine?" — a file that cannot be read and a file that is not there are the
+ *  same thing. */
+const readable = (p: string) => {
   if (!p) return false;
   try { accessSync(p, constants.R_OK); return true; } catch { return false; }
 };
 
-describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
-  test("le due implementazioni concordano su tutti i casi", () => {
+describe.if(readable(PIANIFICA))("origine, la stessa in Python", () => {
+  test("the two implementations agree on every case", () => {
     const names = CASI.map(([k]) => k);
-    // Il modulo si importa senza eseguire main() (che sta sotto __main__), e
-    // si chiama la sua origine() sugli stessi nomi.
+    // The module imports without running main() (which is under __main__), and
+    // its origin() is called on the same names.
     const py = [
       "import importlib.util, json, sys",
       `spec = importlib.util.spec_from_file_location("p", ${JSON.stringify(PIANIFICA)})`,
@@ -94,24 +94,24 @@ describe.if(leggibile(PIANIFICA))("origine, la stessa in Python", () => {
     const r = spawnSync("python3", ["-c", py], { encoding: "utf8", timeout: 30_000 });
     expect(r.status, `python: ${r.stderr}`).toBe(0);
     const fromPython = JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as string[];
-    // Se le due divergono, questo dice SU QUALE nome — non solo che divergono.
-    expect(fromPython).toEqual(names.map((n) => origine(n)));
+    // If the two diverge, this says ON WHICH name — not just that they do.
+    expect(fromPython).toEqual(names.map((n) => origin(n)));
   });
 });
 
 /**
- * Il grafo di ComfyUI vive in due posti: `gen.py` (272 riprese generate da li')
- * e `server/comfy.ts` (quelle che si generano dalla UI). Se divergono, due
- * riprese dello stesso progetto smettono di essere confrontabili e la
- * differenza fra loro non dice piu' niente sul prompt — che e' l'unica cosa che
- * si sta cercando di leggere quando si rigenera una scena bocciata.
+ * ComfyUI's graph lives in two places: `gen.py` (272 shots generated from
+ * there) and `server/comfy.ts` (the ones generated from the UI). If they
+ * diverge, two shots of the same project stop being comparable and the
+ * difference between them says nothing about the prompt any more — which is the
+ * only thing you are trying to read when regenerating a rejected scene.
  *
- * Non e' un test di forma: confronta il JSON nodo per nodo, con gli stessi
- * parametri passati a entrambi.
+ * It is not a test of shape: it compares the JSON node by node, with the same
+ * parameters passed to both.
  */
 const GEN = VIDEO_PY_DIR ? `${VIDEO_PY_DIR}/gen.py` : "";
 
-describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
+describe.if(readable(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeScript", () => {
   const casi = [
     { name: "senza tasselli", p: { width: 704, height: 1280, length: 121, steps: 30, cfg: 5.0, shift: 8.0, seed: 1, tiled: 0, overlap: 64, neg_extra: "" } },
     { name: "a tasselli, i default di oggi", p: { width: 640, height: 1152, length: 61, steps: 20, cfg: 5.0, shift: 8.0, seed: 7, tiled: 256, overlap: 64, neg_extra: "niente gambe rotte" } },
@@ -135,15 +135,15 @@ describe.if(leggibile(GEN))("il grafo ComfyUI e' lo stesso in Python e in TypeSc
 });
 
 /**
- * L'annulla deve riportare la ripresa a "mai giudicata", non a "tenuta".
+ * Undo must return the shot to "never judged", not to "kept".
  *
- * `kept` e' un booleano, e una ripresa mai vista ce l'ha vero — nessuno l'ha
- * scartata. Finche' l'annulla ripristinava quello, disfare uno scarto scriveva
- * la ripresa fra i TENUTI: premevi «annulla» su una scena mai giudicata e le
- * davi un si'. Un annulla che lascia il verdetto opposto e' peggio del verdetto
- * sbagliato, perche' sembra di essere tornati indietro. Misurato su `g_corr`.
+ * `kept` is a boolean, and a shot never seen has it true — nobody discarded it.
+ * As long as undo restored that, undoing a discard wrote the shot among the
+ * KEPT ones: you pressed «undo» on a never-judged shot and gave it a yes. An
+ * undo that leaves the opposite verdict is worse than the wrong verdict,
+ * because it feels like you went back. Measured on `g_corr`.
  */
-describe("togliere un verdetto e' un terzo stato, non un si'", () => {
+describe("removing a verdict is a third state, not a yes", () => {
   /** A throwaway video project. Named apart from the imported `withProject`
    *  on purpose: when both were called that, the helper called itself. */
   const inTempProject = <T,>(fn: () => T): T => {

@@ -7,30 +7,30 @@ import {
 
 const T = (...ts: number[]) => ts.map((t) => ({ t }));
 
-describe("quale taglio sta sotto la testina", () => {
+describe("which cut is under the playhead", () => {
   const cuts = T(0, 2.09, 4.44, 6.55, 8.71);
 
-  test("prima del primo taglio resta il primo", () => {
+  test("before the first cut it stays the first", () => {
     expect(cutIndex(cuts, -1)).toBe(0);
     expect(cutIndex(cuts, 0)).toBe(0);
   });
 
-  test("dentro un taglio, quel taglio", () => {
+  test("inside a cut, that cut", () => {
     expect(cutIndex(cuts, 2.09)).toBe(1);
     expect(cutIndex(cuts, 2.1)).toBe(1);
     expect(cutIndex(cuts, 4.43)).toBe(1);
   });
 
-  test("sull'istante esatto del taglio si passa al nuovo", () => {
+  test("on the cut's exact instant it moves to the new one", () => {
     expect(cutIndex(cuts, 4.44)).toBe(2);
     expect(cutIndex(cuts, 6.55)).toBe(3);
   });
 
-  test("dopo l'ultimo resta l'ultimo", () => {
+  test("after the last it stays the last", () => {
     expect(cutIndex(cuts, 999)).toBe(4);
   });
 
-  test("una lista vuota non esplode", () => {
+  test("an empty list does not blow up", () => {
     expect(cutIndex([], 5)).toBe(0);
   });
 
@@ -53,7 +53,7 @@ describe("le corsie si spartiscono lo spazio", () => {
     expect(c.suono + c.cuts + c.quadri).toBeGreaterThan(80 - H_RULER - H_ACTS);
   });
 
-  test("con spazio, riempiono il pannello senza avanzarne", () => {
+  test("with room, they fill the panel without any left over", () => {
     for (const h of [200, 300, 420, 700]) {
       const c = laneHeights(h);
       const used = c.suono + c.cuts + c.quadri + H_RULER + H_ACTS;
@@ -61,14 +61,14 @@ describe("le corsie si spartiscono lo spazio", () => {
     }
   });
 
-  test("più spazio = ogni corsia più alta, mai il contrario", () => {
+  test("more room = every lane taller, never the other way round", () => {
     const a = laneHeights(240), b = laneHeights(560);
     expect(b.suono).toBeGreaterThan(a.suono);
     expect(b.cuts).toBeGreaterThan(a.cuts);
     expect(b.quadri).toBeGreaterThan(a.quadri);
   });
 
-  test("nessuna corsia scende sotto il suo minimo", () => {
+  test("no lane goes below its minimum", () => {
     for (const h of [0, 60, 130, 200, 900]) {
       const c = laneHeights(h);
       expect(c.suono).toBeGreaterThanOrEqual(MIN_SUONO);
@@ -79,13 +79,13 @@ describe("le corsie si spartiscono lo spazio", () => {
 });
 
 describe("il righello si dirada da solo", () => {
-  test("da lontano le tacche sono rade, da vicino fitte", () => {
-    expect(tickStep(5.7)).toBe(15);      // tutto il brano in ~850px
+  test("from far away the ticks are sparse, close up dense", () => {
+    expect(tickStep(5.7)).toBe(15);      // the whole track in ~850px
     expect(tickStep(91)).toBe(1);        // 16x
     expect(tickStep(700)).toBe(0.25);    // 128x
   });
 
-  test("una tacca non sta mai piu' vicina di 58px, cosi' l'etichetta si legge", () => {
+  test("a tick is never closer than 58px, so the label can be read", () => {
     for (const pps of [1, 3, 12, 40, 120, 400, 2000]) {
       expect(tickStep(pps) * pps).toBeGreaterThanOrEqual(58);
     }
@@ -108,14 +108,14 @@ describe("il tempo scritto come in un montaggio", () => {
     }
   });
 
-  test("arrotonda al fotogramma piu' vicino, non taglia", () => {
-    // Il player non riporta mai un tempo esatto: `currentTime` e' un numero
-    // qualunque fra due quadri. Tagliando invece di arrotondare, il timecode
-    // resta indietro di un fotogramma per meta' del tempo — e un fotogramma e'
-    // esattamente l'unita' in cui si discute un taglio.
+  test("it rounds to the nearest frame, it does not truncate", () => {
+    // The player never reports an exact time: `currentTime` is some number
+    // between two frames. Truncating instead of rounding leaves the timecode a
+    // frame behind half the time — and a frame is exactly the unit a cut is
+    // argued about in.
     expect(timecode(2.0209)).toBe("00:00:02:01");   // 48.50 quadri -> 49
     expect(timecode(2.0207)).toBe("00:00:02:00");   // 48.49 quadri -> 48
-    expect(timecode(0.9999)).toBe("00:00:01:00");   // 23.998 -> 24, cioe' il secondo dopo
+    expect(timecode(0.9999)).toBe("00:00:01:00");   // 23.998 -> 24, i.e. the next second
   });
 
   test("un tempo negativo non produce numeri strani", () => {
@@ -124,7 +124,7 @@ describe("il tempo scritto come in un montaggio", () => {
 });
 
 describe("la navetta J K L", () => {
-  test("K ferma sempre", () => {
+  test("K always stops", () => {
     for (const v of [-8, -1, 0, 1, 4]) expect(shuttle(v, "k")).toBe(0);
   });
 
@@ -135,14 +135,14 @@ describe("la navetta J K L", () => {
     expect(visti).toEqual([1, 2, 4, 8, 8]);
   });
 
-  test("J e' lo specchio di L", () => {
+  test("J is the mirror of L", () => {
     let v = 0;
     const visti: number[] = [];
     for (let i = 0; i < 5; i++) { v = shuttle(v, "j"); visti.push(v); }
     expect(visti).toEqual([-1, -2, -4, -8, -8]);
   });
 
-  test("cambiare verso riparte da 1x, non dalla velocita' di prima", () => {
+  test("changing direction restarts from 1x, not from the previous speed", () => {
     expect(shuttle(8, "j")).toBe(-1);
     expect(shuttle(-4, "l")).toBe(1);
   });

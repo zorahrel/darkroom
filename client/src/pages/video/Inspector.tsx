@@ -67,7 +67,7 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
       <div className="mt-0.5 text-[10px] text-neutral-400 tabular-nums leading-relaxed">
         batt {sel.bar} · {mmss(sel.t)} · {sel.dur.toFixed(2)}s · {sel.velocita.toFixed(2)}x
         {sel.rovescio ? " · rovescio" : ""}<br />
-        presa {sel.origine}{sel.act ? ` · atto ${sel.act}` : ""}
+        presa {sel.origin}{sel.act ? ` · atto ${sel.act}` : ""}
       </div>
 
       <div className="mt-2.5 flex gap-2.5 items-start">

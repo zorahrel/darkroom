@@ -22,6 +22,9 @@ const ELISION = /\b(dell|nell|all|sull|dall|quell|un)'/i;
 // `\bperch\u00e9\b` never matched -- the letter before the boundary is not a word
 // character. Every accented marker was silently dead, and with the two-marker
 // rule that dropped real Italian comments. Explicit look-arounds instead.
+const NAME_WORDS =
+  "la|le|il|lo|gli|un|uno|una|di|da|in|su|per|con|non|che|si|ma|se|come|dove|quando|quale|stessa|stesso|stessi|tutti|tutte|solo|anche|piu|pi\u00f9|gi\u00e0|gia|deve|devono|serve|resta|restano|torna|tornano|vale|conta|dice|dicono|sta|stanno|fa|fanno|va|vanno|esce|escono|entra|parte|passa|prende|mette|lascia|tiene|senza|dentro|fuori|sopra|sotto|prima|dopo|invece|quindi|perche|perch\u00e9|cosa|niente|nessun|nessuna|foto|riga|nome|colore|durata|tempo|stato|vista|scelta|prova|verifica|elenco|coda|scheda|ripresa|scena|taglio|verdetto";
+const NAME_IT = new RegExp(`(?<![${W}])(${NAME_WORDS})(?![${W}])`, "gi");
 const IT = new RegExp(`(?<![${W}])(${WORDS})(?![${W}])`, "i");
 
 /**
@@ -44,7 +47,16 @@ function isItalian(text, kind) {
     .replace(/`[^`]*`/g, " ")
     .replace(/"[^"]*"/g, " ")
     .replace(/\b[\w./-]+\.(py|json|ts|tsx|sh|md|mjs)\b/gi, " ");
-  return IT.test(prose) || ELISION.test(prose);
+  if (IT.test(prose) || ELISION.test(prose)) return true;
+  // A test NAME is one short sentence, so the homograph-free list is too thin
+  // for it: "la flag si mette e si toglie" contains not one of those words. For
+  // names only, a much wider list is used -- articles and prepositions
+  // included -- with two DISTINCT markers required, which is what keeps English
+  // names ("a non-array preserve is ignored") out. 127 names got through the
+  // narrow filter.
+  if (kind !== "name") return false;
+  const hits = new Set((prose.match(NAME_IT) ?? []).map((w) => w.toLowerCase()));
+  return hits.size >= 2;
 }
 
 function ranges(file) {

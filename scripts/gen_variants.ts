@@ -1,12 +1,13 @@
 /**
- * Generatore di varianti per un progetto darkroom, con reference allegato.
+ * Variant generator for a darkroom project, with a reference attached.
  *
- * Non usa startRunner() di proposito: quel runner pesca i pending di TUTTI i
- * progetti, e in questo momento Japan ne ha in coda che sono stati fermati
- * apposta. Qui si lavora solo il progetto richiesto, in sequenza, e ci si ferma
- * da soli dopo N fallimenti consecutivi invece di macinare la quota a vuoto.
+ * It deliberately does not use startRunner(): that runner picks up the pendings
+ * of ALL projects, and right now Japan has some queued that were stopped on
+ * purpose. Here only the requested project is worked, in sequence, and it stops
+ * by itself after N consecutive failures instead of grinding through the quota
+ * for nothing.
  *
- * Uso: bun run scripts/gen_variants.ts <projectId> [--variants a,b,c] [--limit N]
+ * Usage: bun run scripts/gen_variants.ts <projectId> [--variants a,b,c] [--limit N]
  */
 import { existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -17,15 +18,16 @@ import { runWorkerCodexHttp } from "../server/worker-codex-http.ts";
 import { runWorker } from "../server/worker.ts";
 
 const pid = process.argv[2] ?? "profilo";
-/** Scelto a runtime: dipende da quali reference sono stati effettivamente
- *  allegati, non da come e' fatta la cartella. */
+/** Chosen at runtime: it depends on which references were actually
+ *  attached, not on how the folder is arranged. */
 const PACE = Number(process.env.DARKROOM_PACE ?? 20);
 let hasStyleRef = false;
 let nRefs = 0;
 let together = false;
-/** Il NOME del preambolo in uso. Serve nell'albero: due passate con la stessa
- *  ricetta ma istruzioni diverse sono due esperimenti, e senza nome finiscono
- *  sotto la stessa etichetta proprio dove il confronto serve. */
+/** The NAME of the preamble in use. It is needed in the tree: two passes with
+ *  the same recipe but different instructions are two experiments, and with no
+ *  name they end up under the same label precisely where the comparison
+ *  matters. */
 const ROLES_NAME = () =>
   together ? (hasStyleRef ? "insieme+stile" : "insieme") : !hasStyleRef ? "solo-id" : nRefs > 1 ? "id+stile" : "solo-stile";
 const ROLES = () =>
@@ -42,46 +44,47 @@ const arg = (k: string) => {
   return i > 0 ? process.argv[i + 1] : undefined;
 };
 const limit = Number(arg("--limit") ?? 0);
-/** --insieme: un solo job per ricetta, con TUTTE le foto allegate insieme. */
-const TOGETHER = has("--insieme");
-/** --senza-refs: nessun allegato oltre alle sorgenti. Serve quando le foto
- *  bastano a se stesse: un'immagine di stile di UN'ALTRA persona, allegata a
- *  un ritratto, e' un volto in piu' che il modello puo' mediare. */
-const NO_REFS = has("--senza-refs");
-/** --canale cdp usa la superficie web di ChatGPT invece dell'endpoint Codex.
- *  Non e' un ripiego: sono due bucket di quota distinti, e quando uno e'
- *  esaurito l'altro puo' essere aperto (verificato il 25/08: codex 429, web ok).
- *  Il web accetta una sola sorgente "primaria", quindi le altre viaggiano come
- *  allegati nella stessa richiesta -- il preambolo dice che sono tutte me. */
-const CHANNEL = (arg("--canale") ?? "codex").toLowerCase();
-const rounds = Number(arg("--giri") ?? 1);
+/** --together: one job per recipe, with ALL the photos attached together. */
+const TOGETHER = has("--together");
+/** --no-refs: no attachments beyond the sources. Needed when the photos
+ *  are enough on their own: a style image of ANOTHER person, attached to a
+ *  portrait, is one more face the model can average in. */
+const NO_REFS = has("--no-refs");
+/** --channel cdp uses ChatGPT's web surface instead of the Codex endpoint.
+ *  It is not a fallback: they are two distinct quota buckets, and when one is
+ *  exhausted the other can be open (verified 25/08: codex 429, web fine).
+ *  The web accepts a single "primary" source, so the others travel as
+ *  attachments in the same request -- the preamble says they are all me. */
+const CHANNEL = (arg("--channel") ?? "codex").toLowerCase();
+const rounds = Number(arg("--rounds") ?? 1);
 const only = arg("--variants")?.split(",").map((s) => s.trim()).filter(Boolean);
 
-/** Le ricette. Tutte citano il reference allegato: è quello che tiene insieme
- *  le varianti fra loro, invece di avere nove foto ritoccate ognuna a modo suo. */
-/** Preambolo comune. I reference allegati non hanno lo stesso ruolo: quelli a
- *  colori sono altre foto della stessa persona (identita'), quello in bianco e
- *  nero e' di un altro soggetto e serve solo come modello di luce e taglio.
- *  Senza dirlo, il modello media i volti e restituisce una persona che non
- *  esiste. */
+/** The recipes. All of them cite the attached reference: that is what holds
+ *  the variants together, instead of nine photos each retouched its own way. */
+/** Common preamble. The attached references do not have the same role: the
+ *  colour ones are other photos of the same person (identity), the black and
+ *  white one is of another subject and serves only as a model of light and
+ *  framing. Without saying so, the model averages the faces and returns a
+ *  person who does not exist. */
 const ROLES_MIXED =
   "The attached images have two different roles. The COLOUR photos are other photographs of me: use them only to keep my face, bone structure and identity consistent — that is who the person in the result must be. The BLACK AND WHITE photo is a different person: never copy that face, take from it only the lighting, mood, framing and treatment. ";
 
-/** Quando i reference sono TUTTI foto della persona, non c'e' nessun ruolo da
- *  distinguere: dire "il bianco e nero e' un altro soggetto" quando quel file
- *  non e' allegato confonde e basta. Lo stile, in quel caso, sta gia' scritto
- *  per esteso nella ricetta. */
+/** When the references are ALL photos of the person, there is no role to
+ *  distinguish: saying "the black and white one is another subject" when that
+ *  file is not attached only confuses. The style, in that case, is already
+ *  written out in full in the recipe. */
 const ROLES_ID_ONLY =
   "The attached images are reference photographs of me that I like. Match them on BOTH counts: keep my face, bone structure and identity exactly as they show it, AND follow their visual language \u2014 the lighting, the tonality, the framing, the way the skin and hair are rendered. The result should look like it belongs in the same set as the attached references. "
 
-/** Un solo reference, ed e' di STILE: il volto deve restare quello della foto
- *  sorgente. Senza dirlo, il modello prende anche la faccia dal riferimento —
- *  che e' un'altra persona. */
+/** A single reference, and it is one of STYLE: the face must stay the one in
+ *  the source photo. Without saying so, the model takes the face from the
+ *  reference too — and that is another person. */
 const ROLES_STYLE_ONLY =
   "The attached image is a photograph of a DIFFERENT person, attached only as a styling reference. Never copy that face. Take from it the lighting, tonality, framing and treatment. The face, bone structure and identity must remain exactly those of the photo being edited. ";
 
-/** Piu' scatti come input unico (GEN-01). Va detto che sono la stessa persona:
- *  senza, il modello puo' leggerli come persone diverse e mediare i volti. */
+/** Several shots as a single input (GEN-01). It has to be said that they are
+ *  the same person: without that, the model can read them as different people
+ *  and average the faces. */
 const ROLES_MULTI_SOURCE =
   "The attached photographs are all of ME, the same person in different shots and lighting. Use all of them together as material: take my face and identity from them, and produce ONE new portrait. ";
 
@@ -117,9 +120,9 @@ withProject(pid, async () => {
   initSchema();
   const d = dirsFor(pid);
   const refDir = join(d.DATA_DIR, "refs");
-  // Quali reference allegare non e' sempre "tutti quelli nella cartella": la
-  // cartella contiene sia foto della persona (identita') sia immagini di stile,
-  // e mescolarle non e' neutro. --refs sceglie per nome.
+  // Which references to attach is not always "all the ones in the folder": the
+  // folder holds both photos of the person (identity) and style images, and
+  // mixing them is not neutral. --refs chooses by name.
   const wanted = arg("--refs")?.split(",").map((s) => s.trim()).filter(Boolean);
   const all = existsSync(refDir)
     ? readdirSync(refDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
@@ -139,15 +142,15 @@ withProject(pid, async () => {
   console.log(`[gen] canale=${CHANNEL} progetto=${pid} ${TOGETHER ? `INSIEME ${targets.length} sorgenti x${Math.max(1, rounds)} giri` : `foto=${targets.length}`} ricette=${recipes.map((r) => r.key).join(",")} refs=${refs.length}`);
 
   together = TOGETHER;
-  // Con --insieme il ciclo esterno non e' piu' "una foto alla volta": c'e' un
-  // solo insieme di sorgenti, e si gira sulle ricette (per `--giri` volte, per
-  // avere piu' varianti della stessa ricetta invece di una sola).
+  // With --together the outer loop is no longer "one photo at a time": there is
+  // a single set of sources, and it loops over the recipes (`--rounds` times, to
+  // get several variants of the same recipe instead of just one).
   const units: { label: string; photoId: string; sources: string[] }[] = TOGETHER
     ? Array.from({ length: Math.max(1, rounds) }, (_, r) => ({
         label: `insieme g${r + 1}`,
-        // La versione si appende alla PRIMA foto: lo schema ha un photo_id solo.
-        // Le sorgenti vere restano tutte in lineage, che e' l'unico posto dove
-        // non si perde l'informazione che erano tre.
+        // The version is appended to the FIRST photo: the schema has only one
+        // photo_id. The real sources all stay in lineage, which is the only
+        // place where the information that there were three is not lost.
         photoId: targets[0]!.id,
         sources: targets.map((t) => t.original_path),
       }))
@@ -159,23 +162,24 @@ withProject(pid, async () => {
     for (const recipe of recipes) {
       if (streak >= 4) { console.error("[gen] 4 fallimenti di fila: mi fermo, non è un caso"); process.exit(1); }
       if (quotaResetsAt) {
-        // Il muro della quota non e' un fallimento da ritentare: insistere
-        // brucia tempo e non sposta l'orario di riapertura. Meglio fermarsi
-        // dicendo QUANDO, cosi' si riprende invece di indovinare.
+        // The quota wall is not a failure to retry: insisting burns time and does
+        // not move the reopening hour. Better to stop saying WHEN, so you pick
+        // it up again instead of guessing.
         const when = new Date(quotaResetsAt * 1000).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
         console.error(`[gen] quota ChatGPT esaurita, riapre alle ${when}. Mi fermo qui.`);
         process.exit(2);
       }
-      // Il set di reference va registrato con la variante: due passate fatte con
-      // reference diversi non sono confrontabili, e senza etichetta nel provino
-      // sembrano solo due tentativi della stessa cosa.
-      // L'etichetta deve distinguere set diversi: "id+stile" con tre riferimenti
-      // e "id+stile" con quattro sono esperimenti diversi, e chiamarli uguale
-      // rende il confronto impossibile proprio dove serve.
-      // Non basta contare i riferimenti: due passate con gli STESSI file ma
-      // istruzioni diverse producono cose diverse, e nel provino finirebbero
-      // sotto la stessa etichetta. "id+look" e' il preambolo che chiede di
-      // seguire anche l'aspetto delle reference, non solo l'identita'.
+      // The reference set must be recorded with the variant: two passes made with
+      // different references are not comparable, and with no label on the strip
+      // they look like just two attempts at the same thing.
+      // The label has to tell different sets apart: "id+stile" with three
+      // references and "id+stile" with four are different experiments, and
+      // calling them the same makes the comparison impossible exactly where it
+      // is needed.
+      // Counting the references is not enough: two passes with the SAME files
+      // but different instructions produce different things, and on the strip
+      // they would end up under the same label. "id+look" is the preamble that
+      // asks to follow the references' appearance too, not only the identity.
       const refset = TOGETHER
         ? `${unit.sources.length} sorgenti insieme${refs.length ? (hasStyleRef ? " + stile" : " + rif") : ""}`
         : `${refs.length} rif: ${hasStyleRef ? (refs.length > 1 ? "id+stile" : "stile") : "id+look"}`;
@@ -191,14 +195,15 @@ withProject(pid, async () => {
       const n = nextVersionNumber(unit.photoId);
       const dir = join(d.GEN_DIR, unit.photoId);
       mkdirSync(dir, { recursive: true });
-      // Il nome del file segue la convenzione di darkroom (vNN.png): l'interfaccia
-      // lo ricostruisce dal numero di versione, non lo legge dal database, quindi
-      // un nome "piu' descrittivo" rende l'immagine irraggiungibile dalla UI.
-      // La ricetta e' gia' salvata nel config della versione: nel nome non serve.
+      // The file name follows darkroom's convention (vNN.png): the interface
+      // rebuilds it from the version number, it does not read it from the
+      // database, so a "more descriptive" name makes the image unreachable from
+      // the UI. The recipe is already saved in the version's config: it is not
+      // needed in the name.
       const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
-      // Una pausa fra un lavoro e l'altro: senza, il sito limita l'accesso e
-      // smette di generare del tutto (misurato il 25/08, 9 job persi). Meglio
-      // 20 secondi che una passata intera buttata.
+      // A pause between one job and the next: without it the site rate-limits and
+      // stops generating altogether (measured 25/08, 9 jobs lost). Better 20
+      // seconds than a whole pass thrown away.
       if (ok + ko > 0 && PACE > 0) await new Promise((r) => setTimeout(r, PACE * 1000));
       const t0 = Date.now();
       const res =
@@ -211,11 +216,11 @@ withProject(pid, async () => {
             })
           : await runWorkerCodexHttp({ images: unit.sources, prompt, output: out, refs });
       if (res.status === "ok") {
-        // config e lineage NON sono lo stesso dato: config e' cosa si e' chiesto,
-        // lineage e' da cosa e' nata la variante. L'albero legge lineage, e con
-        // --insieme e' l'unico posto in cui resta scritto che le sorgenti erano
-        // tre: lo schema ha un photo_id solo, quindi senza questo campo due
-        // delle tre sparirebbero.
+        // config and lineage are NOT the same data: config is what was asked for,
+        // lineage is what the variant was born from. The tree reads lineage,
+        // and with --together it is the only place where it stays written that
+        // there were three sources: the schema has a single photo_id, so
+        // without this field two of the three would disappear.
         const lineage = JSON.stringify({
           recipe: recipe.key,
           refset,
@@ -235,8 +240,8 @@ withProject(pid, async () => {
       } else {
         db().run("UPDATE jobs SET status='failed', error=?, finished_at=? WHERE id=?", [String(res.error).slice(0, 500), Date.now(), job.id]);
         ko++; streak++;
-        // La strozzatura del sito non e' un fallimento da ritentare: insistere
-        // la prolunga. Ci si ferma dicendo di aspettare, come per la quota.
+        // The site's throttle is not a failure to retry: insisting prolongs it. It
+        // stops asking you to wait, as for the quota.
         if (String(res.error).includes("chatgpt-throttled")) {
           console.error(`[gen] ChatGPT ha limitato l'accesso per troppe richieste. Mi fermo: riprendere fra qualche minuto, piu' lenti (DARKROOM_PACE).`);
           console.log(`[gen] fatte ${ok}, fallite ${ko}`);

@@ -36,8 +36,8 @@ const KEY_WIDTH = "darkroom.scelta.larghezzaClip";
  *  same generation, and judging them apart is why the cut looked full of
  *  duplicates despite having 122 different names. */
 type Scene = {
-  origine: string;
-  pezzi: VideoShot[];
+  origin: string;
+  pieces: VideoShot[];
   act: string | null;
   minute: number | null;
   inEdit: number;
@@ -58,32 +58,32 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStar
 
 function group(shots: VideoShot[]): Scene[] {
   const per = new Map<string, VideoShot[]>();
-  for (const s of shots) per.set(s.origine, [...(per.get(s.origine) ?? []), s]);
+  for (const s of shots) per.set(s.origin, [...(per.get(s.origin) ?? []), s]);
   return [...per.entries()]
-    .map(([origine, pezzi]) => {
-      const inM = pezzi.filter((p) => p.minute !== null);
+    .map(([origin, pieces]) => {
+      const inM = pieces.filter((p) => p.minute !== null);
       return {
-        origine,
-        pezzi: pezzi.sort((a, b) => a.id.localeCompare(b.id)),
+        origin,
+        pieces: pieces.sort((a, b) => a.id.localeCompare(b.id)),
         act: inM[0]?.act ?? null,
         minute: inM.length ? Math.min(...inM.map((p) => p.minute!)) : null,
-        inEdit: pezzi.reduce((n, p) => n + p.inEdit, 0),
+        inEdit: pieces.reduce((n, p) => n + p.inEdit, 0),
         // A take is "kept" if at least one piece is.
-        kept: pezzi.some((p) => p.kept),
+        kept: pieces.some((p) => p.kept),
         // The take's verdict: one discarded piece is enough to make it so, and
         // it takes at least one explicit yes to count as approved.
-        verdict: (pezzi.some((p) => p.verdict === "scartata") ? "scartata"
-                 : pezzi.some((p) => p.verdict === "tenuta") ? "tenuta"
+        verdict: (pieces.some((p) => p.verdict === "scartata") ? "scartata"
+                 : pieces.some((p) => p.verdict === "tenuta") ? "tenuta"
                  : null) as Scene["verdict"],
-        judgedAt: pezzi.reduce<number | null>(
+        judgedAt: pieces.reduce<number | null>(
           (m, p) => (p.judgedAt && (!m || p.judgedAt > m) ? p.judgedAt : m), null),
-        annotated: pezzi.some((p) => p.problems.length > 0),
+        annotated: pieces.some((p) => p.problems.length > 0),
         // The take's suspicion is that of the first piece that has one.
-        suspect: pezzi.find((p) => p.suspect)?.suspect ?? null,
-        apparizioni: pezzi.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
+        suspect: pieces.find((p) => p.suspect)?.suspect ?? null,
+        apparizioni: pieces.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
       };
     })
-    .sort((a, b) => (a.minute ?? 1e9) - (b.minute ?? 1e9) || a.origine.localeCompare(b.origine));
+    .sort((a, b) => (a.minute ?? 1e9) - (b.minute ?? 1e9) || a.origin.localeCompare(b.origin));
 }
 
 /** One definition only, next to the rule that says who leaves the list:
@@ -637,7 +637,7 @@ export default function VideoPick() {
   );
 
   const scene = queue[Math.min(i, Math.max(0, queue.length - 1))] ?? null;
-  const current = scene?.pezzi[Math.min(piece, scene.pezzi.length - 1)] ?? null;
+  const current = scene?.pieces[Math.min(piece, scene.pieces.length - 1)] ?? null;
 
   // Generations are watched only while one is alive: a single tab, and an
   // empty poll every three seconds for the whole session serves nobody.
@@ -655,7 +655,7 @@ export default function VideoPick() {
     return () => { alive = false; };
   }, [rigen]);
 
-  useEffect(() => { setPiece(0); }, [scene?.origine]);
+  useEffect(() => { setPiece(0); }, [scene?.origin]);
   useEffect(() => { if (i >= queue.length) setI(Math.max(0, queue.length - 1)); }, [queue.length, i]);
 
   const avanti = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, queue.length - 1))), [queue.length]);
@@ -684,13 +684,13 @@ export default function VideoPick() {
   const judge = useCallback(
     async (kept: boolean, why?: string) => {
       if (!scene) return;
-      const ids = scene.pezzi.map((p) => p.id);
-      const before = new Map(scene.pezzi.map((p) => [p.id, p.verdict]));
+      const ids = scene.pieces.map((p) => p.id);
+      const before = new Map(scene.pieces.map((p) => [p.id, p.verdict]));
       // Optimistic: the row stays as the user set it even if the network lags.
       setShots((prev) =>
         prev.map((s) =>
           ids.includes(s.id) ? { ...s, kept, verdict: kept ? "tenuta" : "scartata" } : s));
-      setLast({ ids, name: scene.origine, kept, before, index: i });
+      setLast({ ids, name: scene.origin, kept, before, index: i });
       try {
         let u = shots;
         for (const id of ids) u = (await api.videoPick(id, kept, why)).shots;
@@ -730,7 +730,7 @@ export default function VideoPick() {
     const t = text.trim();
     setNota(null); setText("");
     if (!t || !scene) return;
-    try { setShots((await api.videoProblem(scene.pezzi[0]!.id, t)).shots); } catch { /* niente */ }
+    try { setShots((await api.videoProblem(scene.pieces[0]!.id, t)).shots); } catch { /* niente */ }
   }, [text, scene]);
 
   // Keyboard: the hands stay put and you judge at speed.
@@ -842,18 +842,18 @@ export default function VideoPick() {
                 : s.verdict === "scartata" ? "bg-rose-500/60 hover:bg-rose-400"
                 : s.suspect ? "bg-amber-500/50 hover:bg-amber-400"
                 : "bg-neutral-700/70 hover:bg-neutral-500";
-              const suo = scene?.origine === s.origine;
+              const suo = scene?.origin === s.origin;
               return (
                 <button
-                  key={s.origine}
-                  title={`${s.origine} — ${s.verdict ?? "mai giudicata"}${
+                  key={s.origin}
+                  title={`${s.origin} — ${s.verdict ?? "mai giudicata"}${
                     s.minute !== null ? ` · ${mmss(s.minute)}` : " · non in montaggio"}`}
                   onClick={() => {
                     // Jumping to a take the current filter hides cannot fail
                     // silently: the filter is widened and you go there. The
                     // opposite — a click that does nothing — is the fastest way
                     // to make people think the map is decorative.
-                    const where = queue.findIndex((c) => c.origine === s.origine);
+                    const where = queue.findIndex((c) => c.origin === s.origin);
                     if (where >= 0) setI(where);
                     else { setFilter("all"); setAct(""); setI(scenes.indexOf(s)); }
                   }}
@@ -923,9 +923,9 @@ export default function VideoPick() {
               />
             </div>
             <Transport video={video} frameCount={current.takes[0]?.frames ?? null} />
-            {scene.pezzi.length > 1 && (
+            {scene.pieces.length > 1 && (
               <div className="mt-2 flex gap-1.5">
-                {scene.pezzi.map((p, k) => (
+                {scene.pieces.map((p, k) => (
                   <button
                     key={p.id}
                     onClick={() => setPiece(k)}
@@ -979,7 +979,7 @@ export default function VideoPick() {
 
           <div className="flex-1 min-w-0 overflow-y-auto">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <div className="text-[15px] text-neutral-200">{scene.origine}</div>
+              <div className="text-[15px] text-neutral-200">{scene.origin}</div>
               {/* The state is a CHOICE between three, not a sentence to read: you
                   see where it is set now and you move it from here without
                   going back down to the keys. */}
@@ -987,7 +987,7 @@ export default function VideoPick() {
                 value={scene.verdict}
                 onChange={async (v) => {
                   if (v === null) {
-                    for (const pz of scene.pezzi) setShots((await api.videoClearVerdict(pz.id)).shots);
+                    for (const pz of scene.pieces) setShots((await api.videoClearVerdict(pz.id)).shots);
                   } else if (v === "tenuta") await judge(true);
                   else setNota("scarto");
                 }}
@@ -1266,12 +1266,12 @@ export default function VideoPick() {
               <div className="mt-3 grid gap-1.5"
                    style={{ gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))" }}>
                 {queue.slice(i + 1, i + 61).map((sc, k) => {
-                  const pr = sc.pezzi[0];
+                  const pr = sc.pieces[0];
                   return (
                     <button
-                      key={sc.origine}
+                      key={sc.origin}
                       onClick={() => { setI(i + 1 + k); setPiece(0); }}
-                      title={`${sc.origine}${sc.act ? ` · ${sc.act}` : ""}`}
+                      title={`${sc.origin}${sc.act ? ` · ${sc.act}` : ""}`}
                       className="w-full aspect-[9/16] rounded-sm border border-neutral-900 bg-cover bg-center
                                  opacity-45 hover:opacity-100 transition-opacity"
                       style={{ backgroundImage: pr?.takes[0]?.poster ? `url(${pq(pr.takes[0].poster)})` : undefined }}

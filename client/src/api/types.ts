@@ -530,7 +530,7 @@ export type VideoShot = {
   /** Why it deserves to be looked at first. It is not a verdict. */
   suspect: string | null;
   /** Two halves of the same take share this: `z43_0` and `z43_1` -> `z43`. */
-  origine: string;
+  origin: string;
   act: string | null;
   /** Second of the film it first appears at, null if it is not in the cut. */
   minute: number | null;
@@ -543,7 +543,7 @@ export type VideoCut = {
   t: number; dur: number; bar: number; shot: string;
   soundIntensity: number; shotIntensity: number | null;
   velocita: number; rovescio: boolean;
-  act: string | null; origine: string;
+  act: string | null; origin: string;
 };
 export type VideoAct = { da: number; a: number; name: string; t0: number; t1: number; why?: string };
 export type VideoHeld = { bar: number; guarantee: string };

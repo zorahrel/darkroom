@@ -513,7 +513,7 @@ export default function Video() {
       const isNew = perBar.get(c.bar);
       if (!isNew || isNew === c.shot) return c;
       const d = shotData.get(isNew);
-      return { ...c, shot: isNew, origine: isNew.replace(/_?\d$/, ""), shotIntensity: d?.intensity ?? null };
+      return { ...c, shot: isNew, origin: isNew.replace(/_?\d$/, ""), shotIntensity: d?.intensity ?? null };
     });
   }, [cuts, forz, shots]);
 

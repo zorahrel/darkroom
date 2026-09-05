@@ -36,7 +36,7 @@ export type Take = { take: string; frames: number; clip: string; poster: string;
  * The same function lives in `pianifica.py`. It is a definition, not a policy:
  * duplicating it costs one line and the tests say if the two diverge.
  */
-export const origine = (shot: string) => {
+export const origin = (shot: string) => {
   const m = /^(.*[^0-9])_?[0-9]$/.exec(shot);
   return m?.[1]?.replace(/_+$/, "") ?? shot;
 };
@@ -64,7 +64,7 @@ export type Shot = {
    *  `suspicion()`. `null` = nothing anomalous in the numbers. */
   suspect: string | null;
   /** Which generation it comes from: two halves of one take share this. */
-  origine: string;
+  origin: string;
   /** The act it plays in, from `atti.json`. Null when it is not in the edit. */
   act: string | null;
   /** Seconds into the film where it first appears, null when unused. */
@@ -85,7 +85,7 @@ export type Cut = {
   velocita: number;
   rovescio: boolean;
   act: string | null;
-  origine: string;
+  origin: string;
 };
 
 /** `perche` is the line of story the act tells — "she walks", "the feet leave
@@ -633,7 +633,7 @@ export function shots(): Shot[] {
         judgedAt: kept[id] ?? null,
         problems: problems[id] ?? [],
         suspect: sos,
-        origine: origine(id),
+        origin: origin(id),
         act: actOfShot[id] ?? null,
         minute: firstTime[id] ?? null,
         apparizioni: apparizioni[id] ?? [],
@@ -673,7 +673,7 @@ export function cuts(): {
       velocita: s.velocita ?? 1,
       rovescio: !!s.rovescio,
       act: actOf(s.bars[0], as),
-      origine: origine(s.shot),
+      origin: origin(s.shot),
     };
   });
   const last = cuts.at(-1);

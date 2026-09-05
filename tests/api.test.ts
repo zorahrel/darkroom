@@ -166,7 +166,7 @@ describe("media", () => {
   });
 });
 
-describe("una foto rifiutata da ChatGPT si salta", () => {
+describe("a photo refused by ChatGPT is skipped", () => {
   test("la flag si mette e si toglie", async () => {
     const id = "skip_test_1";
     db().run(
@@ -185,8 +185,8 @@ describe("una foto rifiutata da ChatGPT si salta", () => {
       ).get(id),
     ).toMatchObject({ skipped: 1, skip_reason: "supermario" });
 
-    // Reversibile: le policy cambiano, e una foto ferma per sempre senza modo
-    // di riprovarla e' un vicolo cieco.
+    // Reversible: policies change, and a photo stopped for ever with no way of
+    // retrying it is a blind alley.
     r = await app.request(`/api/photos/${id}/skipped`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -198,7 +198,7 @@ describe("una foto rifiutata da ChatGPT si salta", () => {
     ).toBe(0);
   });
 
-  test("'genera mancanti' non riaccoda una foto saltata", async () => {
+  test("'generate missing' does not requeue a skipped photo", async () => {
     const id = "skip_test_2";
     db().run(
       "INSERT INTO photos (id, original_path, original_ext, skipped, skip_reason, created_at, updated_at) VALUES (?, '', '.jpg', 1, 'rifiutata', ?, ?)",
@@ -207,8 +207,8 @@ describe("una foto rifiutata da ChatGPT si salta", () => {
     db().run("DELETE FROM jobs");
     const r = await app.request("/api/generate-missing", { method: "POST" });
     expect(r.status).toBe(200);
-    // Senza il filtro sarebbe la prima della lista a ogni giro: zero versioni
-    // per sempre, e ogni volta un posto in coda bruciato per lo stesso no.
+    // Without the filter it would be first in the list every round: zero
+    // versions for ever, and every time a queue slot burned for the same no.
     const queued = db()
       .query<{ n: number }, [string]>("SELECT COUNT(*) AS n FROM jobs WHERE photo_id = ?")
       .get(id)!.n;
@@ -216,8 +216,8 @@ describe("una foto rifiutata da ChatGPT si salta", () => {
   });
 });
 
-describe("cosa resta da rifinire in pro", () => {
-  test("il filtro pro_todo esclude le saltate, le non assegnate e le gia' fatte", async () => {
+describe("what is left to refine in pro", () => {
+  test("the pro_todo filter excludes the skipped, the unassigned and the already done", async () => {
     const now = Date.now();
     const mk = (id: string, skipped = 0) =>
       db().run(
@@ -237,22 +237,22 @@ describe("cosa resta da rifinire in pro", () => {
     };
 
     mk("pt_todo"); inPost("pt_todo"); withFav("pt_todo", "chatgpt");     // da fare
-    mk("pt_done"); inPost("pt_done"); withFav("pt_done", "higgsfield");  // gia' pro
+    mk("pt_done"); inPost("pt_done"); withFav("pt_done", "higgsfield");  // already pro
     mk("pt_skip", 1); inPost("pt_skip"); withFav("pt_skip", "chatgpt");  // non uscira'
     mk("pt_free"); withFav("pt_free", "chatgpt");                        // fuori dai post
 
     const r = await app.request("/api/photos?filter=pro_todo");
     const ids = ((await r.json()) as { photos: { id: string }[] }).photos.map((p) => p.id);
     expect(ids).toContain("pt_todo");
-    // Un master su una foto che non verra' pubblicata e' denaro buttato.
+    // A master on a photo that will not be published is money thrown away.
     expect(ids).not.toContain("pt_done");
     expect(ids).not.toContain("pt_skip");
     expect(ids).not.toContain("pt_free");
   });
 });
 
-describe("le copertine si guardano tutte insieme", () => {
-  test("filter=covers restituisce solo le copertine, col titolo del post", async () => {
+describe("the covers are looked at all together", () => {
+  test("filter=covers returns only the covers, with the post's title", async () => {
     const now = Date.now();
     db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('cv_a','', '.jpg', ?, ?)", [now, now]);
     db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES ('cv_b','', '.jpg', ?, ?)", [now, now]);
@@ -263,14 +263,14 @@ describe("le copertine si guardano tutte insieme", () => {
     const ids = photos.map((p) => p.id);
     expect(ids).toContain("cv_a");
     expect(ids).not.toContain("cv_b");
-    // Sette copertine affiancate senza il titolo di cio' che aprono sono
-    // sette foto qualsiasi: la domanda e' se ognuna promette il suo post.
+    // Seven covers side by side without the title of what they open are seven
+    // photos like any others: the question is whether each promises its post.
     expect(photos.find((p) => p.id === "cv_a")!.cover_of).toBe("Il verde");
   });
 });
 
-describe("le copertine ancora da rifinire", () => {
-  test("covers_todo tiene solo le copertine senza master pro", async () => {
+describe("the covers still to refine", () => {
+  test("covers_todo keeps only the covers with no pro master", async () => {
     const now = Date.now();
     const mk = (id: string) =>
       db().run("INSERT INTO photos (id, original_path, original_ext, created_at, updated_at) VALUES (?, '', '.jpg', ?, ?)", [id, now, now]);
@@ -284,24 +284,25 @@ describe("le copertine ancora da rifinire", () => {
     };
     mk("ct_draft"); fav("ct_draft", "chatgpt");
     mk("ct_pro"); fav("ct_pro", "higgsfield");
-    mk("ct_plain"); fav("ct_plain", "chatgpt");   // non e' copertina di niente
+    mk("ct_plain"); fav("ct_plain", "chatgpt");   // not the cover of anything
     db().run("INSERT INTO collections (id, title, position, created_at, cover_photo_id) VALUES ('ct1','A',95,?, 'ct_draft')", [now]);
     db().run("INSERT INTO collections (id, title, position, created_at, cover_photo_id) VALUES ('ct2','B',96,?, 'ct_pro')", [now]);
 
     const r = await app.request("/api/photos?filter=covers_todo");
     const ids = ((await r.json()) as { photos: { id: string }[] }).photos.map((p) => p.id);
     expect(ids).toContain("ct_draft");
-    expect(ids).not.toContain("ct_pro");    // gia' rifinita
-    expect(ids).not.toContain("ct_plain");  // non apre nessun post
+    expect(ids).not.toContain("ct_pro");    // already refined
+    expect(ids).not.toContain("ct_plain");  // opens no post
   });
 });
 
 describe("i crediti si chiedono, non si scoprono sbattendoci", () => {
-  test("esiste una rotta per il saldo Higgsfield", async () => {
+  test("there is a route for the Higgsfield balance", async () => {
     const src = await Bun.file(new URL("../server/routes/generation.ts", import.meta.url)).text();
-    // Prima l'unico modo di sapere se si poteva generare era LANCIARE un job e
-    // vederlo fallire con "Out of credits": si scopriva il muro sbattendoci
-    // contro, un job bruciato alla volta. Successo davvero, tre volte di fila.
+    // The only way to know whether you could generate used to be LAUNCHING a
+    // job and watching it fail with "Out of credits": you discovered the wall by
+    // walking into it, one burned job at a time. It really happened, three times
+    // in a row.
     expect(src).toContain('/api/higgsfield/balance');
     expect(src).toContain("hfBalance()");
   });
