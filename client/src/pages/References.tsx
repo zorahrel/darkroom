@@ -176,7 +176,7 @@ export default function ReferencesPage() {
               pick={filter}
               onChoose={setFilter}
               counts={counts}
-              neutra="all"
+              neutral="all"
             />
             <label className="ml-auto text-[11px] text-neutral-400 hover:text-amber-500 cursor-pointer">
               <input

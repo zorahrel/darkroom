@@ -200,7 +200,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
 /** Gli id che hanno un motore. Esportato per il test che verifica la
  *  corrispondenza col catalogo senza dover CHIAMARE gli avvii — chiamarli
  *  vorrebbe dire far partire Chrome dentro una suite. */
-export const AVVIABILI = new Set(Object.keys(STARTERS));
+export const STARTABLE = new Set(Object.keys(STARTERS));
 
 toolRoutes.post("/api/tools/:id/start", async (c) => {
   const id = c.req.param("id");

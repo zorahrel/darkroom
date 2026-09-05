@@ -600,7 +600,7 @@ export type VideoOverrides = {
 };
 
 // ---- catalogo degli strumenti ---------------------------------------------
-// Le forme arrivano da `server/strumenti.ts`, che è la fonte: qui si
+// Le forme arrivano da `server/tools.ts`, che è la fonte: qui si
 // dichiarano solo per leggerle. Se le due divergono, è il server ad avere
 // ragione — questa è la copia, non l'originale.
 

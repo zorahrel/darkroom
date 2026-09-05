@@ -549,14 +549,14 @@ export function Pills<T extends string>({
   counts,
   /** La voce che non filtra: resta sempre premibile anche a zero, perche' e'
    *  la via d'uscita da un filtro che non mostra niente. */
-  neutra,
+  neutral,
   className = "",
 }: {
   items: readonly { id: T; name: string }[];
   pick: T;
   onChoose: (v: T) => void;
   counts: Record<string, number>;
-  neutra?: T;
+  neutral?: T;
   className?: string;
 }) {
   return (
@@ -568,7 +568,7 @@ export function Pills<T extends string>({
           <button
             key={v.id}
             onClick={() => onChoose(v.id)}
-            disabled={n === 0 && v.id !== neutra}
+            disabled={n === 0 && v.id !== neutral}
             title={`${v.name}: ${n}`}
             className={
               "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +

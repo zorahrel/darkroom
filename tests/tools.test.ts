@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { app } from "../server/app.ts";
 import { TOOLS, AREAS, tool } from "../server/tools.ts";
-import { AVVIABILI } from "../server/routes/tools.ts";
+import { STARTABLE } from "../server/routes/tools.ts";
 import { tools as MCP } from "../mcp/server.ts";
 
 /**
@@ -16,7 +16,7 @@ import { tools as MCP } from "../mcp/server.ts";
  */
 
 /** Le rotte davvero montate, nella forma "METODO /percorso". */
-const ROTTE = new Set(app.routes.map((r) => `${r.method} ${r.path}`));
+const ROUTES = new Set(app.routes.map((r) => `${r.method} ${r.path}`));
 const MCP_NAMES = new Set(MCP.map((t) => t.name));
 
 /**
@@ -28,35 +28,35 @@ const META = new Set(["list_tools", "start_tool"]);
 
 describe("il catalogo degli strumenti non promette roba che non c'è", () => {
   test("ogni rotta dichiarata è montata sul server", () => {
-    const fantasma: string[] = [];
+    const ghosts: string[] = [];
     for (const s of TOOLS) {
       for (const route of s.api) {
         // Le rotte dello storyboard sono montate su un prefisso: il catalogo
         // le scrive per intero perché è così che si chiamano da fuori.
-        const [metodo, path] = route.split(" ") as [string, string];
+        const [method, path] = route.split(" ") as [string, string];
         const variants = [
-          `${metodo} ${path}`,
-          `${metodo} ${path.replace("/api/storyboard", "")}`,
-          `${metodo} ${path.replace("/api/verify", "")}`,
+          `${method} ${path}`,
+          `${method} ${path.replace("/api/storyboard", "")}`,
+          `${method} ${path.replace("/api/verify", "")}`,
         ];
-        if (!variants.some((v) => ROTTE.has(v))) fantasma.push(`${s.id} → ${route}`);
+        if (!variants.some((v) => ROUTES.has(v))) ghosts.push(`${s.id} → ${route}`);
       }
     }
-    expect(fantasma).toEqual([]);
+    expect(ghosts).toEqual([]);
   });
 
   test("ogni strumento MCP dichiarato esiste davvero", () => {
-    const fantasma: string[] = [];
+    const ghosts: string[] = [];
     for (const s of TOOLS) {
-      for (const name of s.mcp) if (!MCP_NAMES.has(name)) fantasma.push(`${s.id} → ${name}`);
+      for (const name of s.mcp) if (!MCP_NAMES.has(name)) ghosts.push(`${s.id} → ${name}`);
     }
-    expect(fantasma).toEqual([]);
+    expect(ghosts).toEqual([]);
   });
 
   test("ogni strumento MCP è raccontato da qualche voce del catalogo", () => {
-    const coperti = new Set(TOOLS.flatMap((s) => s.mcp));
-    const orfani = [...MCP_NAMES].filter((n) => !coperti.has(n) && !META.has(n));
-    expect(orfani).toEqual([]);
+    const covered = new Set(TOOLS.flatMap((s) => s.mcp));
+    const orphans = [...MCP_NAMES].filter((n) => !covered.has(n) && !META.has(n));
+    expect(orphans).toEqual([]);
   });
 
   test("aree, id e avvii sono ben formati", () => {
@@ -170,14 +170,14 @@ describe("POST /api/tools/:id/start", () => {
     // Contro il motore, non contro la rotta: chiamare gli avvii per davvero
     // vorrebbe dire far partire Chrome e creare progetti veri dentro la suite.
     const withoutEngine = TOOLS.filter(
-      (s) => s.starters.some((a) => a.mode !== "open") && !AVVIABILI.has(s.id),
+      (s) => s.starters.some((a) => a.mode !== "open") && !STARTABLE.has(s.id),
     ).map((s) => s.id);
     expect(withoutEngine).toEqual([]);
   });
 
   test("e nessun motore avanza senza il suo strumento nel catalogo", () => {
-    const orfani = [...AVVIABILI].filter((id) => !TOOLS.some((s) => s.id === id));
-    expect(orfani).toEqual([]);
+    const orphans = [...STARTABLE].filter((id) => !TOOLS.some((s) => s.id === id));
+    expect(orphans).toEqual([]);
   });
 });
 

@@ -297,7 +297,7 @@ export const TOOLS: Tool[] = [
     api: ["GET /api/references", "POST /api/references", "GET /api/recipes"],
     mcp: [],
     needs: [],
-    starters: [{ mode: "open", label: "Apri i riferimenti", route: "/p/:pid/riferimenti", view: "photo" }],
+    starters: [{ mode: "open", label: "Apri i riferimenti", route: "/p/:pid/references", view: "photo" }],
   },
   {
     id: "tree",
@@ -309,7 +309,7 @@ export const TOOLS: Tool[] = [
     api: ["GET /api/lineage", "PATCH /api/versions/:id/verdict"],
     mcp: [],
     needs: [],
-    starters: [{ mode: "open", label: "Apri l'albero", route: "/p/:pid/albero", view: "photo" }],
+    starters: [{ mode: "open", label: "Apri l'albero", route: "/p/:pid/tree", view: "photo" }],
   },
   {
     id: "orphans",
@@ -381,7 +381,7 @@ export const TOOLS: Tool[] = [
     api: ["GET /api/video/shots", "POST /api/video/pick"],
     mcp: ["video_shots", "video_judge"],
     needs: [],
-    starters: [{ mode: "open", label: "Apri la scelta", route: "/p/:pid/video/scelta", view: "video" }],
+    starters: [{ mode: "open", label: "Apri la scelta", route: "/p/:pid/video/pick", view: "video" }],
   },
   {
     id: "shots",

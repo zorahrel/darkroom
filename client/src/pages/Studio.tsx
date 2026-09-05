@@ -117,7 +117,7 @@ export default function StudioPage() {
           <Filter active={view === "all"} onClick={() => setView("all")} n={count.tutte}>tutti</Filter>
           {VIEWS.map((v) => (
             <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
-                    n={count[v.id]} title={v.spiega}>
+                    n={count[v.id]} title={v.explains}>
               {v.name}
             </Filter>
           ))}
@@ -284,8 +284,8 @@ function Card({
             <button key={v.id} type="button" disabled={fissa}
                     onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
                     title={fissa
-                      ? `${v.spiega} È la vista principale: si apre qui, quindi non si spegne.`
-                      : accesa ? `${v.spiega} Clicca per spegnerla.` : `${v.spiega} Clicca per accenderla.`}
+                      ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
+                      : accesa ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}
                     className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-[2px] text-[10.5px]
                                 transition-colors ${
                       !accesa ? "border-dashed border-neutral-700 text-neutral-400 hover:border-solid hover:border-neutral-500 hover:text-neutral-200"
@@ -390,7 +390,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
         <div className="grid grid-cols-3 gap-1.5">
           {VIEWS.map((v) => (
             <BigPick key={v.id} picked={kind === v.id} onClick={() => setKind(v.id)}
-                      icon={v.icon} title={v.name} note={v.spiega} />
+                      icon={v.icon} title={v.name} note={v.explains} />
           ))}
         </div>
       </Row>

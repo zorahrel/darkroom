@@ -18,7 +18,7 @@ export type View = {
   name: string;
   icon: LucideIcon;
   /** Che cosa ci si fa. Va nel titolo del tasto, non in un manuale. */
-  spiega: string;
+  explains: string;
   /** Dove porta, dentro un progetto. */
   route: (pid: string) => string;
 };
@@ -28,21 +28,21 @@ export const VIEWS: View[] = [
     id: "photo",
     name: "foto",
     icon: Images,
-    spiega: "Galleria: griglia, versioni, colore, esportazione.",
+    explains: "Galleria: griglia, versioni, colore, esportazione.",
     route: (pid) => `/p/${pid}`,
   },
   {
     id: "storyboard",
     name: "storyboard",
     icon: Clapperboard,
-    spiega: "Pannelli in sequenza da una scaletta, con durate e personaggi.",
+    explains: "Pannelli in sequenza da una scaletta, con durate e personaggi.",
     route: (pid) => `/p/${pid}/storyboard`,
   },
   {
     id: "video",
     name: "video",
     icon: Film,
-    spiega: "Montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza.",
+    explains: "Montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza.",
     route: (pid) => `/p/${pid}/video`,
   },
 ];

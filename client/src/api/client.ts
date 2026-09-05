@@ -504,10 +504,10 @@ export const api = {
   tools: () => jsonFetch<Catalogue>("/api/tools"),
   /** I progetti che possono ospitare uno strumento (quelli con la vista giusta). */
   toolProjects: (id: string) =>
-    jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/progetti`),
+    jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/projects`),
   /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */
   startTool: (id: string, body: { project?: string; values?: Record<string, string | number> }) =>
-    jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/avvia`, {
+    jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/start`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

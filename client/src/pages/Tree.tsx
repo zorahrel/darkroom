@@ -391,7 +391,7 @@ export default function TreePage() {
           pick={verdict}
           onChoose={setVerdict}
           counts={counts}
-          neutra="all"
+          neutral="all"
         />
 
         {hasReferences && (

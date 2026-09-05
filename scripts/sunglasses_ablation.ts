@@ -16,7 +16,7 @@
  * La cella A serve anche se v63 esiste gia': senza un controllo tirato oggi,
  * una differenza fra B/C e v63 potrebbe essere solo varianza fra due tiri.
  *
- * Uso: bun run scripts/occhiali_ablazione.ts [--giri N]
+ * Uso: bun run scripts/sunglasses_ablation.ts [--giri N]
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";

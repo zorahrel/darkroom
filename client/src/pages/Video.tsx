@@ -627,7 +627,7 @@ export default function Video() {
       {/* ---- barra ---- */}
       <div className="shrink-0 flex items-center gap-2.5 px-1 border-b border-neutral-900" style={{ height: H_GATE }}>
         <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">MONTAGGIO</span>
-        <Link to={`/p/${pid}/video/scelta`} className="text-[11px] text-neutral-400 hover:text-neutral-200">scelta →</Link>
+        <Link to={`/p/${pid}/video/pick`} className="text-[11px] text-neutral-400 hover:text-neutral-200">scelta →</Link>
         <span className="text-[10.5px] text-neutral-400 tabular-nums">
           {cuts.length} tagli · {shots.length} piani{bpm ? ` · ${bpm.toFixed(1)} BPM` : ""} · {mmss(duration)}
         </span>

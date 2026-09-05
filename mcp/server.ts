@@ -736,7 +736,7 @@ export const tools: Tool[] = [
     },
     globale: true,
     handler: (a) =>
-      call("POST", `/api/tools/${encodeURIComponent(a.tool)}/avvia`, {
+      call("POST", `/api/tools/${encodeURIComponent(a.tool)}/start`, {
         project: a.project,
         values: a.values ?? {},
       }),

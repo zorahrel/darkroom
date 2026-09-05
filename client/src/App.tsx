@@ -194,7 +194,7 @@ export default function App() {
               Darkroom
             </Link>
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
-              <ViewTab to="/" icon={Wrench} current={location.pathname === "/" || location.pathname === "/strumenti"}>
+              <ViewTab to="/" icon={Wrench} current={location.pathname === "/" || location.pathname === "/tools"}>
                 Strumenti
               </ViewTab>
               <ViewTab to="/studio" icon={LayoutGrid} current={location.pathname.startsWith("/studio")}>
@@ -232,8 +232,8 @@ export default function App() {
                              current={location.pathname.endsWith("/video")}>
                       Montaggio
                     </ViewTab>,
-                    <ViewTab key="scelta" to={`/p/${pid}/video/scelta`}
-                             current={location.pathname.includes("/video/scelta")}>
+                    <ViewTab key="scelta" to={`/p/${pid}/video/pick`}
+                             current={location.pathname.includes("/video/pick")}>
                       Scelta
                     </ViewTab>,
                   ];
@@ -252,8 +252,8 @@ export default function App() {
                              location.pathname.startsWith("/p/") &&
                              !location.pathname.includes("/orphans") &&
                              !location.pathname.includes("/storyboard") &&
-                             !location.pathname.includes("/albero") &&
-                             !location.pathname.includes("/riferimenti") &&
+                             !location.pathname.includes("/tree") &&
+                             !location.pathname.includes("/references") &&
                              !location.pathname.includes("/video")
                            }>
                     Griglia
@@ -262,10 +262,10 @@ export default function App() {
               })}
               {activeProject.views.includes("photo") && (
                 <>
-                  <ViewTab to={`/p/${pid}/albero`} current={location.pathname.includes("/albero")}>
+                  <ViewTab to={`/p/${pid}/tree`} current={location.pathname.includes("/tree")}>
                     Albero
                   </ViewTab>
-                  <ViewTab to={`/p/${pid}/riferimenti`} current={location.pathname.includes("/riferimenti")}>
+                  <ViewTab to={`/p/${pid}/references`} current={location.pathname.includes("/references")}>
                     Riferimenti
                   </ViewTab>
                 </>

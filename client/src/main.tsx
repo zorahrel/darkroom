@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import Home from "./pages/Home";
-import Galleria from "./pages/Gallery";
+import Gallery from "./pages/Gallery";
 
 // Due superfici d'ingresso, entrambe nel chunk principale perché sono le due
 // pagine da cui si comincia: la home (gli strumenti) e la griglia di un
@@ -35,7 +35,7 @@ ReactDOM.createRoot(root).render(
       <Routes>
         <Route path="/" element={<App />}>
           <Route index element={<Home />} />
-          <Route path="strumenti" element={<Home />} />
+          <Route path="tools" element={<Home />} />
           <Route
             path="studio"
             element={
@@ -44,7 +44,7 @@ ReactDOM.createRoot(root).render(
               </Suspense>
             }
           />
-          <Route path="p/:pid" element={<Galleria />} />
+          <Route path="p/:pid" element={<Gallery />} />
           <Route
             path="p/:pid/photo/:id"
             element={
@@ -70,7 +70,7 @@ ReactDOM.createRoot(root).render(
             }
           />
           <Route
-            path="p/:pid/video/scelta"
+            path="p/:pid/video/pick"
             element={
               <Suspense fallback={<PageFallback />}>
                 <VideoPick />
@@ -86,7 +86,7 @@ ReactDOM.createRoot(root).render(
             }
           />
           <Route
-            path="p/:pid/riferimenti"
+            path="p/:pid/references"
             element={
               <Suspense fallback={<PageFallback />}>
                 <ReferencesPage />
@@ -94,7 +94,7 @@ ReactDOM.createRoot(root).render(
             }
           />
           <Route
-            path="p/:pid/albero"
+            path="p/:pid/tree"
             element={
               <Suspense fallback={<PageFallback />}>
                 <TreePage />

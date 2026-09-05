@@ -93,7 +93,7 @@ project already switched to the right view, or just use it (type a prompt and ge
 folder at a new gallery, turn a beat sheet into a storyboard, run the quality pass, export).
 
 That list is not written in the UI. It comes from a catalogue in
-[`server/strumenti.ts`](server/strumenti.ts) that the MCP server reads too (`list_tools`), so a
+[`server/tools.ts`](server/tools.ts) that the MCP server reads too (`list_tools`), so a
 new capability shows up in both the day it exists — and a test ties every entry to routes that
 are actually mounted and MCP tools that actually exist, in both directions, so the catalogue
 can't drift into a brochure.
