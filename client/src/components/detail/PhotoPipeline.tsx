@@ -98,7 +98,7 @@ export function PhotoPipeline({
   const [compare, setCompare] = useState(false);
   const [baking, setBaking] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
-  // Feedback for the two non-per-photo-save actions (bake, salva-come-globale) —
+  // Feedback for the two non-per-photo-save actions (bake, save-as-global) —
   // shown in the master row, whichever fired last.
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const hasAiStep = draft.steps.some((s) => s.enabled && s.type === "ai");

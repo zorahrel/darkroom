@@ -351,7 +351,7 @@ describe("moving the camera is not inventing the scene", () => {
   for (const c of OTTICHE) {
     test(`${c}: la macchina si muove, la scena resta quella`, () => {
       const p = assemblePrompt({ ...DEFAULT_CONFIG, composition: c });
-      // Il taglio resta libero e deciso...
+      // The crop stays free and decisive...
       expect(p).toContain("recompose the frame decisively");
       // ...but inside the image that exists: as long as the edge could be
       // extended, every ban was worked around — the void has to be filled
@@ -359,7 +359,7 @@ describe("moving the camera is not inventing the scene", () => {
       expect(p).toContain("must be a crop of the source, never wider than it");
       expect(p).toContain("Do not extend, expand, out-paint or fill beyond the original edges");
       expect(p).toContain("do not add any object, structure, roof");
-      // e l'architettura reale non si ridisegna col punto di vista
+      // and real architecture is not redrawn along with the point of view
       expect(p).toContain("keep their real architecture exactly");
       expect(p).toContain("it never redesigns them");
     });

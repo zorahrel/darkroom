@@ -14,10 +14,10 @@ import { workflow } from "../server/comfy.ts";
  * This file is that something.
  */
 
-/** Casi decisi guardando i descrittori misurati, non a occhio.
- *  Chi si unisce sta fra 0.75 e 0.99 di somiglianza; chi non si unisce sta
- *  sotto (la famiglia "k" tutta insieme misurava 0.705, la "x" 0.761). */
-const CASI: [string, string][] = [
+/** Cases decided by looking at the measured descriptors, not by eye.
+ *  What joins sits between 0.75 and 0.99 of similarity; what does not join sits
+ *  below (the whole "k" family measured 0.705, the "x" one 0.761). */
+const CASES: [string, string][] = [
   // two halves of the same take: same seed, same framing
   ["z43_0", "z43"],
   ["z43_1", "z43"],
@@ -42,7 +42,7 @@ const CASI: [string, string][] = [
 ];
 
 describe("origine", () => {
-  for (const [inside, outside] of CASI) {
+  for (const [inside, outside] of CASES) {
     test(`${inside} -> ${outside}`, () => {
       expect(origin(inside)).toBe(outside);
     });
@@ -80,7 +80,7 @@ const readable = (p: string) => {
 
 describe.if(readable(PIANIFICA))("origine, la stessa in Python", () => {
   test("the two implementations agree on every case", () => {
-    const names = CASI.map(([k]) => k);
+    const names = CASES.map(([k]) => k);
     // The module imports without running main() (which is under __main__), and
     // its origin() is called on the same names.
     const py = [

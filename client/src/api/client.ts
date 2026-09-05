@@ -459,7 +459,7 @@ export const api = {
       method: "POST", body: JSON.stringify({ t, note }),
     }),
   videoRipresa: (shot: string, take: string, kept: boolean) =>
-    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/ripresa", {
+    jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/take", {
       method: "POST",
       body: JSON.stringify({ shot, take, kept }),
     }),
@@ -468,7 +468,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ shot, text, i }),
     }),
-  /** `kept: null` toglie il verdetto e riporta la ripresa a "mai giudicata". */
+  /** `kept: null` removes the verdict and returns the shot to "never judged". */
   videoPick: (shot: string, kept: boolean | null, why?: string) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/pick", {
       method: "POST",
@@ -480,14 +480,14 @@ export const api = {
       body: JSON.stringify({ bar, shot }),
     }),
   videoDuration: (bar: number, bars: number | null) =>
-    jsonFetch<{ ok: true }>("/api/video/durata", {
+    jsonFetch<{ ok: true }>("/api/video/duration", {
       method: "POST",
       body: JSON.stringify({ bar, bars }),
     }),
   videoGate: (force = false) =>
     jsonFetch<VideoGate>(`/api/video/gate${force ? "?force=1" : ""}`),
   videoRicostruisci: () =>
-    jsonFetch<{ ok: true }>("/api/video/ricostruisci", { method: "POST" }),
+    jsonFetch<{ ok: true }>("/api/video/rebuild", { method: "POST" }),
   videoRebuild: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
   videoGenerazioni: () =>
     jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generations"),
@@ -505,7 +505,7 @@ export const api = {
   /** The projects that can host a tool (the ones with the right view). */
   toolProjects: (id: string) =>
     jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/projects`),
-  /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */
+  /** Begins a tool: does the work and answers with the page to go to. */
   startTool: (id: string, body: { project?: string; values?: Record<string, string | number> }) =>
     jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/start`, {
       method: "POST",

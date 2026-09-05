@@ -70,7 +70,7 @@ for (;;) {
     if (seen.get(j.id) === key) continue;
     const was = seen.get(j.id);
     seen.set(j.id, key);
-    if (was === undefined) continue; // primo giro: è lo stato di partenza, non un evento
+    if (was === undefined) continue; // first round: this is the starting state, not an event
     if (j.status === "done") {
       finished++;
       console.log(`✓ ${j.photo_id}  (${secs(j.first_started_at, j.finished_at)})`);

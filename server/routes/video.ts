@@ -62,7 +62,7 @@ videoRoutes.post("/api/video/problem", async (c) => {
   return c.json({ ok: true, shots: shots() });
 });
 
-videoRoutes.post("/api/video/ripresa", async (c) => {
+videoRoutes.post("/api/video/take", async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { shot?: string; take?: string; kept?: boolean };
   if (!b.shot || !b.take) return c.json({ error: "shot o take mancante" }, 400);
   setShot(b.shot, b.take, b.kept !== false);
@@ -89,7 +89,7 @@ videoRoutes.post("/api/video/pin", async (c) => {
   return c.json({ ok: true });
 });
 
-videoRoutes.post("/api/video/durata", async (c) => {
+videoRoutes.post("/api/video/duration", async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { bar?: number; bars?: number | null };
   if (typeof b.bar !== "number") return c.json({ error: "battuta mancante" }, 400);
   setDuration(b.bar, b.bars ?? null);
@@ -136,7 +136,7 @@ videoRoutes.get("/api/video/wave", (c) => c.json(wave()));
 
 videoRoutes.get("/api/video/gate", (c) => c.json(gate(c.req.query("force") === "1")));
 
-videoRoutes.post("/api/video/ricostruisci", (c) => {
+videoRoutes.post("/api/video/rebuild", (c) => {
   const r = startRebuild();
   return r.ok ? c.json({ ok: true }) : c.json({ error: r.error }, 409);
 });

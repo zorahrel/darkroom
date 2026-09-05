@@ -111,7 +111,7 @@ function costPerVersion(): Map<number, { usd: number; model: string; quality: st
       if (best) out.set(v.id, { usd: best.cost_usd, model: best.model, quality: best.quality });
     }
   } catch {
-    // Senza tabella non si blocca la vista: si perde il costo, non l'albero.
+    // With no table the view is not blocked: the cost is lost, not the tree.
   }
   return out;
 }

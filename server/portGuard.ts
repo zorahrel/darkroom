@@ -43,8 +43,8 @@ export type PortOutcome =
   | { state: "free" }
   /** Ascolta qualcun altro: NON si parte. */
   | { state: "busy"; occupants: Occupant[] }
-  /** Non si e' potuto sapere (lsof assente, permessi). Si parte: un controllo
-   *  che non sa non ha il diritto di bloccare il lavoro. */
+  /** It could not be known (no lsof, permissions). It starts: a check that
+   *  cannot know has no right to block the work. */
   | { state: "ignoto"; why: string };
 
 export interface GuardiaDeps {

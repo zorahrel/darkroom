@@ -511,7 +511,7 @@ export default function VideoPick() {
     try {
       if (wantedWidth === null) localStorage.removeItem(KEY_WIDTH);
       else localStorage.setItem(KEY_WIDTH, String(wantedWidth));
-    } catch { /* niente */ }
+    } catch { /* nothing */ }
   }, [wantedWidth]);
 
   /** The frame's REAL ratio, read from the file when it starts.
@@ -584,7 +584,7 @@ export default function VideoPick() {
     120,
     Math.min(
       ...[
-        areaHeight || Infinity,                                    // non piu' alta dell'area
+        areaHeight || Infinity,                                    // no taller than the area
         wantedWidth === null ? Infinity : wantedWidth / rapporto, // se e' stata chiesta
         panelWidth ? (panelWidth - MIN_RIGHT) / rapporto : Infinity, // lascia vivere la colonna destra
       ],
@@ -649,7 +649,7 @@ export default function VideoPick() {
         if (!alive) return;
         setJobs(r.jobs);
         if (r.jobs.some((j) => j.status === "running" || j.status === "pending")) setTimeout(pass, 3000);
-      } catch { /* il server puo' non essere un progetto video */ }
+      } catch { /* the server may not be a video project */ }
     };
     void pass();
     return () => { alive = false; };
@@ -695,7 +695,7 @@ export default function VideoPick() {
         let u = shots;
         for (const id of ids) u = (await api.videoPick(id, kept, why)).shots;
         setShots(u);
-      } catch { /* la riga resta come l'utente l'ha messa */ }
+      } catch { /* the row stays as the user set it */ }
       // Advancing AFTER judging skips a shot, and skips it silently: the judged
       // one has already left the list and the next has moved up into slot `i`
       // by itself. The rule lives in `videoQueue.ts`, with its test.
@@ -722,7 +722,7 @@ export default function VideoPick() {
       let r = shots;
       for (const id of u.ids) r = (await api.videoPick(id, toward(u.before.get(id) ?? null))).shots;
       setShots(r);
-    } catch { /* niente */ }
+    } catch { /* nothing */ }
     setI(u.index); setPiece(0);
   }, [last, shots]);
 
@@ -730,7 +730,7 @@ export default function VideoPick() {
     const t = text.trim();
     setNota(null); setText("");
     if (!t || !scene) return;
-    try { setShots((await api.videoProblem(scene.pieces[0]!.id, t)).shots); } catch { /* niente */ }
+    try { setShots((await api.videoProblem(scene.pieces[0]!.id, t)).shots); } catch { /* nothing */ }
   }, [text, scene]);
 
   // Keyboard: the hands stay put and you judge at speed.
@@ -1098,7 +1098,7 @@ export default function VideoPick() {
                     <button
                       className="text-neutral-400 hover:text-neutral-400"
                       onClick={async () => {
-                        try { setShots((await api.videoProblem(current.id, undefined, k)).shots); } catch { /* niente */ }
+                        try { setShots((await api.videoProblem(current.id, undefined, k)).shots); } catch { /* nothing */ }
                       }}
                     >
                       togli

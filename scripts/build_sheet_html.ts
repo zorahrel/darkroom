@@ -120,8 +120,8 @@ h1{font-family:"Bodoni Moda",Didot,Georgia,serif;font-weight:600;font-size:clamp
 .frame.is-source{opacity:.72}
 .img-wrap{position:relative;background:var(--frame-mat);aspect-ratio:4/5;overflow:hidden}
 .img-wrap img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
-/* Il glifo e' decorazione, non un bersaglio: se copre l'immagine si mangia il
-   click che apre l'ingrandimento, e senza ingrandimento non si valuta niente. */
+/* The glyph is decoration, not a target: if it covers the image it eats the
+   click that opens the zoom, and with no zoom nothing can be judged. */
 .glyph{position:absolute;left:9%;top:9%;width:82%;height:82%;pointer-events:none;
   fill:none;stroke:var(--grease);stroke-width:4;stroke-linecap:round}
 .glyph .g-ring,.glyph .g-cross{opacity:0;stroke-dasharray:320;stroke-dashoffset:320;transition:opacity .15s}

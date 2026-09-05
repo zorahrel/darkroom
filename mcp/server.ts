@@ -490,7 +490,7 @@ export const tools: Tool[] = [
       required: ["bar"],
     },
     handler: (a) =>
-      call("POST", "/api/video/durata", { bar: a.bar, bars: a.bars ?? null }, a.project),
+      call("POST", "/api/video/duration", { bar: a.bar, bars: a.bars ?? null }, a.project),
   },
   {
     name: "video_forcings",
@@ -504,7 +504,7 @@ export const tools: Tool[] = [
     description:
       "Rebuild the video with the current choices. Heavy work: it runs on the PC with the 3090, about twelve minutes. Returns immediately — follow it with video_rebuild_status.",
     inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
-    handler: (a) => call("POST", "/api/video/ricostruisci", undefined, a.project),
+    handler: (a) => call("POST", "/api/video/rebuild", undefined, a.project),
   },
   {
     name: "video_rebuild_status",

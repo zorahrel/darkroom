@@ -104,7 +104,7 @@ export default function PresetsPanel({
 
   return (
     <div className={"space-y-3 " + className}>
-      {/* Salva lo stato corrente come preset */}
+      {/* Save the current state as a preset */}
       <div className="flex items-center gap-2">
         <input
           value={newName}

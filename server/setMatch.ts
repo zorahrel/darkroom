@@ -63,7 +63,7 @@ function compute(rows: Member[]): Map<string, SetMatch> {
     byCollection.set(r.collection_id, list);
   }
   const groups = [...byCollection.entries()]
-    // Un post con una foto sola non ha nulla con cui accordarsi.
+    // A post with a single photo has nothing to match against.
     .filter(([, items]) => items.length >= 2)
     .map(([name, items]) => ({
       name,

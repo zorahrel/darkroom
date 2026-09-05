@@ -230,8 +230,8 @@ function Card({
           </div>
           <div className="text-[11px] text-neutral-400 truncate" title={p.root}>{p.root}</div>
         </div>
-        {/* Compare passandoci sopra, e resta se ci si arriva col tasto di
-            tabulazione: nascosto non vuol dire irraggiungibile. */}
+        {/* It appears on hover, and stays if you arrive with the tab key: hidden
+            does not mean unreachable. */}
         <Altro discreto className="pointer-events-auto">
           <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
           <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>

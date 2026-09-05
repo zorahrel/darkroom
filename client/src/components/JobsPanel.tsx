@@ -240,7 +240,7 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`w-2 h-2 rounded-full inline-block ${color}`} />;
 }
 
-// --- Timing helpers (orario + "quanto fa" in italiano + durata) ---
+// --- Timing helpers (clock time + "how long ago" in Italian + duration) ---
 function fmtClock(ts: number | null | undefined): string {
   if (!ts) return "";
   return new Date(ts).toLocaleTimeString("it-IT", {
@@ -290,7 +290,7 @@ function clockFor(job: JobsPayload["items"][number]): string {
   }
 }
 
-// Sottoriga: verbo + "quanto fa" (o durata elapsed per i job in corso) + durata totale.
+// Subline: verb + "how long ago" (or elapsed time for running jobs) + total duration.
 function timingLine(job: JobsPayload["items"][number]): string {
   const start = job.first_started_at ?? job.started_at;
   const dur =

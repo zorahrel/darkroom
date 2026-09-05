@@ -298,7 +298,7 @@ export default function Video() {
     if (!last) return;
     setPila((p) => p.slice(0, -1));
     setRedo((r) => [...r.slice(-49), last]);
-    try { await last.undo(); ricarica(); } catch { /* niente */ }
+    try { await last.undo(); ricarica(); } catch { /* nothing */ }
   }, [pila, ricarica]);
 
   /** Undone by mistake: the move is not lost, it goes back in place. */
@@ -307,7 +307,7 @@ export default function Video() {
     if (!m) return;
     setRedo((r) => r.slice(0, -1));
     setPila((p) => [...p.slice(-49), m]);
-    try { await m.fa(); ricarica(); } catch { /* niente */ }
+    try { await m.fa(); ricarica(); } catch { /* nothing */ }
   }, [redo, ricarica]);
 
   /** The waveform costs a minute and a half of ffmpeg on the PC: the server
@@ -321,7 +321,7 @@ export default function Video() {
         if (!alive) return;
         setGate(b);
         if (b.computing) setTimeout(ask, 3000);
-      } catch { /* niente */ }
+      } catch { /* nothing */ }
     };
     void ask();
     return () => { alive = false; };
@@ -336,7 +336,7 @@ export default function Video() {
         if (!alive) return;
         setWave(o);
         if (!o.ready) setTimeout(ask, 2500);
-      } catch { /* niente */ }
+      } catch { /* nothing */ }
     };
     void ask();
     return () => { alive = false; };
@@ -349,7 +349,7 @@ export default function Video() {
         const r = await api.videoRebuild();
         setRic(r);
         if (!r.active) { ricarica(); api.videoGate(true).then(setGate).catch(() => {}); }
-      } catch { /* niente */ }
+      } catch { /* nothing */ }
     }, 1200);
     return () => clearInterval(h);
   }, [ric?.active, ricarica]);

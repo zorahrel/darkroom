@@ -359,7 +359,7 @@ export const TOOLS: Tool[] = [
     area: "edit",
     icon: "film",
     views: ["video"],
-    api: ["GET /api/video/cuts", "GET /api/video/overrides", "POST /api/video/pin", "POST /api/video/ricostruisci"],
+    api: ["GET /api/video/cuts", "GET /api/video/overrides", "POST /api/video/pin", "POST /api/video/rebuild"],
     mcp: ["video_cuts", "video_forcings", "video_pin", "video_duration", "video_rebuild", "video_rebuild_status"],
     needs: ["ffmpeg"],
     starters: [

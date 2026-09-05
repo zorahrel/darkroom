@@ -41,13 +41,13 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
 
   const pick = async (id: string, kept: boolean) => {
     setShots(shots.map((s) => (s.id === id ? { ...s, kept } : s)));
-    try { setShots((await api.videoPick(id, kept)).shots); } catch { /* niente */ }
+    try { setShots((await api.videoPick(id, kept)).shots); } catch { /* nothing */ }
   };
   const flag = async (id: string) => {
     const t = text.trim();
     setScrivo(null); setText("");
     if (!t) return;
-    try { setShots((await api.videoProblem(id, t)).shots); } catch { /* niente */ }
+    try { setShots((await api.videoProblem(id, t)).shots); } catch { /* nothing */ }
   };
 
   const F = (k: Filter) => (
@@ -137,7 +137,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                 {s.problems.map((p, i) => (
                   <div key={i} className="mt-0.5 flex items-start gap-1 text-[9.5px] leading-tight text-amber-500/80">
                     <button onClick={async () => {
-                      try { setShots((await api.videoProblem(s.id, undefined, i)).shots); } catch { /* niente */ }
+                      try { setShots((await api.videoProblem(s.id, undefined, i)).shots); } catch { /* nothing */ }
                     }} className="text-neutral-400 hover:text-neutral-400">×</button>
                     <span className="truncate">{p}</span>
                   </div>

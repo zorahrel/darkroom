@@ -121,7 +121,7 @@ export function collageFile(
           }
         }
       } catch {
-        /* il grade è un di più: senza, si compone il render non gradato */
+        /* the grade is a bonus: without it, the ungraded render is composed */
       }
     }
     if (existsSync(src)) sources.push(src);

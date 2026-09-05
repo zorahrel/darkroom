@@ -108,7 +108,7 @@ export function useViewState<T extends string | number | boolean>(
   useEffect(() => {
     if (memory) localStorage.setItem(memory, String(value));
     enqueue(key, value === fallback ? null : String(value), setParams.current);
-    // `predefinito` e `chiave` sono costanti per chi chiama.
+    // `fallback` and `key` are constants from the caller's point of view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 

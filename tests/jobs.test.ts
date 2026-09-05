@@ -246,7 +246,7 @@ describe("ChatGPT's image limit has to be read in full", () => {
     expect(py).toContain("hit the .*limit");
     expect(py).toContain("plan limit");
     expect(py).toContain("unable to invoke the image");
-    // E "3 hours and 36 minutes" va catturato intero, non solo le ore.
+    // And "3 hours and 36 minutes" must be captured whole, not just the hours.
     expect(py).toContain("resets? in");
   });
 

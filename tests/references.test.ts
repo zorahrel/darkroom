@@ -129,10 +129,10 @@ describe("from the gallery it is extracted without rebuilding the path", () => {
     // "image not found".
     const body = (await r.json()) as { error?: string };
     expect(body.error ?? "").not.toBe("immagine non trovata");
-    // Timeout generoso: questa rotta interroga il modello di visione, che gira
-    // fuori dal processo. Con i 5s di default la suite falliva a intermittenza
-    // -- un test rosso che non dice niente sul codice insegna a ignorare il
-    // rosso, che e' peggio del test mancante.
+    // Generous timeout: this route queries the vision model, which runs outside
+    // the process. With the default 5s the suite failed intermittently -- a red
+    // test that says nothing about the code teaches you to ignore red, which is
+    // worse than the missing test.
   }, 60_000);
 
   test("a name that does not exist stays an error", async () => {
@@ -147,7 +147,7 @@ describe("from the gallery it is extracted without rebuilding the path", () => {
 
 describe("a reference is uploaded from inside Darkroom", () => {
   // Prima un file entrava in data/refs solo copiandocelo dal Finder: la
-  // galleria mostrava i riferimenti ma non c'era modo di aggiungerne uno.
+  // gallery showed the references but there was no way to add one.
   async function load(name: string, bytes: Buffer, contentType = "image/png") {
     const fd = new FormData();
     fd.append("file", new File([new Uint8Array(bytes)], name, { type: contentType }));
