@@ -129,7 +129,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                   </button>
                 </div>
                 {scrivo === s.id && (
-                  <Field autoFuoco value={text} onChange={setText}
+                  <Field autoFocus value={text} onChange={setText}
                          onInvio={() => void flag(s.id)} onEsc={() => setScrivo(null)}
                          placeholder="cosa non va — invio"
                          className="mt-1 w-full text-[10px] border-amber-900/60" />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { api, pq, type VideoShot, type VideoJob, type VideoAct, type VideoCut } from "../api";
-import { Area, NumberField, Scegli } from "./video/ui";
+import { Area, NumberField, Choose } from "./video/ui";
 import { Shortcut, VerdictButton } from "../ui";
 import { leavesQueue, type PickFilter } from "../videoQueue";
 
@@ -57,7 +57,7 @@ type Scene = {
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
-function raggruppa(shots: VideoShot[]): Scene[] {
+function group(shots: VideoShot[]): Scene[] {
   const per = new Map<string, VideoShot[]>();
   for (const s of shots) per.set(s.origine, [...(per.get(s.origine) ?? []), s]);
   return [...per.entries()]
@@ -495,7 +495,7 @@ export default function VideoPick() {
   const field = useRef<HTMLTextAreaElement>(null);
   const area = useRef<HTMLDivElement | null>(null);
   const osservatore = useRef<ResizeObserver | null>(null);
-  const pannello = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const trascino = useRef<{ x0: number; w0: number } | null>(null);
 
   /** Quanto e' larga la clip, in pixel. La sceglie chi guarda, trascinando. */
@@ -521,7 +521,7 @@ export default function VideoPick() {
    *  alla clip un'altezza che non ha — cioe' la farebbe sbordare esattamente
    *  sulle prese in due pezzi. */
   const [areaHeight, setHArea] = useState(0);
-  const [wPannello, setWPannello] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(0);
 
   /**
    * L'osservatore si aggancia con un ref-callback, NON con un effetto.
@@ -541,13 +541,13 @@ export default function VideoPick() {
     if (!el) return;
     const measure = () => {
       setHArea(el.clientHeight);
-      const row = pannello.current;
-      if (row) setWPannello(row.clientWidth);
+      const row = panel.current;
+      if (row) setPanelWidth(row.clientWidth);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    if (pannello.current) ro.observe(pannello.current);
+    if (panel.current) ro.observe(panel.current);
     osservatore.current = ro;
   }, []);
 
@@ -583,7 +583,7 @@ export default function VideoPick() {
       ...[
         areaHeight || Infinity,                                    // non piu' alta dell'area
         wantedWidth === null ? Infinity : wantedWidth / rapporto, // se e' stata chiesta
-        wPannello ? (wPannello - MIN_RIGHT) / rapporto : Infinity, // lascia vivere la colonna destra
+        panelWidth ? (panelWidth - MIN_RIGHT) / rapporto : Infinity, // lascia vivere la colonna destra
       ],
     ),
   );
@@ -592,7 +592,7 @@ export default function VideoPick() {
     api.videoShots().then((r) => setShots(r.shots)).catch(() => {});
   }, []);
 
-  const scenes = useMemo(() => raggruppa(shots), [shots]);
+  const scenes = useMemo(() => group(shots), [shots]);
   /** Gli atti col loro `perche`. Vengono dal piano, non dedotti dalle riprese:
    *  e' li' che sta la riga di storia. */
   const [fullActs, setFullActs] = useState<VideoAct[]>([]);
@@ -675,7 +675,7 @@ export default function VideoPick() {
    * Il terzo stato (`null` = mai giudicata) è l'unico che sa disfare davvero.
    */
   const [last, setLast] = useState<
-    { ids: string[]; name: string; kept: boolean; before: Map<string, VideoShot["verdict"]>; indice: number } | null
+    { ids: string[]; name: string; kept: boolean; before: Map<string, VideoShot["verdict"]>; index: number } | null
   >(null);
 
   const judge = useCallback(
@@ -687,7 +687,7 @@ export default function VideoPick() {
       setShots((prev) =>
         prev.map((s) =>
           ids.includes(s.id) ? { ...s, kept, verdict: kept ? "tenuta" : "scartata" } : s));
-      setLast({ ids, name: scene.origine, kept, before, indice: i });
+      setLast({ ids, name: scene.origine, kept, before, index: i });
       try {
         let u = shots;
         for (const id of ids) u = (await api.videoPick(id, kept, why)).shots;
@@ -719,7 +719,7 @@ export default function VideoPick() {
       for (const id of u.ids) r = (await api.videoPick(id, toward(u.before.get(id) ?? null))).shots;
       setShots(r);
     } catch { /* niente */ }
-    setI(u.indice); setPiece(0);
+    setI(u.index); setPiece(0);
   }, [last, shots]);
 
   const annota = useCallback(async () => {
@@ -809,7 +809,7 @@ export default function VideoPick() {
             {k}{k === "da giudicare" ? ` ${toJudge}` : k === "sospette" ? ` ${suspect}` : ""}
           </button>
         ))}
-        <Scegli value={act} width={108} title="filtra per atto"
+        <Choose value={act} width={108} title="filtra per atto"
                 items={[{ v: "", text: "ogni atto" }, ...acts.map((a) => ({ v: a, text: a }))]}
                 onChange={(v) => { setAct(v); setI(0); }} />
         </div>
@@ -873,7 +873,7 @@ export default function VideoPick() {
           {shots.length ? "niente da giudicare con questi filtri" : "nessuna ripresa nel progetto"}
         </div>
       ) : (
-        <div ref={pannello} className="flex-1 min-h-0 flex flex-col md:flex-row gap-1 pt-2 pb-1">
+        <div ref={panel} className="flex-1 min-h-0 flex flex-col md:flex-row gap-1 pt-2 pb-1">
           <div className="shrink-0 flex flex-col min-w-0">
             {/* Il fotogramma non sta MAI dentro un riquadro con una forma
                 decisa da noi, e i due difetti visti oggi spiegano perche':
@@ -1142,7 +1142,7 @@ export default function VideoPick() {
                   disabled={!promptMod.trim() || jobs.some((j) => j.status === "running" || j.status === "pending")}
                   onClick={async () => {
                     try {
-                      await api.videoGenera(current.id, promptMod, current.takes[0]?.take ?? "a", par);
+                      await api.videoGenerate(current.id, promptMod, current.takes[0]?.take ?? "a", par);
                       setJobs((await api.videoGenerazioni()).jobs);
                     } catch (err) { alert(String(err)); }
                   }}
@@ -1163,7 +1163,7 @@ export default function VideoPick() {
             {note !== null ? (
               <div className="mt-4">
                 <Area
-                  autoFuoco value={text} onChange={setText}
+                  autoFocus value={text} onChange={setText}
                   onEsc={() => setNota(null)} onInvia={() => void annota()}
                   placeholder={note === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
                   className="h-20 text-[12px]"

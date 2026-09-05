@@ -1,70 +1,53 @@
 import { describe, expect, test } from "bun:test";
-import { PARAMETRI_DEFAULT } from "../server/comfy.ts";
+import { DEFAULT_PARAMS } from "../server/comfy.ts";
+import { normaliseVideoParams as normalise } from "../server/videoParams.ts";
 
 /**
- * I parametri di generazione, come arrivano davvero.
+ * Generation parameters, as they actually arrive.
  *
- * Dieci generazioni sono partite con lo stesso seme perche' il corpo li
- * portava al primo livello (`{shot, prompt, seed}`) e la rotta li leggeva
- * solo annidati (`{params: {seed}}`). Nessun errore, nessun avviso: cinque
- * coppie di doppioni. Questo test e' la stessa normalizzazione della rotta,
- * estratta perche' possa fallire.
+ * Ten generations started with the same seed because the body carried them at
+ * the top level (`{shot, prompt, seed}`) and the route only read them nested
+ * (`{params: {seed}}`). No error, no warning: five pairs of duplicates.
+ *
+ * This used to re-implement the route's normalisation instead of importing it,
+ * which made it a test of its own copy — the route could drift back to the
+ * broken behaviour with everything still green. It now imports the same
+ * function the route calls.
  */
-export function normalizza(corpo: Record<string, unknown>) {
-  const grezzi: Record<string, unknown> = { ...((corpo.params as object) ?? {}) };
-  const ignorati: string[] = [];
-  for (const [k, v] of Object.entries(corpo)) {
-    if (["shot", "prompt", "take", "params", "project"].includes(k)) continue;
-    if (k in PARAMETRI_DEFAULT) grezzi[k] = v;
-    else ignorati.push(k);
-  }
-  const params: Record<string, unknown> = {};
-  for (const [k, atteso] of Object.entries(PARAMETRI_DEFAULT)) {
-    if (!(k in grezzi)) continue;
-    const v = grezzi[k];
-    if (typeof atteso === "number") {
-      const n = Number(v);
-      if (!Number.isFinite(n)) { ignorati.push(k); continue; }
-      params[k] = n;
-    } else params[k] = String(v);
-  }
-  return { params: { ...PARAMETRI_DEFAULT, ...params }, ignorati };
-}
-
-describe("i parametri di generazione arrivano", () => {
-  test("al primo livello, come li manda l'MCP", () => {
-    const r = normalizza({ shot: "x", prompt: "y", seed: 29, steps: 24 });
+describe("generation parameters arrive", () => {
+  test("at the top level, the way the MCP server sends them", () => {
+    const r = normalise({ shot: "x", prompt: "y", seed: 29, steps: 24 });
     expect(r.params.seed).toBe(29);
     expect(r.params.steps).toBe(24);
-    expect(r.ignorati).toEqual([]);
+    expect(r.ignored).toEqual([]);
   });
 
-  test("annidati, come faceva la UI", () => {
-    expect(normalizza({ shot: "x", prompt: "y", params: { seed: 7 } }).params.seed).toBe(7);
+  test("nested, the way the UI used to", () => {
+    expect(normalise({ shot: "x", prompt: "y", params: { seed: 7 } }).params.seed).toBe(7);
   });
 
-  test("il primo livello vince sull'annidato: e' quello che il chiamante ha scritto per ultimo", () => {
-    expect(normalizza({ shot: "x", prompt: "y", params: { seed: 7 }, seed: 29 }).params.seed).toBe(29);
+  test("the top level wins over the nested one: it is what the caller wrote last", () => {
+    expect(normalise({ shot: "x", prompt: "y", params: { seed: 7 }, seed: 29 }).params.seed).toBe(29);
   });
 
-  test("quello che non si tocca resta al valore di partenza", () => {
-    const r = normalizza({ shot: "x", prompt: "y", seed: 3 });
-    expect(r.params.width).toBe(PARAMETRI_DEFAULT.width);
-    expect(r.params.length).toBe(PARAMETRI_DEFAULT.length);
+  test("what nobody touches keeps its starting value", () => {
+    const r = normalise({ shot: "x", prompt: "y", seed: 3 });
+    expect(r.params.width).toBe(DEFAULT_PARAMS.width);
+    expect(r.params.length).toBe(DEFAULT_PARAMS.length);
   });
 
-  test("un campo che non esiste viene NOMINATO, non buttato in silenzio", () => {
-    expect(normalizza({ shot: "x", prompt: "y", semee: 29 }).ignorati).toContain("semee");
+  test("a field that does not exist is NAMED, not dropped in silence", () => {
+    expect(normalise({ shot: "x", prompt: "y", seedd: 29 }).ignored).toContain("seedd");
   });
 
-  test("e nemmeno un numero che non e' un numero passa zitto", () => {
-    const r = normalizza({ shot: "x", prompt: "y", seed: "abc" });
-    expect(r.params.seed).toBe(PARAMETRI_DEFAULT.seed);
-    expect(r.ignorati).toContain("seed");
+  test("nor does a number that is not a number get through quietly", () => {
+    const r = normalise({ shot: "x", prompt: "y", seed: "abc" });
+    expect(r.params.seed).toBe(DEFAULT_PARAMS.seed);
+    expect(r.ignored).toContain("seed");
   });
 
-  test("una stringa resta una stringa", () => {
-    expect(normalizza({ shot: "x", prompt: "y", neg_extra: "niente gambe rotte" }).params.neg_extra)
-      .toBe("niente gambe rotte");
+  test("a string stays a string", () => {
+    expect(normalise({ shot: "x", prompt: "y", neg_extra: "no broken legs" }).params.neg_extra)
+      .toBe("no broken legs");
   });
 });

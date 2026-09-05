@@ -28,7 +28,7 @@ export default function ReferencesPage() {
    *  con dodici miniature in griglia l'ambra da sola non basta a trovarle. */
   const [filter, setFilter] = useViewState<"tutte" | "usate" | "mai">("mostra", "tutte", {
     read: readOneOf(["tutte", "usate", "mai"] as const),
-    memoria: "darkroom.refs.mostra",
+    memory: "darkroom.refs.mostra",
   });
 
   const counts = useMemo(
@@ -97,7 +97,7 @@ export default function ReferencesPage() {
   async function estrai() {
     setState({ kind: "waiting", msg: "Leggo il riferimento…" });
     try {
-      const r = await jsonFetch<{ text: string; aspetti: number; missing: string[]; from_reference: string }>(
+      const r = await jsonFetch<{ text: string; aspects: number; missing: string[]; from_reference: string }>(
         "/api/reference/extract",
         {
           method: "POST",
@@ -113,7 +113,7 @@ export default function ReferencesPage() {
       setState({
         kind: "ok",
         msg: r.missing.length
-          ? `Descritti ${r.aspetti} aspetti su 5. Non è riuscito a descrivere: ${r.missing.join(", ")} — aggiungili a mano.`
+          ? `Descritti ${r.aspects} aspetti su 5. Non è riuscito a descrivere: ${r.missing.join(", ")} — aggiungili a mano.`
           : `Descritti tutti e 5 gli aspetti.`,
       });
     } catch (e) {
@@ -174,7 +174,7 @@ export default function ReferencesPage() {
                 { id: "mai" as const, name: "mai usate" },
               ]}
               pick={filter}
-              onScegli={setFilter}
+              onChoose={setFilter}
               counts={counts}
               neutra="tutte"
             />

@@ -57,7 +57,7 @@ const NEG =
  * a tasselli da 256 escono in novanta secondi. La differenza non e' il metodo,
  * e' la memoria — per questo sono campi visibili e non costanti nascoste.
  */
-export const PARAMETRI_DEFAULT = {
+export const DEFAULT_PARAMS = {
   width: 640,
   height: 1152,
   length: 61,
@@ -70,9 +70,9 @@ export const PARAMETRI_DEFAULT = {
   neg_extra: "",
 } as const;
 
-export type ParametriComfy = { -readonly [K in keyof typeof PARAMETRI_DEFAULT]: (typeof PARAMETRI_DEFAULT)[K] };
+export type ComfyParams = { -readonly [K in keyof typeof DEFAULT_PARAMS]: (typeof DEFAULT_PARAMS)[K] };
 
-export function workflow(prefix: string, prompt: string, p: ParametriComfy, startImage?: string | null) {
+export function workflow(prefix: string, prompt: string, p: ComfyParams, startImage?: string | null) {
   const neg = NEG + (p.neg_extra ? ", " + p.neg_extra : "");
   const wf: Record<string, any> = {
     "1": { class_type: "UNETLoader", inputs: { unet_name: "wan2.2_ti2v_5B_fp16.safetensors", weight_dtype: "default" } },
@@ -108,8 +108,8 @@ export type VideoJob = {
   created_at: number; started_at: number | null; finished_at: number | null;
 };
 
-export function enqueueVideoJob(shot: string, prompt: string, take = "a", params: Partial<ParametriComfy> = {}): VideoJob {
-  const p = { ...PARAMETRI_DEFAULT, ...params };
+export function enqueueVideoJob(shot: string, prompt: string, take = "a", params: Partial<ComfyParams> = {}): VideoJob {
+  const p = { ...DEFAULT_PARAMS, ...params };
   const db = getDb();
   const r = db.query(
     `INSERT INTO video_jobs (shot, take, prompt, params, status, created_at)
@@ -123,7 +123,7 @@ export function enqueueVideoJob(shot: string, prompt: string, take = "a", params
  *  Era tagliato a 50 e con una coda lunga le generazioni piu' vecchie ancora in
  *  attesa sparivano dalla vista: dieci job "spariti" che in realta' erano finiti
  *  da un pezzo, e nessun modo di accorgersene dall'interfaccia. */
-export function listaVideoJob(limit = 300): VideoJob[] {
+export function listVideoJobs(limit = 300): VideoJob[] {
   return getDb().query(`SELECT * FROM video_jobs ORDER BY id DESC LIMIT ?`).all(limit) as VideoJob[];
 }
 
@@ -227,14 +227,14 @@ export function startQueue(): void {
     .finally(() => { inCorso = false; startQueue(); });
 }
 
-const ssh = async (comando: string) => {
-  const proc = Bun.spawn(["ssh", "-o", "ConnectTimeout=30", PC, comando], { stdout: "pipe", stderr: "pipe" });
+const ssh = async (command: string) => {
+  const proc = Bun.spawn(["ssh", "-o", "ConnectTimeout=30", PC, command], { stdout: "pipe", stderr: "pipe" });
   const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   return { code: await proc.exited, out, err };
 };
 
 async function run(job: VideoJob): Promise<void> {
-  const p = JSON.parse(job.params) as ParametriComfy;
+  const p = JSON.parse(job.params) as ComfyParams;
   const prefix = `${job.shot}_${job.take}_${job.id}`;
   write(job.id, { status: "running", started_at: Date.now(), log: "" });
   appendi(job.id, `-> ${p.width}x${p.height}, ${p.length} fotogrammi, ${p.steps} passi, tasselli ${p.tiled}`);
@@ -310,7 +310,7 @@ async function queuedOnComfy(promptId: string): Promise<boolean> {
  * scrivere niente, e un timeout a tempo fisso non distingue quel caso da una
  * generazione lenta ma viva. Si guarda quanti PNG sono comparsi.
  */
-async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ParametriComfy): Promise<void> {
+async function aspetta(job: VideoJob, promptId: string, prefix: string, p: ComfyParams): Promise<void> {
   const t0 = Date.now();
   const LIMIT_WITHOUT_FRAMES = 15 * 60_000;
   let lastCount = 0, lastMove = t0;

@@ -490,14 +490,14 @@ export const api = {
     jsonFetch<{ ok: true }>("/api/video/ricostruisci", { method: "POST" }),
   videoRebuild: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
   videoGenerazioni: () =>
-    jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generatetions"),
-  videoGenera: (shot: string, prompt: string, take: string, params: Record<string, number | string>) =>
+    jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generations"),
+  videoGenerate: (shot: string, prompt: string, take: string, params: Record<string, number | string>) =>
     jsonFetch<{ job: VideoJob }>("/api/video/generate", {
       method: "POST",
       body: JSON.stringify({ shot, prompt, take, params }),
     }),
   videoCancelGeneration: (id: number) =>
-    jsonFetch<{ ok: boolean }>(`/api/video/generatete/${id}/cancel`, { method: "POST" }),
+    jsonFetch<{ ok: boolean }>(`/api/video/generations/${id}/cancel`, { method: "POST" }),
 
   // ---- catalogo degli strumenti -------------------------------------------
   /** Cosa sa fare Darkroom e cosa di quello è pronto adesso. */
@@ -506,9 +506,9 @@ export const api = {
   toolProjects: (id: string) =>
     jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/progetti`),
   /** Comincia uno strumento: fa il lavoro e risponde con la pagina dove andare. */
-  startTool: (id: string, corpo: { project?: string; values?: Record<string, string | number> }) =>
+  startTool: (id: string, body: { project?: string; values?: Record<string, string | number> }) =>
     jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/avvia`, {
       method: "POST",
-      body: JSON.stringify(corpo),
+      body: JSON.stringify(body),
     }),
 };

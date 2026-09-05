@@ -33,13 +33,13 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
       for (const route of s.api) {
         // Le rotte dello storyboard sono montate su un prefisso: il catalogo
         // le scrive per intero perché è così che si chiamano da fuori.
-        const [metodo, percorso] = route.split(" ") as [string, string];
-        const varianti = [
-          `${metodo} ${percorso}`,
-          `${metodo} ${percorso.replace("/api/storyboard", "")}`,
-          `${metodo} ${percorso.replace("/api/verify", "")}`,
+        const [metodo, path] = route.split(" ") as [string, string];
+        const variants = [
+          `${metodo} ${path}`,
+          `${metodo} ${path.replace("/api/storyboard", "")}`,
+          `${metodo} ${path.replace("/api/verify", "")}`,
         ];
-        if (!varianti.some((v) => ROTTE.has(v))) fantasma.push(`${s.id} → ${route}`);
+        if (!variants.some((v) => ROTTE.has(v))) fantasma.push(`${s.id} → ${route}`);
       }
     }
     expect(fantasma).toEqual([]);
@@ -148,7 +148,7 @@ describe("POST /api/tools/:id/start", () => {
     const r = await app.request("/api/tools/storyboard/start", {
       method: "POST",
       body: JSON.stringify({
-        values: { name: `board-${Date.now()}`, scaletta: "lei entra\nprimo piano\nla strada vuota" },
+        values: { name: `board-${Date.now()}`, beats: "lei entra\nprimo piano\nla strada vuota" },
       }),
     });
     // Senza generatore vivo l'avvio si ferma prima, e lo dice: è il

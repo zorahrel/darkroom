@@ -10,7 +10,7 @@ import {
   type Tool,
   type StudioProject,
 } from "../api";
-import { Area, Bott, Field, Search, Filter, NumberField, Scegli, Badge, Header } from "../ui";
+import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header } from "../ui";
 import { useViewState } from "../viewState";
 import { ICONS } from "../iconNames";
 import { Wrench } from "lucide-react";
@@ -86,7 +86,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
    */
   const [pickedPid, setPid] = useViewState<string>("progetto", "", {
     read: (s) => s.trim() || null,
-    memoria: "darkroom.home.progetto",
+    memory: "darkroom.home.progetto",
   });
   const pid = useMemo(() => {
     if (pickedPid && projects.some((p) => p.id === pickedPid)) return pickedPid;
@@ -172,7 +172,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] text-neutral-400">Lavoro su</span>
           {projects.length > 0 ? (
-            <Scegli
+            <Choose
               value={pid}
               items={projects.map((p) => ({
                 v: p.id,
@@ -317,7 +317,7 @@ function ToolCard({
                 key={i}
                 size="m"
                 weight={i === 0 ? "primario" : "normale"}
-                disabilitato={!s.ready}
+                disabled={!s.ready}
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
               >
@@ -392,7 +392,7 @@ function Open({
   return (
     <Bott
       size="m"
-      disabilitato={!bersaglio}
+      disabled={!bersaglio}
       title={
         bersaglio
           ? onPicked
@@ -496,7 +496,7 @@ function Form({
         <Bott
           size="m"
           weight="primario"
-          disabilitato={inCorso || !!missing}
+          disabled={inCorso || !!missing}
           title={missing ? `Manca: ${missing.label}` : undefined}
           onClick={vai}
         >

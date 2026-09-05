@@ -11,7 +11,7 @@ import Timeline from "./video/Timeline";
 import Ispettore from "./video/Inspector";
 import Library from "./video/Library";
 import Handle from "./video/Handle";
-import { Bott, Field, Scegli } from "./video/ui";
+import { Bott, Field, Choose } from "./video/ui";
 import { cutIndex, shuttle, timecode } from "./video/time";
 
 /**
@@ -162,7 +162,7 @@ function Transport({ v, t, duration, cuts, vaiA }: {
       <span className="ml-1.5 tabular-nums text-neutral-100 text-[11.5px] tracking-tight">{timecode(t)}</span>
       <span className="tabular-nums text-neutral-400">/ {timecode(duration)}</span>
       <div className="ml-1">
-        <Scegli
+        <Choose
           value={String(vel)} width={62} title="velocità di riproduzione"
           items={[0.25, 0.5, 1, 1.5, 2].map((x) => ({ v: String(x), text: `${x}x` }))}
           onChange={(v) => setVel(Number(v))}
@@ -426,8 +426,8 @@ export default function Video() {
     if (parts) void v.play().catch(() => {});
   }, [duration]);
 
-  const openCut = useCallback((i: number, mod?: { estendi?: boolean; aggiungi?: boolean }) => {
-    if (mod?.estendi || mod?.aggiungi) {
+  const openCut = useCallback((i: number, mod?: { estendi?: boolean; add?: boolean }) => {
+    if (mod?.estendi || mod?.add) {
       setSelection((s0) => {
         const n = new Set(s0);
         if (mod.estendi && picked !== null) {
@@ -684,7 +684,7 @@ export default function Video() {
           <Library shots={shots} inEdit={inEdit} setShots={setShots} open={openShot} />
         </aside>
         <Handle toward="col" value={wSx} title="larghezza della libreria"
-                  calcola={(v0, d) => Math.max(150, Math.min(460, v0 + d))}
+                  compute={(v0, d) => Math.max(150, Math.min(460, v0 + d))}
                   onChange={setWSx} onEnd={save(KEY_LEFT)} />
 
         <main className="shrink-0 flex flex-col items-center justify-center px-2 py-1.5 gap-0 relative">
@@ -720,7 +720,7 @@ export default function Video() {
                 appunto a {mmss(appunto.t)} — f{Math.round(appunto.t * FPS)}
               </div>
               <Field
-                autoFuoco value={appunto.text}
+                autoFocus value={appunto.text}
                 onChange={(v) => setAppunto({ ...appunto, text: v })}
                 onEsc={() => setAppunto(null)}
                 onInvio={async () => {
@@ -737,7 +737,7 @@ export default function Video() {
         </main>
 
         <Handle toward="col" value={wDx} title="larghezza dell'ispettore"
-                  calcola={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
+                  compute={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
                   onChange={setWDx} onEnd={save(KEY_RIGHT)} />
         <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
           {molti.length > 1 ? (
@@ -832,7 +832,7 @@ export default function Video() {
 
       {/* ---- maniglia ---- */}
       <Handle toward="riga" value={hTimeline} title="quanto spazio prende la timeline"
-                calcola={(v0, d) => timelineLimit(v0 - d)}
+                compute={(v0, d) => timelineLimit(v0 - d)}
                 onChange={setHTimeline} onEnd={save(KEY_HEIGHT)} />
 
       {/* ---- timeline ---- */}
@@ -933,7 +933,7 @@ export default function Video() {
         {!!overrideCount && (
               <div className="mt-3 flex items-center gap-2">
                 <Bott weight="primario" onClick={() => { setVediForz(false); void launch(); }}
-                      disabilitato={!!ric?.active}>
+                      disabled={!!ric?.active}>
                   ricostruisci il video con queste scelte
                 </Bott>
                 <span className="text-[10.5px] text-neutral-400">circa dodici minuti, sul PC</span>

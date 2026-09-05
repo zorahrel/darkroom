@@ -899,11 +899,11 @@ export function pathOutsideConvention(
   versionNumber: number,
   imagePath: string,
 ): string | null {
-  const atteso = versionPath(photoId, versionNumber);
-  if (imagePath === atteso) return null;
+  const expected = versionPath(photoId, versionNumber);
+  if (imagePath === expected) return null;
   return (
     `la versione ${versionNumber} di "${photoId}" punta a ${imagePath} ` +
-    `invece di ${atteso}: la miniatura verra' cercata all'indirizzo giusto e ` +
+    `invece di ${expected}: la miniatura verra' cercata all'indirizzo giusto e ` +
     `rispondera' 500, con la variante visibile nell'albero e l'immagine no`
   );
 }

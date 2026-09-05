@@ -5,7 +5,8 @@ import {
   flagProblem, clearProblem, setShot, setPin, setDuration,
   setManualIntensity, setDescription, gate, startRebuild, rebuildState, wave, setMarker, markers, overrides, clearVerdict, swap, unpin, take } from "../video.ts";
 import { listProjects, currentProjectId } from "../project.ts";
-import { enqueueVideoJob, listaVideoJob, cancelVideoJob, PARAMETRI_DEFAULT, type ParametriComfy } from "../comfy.ts";
+import { enqueueVideoJob, listVideoJobs, cancelVideoJob, DEFAULT_PARAMS, type ComfyParams } from "../comfy.ts";
+import { normaliseVideoParams } from "../videoParams.ts";
 
 /** Everything a video project's editor page needs. Read-only except for the
  *  keep/kill and the three forced edits, which are the decisions the pipeline
@@ -149,8 +150,8 @@ videoRoutes.get("/api/video/provino/:shot/:take", (c) => {
   return serveFile(f, "image/jpeg", c.req.raw);
 });
 
-videoRoutes.get("/api/video/generatetions", (c) =>
-  c.json({ jobs: listaVideoJob(), default: PARAMETRI_DEFAULT }));
+videoRoutes.get("/api/video/generations", (c) =>
+  c.json({ jobs: listVideoJobs(), default: DEFAULT_PARAMS }));
 
 videoRoutes.post("/api/video/generate", async (c) => {
   const b = await c.req.json().catch(() => ({}));
@@ -162,39 +163,10 @@ videoRoutes.post("/api/video/generate", async (c) => {
   const take = String(b.take ?? "a");
   if (!/^[a-z]$/.test(take)) return c.json({ error: "take non valido" }, 400);
 
-  /**
-   * I parametri si accettano in tutt'e due i modi: annidati in `params` o al
-   * primo livello.
-   *
-   * Prima solo annidati — e chi li mandava al primo livello (l'MCP, e chiunque
-   * legga la firma dello strumento) se li vedeva **ignorare in silenzio**:
-   * dieci generazioni chieste con semi diversi sono partite tutte con il seme
-   * predefinito, cioe' cinque coppie di doppioni. Un parametro che non arriva
-   * deve dirlo, quindi la risposta rimanda indietro quelli applicati davvero e
-   * l'elenco di quelli che non ha riconosciuto.
-   */
-  const grezzi: Record<string, unknown> = { ...(b.params ?? {}) };
-  const ignorati: string[] = [];
-  for (const [k, v] of Object.entries(b)) {
-    if (["shot", "prompt", "take", "params", "project"].includes(k)) continue;
-    if (k in PARAMETRI_DEFAULT) grezzi[k] = v;
-    else ignorati.push(k);
-  }
-  const params: Record<string, unknown> = {};
-  for (const [k, atteso] of Object.entries(PARAMETRI_DEFAULT)) {
-    if (!(k in grezzi)) continue;
-    const v = grezzi[k];
-    if (typeof atteso === "number") {
-      const n = Number(v);
-      if (!Number.isFinite(n)) { ignorati.push(k); continue; }
-      params[k] = n;
-    } else {
-      params[k] = String(v);
-    }
-  }
-  const job = enqueueVideoJob(shot, prompt, take, params as Partial<ParametriComfy>);
-  return c.json({ job, params: { ...PARAMETRI_DEFAULT, ...params }, ignorati });
+  const { params, ignored } = normaliseVideoParams(b);
+  const job = enqueueVideoJob(shot, prompt, take, params as Partial<ComfyParams>);
+  return c.json({ job, params, ignored });
 });
 
-videoRoutes.post("/api/video/generatete/:id/cancel", (c) =>
+videoRoutes.post("/api/video/generations/:id/cancel", (c) =>
   c.json({ ok: cancelVideoJob(Number(c.req.param("id"))) }));

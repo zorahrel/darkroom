@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Scegli } from "../ui";
+import { Choose } from "../ui";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useViewState, readOneOf, readNumber } from "../viewState";
 import {
@@ -165,7 +165,7 @@ export default function GridPage({
   });
   const [groupMode, setGroupMode] = useViewState<GroupMode>("group", "scene", {
     read: readOneOf(["day", "none", "scene", "post"] as const),
-    memoria: "darkroom.grid.group",
+    memory: "darkroom.grid.group",
   });
   // Collections = posts/caroselli. Loaded once and refreshed after every edit,
   // so the "Post" grouping and the bulk assign bar always agree.
@@ -220,7 +220,7 @@ export default function GridPage({
   >(null);
   const [zoom, setZoom] = useViewState("zoom", 180, {
     read: readNumber(80, 400),
-    memoria: "darkroom.grid.zoom",
+    memory: "darkroom.grid.zoom",
   });
   const { jobs, activeJobs } = useOutletContext<OutletCtx>();
   const { pid } = useParams<{ pid: string }>();
@@ -746,7 +746,7 @@ export default function GridPage({
               <span className="text-neutral-400 tabular-nums">{col.photo_count}</span>
             </button>
           ))}
-          <Scegli
+          <Choose
             value=""
             width={150}
             title={collectionsBusy ? "Assegno…" : "Metti le foto scelte in un post"}
@@ -996,7 +996,7 @@ export default function GridPage({
             <span className="text-[10px] uppercase tracking-wider text-neutral-400 mr-1">
               Run
             </span>
-            <Scegli
+            <Choose
               value={selectedRun == null ? "" : String(selectedRun)}
               width={190}
               items={[

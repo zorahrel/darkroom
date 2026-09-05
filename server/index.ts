@@ -3,7 +3,7 @@ import { finalDir, genDir, listProjects, rawDir } from "./project.ts";
 import { startRunner } from "./jobs.ts";
 import { REPO_ROOT } from "./config.ts";
 import { staleDistWarning } from "./distFreshness.ts";
-import { realListeners, messaggioOccupata, checkPort } from "./portGuard.ts";
+import { realListeners, busyMessage, checkPort } from "./portGuard.ts";
 
 /** Boot: start the job runner and serve the app (see app.ts for the routes). */
 
@@ -19,9 +19,9 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 // avviare il job runner e di rubare traffico a un altro progetto. Vedi
 // `portGuard.ts` per il guasto reale che questo controllo evita.
 if (process.env.DARKROOM_PORT_FORCE !== "1") {
-  const outcome = checkPort(PORT, { listeners: realListeners, pidNostro: process.pid });
+  const outcome = checkPort(PORT, { listeners: realListeners, ourPid: process.pid });
   if (outcome.state === "occupata") {
-    console.error(messaggioOccupata(PORT, outcome.occupanti));
+    console.error(busyMessage(PORT, outcome.occupants));
     process.exit(1);
   }
   if (outcome.state === "ignoto") {

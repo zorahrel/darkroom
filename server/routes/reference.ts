@@ -69,16 +69,16 @@ referenceRoutes.get("/api/references", (c) => {
   return c.json({ references });
 });
 
-const ASPETTI: { key: string; domanda: string }[] = [
-  { key: "luce", domanda: "Describe only the lighting: direction, hardness, key-to-fill ratio, where the shadows fall." },
-  { key: "tonalita", domanda: "Describe only the tonality: black and white or colour, contrast, how deep the blacks are, whether highlights are clipped or lifted." },
-  { key: "inquadratura", domanda: "Describe only the framing: how tight the crop is, head position, aspect ratio, camera height and distance." },
-  { key: "pelle", domanda: "Describe only the skin rendering: texture, grain, sharpness, whether pores are visible or smoothed." },
-  { key: "resa", domanda: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
+const ASPECTS: { key: string; question: string }[] = [
+  { key: "luce", question: "Describe only the lighting: direction, hardness, key-to-fill ratio, where the shadows fall." },
+  { key: "tonalita", question: "Describe only the tonality: black and white or colour, contrast, how deep the blacks are, whether highlights are clipped or lifted." },
+  { key: "inquadratura", question: "Describe only the framing: how tight the crop is, head position, aspect ratio, camera height and distance." },
+  { key: "pelle", question: "Describe only the skin rendering: texture, grain, sharpness, whether pores are visible or smoothed." },
+  { key: "resa", question: "Describe only the overall photographic treatment: film or digital look, lens character, background treatment." },
 ];
 
-async function chiedi(immagine: string, domanda: string): Promise<string | null> {
-  const p = Bun.spawn([moondreamBin(), immagine, domanda], {
+async function chiedi(image: string, question: string): Promise<string | null> {
+  const p = Bun.spawn([moondreamBin(), image, question], {
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -105,8 +105,8 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
 
   const parts: string[] = [];
   const missing: string[] = [];
-  for (const a of ASPETTI) {
-    const r = await chiedi(path, a.domanda);
+  for (const a of ASPECTS) {
+    const r = await chiedi(path, a.question);
     if (r) parts.push(r);
     else missing.push(a.key);
   }
@@ -115,14 +115,14 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
   // sembrerebbe completo una volta salvato.
   if (parts.length < 3) {
     return c.json(
-      { error: `estrazione non riuscita: descritti ${parts.length} aspetti su ${ASPETTI.length}`, missing },
+      { error: `estrazione non riuscita: descritti ${parts.length} aspetti su ${ASPECTS.length}`, missing },
       502,
     );
   }
 
   return c.json({
     text: parts.join(" "),
-    aspetti: parts.length,
+    aspects: parts.length,
     missing,
     from_reference: path.split("/").pop() ?? path,
   });

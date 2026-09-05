@@ -272,15 +272,15 @@ export default function TreePage() {
    */
   const [overlay, setOverlay] = useViewState("rif", false, {
     read: readBool,
-    memoria: "darkroom.albero.rif",
+    memory: "darkroom.albero.rif",
   });
   const [opacita, setOpacita] = useViewState("op", 0.5, {
     read: readNumber(0, 1),
-    memoria: "darkroom.albero.op",
+    memory: "darkroom.albero.op",
   });
   const [modo, setModo] = useViewState<"sopra" | "differenza">("modo", "sopra", {
     read: readOneOf(["sopra", "differenza"] as const),
-    memoria: "darkroom.albero.modo",
+    memory: "darkroom.albero.modo",
   });
   /**
    * Il filtro per giudizio. Nell'URL e non solo in memoria: dopo aver segnato
@@ -289,7 +289,7 @@ export default function TreePage() {
    */
   const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "tutte", {
     read: readOneOf(VERDICTS),
-    memoria: "darkroom.albero.giudizio",
+    memory: "darkroom.albero.giudizio",
   });
   /**
    * Distanza dalla reference, per id di variante. Calcolata a richiesta e non
@@ -389,7 +389,7 @@ export default function TreePage() {
         <Pills
           items={VERDICTS.map((k) => ({ id: k, name: VERDICT_LABEL[k] }))}
           pick={verdict}
-          onScegli={setVerdict}
+          onChoose={setVerdict}
           counts={counts}
           neutra="tutte"
         />

@@ -18,13 +18,13 @@ type Props = {
   /** Quanto vale dopo aver trascinato di `d` pixel: il segno lo decide chi
    *  chiama, perché una maniglia a destra di un pannello lo allarga andando a
    *  destra e quella a sinistra fa il contrario. */
-  calcola: (value0: number, d: number) => number;
+  compute: (value0: number, d: number) => number;
   onChange: (v: number) => void;
   onEnd?: (v: number) => void;
   title?: string;
 };
 
-export default function Handle({ toward, value, calcola, onChange, onEnd, title }: Props) {
+export default function Handle({ toward, value, compute, onChange, onEnd, title }: Props) {
   const giu = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const p0 = toward === "col" ? e.clientX : e.clientY;
@@ -32,7 +32,7 @@ export default function Handle({ toward, value, calcola, onChange, onEnd, title 
     let last = v0;
     const move = (ev: PointerEvent) => {
       const p = toward === "col" ? ev.clientX : ev.clientY;
-      last = calcola(v0, p - p0);
+      last = compute(v0, p - p0);
       onChange(last);
     };
     const su = () => {
@@ -42,7 +42,7 @@ export default function Handle({ toward, value, calcola, onChange, onEnd, title 
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", su);
-  }, [toward, value, calcola, onChange, onEnd]);
+  }, [toward, value, compute, onChange, onEnd]);
 
   const col = toward === "col";
   return (

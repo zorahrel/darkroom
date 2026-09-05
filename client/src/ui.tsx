@@ -48,7 +48,7 @@ const WEIGHT: Record<Weight, string> = {
 
 export function Bott({
   children, onClick, active, weight = "normale", size = "m",
-  title, disabilitato, className = "", type = "button",
+  title, disabled, className = "", type = "button",
 }: {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
@@ -57,11 +57,11 @@ export function Bott({
   weight?: Weight;
   size?: Size;
   title?: string;
-  disabilitato?: boolean;
+  disabled?: boolean;
   className?: string;
   type?: "button" | "submit";
 }) {
-  const stile = disabilitato
+  const style = disabled
     ? "border-neutral-800 text-neutral-400/50 cursor-not-allowed"
     : active
       ? "border-neutral-400 bg-neutral-800 text-neutral-100"
@@ -70,13 +70,13 @@ export function Bott({
     <button
       type={type}
       title={title}
-      disabled={disabilitato}
+      disabled={disabled}
       aria-pressed={active}
       onClick={onClick}
       className={`inline-flex items-center justify-center border whitespace-nowrap
                   transition-colors focus-visible:outline focus-visible:outline-1
                   focus-visible:outline-offset-1 focus-visible:outline-neutral-300
-                  ${SIZE[size]} ${stile} ${className}`}
+                  ${SIZE[size]} ${style} ${className}`}
     >
       {children}
     </button>
@@ -92,12 +92,12 @@ export function Bott({
  * sbaglio, e chi la vede la vede insieme a cosa succede davvero.
  */
 export function Confirm({
-  children, domanda, confirm, onConfirm, size = "m", title, className = "",
+  children, question, confirm, onConfirm, size = "m", title, className = "",
 }: {
   /** Il richiamo, sempre quieto. */
   children: React.ReactNode;
   /** Che cosa succede, detto per intero. */
-  domanda: string;
+  question: string;
   /** Il testo del bottone rosso: un verbo, non "ok". */
   confirm: string;
   onConfirm: () => void;
@@ -123,7 +123,7 @@ export function Confirm({
   }
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="text-[11px] text-neutral-300">{domanda}</span>
+      <span className="text-[11px] text-neutral-300">{question}</span>
       <Bott weight="pericolo" size={size} onClick={() => { setChiesto(false); onConfirm(); }}>
         {confirm}
       </Bott>
@@ -245,7 +245,7 @@ export function Header({
 
 /** Un menu a tendina. Il valore è una stringa; le voci possono avere
  *  un'etichetta diversa dal valore e una nota a destra. */
-export function Scegli<T extends string>({
+export function Choose<T extends string>({
   value, items, onChange, width = 120, title, size = "s",
 }: {
   value: T;
@@ -335,21 +335,21 @@ export function Scegli<T extends string>({
 /** Un campo di testo senza la scocca del sistema. `onInvio`/`onEsc` sono i due
  *  tasti che in un editor contano. */
 export function Field({
-  value, onChange, placeholder, onInvio, onEsc, autoFuoco, size = "s", className = "",
+  value, onChange, placeholder, onInvio, onEsc, autoFocus, size = "s", className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   onInvio?: () => void;
   onEsc?: () => void;
-  autoFuoco?: boolean;
+  autoFocus?: boolean;
   size?: Size;
   className?: string;
 }) {
   const t = size === "s" ? "text-[10.5px] px-1.5 py-1" : "text-[12px] px-2 py-1.5";
   return (
     <input
-      autoFocus={autoFuoco}
+      autoFocus={autoFocus}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -369,7 +369,7 @@ export function Field({
 
 /** Un'area di testo, stesso trattamento del campo. */
 export function Area({
-  value, onChange, placeholder, onEsc, onInvia, autoFuoco, className = "",
+  value, onChange, placeholder, onEsc, onInvia, autoFocus, className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -377,12 +377,12 @@ export function Area({
   onEsc?: () => void;
   /** ⌘invio: mandare a capo dev'essere possibile, quindi il solo invio no. */
   onInvia?: () => void;
-  autoFuoco?: boolean;
+  autoFocus?: boolean;
   className?: string;
 }) {
   return (
     <textarea
-      autoFocus={autoFuoco}
+      autoFocus={autoFocus}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -545,7 +545,7 @@ export function Altro({
 export function Pills<T extends string>({
   items,
   pick,
-  onScegli,
+  onChoose,
   counts,
   /** La voce che non filtra: resta sempre premibile anche a zero, perche' e'
    *  la via d'uscita da un filtro che non mostra niente. */
@@ -554,7 +554,7 @@ export function Pills<T extends string>({
 }: {
   items: readonly { id: T; name: string }[];
   pick: T;
-  onScegli: (v: T) => void;
+  onChoose: (v: T) => void;
   counts: Record<string, number>;
   neutra?: T;
   className?: string;
@@ -567,7 +567,7 @@ export function Pills<T extends string>({
         return (
           <button
             key={v.id}
-            onClick={() => onScegli(v.id)}
+            onClick={() => onChoose(v.id)}
             disabled={n === 0 && v.id !== neutra}
             title={`${v.name}: ${n}`}
             className={

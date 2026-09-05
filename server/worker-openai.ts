@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import type { WorkerResult } from "./worker.ts";
 import { openaiDailyCapUsd, openaiSyncBudgetUsd, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, OPENAI_IMAGE_SIZE, openaiKey } from "./config.ts";
 import { db } from "./db.ts";
-import { preparaAllegati, type Allegato } from "./attachments.ts";
+import { prepareAttachments, type Attachment } from "./attachments.ts";
 
 /**
  * Backend OpenAI: parla direttamente all'Images API invece di guidare una
@@ -62,7 +62,7 @@ export function expectedCost(
 
 /** Il tetto morde PRIMA della chiamata: dopo, si e' gia' pagato. Restituisce
  *  l'errore da mostrare, o null se si puo' procedere. */
-function overCap(opzioni: { withRefs?: boolean; quality?: string } = {}): string | null {
+function overCap(options: { withRefs?: boolean; quality?: string } = {}): string | null {
   // La soglia del sincrono guarda quanto costa QUESTA chiamata, non quanto si
   // e' speso finora.
   //
@@ -75,11 +75,11 @@ function overCap(opzioni: { withRefs?: boolean; quality?: string } = {}): string
   const budget = openaiSyncBudgetUsd();
   // La resa di QUESTA chiamata: pesare quella di sistema significava lasciar
   // passare una high mentre si credeva di aver chiesto una low.
-  const cost = expectedCost(OPENAI_IMAGE_MODEL, opzioni.quality ?? OPENAI_IMAGE_QUALITY);
+  const cost = expectedCost(OPENAI_IMAGE_MODEL, options.quality ?? OPENAI_IMAGE_QUALITY);
   if (budget > 0 && cost > budget) {
     // Il batch NON accetta /edits, che e' l'unico endpoint che prende delle
     // reference: mandare li' chi sta usando una reference e' un vicolo cieco.
-    const path = opzioni.withRefs
+    const path = options.withRefs
       ? `Con delle reference il batch non e' una strada (non supporta /edits): ` +
         `prova prima in OPENAI_IMAGE_QUALITY=low (~$${expectedCost(OPENAI_IMAGE_MODEL, "low").toFixed(3)}), ` +
         `oppure alza OPENAI_SYNC_BUDGET_USD.`
@@ -273,7 +273,7 @@ export async function runWorkerOpenAi(input: {
    *  che li descrive nascono dalla stessa lista e non possono divergere:
    *  `refs` da sola lascia a chi chiama il compito di tenerle allineate a mano,
    *  ed e' una promessa che nessuno verifica. */
-  allegati?: Allegato[];
+  attachments?: Attachment[];
   /** Resa per QUESTA generazione. Assente = quella di sistema.
    *
    *  Era letta solo dall'ambiente del processo: un job che dichiarava `low`
@@ -302,9 +302,9 @@ export async function runWorkerOpenAi(input: {
   // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
   // decide l'ordine degli allegati: e' l'unico modo perche' "le prime due sono
   // io" resti vero anche dopo aver aggiunto una reference.
-  const withRoles = (input.allegati ?? []).filter((a) => existsSync(a.path));
+  const withRoles = (input.attachments ?? []).filter((a) => existsSync(a.path));
   if (withRoles.length > 0) {
-    const { files, preamble } = preparaAllegati(withRoles, { withSource: true });
+    const { files, preamble } = prepareAttachments(withRoles, { withSource: true });
     return runEdits(key, [input.image, ...files], `${preamble} ${input.prompt}`, input.output, startedAt, wantedQuality);
   }
   const images = [input.image, ...(input.refs ?? []).filter((p) => existsSync(p))];

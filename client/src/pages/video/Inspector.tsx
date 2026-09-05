@@ -30,13 +30,13 @@ type Done = { text: string; undo: () => Promise<unknown> };
 
 export default function Ispettore({ sel, shots, candidati, close, onForzato }: Props) {
   const [done, setDone] = useState<Done | null>(null);
-  const [error, setErrore] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   /** Il candidato che si sta guardando. Sceglierlo non cambia niente: cambia
    *  il piano solo il bottone sotto, che dice per esteso cosa farà. Un clic
    *  solo, com'era prima, inchiodava una battuta in silenzio — e una modifica
    *  che non si vede è una modifica che non si può disfare. */
   const [trying, setTrying] = useState<VideoShot | null>(null);
-  useEffect(() => { setTrying(null); setDone(null); setErrore(null); }, [sel.bar, sel.shot]);
+  useEffect(() => { setTrying(null); setDone(null); setError(null); }, [sel.bar, sel.shot]);
 
   const mio = shots.find((s) => s.id === sel.shot) ?? null;
 
@@ -51,9 +51,9 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
   }, [candidati, sel.soundIntensity]);
 
   const agisci = async (text: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>) => {
-    setErrore(null);
+    setError(null);
     try { await fa(); setDone({ text, undo }); onForzato(); }
-    catch (e) { setErrore(e instanceof Error ? e.message : String(e)); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
   const stacco = sel.shotIntensity !== null && Math.abs(sel.soundIntensity - sel.shotIntensity) > 0.35;

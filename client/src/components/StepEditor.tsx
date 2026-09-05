@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Scegli, Checkbox } from "../ui";
+import { Choose, Checkbox } from "../ui";
 import {
   type ColorGrade,
   type GradeStep,
@@ -528,7 +528,7 @@ function StepBody({
       <div className="space-y-2.5 text-sm">
         <label className="flex flex-col gap-1">
           <span className="text-neutral-400">LUT</span>
-          <Scegli
+          <Choose
             value={String(p.lut ?? "")}
             onChange={(v) => onParams({ lut: v })}
             width={264}
@@ -751,7 +751,7 @@ function AiStepEditor({
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-sm">
         <span className="text-neutral-400">Provider</span>
-        <Scegli value={provider} width={160} size="m"
+        <Choose value={provider} width={160} size="m"
                 onChange={(v) => onParams({ provider: v })}
                 items={[{ v: "chatgpt", text: "ChatGPT (web)" },
                        { v: "higgsfield", text: "Higgsfield" }]} />

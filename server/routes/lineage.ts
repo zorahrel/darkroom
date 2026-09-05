@@ -95,12 +95,12 @@ function costPerVersion(): Map<number, { usd: number; model: string; quality: st
         "SELECT cost_usd, model, quality, created_at FROM api_calls WHERE ok = 1 ORDER BY created_at",
       )
       .all();
-    const versioni = db()
+    const versions = db()
       .query<{ id: number; created_at: number }, []>(
         "SELECT id, created_at FROM versions WHERE source = 'generated'",
       )
       .all();
-    for (const v of versioni) {
+    for (const v of versions) {
       let best: (typeof chiamate)[number] | null = null;
       let dist = 60_000; // un minuto: oltre, non e' la stessa generazione
       for (const ch of chiamate) {

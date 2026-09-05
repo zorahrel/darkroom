@@ -150,7 +150,7 @@ describe("una reference si carica da dentro Darkroom", () => {
   // galleria mostrava i riferimenti ma non c'era modo di aggiungerne uno.
   async function load(name: string, bytes: Buffer, contentType = "image/png") {
     const fd = new FormData();
-    fd.append("file", new File([bytes], name, { type: contentType }));
+    fd.append("file", new File([new Uint8Array(bytes)], name, { type: contentType }));
     return app.request("/api/references", { method: "POST", body: fd });
   }
 

@@ -390,7 +390,7 @@ export const TOOLS: Tool[] = [
     area: "edit",
     icon: "video",
     views: ["video"],
-    api: ["POST /api/video/generate", "GET /api/video/generatetions"],
+    api: ["POST /api/video/generate", "GET /api/video/generations"],
     mcp: ["video_generate", "video_generations"],
     needs: ["comfy"],
     starters: [{ mode: "open", label: "Apri il montaggio", route: "/p/:pid/video", view: "video" }],

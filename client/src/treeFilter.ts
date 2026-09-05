@@ -17,7 +17,7 @@ export type Verdict = (typeof VERDICTS)[number];
 
 /** `da-vedere` = mai giudicata. E' il filtro che serve per riprendere in mano
  *  un lavoro lasciato a meta', ed e' diverso da "scartata". */
-export function tieneVariante(v: WithVerdict, verdict: Verdict): boolean {
+export function keepsVariant(v: WithVerdict, verdict: Verdict): boolean {
   if (verdict === "tutte") return true;
   if (verdict === "da-vedere") return !v.verdict;
   return v.verdict === verdict;
@@ -33,7 +33,7 @@ export function filterTree<
     .map((n) => ({
       ...n,
       groups: n.groups
-        .map((g) => ({ ...g, variants: g.variants.filter((v) => tieneVariante(v, verdict)) }))
+        .map((g) => ({ ...g, variants: g.variants.filter((v) => keepsVariant(v, verdict)) }))
         .filter((g) => g.variants.length > 0),
     }))
     .filter((n) => n.groups.length > 0);
@@ -41,15 +41,15 @@ export function filterTree<
 
 /** Quante varianti per giudizio. Serve sulle pastiglie: un filtro che porta a
  *  una pagina vuota va saputo prima di cliccarlo. */
-export function countVerdicts(varianti: WithVerdict[]): Record<Verdict, number> {
+export function countVerdicts(variants: WithVerdict[]): Record<Verdict, number> {
   const c: Record<Verdict, number> = {
-    tutte: varianti.length,
+    tutte: variants.length,
     tieni: 0,
     forse: 0,
     scarta: 0,
     "da-vedere": 0,
   };
-  for (const v of varianti) {
+  for (const v of variants) {
     if (v.verdict === "tieni") c.tieni++;
     else if (v.verdict === "forse") c.forse++;
     else if (v.verdict === "scarta") c.scarta++;

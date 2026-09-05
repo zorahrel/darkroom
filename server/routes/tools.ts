@@ -4,8 +4,8 @@ import { WORKER_BACKEND } from "../config.ts";
 import { addProject, currentProjectId, getProject, listProjects, withProject } from "../project.ts";
 import { addSource } from "../sources.ts";
 import { setGlobalPrompt } from "../db.ts";
-import { enqueueMissing, creaGenerazioni } from "./generation.ts";
-import { esportaPreferite } from "./pipeline.ts";
+import { enqueueMissing, createGenerations } from "./generation.ts";
+import { exportFavorites } from "./pipeline.ts";
 import { startVerification } from "./verify.ts";
 import { createPanels } from "../storyboard.ts";
 import { checkChatgptBrowserAlive, launchChatgptBrowser } from "../worker.ts";
@@ -56,7 +56,7 @@ const number = (v: Values, k: string, d: number): number => {
 };
 
 /** L'esito di un avvio: dove si atterra, su quale progetto, e cosa è successo. */
-type Outcome = { route: string; project: string; done: string; dati?: unknown };
+type Outcome = { route: string; project: string; done: string; data?: unknown };
 
 /**
  * Il progetto su cui lavorare.
@@ -76,12 +76,12 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const prompt = text(v, "prompt");
     if (!prompt) throw new Error("Serve il prompt: senza, non c'è niente da generare.");
     const pid = projectOf(prog);
-    const r = withProject(pid, () => creaGenerazioni(prompt, number(v, "conta", 1)));
+    const r = withProject(pid, () => createGenerations(prompt, number(v, "conta", 1)));
     return {
       route: `/p/${pid}`,
       project: pid,
       done: `${r.created} ${r.created === 1 ? "immagine messa" : "immagini messe"} in coda.`,
-      dati: r,
+      data: r,
     };
   },
 
@@ -102,7 +102,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
         done:
           `${summary.added} foto indicizzate` +
           (enqueued ? `, ${enqueued} già in coda.` : ". Le accodi quando vuoi dalla griglia."),
-        dati: { summary, enqueued },
+        data: { summary, enqueued },
       };
     });
   },
@@ -118,7 +118,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
       route: `/p/${p.id}`,
       project: p.id,
       done: `${summary.added} foto indicizzate su ${summary.scanned} trovate.`,
-      dati: summary,
+      data: summary,
     };
   },
 
@@ -136,7 +136,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
       route: `/p/${p.id}/storyboard`,
       project: p.id,
       done: `${r.ids.length} pannelli creati, ${r.enqueued} già in coda per essere disegnati.`,
-      dati: r,
+      data: r,
     };
   },
 
@@ -148,7 +148,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
       route: `/p/${p.id}/video`,
       project: p.id,
       done: `Progetto video creato in ${p.root}: metti lì le riprese e il brano.`,
-      dati: p,
+      data: p,
     };
   },
 
@@ -156,19 +156,19 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const name = text(v, "name");
     if (!name) throw new Error("Serve un nome.");
     const p = addProject({ name: name, kind: "photo" });
-    return { route: `/p/${p.id}`, project: p.id, done: `Progetto «${p.name}» creato.`, dati: p };
+    return { route: `/p/${p.id}`, project: p.id, done: `Progetto «${p.name}» creato.`, data: p };
   },
 
   export: (_v, prog) => {
     const pid = projectOf(prog);
-    const r = withProject(pid, () => esportaPreferite());
+    const r = withProject(pid, () => exportFavorites());
     return {
       route: `/p/${pid}`,
       project: pid,
       done: r.total
         ? `${r.copied} preferite su ${r.total} copiate in ${r.dir}.`
         : "Nessuna preferita da esportare: scegli prima la versione buona di qualche foto.",
-      dati: r,
+      data: r,
     };
   },
 
@@ -181,7 +181,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
       done: r
         ? `Controllo avviato su ${r.started} render. Segnala, non cancella niente.`
         : "Ce n'è già uno in corso: aspetta che finisca.",
-      dati: r,
+      data: r,
     };
   },
 

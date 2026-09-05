@@ -21,9 +21,9 @@ export const studioRoutes = new Hono();
 /** Spesa registrata sulle versioni, in dollari. Somma cio' che i job hanno
  *  riportato davvero: le versioni dei backend a quota hanno `credits` NULL e
  *  non entrano nel conto. */
-function spent(): { usd: number; immagini: number; modello: string; quality: string } {
+function spent(): { usd: number; images: number; model: string; quality: string } {
   let usd = 0;
-  let immagini = 0;
+  let images = 0;
   for (const p of listProjects()) {
     withProject(p.id, () => {
       // Si contano le CHIAMATE, non le versioni salvate. Contare `versions`
@@ -36,13 +36,13 @@ function spent(): { usd: number; immagini: number; modello: string; quality: str
         )
         .get();
       usd += r?.tot ?? 0;
-      immagini += r?.n ?? 0;
+      images += r?.n ?? 0;
     });
   }
   return {
     usd: Math.round(usd * 10000) / 10000,
-    immagini,
-    modello: OPENAI_IMAGE_MODEL,
+    images,
+    model: OPENAI_IMAGE_MODEL,
     quality: OPENAI_IMAGE_QUALITY,
   };
 }

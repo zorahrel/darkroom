@@ -290,7 +290,7 @@ export default function App() {
                 voleva dire niente, e nonostante questo era la cosa più
                 appariscente dello schermo. */}
             {health && !health.browser && (
-              <Bott weight="pericolo" size="m" disabilitato={launching}
+              <Bott weight="pericolo" size="m" disabled={launching}
                     title={health.hint ?? ""}
                     onClick={async () => {
                       setLaunching(true);
@@ -333,11 +333,11 @@ export default function App() {
             {/* Speso, non "residuo": il saldo non e' leggibile con una chiave di
                 progetto (403, manca lo scope api.usage.read), e un numero
                 inventato in barra sarebbe peggio di nessun numero. */}
-            {spend && spend.immagini > 0 && (
+            {spend && spend.images > 0 && (
               <Badge
                 tone={spend.usd >= 5 ? "attesa" : "neutro"}
                 title={
-                  `${spend.immagini} chiamate a ${spend.modello}, sommando i token che l'API riporta a ogni richiesta. ` +
+                  `${spend.images} chiamate a ${spend.model}, sommando i token che l'API riporta a ogni richiesta. ` +
                   `E' una STIMA DAL BASSO: conta le chiamate passate da Darkroom, non quelle fatte da script esterni ` +
                   `prima che venissero registrate, e non include tasse o cambio valuta. Il totale vero sta su ` +
                   `platform.openai.com/usage: OpenAI non lo espone a una chiave di progetto (403, manca lo scope api.usage.read).`

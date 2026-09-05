@@ -165,7 +165,7 @@ export default function StudioPage() {
             key={p.id}
             p={p}
             onOpen={() => navigate(`/p/${p.id}`)}
-            onGenera={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
+            onGenerate={async (v) => { await api.studioPatchProject(p.id, { active: v }); refresh(); }}
             onViews={async (v) => { await api.studioPatchProject(p.id, { views: v }); refresh(); }}
             onTogli={async () => { await api.studioRemoveProject(p.id); refresh(); }}
           />
@@ -183,11 +183,11 @@ const shortDuration = (s: number) =>
   s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}s`;
 
 function Card({
-  p, onOpen, onGenera, onViews, onTogli,
+  p, onOpen, onGenerate, onViews, onTogli,
 }: {
   p: StudioProject;
   onOpen: () => void;
-  onGenera: (v: boolean) => void;
+  onGenerate: (v: boolean) => void;
   onViews: (v: ProjectKind[]) => void;
   onTogli: () => void;
 }) {
@@ -234,13 +234,13 @@ function Card({
         <Altro discreto className="pointer-events-auto">
           <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
           <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
-          <MenuItem onClick={() => onGenera(!p.active)}
+          <MenuItem onClick={() => onGenerate(!p.active)}
                     note="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
             {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
           </MenuItem>
           <div className="border-t border-neutral-800 my-1" />
           <Confirm size="s" className="w-full justify-start"
-                    domanda={`Tolgo «${p.name}»? I file restano dove sono.`}
+                    question={`Tolgo «${p.name}»? I file restano dove sono.`}
                     confirm="togli" onConfirm={onTogli}>
             Togli dall'elenco
           </Confirm>
@@ -382,7 +382,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
       <div className="text-[13px] font-medium">Nuovo progetto</div>
 
       <Row label="Come si chiama">
-        <Field value={name} onChange={setName} placeholder="es. Kyoto 2026" autoFuoco
+        <Field value={name} onChange={setName} placeholder="es. Kyoto 2026" autoFocus
                size="m" className="w-full" onInvio={() => { if (name.trim()) void create(); }} />
       </Row>
 
@@ -427,7 +427,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
       {err && <div className="text-[11px] text-amber-300">{err}</div>}
 
       <div className="flex items-center gap-1.5">
-        <Bott weight="primario" size="m" onClick={create} disabilitato={busy || !name.trim()}>
+        <Bott weight="primario" size="m" onClick={create} disabled={busy || !name.trim()}>
           {busy ? "Creo…" : "Crea"}
         </Bott>
         <Bott weight="quieto" size="m" onClick={() => setOpen(false)}>Annulla</Bott>

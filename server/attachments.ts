@@ -22,19 +22,19 @@
 /** Che cosa e' un'immagine per il modello. */
 export type Role =
   /** La persona: viso, ossatura, identita' da conservare. */
-  | "identita"
+  | "identity"
   /** Luce, tonalita', inquadratura. Mai il volto. */
-  | "stile"
+  | "style"
   /** Un oggetto da riprodurre nella forma: occhiali, capo, accessorio. */
-  | "oggetto";
+  | "object";
 
-export type Allegato = {
+export type Attachment = {
   /** Percorso del file da inviare. */
   path: string;
   role: Role;
   /** Che cosa prendere da questa immagine, con parole tue. Entra nel prompt:
    *  "the shape of the sunglasses", "the coloured gel lighting". */
-  prendi?: string;
+  take?: string;
 };
 
 /** Come si dice una posizione in inglese, per il prompt. */
@@ -63,14 +63,14 @@ function position(indici: number[], total: number): string {
  * bianco e nero e' un'altra persona" quando quel file non e' allegato confonde
  * e basta, ed e' un errore gia' fatto in passato.
  */
-export function preamble(allegati: Allegato[], withSource: boolean): string {
-  const tot = allegati.length;
+export function preamble(attachments: Attachment[], withSource: boolean): string {
+  const tot = attachments.length;
   const per = (r: Role) =>
-    allegati.map((a, i) => ({ a, i })).filter((x) => x.a.role === r);
+    attachments.map((a, i) => ({ a, i })).filter((x) => x.a.role === r);
 
-  const frasi: string[] = [];
+  const phrases: string[] = [];
 
-  const ident = per("identita");
+  const ident = per("identity");
   if (ident.length > 0 || withSource) {
     const who = withSource
       ? ident.length > 0
@@ -82,30 +82,30 @@ export function preamble(allegati: Allegato[], withSource: boolean): string {
     // usciva "The SOURCE photograph are of ME", e una frase sgrammaticata la
     // paga il modello, che la interpreta peggio.
     const quante = (withSource ? 1 : 0) + ident.length;
-    frasi.push(
+    phrases.push(
       `${who} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
         `use them only to keep my face, bone structure and identity exactly as they show it. ` +
         `Ignore their pose, hands, framing, background and lighting.`,
     );
   }
 
-  for (const { a, i } of per("stile")) {
-    frasi.push(
+  for (const { a, i } of per("style")) {
+    phrases.push(
       `${position([i], tot)} is a STYLING reference: never copy the face in it. ` +
-        `Take from it ${a.prendi ?? "the lighting, tonality, framing and treatment"}.`,
+        `Take from it ${a.take ?? "the lighting, tonality, framing and treatment"}.`,
     );
   }
 
-  const ogg = per("oggetto");
+  const ogg = per("object");
   if (ogg.length > 0) {
-    const what = ogg[0]!.a.prendi ?? "the object shown";
-    frasi.push(
+    const what = ogg[0]!.a.take ?? "the object shown";
+    phrases.push(
       `${position(ogg.map((x) => x.i), tot)} ${ogg.length > 1 ? "show" : "shows"} an OBJECT to reproduce: ` +
         `copy ${what} exactly as pictured. Never copy any face from them.`,
     );
   }
 
-  return frasi.join(" ");
+  return phrases.join(" ");
 }
 
 /**
@@ -115,9 +115,9 @@ export function preamble(allegati: Allegato[], withSource: boolean): string {
  * ("le prime due") invece di elencare posizioni sparse — che il modello segue
  * peggio. L'ordine dentro ogni gruppo resta quello dichiarato da chi chiama.
  */
-export function sort(allegati: Allegato[]): Allegato[] {
-  const weight: Record<Role, number> = { identita: 0, stile: 1, oggetto: 2 };
-  return [...allegati].sort((a, b) => weight[a.role] - weight[b.role]);
+export function sort(attachments: Attachment[]): Attachment[] {
+  const weight: Record<Role, number> = { identity: 0, style: 1, object: 2 };
+  return [...attachments].sort((a, b) => weight[a.role] - weight[b.role]);
 }
 
 /**
@@ -127,14 +127,14 @@ export function sort(allegati: Allegato[]): Allegato[] {
  * fa l'edit): non e' fra gli allegati ma il preambolo deve nominarla, perche'
  * per il modello e' comunque una delle immagini in ingresso.
  */
-export function preparaAllegati(
-  allegati: Allegato[],
-  opzioni: { withSource?: boolean } = {},
-): { files: string[]; preamble: string; sorted: Allegato[] } {
-  const sorted = sort(allegati);
+export function prepareAttachments(
+  attachments: Attachment[],
+  options: { withSource?: boolean } = {},
+): { files: string[]; preamble: string; sorted: Attachment[] } {
+  const sorted = sort(attachments);
   return {
     files: sorted.map((a) => a.path),
-    preamble: preamble(sorted, opzioni.withSource ?? false),
+    preamble: preamble(sorted, options.withSource ?? false),
     sorted,
   };
 }

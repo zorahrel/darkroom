@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   filterTree,
   countVerdicts,
-  tieneVariante,
+  keepsVariant,
 } from "../client/src/treeFilter";
 
 /** Un albero minimo ma della forma vera: due radici, la seconda con due
@@ -86,15 +86,15 @@ describe("filtro dell'albero per giudizio", () => {
 
   test("stringa vuota conta come da vedere, non come giudizio", () => {
     // Il DB puo' avere "" dove il codice si aspetta null.
-    expect(tieneVariante({ verdict: "" }, "da-vedere")).toBe(true);
-    expect(tieneVariante({ verdict: "" }, "scarta")).toBe(false);
+    expect(keepsVariant({ verdict: "" }, "da-vedere")).toBe(true);
+    expect(keepsVariant({ verdict: "" }, "scarta")).toBe(false);
   });
 });
 
 describe("conteggi sulle pastiglie", () => {
   test("ogni variante cade in una casella sola e «tutte» e' il totale", () => {
-    const varianti = tree().flatMap((n) => n.groups.flatMap((g) => g.variants));
-    const c = countVerdicts(varianti);
+    const variants = tree().flatMap((n) => n.groups.flatMap((g) => g.variants));
+    const c = countVerdicts(variants);
     expect(c).toEqual({ tutte: 5, tieni: 1, forse: 1, scarta: 2, "da-vedere": 1 });
     expect(c.tieni + c.forse + c.scarta + c["da-vedere"]).toBe(c.tutte);
   });

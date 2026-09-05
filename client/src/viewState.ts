@@ -61,17 +61,17 @@ function enqueue(
 export function useViewState<T extends string | number | boolean>(
   key: string,
   fallback: T,
-  opzioni: {
+  options: {
     /** Da stringa a valore. Torna `null` se la stringa non e' accettabile:
      *  un `?zoom=banana` deve tornare al default, non rompere la vista. */
     read: (s: string) => T | null;
     /** Con che nome ricordarlo fra una sessione e l'altra. Assente = non si
      *  ricorda: giusto per le cose legate a *questo* elenco e non al modo in
      *  cui si lavora (una selezione, una ricerca). */
-    memoria?: string;
+    memory?: string;
   },
 ): [T, (v: T) => void] {
-  const { read, memoria } = opzioni;
+  const { read, memory } = options;
   const [searchParams, setSearchParams] = useSearchParams();
   // Solo alla prima resa: dopo, la sorgente di verita' e' lo stato di React.
   // Rileggere l'URL a ogni giro farebbe combattere due scritture in corsa.
@@ -81,8 +81,8 @@ export function useViewState<T extends string | number | boolean>(
       const v = read(daUrl);
       if (v !== null) return v;
     }
-    if (memoria) {
-      const saved = localStorage.getItem(memoria);
+    if (memory) {
+      const saved = localStorage.getItem(memory);
       if (saved !== null) {
         const v = read(saved);
         if (v !== null) return v;
@@ -107,7 +107,7 @@ export function useViewState<T extends string | number | boolean>(
   setParams.current = setSearchParams;
 
   useEffect(() => {
-    if (memoria) localStorage.setItem(memoria, String(value));
+    if (memory) localStorage.setItem(memory, String(value));
     enqueue(key, value === fallback ? null : String(value), setParams.current);
     // `predefinito` e `chiave` sono costanti per chi chiama.
     // eslint-disable-next-line react-hooks/exhaustive-deps

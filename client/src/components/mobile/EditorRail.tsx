@@ -544,7 +544,7 @@ function Section({
                 </Bott>
               )}
               <Confirm size="s" title="Togli questo passo"
-                        domanda="Tolgo questo passo?"
+                        question="Tolgo questo passo?"
                         confirm="togli" onConfirm={step.onRemove}>
                 <IconTrash />
               </Confirm>

@@ -576,15 +576,15 @@ export const tools: Tool[] = [
       required: ["shot", "prompt"],
     },
     handler: (a) => {
-      const { project, ...corpo } = a;
-      return call("POST", "/api/video/generate", corpo, project);
+      const { project, ...body } = a;
+      return call("POST", "/api/video/generate", body, project);
     },
   },
   {
     name: "video_generations",
     description: "The shot generations: running, done and failed, with their logs.",
     inputSchema: { type: "object", properties: { ...PROJECT_FIELD } },
-    handler: (a) => call("GET", "/api/video/generatetions", undefined, a.project),
+    handler: (a) => call("GET", "/api/video/generations", undefined, a.project),
   },
 
   // ---- colore, foto, post -------------------------------------------------

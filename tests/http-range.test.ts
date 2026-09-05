@@ -13,8 +13,8 @@ import { serveFile, guessMime } from "../server/http.ts";
  */
 const dir = mkdtempSync(join(tmpdir(), "dk-range-"));
 const f = join(dir, "clip.mp4");
-const CORPO = "0123456789ABCDEF";
-writeFileSync(f, CORPO);
+const BODY = "0123456789ABCDEF";
+writeFileSync(f, BODY);
 
 const chiedi = (range?: string) =>
   serveFile(f, undefined, new Request("http://x/clip.mp4", range ? { headers: { range } } : {}));
@@ -24,13 +24,13 @@ describe("serveFile e i pezzi di file", () => {
     const r = chiedi();
     expect(r.status).toBe(200);
     expect(r.headers.get("accept-ranges")).toBe("bytes");
-    expect(await r.text()).toBe(CORPO);
+    expect(await r.text()).toBe(BODY);
   });
 
   test("un pezzo in mezzo torna 206 con il content-range giusto", async () => {
     const r = chiedi("bytes=4-7");
     expect(r.status).toBe(206);
-    expect(r.headers.get("content-range")).toBe(`bytes 4-7/${CORPO.length}`);
+    expect(r.headers.get("content-range")).toBe(`bytes 4-7/${BODY.length}`);
     expect(r.headers.get("content-length")).toBe("4");
     expect(await r.text()).toBe("4567");
   });
@@ -45,7 +45,7 @@ describe("serveFile e i pezzi di file", () => {
     const r = chiedi("bytes=-4");
     expect(r.status).toBe(206);
     expect(await r.text()).toBe("CDEF");
-    expect(r.headers.get("content-range")).toBe(`bytes 12-15/${CORPO.length}`);
+    expect(r.headers.get("content-range")).toBe(`bytes 12-15/${BODY.length}`);
   });
 
   test("una fine oltre il file si accorcia, non esplode", async () => {
@@ -57,7 +57,7 @@ describe("serveFile e i pezzi di file", () => {
   test("un inizio oltre il file e' 416, non un corpo vuoto qualsiasi", async () => {
     const r = chiedi("bytes=99-");
     expect(r.status).toBe(416);
-    expect(r.headers.get("content-range")).toBe(`bytes */${CORPO.length}`);
+    expect(r.headers.get("content-range")).toBe(`bytes */${BODY.length}`);
   });
 });
 

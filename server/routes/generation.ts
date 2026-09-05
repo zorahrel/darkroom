@@ -221,7 +221,7 @@ generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: enqueue
 // Generate brand-new images from a text prompt (no source photo). Each creates
 // a `kind='generated'` photo whose first render becomes its original.
 /** Genera dal nulla: N foto vuote, una per variante, ognuna già in coda. */
-export function creaGenerazioni(prompt: string, count: number): { created: number; ids: string[] } {
+export function createGenerations(prompt: string, count: number): { created: number; ids: string[] } {
   const howMany = Math.min(Math.max(Number(count) || 1, 1), 50);
   const now = Date.now();
   const ids: string[] = [];
@@ -243,5 +243,5 @@ generationRoutes.post("/api/generate-new", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt) return c.json({ error: "prompt required" }, 400);
-  return c.json(creaGenerazioni(prompt, Number(body.count) || 1));
+  return c.json(createGenerations(prompt, Number(body.count) || 1));
 });

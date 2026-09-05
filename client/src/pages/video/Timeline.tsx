@@ -59,7 +59,7 @@ export default function Timeline(p: Props) {
   const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
   const [above, setAbove] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
-  const corpo = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const [viewWidth, setViewWidth] = useState(1000);
   /** L'altezza si misura sul corpo vero, non si passa come numero. Sottrarre a
    *  mano l'altezza della barretta degli strumenti vuol dire sbagliarla di
@@ -71,7 +71,7 @@ export default function Timeline(p: Props) {
   const [scorrimento, setScorrimento] = useState(0);
 
   useEffect(() => {
-    const el = scroller.current, c = corpo.current;
+    const el = scroller.current, c = body.current;
     if (!el || !c) return;
     const measure = () => { setViewWidth(el.clientWidth); setHeight(c.clientHeight); };
     const ro = new ResizeObserver(measure);
@@ -385,7 +385,7 @@ export default function Timeline(p: Props) {
           </div>
         </div>
       )}
-      <div ref={corpo} className="flex flex-1 min-h-0 overflow-y-auto">
+      <div ref={body} className="flex flex-1 min-h-0 overflow-y-auto">
         {/* La colonna dei nomi resta ferma: a 128x sotto passa un secondo di
             brano, e senza il nome la corsia e' una riga di grigio. */}
         <div className="shrink-0 w-[68px] border-r border-neutral-900 text-[9.5px] text-neutral-400 select-none">
