@@ -15,24 +15,25 @@ import { Bott, Field, Choose } from "./video/ui";
 import { cutIndex, shuttle, timecode } from "./video/time";
 
 /**
- * L'editor di un progetto video.
+ * A video project's editor.
  *
- * Un guscio che sta in uno schermo e non scorre: in alto la barra, poi la
- * riga alta — libreria, monitor, ispettore — e sotto la linea del tempo,
- * separate da una maniglia che si trascina. È la forma di qualunque programma
- * di montaggio, e non per moda: se la pagina scorre, il monitor e la timeline
- * non possono stare sotto gli occhi insieme, e guardare un taglio diventa due
- * gesti invece che uno.
+ * A shell that fits one screen and does not scroll: the bar at the top, then
+ * the tall row — library, monitor, inspector — and the timeline underneath,
+ * separated by a handle you drag. It is the shape of every editing program, and
+ * not out of fashion: if the page scrolls, the monitor and the timeline cannot
+ * be under your eyes together, and looking at a cut becomes two gestures
+ * instead of one.
  *
- * L'altezza si misura, non si indovina: `100vh` meno l'intestazione vera,
- * ricalcolata a ogni ridimensionamento.
+ * The height is measured, not guessed: `100vh` minus the real header,
+ * recomputed on every resize.
  */
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 const FPS = 24;
 
-/** Quanto spazio prende la timeline, in pixel. Sta nel browser perché è una
- *  preferenza di chi guarda, non una proprietà del montaggio. */
+/** How much room the timeline takes, in pixels. It lives in the browser
+ *  because it is a preference of whoever is watching, not a property of the
+ *  cut. */
 const KEY_HEIGHT = "darkroom.video.altezzaTimeline";
 const KEY_LEFT = "darkroom.video.larghezzaLibreria";
 const KEY_RIGHT = "darkroom.video.larghezzaIspettore";
@@ -43,12 +44,13 @@ function read(key: string, difetto: number, min: number): number {
 }
 
 /**
- * Cosa controlla ognuna delle verifiche.
+ * What each of the checks checks.
  *
- * `check.py` stampa la misura — "rho = 0.914", "quadri nuovi al secondo: 15.0" —
- * e la misura e' il punto: e' cio' che si puo' discutere. Ma da sola non dice
- * *cosa* si stia misurando, e chi apre la pagina non deve andarselo a cercare
- * nel sorgente. Qui c'e' la frase; il numero resta quello che dice il Python.
+ * `check.py` prints the measurement — "rho = 0.914", "new frames per second:
+ * 15.0" — and the measurement is the point: it is what can be argued with. But
+ * on its own it does not say *what* is being measured, and whoever opens the
+ * page should not have to go hunting for it in the source. Here is the
+ * sentence; the number stays whatever the Python says.
  */
 const WHAT_IT_CHECKS: Record<string, string> = {
   "1": "ogni taglio cade su un battito della canzone",
@@ -61,11 +63,11 @@ const WHAT_IT_CHECKS: Record<string, string> = {
 };
 
 /**
- * Lo stato del video, in una riga che si capisce da sola.
+ * The video's state, in a line that stands on its own.
  *
- * Diceva "verde", che e' il colore del semaforo di chi ha scritto il controllo:
- * fuori da quella testa non vuol dire niente. Adesso dice quante verifiche
- * passano su quante, e aperto dice cosa verifica ognuna.
+ * It used to say "green", which is the traffic-light colour of whoever wrote
+ * the check: outside that head it means nothing. Now it says how many checks
+ * pass out of how many, and opened it says what each one checks.
  */
 function State({ gate, master, onRedo }: { gate: VideoGate | null; master: string | null; onRedo: () => void }) {
   const [aperta, setAperta] = useState(false);
@@ -135,7 +137,7 @@ function State({ gate, master, onRedo }: { gate: VideoGate | null; master: strin
   );
 }
 
-/** Il trasporto: quello che una barra nativa non sa fare. */
+/** The transport: what a native bar cannot do. */
 function Transport({ v, t, duration, cuts, vaiA }: {
   v: HTMLVideoElement | null; t: number; duration: number;
   cuts: VideoCut[]; vaiA: (s: number, parts?: boolean) => void;
@@ -187,9 +189,9 @@ export default function Video() {
   const [gate, setGate] = useState<VideoGate | null>(null);
   const [ric, setRic] = useState<VideoRebuild | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
-  /** Piu' tagli insieme. Serve a fare in un gesto solo quello che altrimenti si
-   *  fa venti volte: scartare le riprese di un atto che non funziona, dare la
-   *  stessa durata a una serie, guardare da vicino un pezzo. */
+  /** Several cuts at once. It is for doing in one gesture what is otherwise
+   *  done twenty times: discarding the shots of a beat that does not work,
+   *  giving the same duration to a series, looking closely at a stretch. */
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [inquadra, setInquadra] = useState<{ da: number; a: number; n: number } | null>(null);
   const [wave, setWave] = useState<VideoWave | null>(null);
@@ -205,38 +207,38 @@ export default function Video() {
   const [aiuto, setAiuto] = useState(false);
   const [vediForz, setVediForz] = useState(false);
   const [vEl, setVEl] = useState<HTMLVideoElement | null>(null);
-  /** La velocità della navetta: 0 ferma, negativa all'indietro. All'indietro il
-   *  browser non sa andare da solo, quindi la testina la muoviamo noi. */
+  /** The shuttle's speed: 0 stopped, negative backwards. Backwards the browser
+   *  cannot go on its own, so we move the playhead ourselves. */
   const [spola, setSpola] = useState(0);
   const video = useRef<HTMLVideoElement | null>(null);
 
-  /** L'editor disegna fino al bordo: lo spazio che il guscio dell'app mette
-   *  sopra le altre pagine, qui è altezza rubata alla timeline. */
+  /** The editor draws to the edge: the space the app shell puts above the other
+   *  pages is, here, height stolen from the timeline. */
   useEffect(() => {
     ctx?.setFlush?.(true);
     return () => ctx?.setFlush?.(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- misure del guscio ---------------------------------------------------
+  // ---- shell measurements --------------------------------------------------
   const shell = useRef<HTMLDivElement>(null);
   const [shellHeight, setHGuscio] = useState(700);
   const [hTimeline, setHTimeline] = useState(() => read(KEY_HEIGHT, 300, 140));
   const [wSx, setWSx] = useState(() => read(KEY_LEFT, 218, 150));
   const [wDx, setWDx] = useState(() => read(KEY_RIGHT, 336, 220));
 
-  /** L'intestazione dell'app non ha un'altezza che si possa dare per scontata:
-   *  la si misura dove finisce davvero, e si ricalcola quando la finestra
-   *  cambia. Un `calc(100vh - 56px)` scritto a mano è giusto finché qualcuno
-   *  non aggiunge una riga al menu. */
+  /** The app header has no height that can be taken for granted: it is measured
+   *  where it really ends, and recomputed when the window changes. A
+   *  hand-written `calc(100vh - 56px)` is right until somebody adds a row to
+   *  the menu. */
   useLayoutEffect(() => {
     const measure = () => {
       const el = shell.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top;
-      // Il padding sotto del contenitore si legge, non si stima: un margine a
-      // occhio lascia otto pixel di troppo e la pagina scorre lo stesso — che
-      // e' esattamente cio' che questo guscio esiste per evitare.
+      // The container's bottom padding is read, not estimated: a margin by eye
+      // leaves eight pixels too many and the page scrolls anyway — which is
+      // exactly what this shell exists to prevent.
       const parent = el.parentElement;
       const below = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
       setHGuscio(Math.max(360, window.innerHeight - top - below));
@@ -269,12 +271,12 @@ export default function Video() {
   useEffect(() => { ricarica(); }, [ricarica]);
 
   /**
-   * La pila dell'annulla.
+   * The undo stack.
    *
-   * Ogni modifica alla timeline sa rifarsi al contrario, quindi l'annulla non è
-   * uno stato da ricostruire: è la mossa inversa, messa da parte quando la
-   * mossa si fa. Vale per scambi, durate e inchiodature — tutto ciò che finisce
-   * in `scelte.json`.
+   * Every change to the timeline knows how to redo itself in reverse, so undo
+   * is not a state to reconstruct: it is the inverse move, set aside when the
+   * move is made. It holds for swaps, durations and pins — everything that ends
+   * up in `scelte.json`.
    */
   type Move = { what: string; fa: () => Promise<unknown>; undo: () => Promise<unknown> };
   const [pila, setPila] = useState<Move[]>([]);
@@ -299,7 +301,7 @@ export default function Video() {
     try { await last.undo(); ricarica(); } catch { /* niente */ }
   }, [pila, ricarica]);
 
-  /** Annullato per sbaglio: la mossa non si perde, torna al suo posto. */
+  /** Undone by mistake: the move is not lost, it goes back in place. */
   const redoLast = useCallback(async () => {
     const m = redo[redo.length - 1];
     if (!m) return;
@@ -308,8 +310,9 @@ export default function Video() {
     try { await m.fa(); ricarica(); } catch { /* niente */ }
   }, [redo, ricarica]);
 
-  /** La barra costa un minuto e mezzo di ffmpeg sul PC: il server la mette in
-   *  cantiere e risponde subito, la pagina la ripesca finché non è pronta. */
+  /** The waveform costs a minute and a half of ffmpeg on the PC: the server
+   *  puts it in the works and answers at once, the page fishes for it until it
+   *  is ready. */
   useEffect(() => {
     let alive = true;
     const chiedi = async () => {
@@ -324,7 +327,7 @@ export default function Video() {
     return () => { alive = false; };
   }, []);
 
-  /** I picchi si calcolano al primo giro e restano su disco. */
+  /** The peaks are computed on the first pass and stay on disk. */
   useEffect(() => {
     let alive = true;
     const chiedi = async () => {
@@ -352,12 +355,12 @@ export default function Video() {
   }, [ric?.active, ricarica]);
 
   /**
-   * J K L, la navetta del banco di montaggio.
+   * J K L, the edit bench's shuttle.
    *
-   * Avanti la fa il player cambiando velocità. Indietro no: `playbackRate`
-   * negativo non lo sa fare nessun browser, quindi la testina la spostiamo noi
-   * a ogni quadro. Sono due strade diverse per un gesto solo, e chi lo usa non
-   * deve accorgersene.
+   * Forwards the player does it by changing speed. Backwards it does not: no
+   * browser can do a negative `playbackRate`, so we move the playhead ourselves
+   * on every frame. They are two different roads for one gesture, and whoever
+   * uses it should not have to notice.
    */
   useEffect(() => {
     if (!vEl) return;
@@ -380,8 +383,9 @@ export default function Video() {
     return () => { vEl.removeEventListener("play", a); vEl.removeEventListener("pause", b); };
   }, [vEl]);
 
-  /** Il ciclo sul tratto: si guarda lo stesso passaggio dieci volte di fila
-   *  senza toccare niente, che è come si decide se un taglio arriva tardi. */
+  /** The loop over the stretch: you watch the same passage ten times in a row
+   *  without touching anything, which is how you decide whether a cut lands
+   *  late. */
   useEffect(() => {
     if (!ciclo || !inOut || !vEl) return;
     const h = setInterval(() => {
@@ -393,8 +397,8 @@ export default function Video() {
     return () => clearInterval(h);
   }, [ciclo, inOut, vEl]);
 
-  /** Quante cose sono state messe a mano sopra il piano derivato. Sta nella
-   *  barra perche' e' l'unica parte del montaggio che nessuna misura difende. */
+  /** How many things have been set by hand over the derived plan. It sits in
+   *  the bar because it is the only part of the cut no measurement defends. */
   const overrideCount = (forz?.pin.length ?? 0) + (forz?.duration.length ?? 0) + (forz?.discardedByHand.length ?? 0);
 
   const src = assets?.preview ?? assets?.reel ?? null;
@@ -414,10 +418,10 @@ export default function Video() {
     return m;
   }, [shots]);
 
-  /** Un solo modo di muovere la testina. `parti` distingue "portami lì e fai
-   *  vedere" da "portami lì e basta": se anche il passo a fotogramma facesse
-   *  partire il video, tenere premuta la freccia scivolerebbe invece di
-   *  scorrere quadro per quadro. */
+  /** One single way of moving the playhead. `play` distinguishes "take me there
+   *  and show me" from "take me there, that's all": if the frame step started
+   *  playback too, holding the arrow down would slide instead of stepping frame
+   *  by frame. */
   const vaiA = useCallback((s: number, parts = false) => {
     const v = video.current;
     if (!v || !duration) return;
@@ -445,14 +449,14 @@ export default function Video() {
     vaiA((cuts[i]?.t ?? 0) + 0.02, true);
   }, [cuts, vaiA, picked]);
 
-  /** Dalla libreria al montaggio: se quel piano è in scena, ci si va. */
+  /** From the library to the cut: if that shot is on screen, you go to it. */
   const openShot = useCallback((id: string) => {
     const i = cuts.findIndex((c) => c.shot === id);
     if (i >= 0) openCut(i);
   }, [cuts, openCut]);
 
-  /** Trascinato un blocco sopra un altro: si scambiano di posto. L'annulla
-   *  rimette le due battute come stavano, cioè sgancia i due pin. */
+  /** A block dragged over another: they swap places. Undo puts the two beats
+   *  back as they were, i.e. unpins both. */
   const swap = useCallback((i: number, j: number) => {
     const a = cuts[i], b = cuts[j];
     if (!a || !b) return;
@@ -489,18 +493,17 @@ export default function Video() {
   }, [cuts, forz, compi]);
 
   /**
-   * Il piano come sarà dopo la ricostruzione.
+   * The plan as it will be after the rebuild.
    *
-   * Le forzature vivono in `scelte.json` e il piano si rifà solo quando si
-   * ricostruisce: scambiati due blocchi, sul disco cambiavano due righe e a
-   * schermo non si muoveva niente. Un editor in cui il gesto non si vede non è
-   * un editor.
+   * The forcings live in `scelte.json` and the plan is only redone on a rebuild:
+   * with two blocks swapped, two lines changed on disk and nothing moved on
+   * screen. An editor in which the gesture is invisible is not an editor.
    *
-   * Quello che si può mostrare esatto si mostra: un'inchiodatura sostituisce il
-   * piano su quella battuta, e basta — i tempi non cambiano. Una durata forzata
-   * invece sposterebbe tutto ciò che viene dopo, e fingere quel ricalcolo
-   * mostrerebbe un montaggio che non esiste: quella si dichiara e basta, con
-   * l'etichetta sul blocco.
+   * What can be shown exactly is shown: a pin replaces the plan on that beat,
+   * and that is all — the timings do not change. A forced duration would
+   * instead move everything after it, and faking that recomputation would show
+   * a cut that does not exist: that one is simply declared, with the label on
+   * the block.
    */
   const shownCuts = useMemo(() => {
     if (!forz?.pin.length) return cuts;
@@ -525,15 +528,15 @@ export default function Video() {
     [selection, shownCuts],
   );
 
-  /** Il tratto che la selezione copre, da un capo all'altro. */
+  /** The stretch the selection covers, end to end. */
   const tratto = useMemo((): [number, number] | null => {
     if (!molti.length) return null;
     const a = shownCuts[molti[0]!]!, b = shownCuts[molti[molti.length - 1]!]!;
     return [a.t, b.t + b.dur];
   }, [molti, shownCuts]);
 
-  /** Le riprese distinte sotto la selezione: due battute possono mostrare lo
-   *  stesso piano, e scartarlo due volte non vuol dire niente. */
+  /** The distinct shots under the selection: two beats can show the same shot,
+   *  and discarding it twice means nothing. */
   const selectedShots = useMemo(
     () => [...new Set(molti.map((i) => shownCuts[i]!.shot))],
     [molti, shownCuts],
@@ -568,9 +571,9 @@ export default function Video() {
     [sel, shots],
   );
 
-  /** La tastiera vale sulla pagina: si guarda il video con le mani ferme sui
-   *  tasti e gli occhi sull'immagine, che è l'unico modo di accorgersi di un
-   *  taglio che arriva tardi. */
+  /** The keyboard works on the page: you watch the video with your hands still
+   *  on the keys and your eyes on the image, which is the only way to notice a
+   *  cut that lands late. */
   useEffect(() => {
     const su = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest("input, textarea, select") || e.metaKey || e.ctrlKey) return;
@@ -600,8 +603,8 @@ export default function Video() {
         if (r) setInquadra({ da: r[0], a: r[1], n: Date.now() });
       }
       else if (k === "a") {
-        // Tutto l'atto in cui sta la testina: e' l'unita' con cui questo
-        // montaggio ragiona, e sceglierla a mano vuol dire venti scatti.
+        // The whole beat the playhead is in: it is the unit this cut thinks in,
+        // and choosing it by hand means twenty clicks.
         e.preventDefault();
         const at = cuts[i]?.act;
         if (at) setSelection(new Set(cuts.map((c, n) => (c.act === at ? n : -1)).filter((n) => n >= 0)));
@@ -694,9 +697,9 @@ export default function Video() {
               ref={(el) => { video.current = el; setVEl(el); }}
               src={pq(`/api/video/asset/${src}`)}
               playsInline loop preload="metadata"
-              /* Un video fermo a 0 è un rettangolo nero: il primo quadro è
-                 notte sul mare, quindi la pagina si apriva su un buco. Mezzo
-                 secondo dopo i metadati e la locandina è un fotogramma vero. */
+              /* A video stopped at 0 is a black rectangle: the first frame is
+                 night over the sea, so the page opened on a hole. Half a second
+                 in, the metadata is loaded and the poster is a real frame. */
               onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
               onClick={(e) => { const v = e.currentTarget; v.paused ? void v.play() : v.pause(); }}
               onTimeUpdate={(e) => setT((e.target as HTMLVideoElement).currentTime)}

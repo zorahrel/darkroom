@@ -3,20 +3,20 @@ import { pq, type VideoAct, type VideoCut, type VideoMarker, type VideoWave } fr
 import { laneHeights, tickStep, timecode, H_RULER, H_ACTS } from "./time";
 
 /**
- * La linea del tempo.
+ * The timeline.
  *
- * Cinque corsie sulla stessa scala orizzontale — righello, atti, suono, tagli,
- * quadri — e una colonna ferma a sinistra che dice cos'e' ognuna. Che
- * condividano la scala non e' un dettaglio grafico: e' l'unico modo di vedere
- * che il taglio a 2:18 cade sul beat e non due fotogrammi dopo.
+ * Five lanes on the same horizontal scale — ruler, beats, sound, cuts, frames —
+ * and a fixed column on the left saying what each one is. That they share the
+ * scale is not a graphical detail: it is the only way to see that the cut at
+ * 2:18 lands on the beat and not two frames after.
  *
- * Le corsie non hanno altezze fisse: si spartiscono lo spazio che il pannello
- * ha. Tirando su il separatore la timeline cresce e l'onda, i blocchi e i
- * fotogrammi crescono con lei — che e' il motivo per cui uno la ingrandisce.
+ * The lanes have no fixed heights: they share out the space the panel has.
+ * Pulling the divider up, the timeline grows and the waveform, the blocks and
+ * the frames grow with it — which is why you enlarge it in the first place.
  *
- * Lo zoom orizzontale esiste per la stessa ragione dell'altezza: su due minuti
- * e mezzo in mille pixel un fotogramma e' un ventesimo di pixel, e a quella
- * scala "il taglio arriva tardi" non e' una cosa che si possa guardare.
+ * The horizontal zoom exists for the same reason as the height: over two and a
+ * half minutes in a thousand pixels a frame is a twentieth of a pixel, and at
+ * that scale "the cut lands late" is not something you can look at.
  */
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -42,32 +42,31 @@ type Props = {
   gira: boolean;
   markers: VideoMarker[];
   removeMarker: (t: number) => void;
-  /** Le battute inchiodate a mano: si vedono senza aprire l'ispettore. */
+  /** The beats pinned by hand: visible without opening the inspector. */
   inchiodate: Set<number>;
-  /** Trascinare un blocco sopra un altro: i due si scambiano di posto. */
+  /** Dragging a block over another: the two swap places. */
   onSwap: (i: number, j: number) => void;
   /** Tirare il bordo destro di un blocco: quante battute dura. */
   onDuration: (bar: number, bars: number) => void;
   /** Un piano lasciato cadere sopra un taglio dalla libreria. */
   onPose: (i: number, shot: string) => void;
-  /** Le durate dichiarate ma non ancora ricostruite: battuta -> battute. */
+  /** Durations declared but not yet rebuilt: beat -> beats. */
   forcedDuration: Map<number, number>;
 };
 
 export default function Timeline(p: Props) {
   const { cuts, acts, wave, duration, t, poster, picked, selection, inquadra, inOut, open, vaiA, gira, markers, removeMarker, inchiodate, onSwap, onDuration, onPose, forcedDuration } = p;
-  const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
+  const [zoom, setZoom] = useState(0);           // 0 = everything in view
   const [above, setAbove] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const [viewWidth, setViewWidth] = useState(1000);
-  /** L'altezza si misura sul corpo vero, non si passa come numero. Sottrarre a
-   *  mano l'altezza della barretta degli strumenti vuol dire sbagliarla di
-   *  qualche pixel a ogni cambio di carattere, e la corsia in fondo resta
-   *  tagliata. */
+  /** The height is measured on the real body, not passed in as a number.
+   *  Subtracting the toolbar's height by hand means getting it wrong by a few
+   *  pixels on every font change, and the bottom lane stays cut off. */
   const [height, setHeight] = useState(220);
-  /** Dove sta la finestra sul brano. Si legge scorrendo, non si indovina: e'
-   *  cio' che la mappa d'insieme disegna come rettangolo. */
+  /** Where the window sits on the track. It is read by scrolling, not guessed:
+   *  it is what the overview map draws as a rectangle. */
   const [scorrimento, setScorrimento] = useState(0);
 
   useEffect(() => {
@@ -80,9 +79,9 @@ export default function Timeline(p: Props) {
     return () => ro.disconnect();
   }, []);
 
-  /** Lo spazio libero si divide fra suono, tagli e quadri. Se il pannello e'
-   *  stretto si scende ai minimi e la timeline scorre in verticale, invece di
-   *  schiacciare tutto fino a renderlo illeggibile. */
+  /** The free space is split between sound, cuts and frames. If the panel is
+   *  narrow they go down to their minimums and the timeline scrolls
+   *  vertically, instead of squashing everything until it is unreadable. */
   const lanes = useMemo(() => laneHeights(height), [height]);
 
   const base = duration ? viewWidth / duration : 1;
@@ -90,8 +89,8 @@ export default function Timeline(p: Props) {
   const width = Math.max(viewWidth, duration * pps);
   const x = useCallback((s: number) => s * pps, [pps]);
 
-  /** La vista insegue la testina solo mentre il video corre: da fermi, ogni
-   *  clic su un taglio farebbe saltare la timeline sotto il dito. */
+  /** The view chases the playhead only while the video is running: stopped,
+   *  every click on a cut would make the timeline jump under your finger. */
   useEffect(() => {
     const el = scroller.current;
     if (!el || !gira || zoom === 0) return;
@@ -102,8 +101,8 @@ export default function Timeline(p: Props) {
     }
   }, [t, gira, zoom, x]);
 
-  /** Zoomando, il punto sotto il cursore resta dov'e': ingrandire e poi dover
-   *  ritrovare il punto e' come non aver ingrandito. */
+  /** While zooming, the point under the cursor stays where it is: zooming in
+   *  and then having to find the point again is like not having zoomed. */
   const zoomBy = (toward: number, anchorPx?: number) => {
     const el = scroller.current;
     const anc = anchorPx ?? (el ? el.clientWidth / 2 : 0);
@@ -121,12 +120,12 @@ export default function Timeline(p: Props) {
   };
 
   /**
-   * Inquadrare un tratto.
+   * Framing a stretch.
    *
-   * Zoom e scorrimento non sono due gesti separati quando si vuole guardare da
-   * vicino un pezzo preciso: si sceglie il fattore che fa entrare il tratto
-   * nella finestra e ci si porta sopra. Lo zoom qui non e' a scatti di potenza
-   * — ci si ferma dove serve, non al gradino piu' vicino.
+   * Zoom and scroll are not two separate gestures when you want to look closely
+   * at a precise piece: you pick the factor that fits the stretch in the window
+   * and you go there. The zoom here is not in power steps — you stop where you
+   * need to, not at the nearest notch.
    */
   const fit = useCallback((da: number, a: number) => {
     const el = scroller.current;
@@ -164,8 +163,9 @@ export default function Timeline(p: Props) {
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", su);
   };
 
-  /** Le tacche si diradano da sole: a scala piena una ogni dieci secondi, da
-   *  vicino una al secondo. Senza, o sono illeggibili o sono inutili. */
+  /** The ticks thin out by themselves: at full scale one every ten seconds,
+   *  close up one a second. Without that they are either unreadable or
+   *  useless. */
   const step = useMemo(() => tickStep(pps), [pps]);
 
   const ticks = useMemo(() => {
@@ -197,22 +197,22 @@ export default function Timeline(p: Props) {
   }, [wave, width, lanes.suono]);
 
   /**
-   * Il trascinamento.
+   * Dragging.
    *
-   * Due gesti, perché due sono quelli che questo montaggio ammette: portare un
-   * blocco sul posto di un altro — i tagli stanno su battute misurate e ogni
-   * battuta ne regge uno, quindi "un po' più in là" non vorrebbe dire niente —
-   * e tirare il bordo destro per allungarlo. Tutt'e due scrivono una forzatura
-   * dichiarata, che si vede nell'elenco e si disfa con ⌘Z. Il piano resta
-   * derivato: quello che cambia è scritto, non nascosto.
+   * Two gestures, because two are what this cut admits: taking a block to
+   * another's place — the cuts sit on measured beats and each beat holds one,
+   * so "a bit further along" would mean nothing — and pulling the right edge to
+   * lengthen it. Both write a declared forcing, which shows up in the list and
+   * is undone with ⌘Z. The plan stays derived: what changes is written down,
+   * not hidden.
    */
   const [trascino, setTrascino] = useState<
     { kind: "move"; da: number; a: number | null } |
     { kind: "stretch"; i: number; bars: number } | null
   >(null);
 
-  /** Quante battute dura un taglio adesso: la distanza dalla battuta del taglio
-   *  dopo, o quella dichiarata dal piano per l'ultimo. */
+  /** How many beats a cut lasts right now: the distance to the next cut's
+   *  beat, or the one the plan declares for the last. */
   const barsOf = useCallback((i: number) => {
     const c = cuts[i], d = cuts[i + 1];
     if (!c) return 1;
@@ -233,9 +233,9 @@ export default function Timeline(p: Props) {
     if (!lane) return;
     const box = lane.getBoundingClientRect();
     const x0 = e.clientX;
-    // Una soglia, perché un dito che preme non sta mai fermo: senza, un clic
-    // che scivola di un pixel diventava uno scambio, e il montaggio cambiava
-    // per un tremolio. Sotto i sei pixel resta un clic.
+    // A threshold, because a pressing finger is never still: without it a
+    // click that slipped by one pixel became a swap, and the cut changed
+    // because of a tremor. Under six pixels it stays a click.
     const SOGLIA = 6;
     let mosso = false;
     const move = (ev: PointerEvent) => {
@@ -261,16 +261,16 @@ export default function Timeline(p: Props) {
     if (e.button !== 0) return;
     const c = cuts[i];
     if (!c) return;
-    const gateSeconds = c.dur / Math.max(0.5, barsOf(i));   // secondi per battuta, qui
+    const gateSeconds = c.dur / Math.max(0.5, barsOf(i));   // seconds per beat, here
     const x0 = e.clientX, b0 = barsOf(i);
     let mosso = false;
     const move = (ev: PointerEvent) => {
-      // Stessa soglia della maniglia di spostamento, stessa ragione.
+      // Same threshold as the move handle, same reason.
       if (!mosso && Math.abs(ev.clientX - x0) < 6) return;
       mosso = true;
       const db = (ev.clientX - x0) / pps / gateSeconds;
-      // Mezza battuta è il passo del piano: fra una e l'altra non c'è niente
-      // che il montaggio sappia rappresentare.
+      // Half a beat is the plan's step: between one and the next there is
+      // nothing the cut can represent.
       const b = Math.max(0.5, Math.min(4, Math.round((b0 + db) * 2) / 2));
       setTrascino({ kind: "stretch", i, bars: b });
     };
@@ -286,7 +286,7 @@ export default function Timeline(p: Props) {
     window.addEventListener("pointerup", su);
   };
 
-  /** Il tratto di brano che sta nella finestra adesso. */
+  /** The stretch of track in the window right now. */
   const finestra = useMemo(
     () => ({ da: scorrimento / pps, a: (scorrimento + viewWidth) / pps }),
     [scorrimento, viewWidth, pps],

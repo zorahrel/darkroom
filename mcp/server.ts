@@ -2,23 +2,21 @@
 /**
  * Darkroom MCP server.
  *
- * Un involucro stdio sopra l'API locale di Darkroom, cosi' un client MCP —
- * Claude oggi, l'IA interna domani — puo' fare quello che si fa a mano
- * dall'interfaccia: sfogliare le gallerie, mettere in coda le generazioni,
- * giudicare le riprese di un montaggio, ricostruire il video e leggere la
- * barra dei controlli.
+ * A stdio wrapper over Darkroom's local API, so that an MCP client — Claude
+ * today, the in-app AI tomorrow — can do what is done by hand from the
+ * interface: browse the galleries, queue generations, judge the shots of an
+ * edit, rebuild the video and read the check bar.
  *
- * Due cose che qui contano piu' che altrove.
+ * Two things that matter more here than elsewhere.
  *
- * **Il progetto.** Ogni strumento accetta `project`. Senza, si lavora su
- * quello predefinito — comodo in una sessione sola, sbagliato appena i
- * progetti sono quattro e non si sa su quale si e' finiti. Chi automatizza
- * dovrebbe passarlo sempre.
+ * **The project.** Every tool accepts `project`. Without it you work on the
+ * default one — handy in a single session, wrong the moment there are four
+ * projects and you cannot tell which one you ended up in. Anyone automating
+ * should always pass it.
  *
- * **La porta.** Il valore scritto qui e' l'ultima spiaggia: il server vero
- * gira dove dice il suo servizio launchd, ed e' li' che si guarda. `3535` era
- * scritto a mano e il server ascoltava sulla 3737 — l'MCP non ha mai risposto
- * a nessuno.
+ * **The port.** The value written here is the last resort: the real server runs
+ * where its launchd service says, and that is where to look. `3535` was written
+ * by hand while the server listened on 3737 — the MCP never answered anybody.
  */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -30,14 +28,14 @@ import {
 const API = (process.env.DARKROOM_API ?? "http://localhost:3737").replace(/\/$/, "");
 
 /**
- * Una scrittura risponde con una RICEVUTA, non con lo stato del progetto.
+ * A write answers with a RECEIPT, not with the project's state.
  *
- * Le rotte che scrivono restituiscono anche `shots` (64 riprese con dentro
- * descrittori, giudizi e problemi) perche' la UI se ne serve per aggiornarsi
- * senza un secondo giro. Passarlo cosi' com'e' a chi chiama via MCP vuol dire
- * rispondere a «ho tenuto questa ripresa» con 247.000 caratteri: misurato il
- * 27/08/2026 su video_judge, che per questo era inusabile proprio dal posto
- * per cui esiste. Chi vuole l'elenco chiama video_shots.
+ * The routes that write also return `shots` (64 shots containing descriptors,
+ * verdicts and problems) because the UI uses it to update without a second
+ * round trip. Passing that through as-is to an MCP caller means answering «I
+ * kept this shot» with 247,000 characters: measured on 27/08/2026 on
+ * video_judge, which was thereby unusable from exactly the place it exists for.
+ * Whoever wants the list calls video_shots.
  */
 export function ricevuta(d: unknown): unknown {
   if (!d || typeof d !== "object") return d;
@@ -57,10 +55,10 @@ async function call(
 ): Promise<unknown> {
   const headers: Record<string, string> = {};
   if (body) headers["content-type"] = "application/json";
-  // Il progetto viaggia in un'intestazione, non nel percorso: cosi' ogni
-  // strumento resta una riga e non c'e' da ricordarsi di appendere `?project=`
-  // in venti posti diversi (dimenticarlo in uno vuol dire scrivere nel
-  // progetto sbagliato, in silenzio).
+  // The project travels in a header, not in the path: this way every tool
+  // stays one line and there is no remembering to append `?project=` in twenty
+  // different places (forgetting it in one means writing into the wrong
+  // project, silently).
   if (project) headers["x-darkroom-project"] = project;
   const res = await fetch(`${API}${path}`, {
     method,
@@ -87,12 +85,12 @@ type Tool = {
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (args: Record<string, any>) => Promise<unknown>;
-  /** Uno strumento che non ha senso limitare a un progetto (l'elenco, la
-   *  salute del backend) non si porta dietro il campo. */
+  /** A tool that makes no sense to scope to a project (the list, the backend's
+   *  health) does not carry the field. */
   globale?: boolean;
 };
 
-/** Il campo `project`, aggiunto a ogni strumento che non e' globale. */
+/** The `project` field, added to every tool that is not global. */
 const PROJECT_FIELD = {
   project: {
     type: "string",
@@ -101,8 +99,8 @@ const PROJECT_FIELD = {
   },
 } as const;
 
-/** Esportato per il test che tiene allineati catalogo e strumenti: un
- *  catalogo che dimentica uno strumento nuovo torna a essere una brochure. */
+/** Exported for the test that keeps catalogue and tools aligned: a catalogue
+ *  that forgets a new tool goes back to being a brochure. */
 export const tools: Tool[] = [
   {
     name: "list_photos",
@@ -374,9 +372,9 @@ export const tools: Tool[] = [
     },
     handler: (a) => call("POST", "/api/verify/modes", a, a.project),
   },
-  // ---- progetti ----------------------------------------------------------
-  // Senza questi, un client MCP lavorava alla cieca sul progetto predefinito:
-  // non poteva sapere quali esistessero ne' sceglierne uno.
+  // ---- projects ----------------------------------------------------------
+  // Without these, an MCP client worked blind on the default project: it could
+  // neither know which ones existed nor choose one.
   {
     name: "list_projects",
     description:
@@ -428,10 +426,10 @@ export const tools: Tool[] = [
     },
   },
 
-  // ---- montaggio video ----------------------------------------------------
-  // Il lato video non esisteva qui: un client MCP vedeva solo le foto, mentre
-  // meta' del lavoro (giudicare le riprese, forzare un taglio, ricostruire) si
-  // poteva fare solo a mano.
+  // ---- video edit ---------------------------------------------------------
+  // The video side did not exist here: an MCP client saw only the photos, while
+  // half the work (judging shots, forcing a cut, rebuilding) could only be done
+  // by hand.
   {
     name: "video_shots",
     description:
@@ -528,10 +526,11 @@ export const tools: Tool[] = [
       };
       const rows = typeof a.rows === "number" ? a.rows : 20;
       const log = (d.log ?? "").replace(/\r/g, "");
-      // Quante riprese sono state montate sulle 64: la riga della fonderia e'
-      // "  nome  159 frame ->  52 quadri", una per ripresa. E' l'unica cosa che
-      // si vuole davvero sapere mentre gira, e nella coda del log non si vede
-      // perche' la coda dice solo dove sta adesso, non quanta strada ha fatto.
+      // How many shots have been rendered out of the 64: the foundry line is
+      // "  name  159 frame ->  52 quadri", one per shot. It is the only thing
+      // you really want to know while it runs, and it is invisible in the log's
+      // tail because the tail only says where it is now, not how far it has
+      // come.
       const done = (log.match(/^ {2}\S+ +\d+ frame -> +\d+ quadri/gm) ?? []).length;
       const attese = (log.match(/^ {2}\S+ +\d+ frame sorgente$/gm) ?? []).length;
       const tutte = log.split("\n");
@@ -587,11 +586,11 @@ export const tools: Tool[] = [
     handler: (a) => call("GET", "/api/video/generations", undefined, a.project),
   },
 
-  // ---- colore, foto, post -------------------------------------------------
-  // Esistevano solo nell'interfaccia: chi guidava Darkroom da fuori poteva
-  // generare e giudicare, ma non dire di che colore, ne' da quale cartella
-  // vengono le foto, ne' in quale post finiscono. Tre buchi che rendevano
-  // falsa la frase "si fa tutto anche da qui".
+  // ---- colour, photos, posts ----------------------------------------------
+  // They existed only in the interface: whoever drove Darkroom from outside
+  // could generate and judge, but not say what colour, nor which folder the
+  // photos come from, nor which post they end up in. Three holes that made the
+  // sentence "everything can be done from here too" false.
   {
     name: "color_grade",
     description:
@@ -661,10 +660,10 @@ export const tools: Tool[] = [
       }),
   },
 
-  // ---- il catalogo --------------------------------------------------------
-  // Sopra le chiamate c'e' il mestiere. Questi due danno a chi arriva la
-  // stessa mappa che vede un umano sulla home, invece di trentasette primitive
-  // da cui dedurre cosa sa fare il programma.
+  // ---- the catalogue ------------------------------------------------------
+  // Above the calls sits the craft. These two give a newcomer the same map a
+  // human sees on the home page, instead of thirty-seven primitives to deduce
+  // the program's abilities from.
   {
     name: "list_tools",
     description:
@@ -693,8 +692,8 @@ export const tools: Tool[] = [
       return {
         backend: d.backend,
         requirements: d.requirements,
-        // Compatto di proposito: lo schema intero di ventun strumenti e' un
-        // manuale, e chi chiede "cosa sai fare" non lo sta leggendo.
+        // Deliberately compact: the full schema of twenty-one tools is a
+        // manual, and whoever asks "what can you do" is not reading it.
         tools: picked.map((s) => ({
           id: s.id,
           name: s.name,
@@ -769,8 +768,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: tools.map(({ name, description, inputSchema, globale }) => ({
     name,
     description,
-    // Aggiunto qui una volta sola: scriverlo in venti schemi vuol dire
-    // scordarselo in uno, e quello scrive nel progetto sbagliato in silenzio.
+    // Added here once only: writing it into twenty schemas means forgetting
+    // it in one, and that one writes into the wrong project silently.
     inputSchema: globale
       ? inputSchema
       : {
