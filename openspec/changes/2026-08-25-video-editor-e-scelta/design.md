@@ -73,7 +73,7 @@ sapere e che sono state pagate misurandole:
 1. **La memoria è il limite, non il metodo.** 704×1280 / 81 fotogrammi / nessuna immagine
    di partenza → 23,9 GB su 24,5, un'ora, zero PNG. 640×1152 / 61 / 20 passi / tasselli
    256 → 90 secondi. I parametri sono campi del job.
-2. **I PNG escono in `D:\video_out\`**, non nella sottocartella `test\` che
+2. **I PNG escono in `D:\<out>\`**, non nella sottocartella `test\` che
    `pullvid.sh` si aspetta. Il worker usa il percorso vero.
 3. **Il ritorno è un file solo.** Si codifica sul PC e si scarica un mp4; 61 PNG su quel
    collegamento costano venti volte tanto.

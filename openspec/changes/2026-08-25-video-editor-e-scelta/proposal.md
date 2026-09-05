@@ -1,6 +1,6 @@
 ## Why
 
-Il progetto video `progetto_video` si monta con una catena Python misurata: i tagli
+Il progetto video si monta con una catena Python misurata: i tagli
 stanno su beat misurati, la scelta dell'inquadratura segue la durezza misurata, i doppioni
 sono impossibili per costruzione. Quello che la catena **non** sa fare è guardare.
 

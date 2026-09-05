@@ -52,7 +52,7 @@
 - [x] pannello di rigenerazione dalla scheda della scena, con la nota accanto al prompt
 
 ## 7. Registrazione e recinzione
-- [x] voce in `~/Darkroom/projects.json` per `~/Projects/progetto_video`, `kind: "video"`
+- [x] voce in `~/Darkroom/projects.json` per `~/Projects/<progetto>`, `kind: "video"`
 - [x] le rotte `/api/video/*` rispondono solo su progetti `kind: "video"`
 
 ## 8. La barra del change
