@@ -237,17 +237,17 @@ export default function Timeline(p: Props) {
     // click that slipped by one pixel became a swap, and the cut changed
     // because of a tremor. Under six pixels it stays a click.
     const THRESHOLD = 6;
-    let mosso = false;
+    let moved = false;
     const move = (ev: PointerEvent) => {
-      if (!mosso && Math.abs(ev.clientX - x0) < THRESHOLD) return;
-      mosso = true;
+      if (!moved && Math.abs(ev.clientX - x0) < THRESHOLD) return;
+      moved = true;
       setDrag({ kind: "move", da: i, a: which(ev.clientX, box) });
     };
     const su = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
       setDrag(null);
-      if (!mosso) { open(i, { estendi: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
+      if (!moved) { open(i, { estendi: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
       const a = which(ev.clientX, box);
       if (a === null || a === i) return;
       onSwap(i, a);
@@ -263,11 +263,11 @@ export default function Timeline(p: Props) {
     if (!c) return;
     const gateSeconds = c.dur / Math.max(0.5, barsOf(i));   // seconds per beat, here
     const x0 = e.clientX, b0 = barsOf(i);
-    let mosso = false;
+    let moved = false;
     const move = (ev: PointerEvent) => {
       // Same threshold as the move handle, same reason.
-      if (!mosso && Math.abs(ev.clientX - x0) < 6) return;
-      mosso = true;
+      if (!moved && Math.abs(ev.clientX - x0) < 6) return;
+      moved = true;
       const db = (ev.clientX - x0) / pps / gateSeconds;
       // Half a beat is the plan's step: between one and the next there is
       // nothing the cut can represent.
@@ -278,7 +278,7 @@ export default function Timeline(p: Props) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
       setDrag((t2) => {
-        if (mosso && t2?.kind === "stretch" && t2.bars !== b0) onDuration(c.bar, t2.bars);
+        if (moved && t2?.kind === "stretch" && t2.bars !== b0) onDuration(c.bar, t2.bars);
         return null;
       });
     };

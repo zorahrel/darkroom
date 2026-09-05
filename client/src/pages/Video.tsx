@@ -529,7 +529,7 @@ export default function Video() {
   );
 
   /** The stretch the selection covers, end to end. */
-  const tratto = useMemo((): [number, number] | null => {
+  const span = useMemo((): [number, number] | null => {
     if (!molti.length) return null;
     const a = shownCuts[molti[0]!]!, b = shownCuts[molti[molti.length - 1]!]!;
     return [a.t, b.t + b.dur];
@@ -602,7 +602,7 @@ export default function Video() {
       else if (k === "Z") { e.preventDefault(); void redoLast(); }
       else if (k === "F") {
         e.preventDefault();
-        const r = inOut ?? tratto ?? (active ? [active.t, active.t + active.dur] as [number, number] : null);
+        const r = inOut ?? span ?? (active ? [active.t, active.t + active.dur] as [number, number] : null);
         if (r) setInquadra({ da: r[0], a: r[1], n: Date.now() });
       }
       else if (k === "a") {
@@ -621,7 +621,7 @@ export default function Video() {
     };
     window.addEventListener("keydown", su);
     return () => window.removeEventListener("keydown", su);
-  }, [cuts, t, duration, vaiA, inOut, openCut, cancel, redoLast, tratto, active, selection, discardSelection]);
+  }, [cuts, t, duration, vaiA, inOut, openCut, cancel, redoLast, span, active, selection, discardSelection]);
 
   const launch = async () => {
     try { await api.videoRebuildStart(); setRic(await api.videoRebuildStatus()); }
@@ -756,19 +756,19 @@ export default function Video() {
                   lascia
                 </button>
               </div>
-              {tratto && (
+              {span && (
                 <div className="text-[11px] text-neutral-400">
-                  da {timecode(tratto[0])} a {timecode(tratto[1])} · {(tratto[1] - tratto[0]).toFixed(1)}s ·{" "}
+                  da {timecode(span[0])} a {timecode(span[1])} · {(span[1] - span[0]).toFixed(1)}s ·{" "}
                   {selectedShots.length} {selectedShots.length === 1 ? "ripresa" : "riprese"}
                 </div>
               )}
               <div className="flex flex-wrap gap-1">
-                {tratto && (
-                  <Bott onClick={() => setInquadra({ da: tratto[0], a: tratto[1], n: Date.now() })}>
+                {span && (
+                  <Bott onClick={() => setInquadra({ da: span[0], a: span[1], n: Date.now() })}>
                     guarda da vicino
                   </Bott>
                 )}
-                {tratto && <Bott onClick={() => setInOut(tratto)}>segna il tratto</Bott>}
+                {span && <Bott onClick={() => setInOut(span)}>segna il tratto</Bott>}
                 <Bott weight="pericolo" onClick={discardSelection}>
                   scarta {selectedShots.length === 1 ? "la ripresa" : `le ${selectedShots.length} riprese`}
                 </Bott>

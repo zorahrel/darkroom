@@ -20,20 +20,20 @@ import { TEST_ROOT } from "./setup.ts";
  * ITS OWN; the final name is given to it at the end, when the version number is
  * finally known.
  */
-function dirDiProva(nome: string): string {
-  const d = join(TEST_ROOT, "collisione", nome);
+function testDir(name: string): string {
+  const d = join(TEST_ROOT, "collisione", name);
   mkdirSync(d, { recursive: true });
   return d;
 }
 
 describe("the file a job writes to while generating", () => {
   test("two jobs of the same photo do not share the working file", () => {
-    const d = dirDiProva("a");
+    const d = testDir("a");
     expect(workingFile(d, 235)).not.toBe(workingFile(d, 236));
   });
 
   test("it does not carry a version's name: nobody can mistake it for a finished render", () => {
-    const d = dirDiProva("b");
+    const d = testDir("b");
     expect(workingFile(d, 71)).not.toBe(join(d, versionFileName(71)));
     expect(workingFile(d, 71).endsWith("v71.png")).toBe(false);
   });
@@ -41,7 +41,7 @@ describe("the file a job writes to while generating", () => {
 
 describe("handing the file over to the version number", () => {
   test("the returned path exists and is the one that ends up in the row", () => {
-    const d = dirDiProva("c");
+    const d = testDir("c");
     const work = workingFile(d, 900);
     writeFileSync(work, "render");
     const finale = finalizeFile(work, d, 71);
@@ -55,7 +55,7 @@ describe("handing the file over to the version number", () => {
   test("three parallel jobs produce three distinct files, each with its own content", () => {
     // It is the exact scenario of 05/09, with the difference that here the three
     // jobs really write their own result before handing it over.
-    const d = dirDiProva("d");
+    const d = testDir("d");
     const jobs = [235, 236, 237];
     const contenuti = ["controllo", "ref+parole", "solo-ref"];
     for (const [i, id] of jobs.entries()) writeFileSync(workingFile(d, id), contenuti[i]!);

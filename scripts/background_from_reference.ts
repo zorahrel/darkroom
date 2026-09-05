@@ -32,7 +32,7 @@ const arg = (k: string) => {
 const rounds = Math.max(1, Number(arg("--giri") ?? 1));
 
 /** The block that describes the PLACE in words: it is what gets replaced. */
-const LUOGO = /LUOGO:.*?(?=OCCHIALI DA SOLE)/s;
+const PLACE = /LUOGO:.*?(?=OCCHIALI DA SOLE)/s;
 /** The block that describes the shape of the sunglasses in words. */
 const SUNGLASSES = /OCCHIALI DA SOLE \(lenti nere opache\):[^.]*\.\s*/;
 
@@ -58,9 +58,9 @@ withProject(PID, () => {
     )
     .get(PHOTO, BASE);
   if (!base) throw new Error(`v${BASE} non trovata: senza la scena di partenza non c'e' niente da variare`);
-  for (const [nome, re] of [["LUOGO", LUOGO], ["OCCHIALI", SUNGLASSES]] as const) {
+  for (const [name, re] of [["PLACE", PLACE], ["SUNGLASSES", SUNGLASSES]] as const) {
     if (!re.test(base.prompt_used))
-      throw new Error(`il blocco ${nome} non e' nel prompt di v${BASE}: la leva non e' dove credo, mi fermo`);
+      throw new Error(`il blocco ${name} non e' nel prompt di v${BASE}: la leva non e' dove credo, mi fermo`);
   }
 
   const refDir = join(dirsFor(PID).DATA_DIR, "refs");
@@ -76,7 +76,7 @@ withProject(PID, () => {
   if (!fondi.length) throw new Error("nessun fondo da provare");
 
   const prompt =
-    base.prompt_used.replace(LUOGO, SFONDO_DA_REF).replace(SUNGLASSES, SUNGLASSES_FROM_REF) + RUOLI;
+    base.prompt_used.replace(PLACE, SFONDO_DA_REF).replace(SUNGLASSES, SUNGLASSES_FROM_REF) + RUOLI;
 
   const sorgenti = db()
     .query<{ original_path: string }, []>("SELECT original_path FROM photos ORDER BY id")

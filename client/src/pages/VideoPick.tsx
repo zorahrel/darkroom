@@ -658,7 +658,7 @@ export default function VideoPick() {
   useEffect(() => { setPiece(0); }, [scene?.origin]);
   useEffect(() => { if (i >= queue.length) setI(Math.max(0, queue.length - 1)); }, [queue.length, i]);
 
-  const avanti = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, queue.length - 1))), [queue.length]);
+  const advance = useCallback(() => setI((k) => Math.min(k + 1, Math.max(0, queue.length - 1))), [queue.length]);
 
   /**
    * The last verdict, with what it was before.
@@ -699,9 +699,9 @@ export default function VideoPick() {
       // Advancing AFTER judging skips a shot, and skips it silently: the judged
       // one has already left the list and the next has moved up into slot `i`
       // by itself. The rule lives in `videoQueue.ts`, with its test.
-      if (!leavesQueue(filter, kept)) avanti();
+      if (!leavesQueue(filter, kept)) advance();
     },
-    [scene, shots, avanti, i, filter],
+    [scene, shots, advance, i, filter],
   );
 
   /** Puts every piece back as it was and returns to the shot, so it can be
@@ -759,11 +759,11 @@ export default function VideoPick() {
       else if (e.key === "ArrowUp") { e.preventDefault(); setNota("nota"); }
       else if (e.key === "z") { e.preventDefault(); void undoLast(); }
       else if (e.key === " ") { e.preventDefault(); const v = video.current; if (v) { v.currentTime = 0; void v.play(); } }
-      else if (e.key === "ArrowDown") { e.preventDefault(); avanti(); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); advance(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [note, annota, judge, avanti, undoLast]);
+  }, [note, annota, judge, advance, undoLast]);
 
   useEffect(() => { if (note !== null) field.current?.focus(); }, [note]);
 
@@ -1213,7 +1213,7 @@ export default function VideoPick() {
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ✎ annota
                 </VerdictButton>
-                <VerdictButton onClick={() => avanti()} key="↓"
+                <VerdictButton onClick={() => advance()} key="↓"
                   className="border-neutral-800 text-neutral-400 hover:border-neutral-600">
                   ↷ salta
                 </VerdictButton>
