@@ -530,7 +530,7 @@ async function processJob(job: JobRow) {
   // the sunglasses ablation: jobs 235/236/237, versions 71/72/73, a single
   // v71.png on disk and two renders lost.
   const outputPath = workingFile(photoGenDir, job.id);
-  const finalizza = (n: number): string => finalizeFile(outputPath, photoGenDir, n);
+  const finalize = (n: number): string => finalizeFile(outputPath, photoGenDir, n);
 
   // Higgsfield provider: own pipeline (MCP), no CDP/rate-limit logic.
   if (job.provider === "higgsfield") {
@@ -563,7 +563,7 @@ async function processJob(job: JobRow) {
       // The job failed AFTER having already spent the credits and written the
       // file, so the work existed but was reported as failed.
       const finalNumber = nextVersionNumber(photo.id);
-      const finalPath = finalizza(finalNumber);
+      const finalPath = finalize(finalNumber);
       const ins = db().run(
         `INSERT INTO versions
           (photo_id, version_number, image_path, prompt_used, config, provider, provider_params, credits, source, created_at)
@@ -760,7 +760,7 @@ async function processJob(job: JobRow) {
     // As on the Higgsfield branch: the number is recomputed at insert time,
     // because minutes pass between the choice and the end of the generation.
     const finalNumber = nextVersionNumber(photo.id);
-    const finalPath = finalizza(finalNumber);
+    const finalPath = finalize(finalNumber);
     // The provider is recorded for what it is: saying 'chatgpt' even when the
     // Images API generated it made it impossible to know what a project had
     // cost. `credits` stays NULL for the quota backends, where a zero would say

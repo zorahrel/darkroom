@@ -593,10 +593,10 @@ export function shots(): Shot[] {
       // Shots were nailed to a|b|c. Shots generated from text have only the "a",
       // but the constraint was wrong in the opposite direction anyway: they are
       // derived from what is on disk.
-      const lettere = here
+      const letters = here
         ? [...new Set(files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[])]
         : (fromPreview.get(id) ?? []);
-      const takes: Take[] = lettere.sort()
+      const takes: Take[] = letters.sort()
         .map((tk) => ({
           take: tk,
           frames: here
