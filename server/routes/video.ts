@@ -29,13 +29,13 @@ videoRoutes.get("/api/video/assets", (c) => c.json(assets()));
 
 videoRoutes.post("/api/video/pick", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
-    shot?: string; kept?: boolean | null; perche?: string;
+    shot?: string; kept?: boolean | null; why?: string;
   };
   if (!body.shot) return c.json({ error: "shot mancante" }, 400);
   // `kept: null` esplicito = togli il verdetto (l'annulla). Distinto da
   // "campo assente", che resta un sì: e' la firma che aveva prima.
   const kept = body.kept === null ? null : body.kept !== false;
-  const s = setPick(body.shot, kept, body.perche);
+  const s = setPick(body.shot, kept, body.why);
   return c.json({ ok: true, discarded: s.discarded, shots: shots() });
 });
 
@@ -127,7 +127,7 @@ videoRoutes.post("/api/video/marker", async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const t = Number(b.t);
   if (!Number.isFinite(t) || t < 0) return c.json({ error: "istante non valido" }, 400);
-  setMarker(t, b.nota ? String(b.nota).slice(0, 300) : null);
+  setMarker(t, b.note ? String(b.note).slice(0, 300) : null);
   return c.json({ markers: markers() });
 });
 
@@ -137,7 +137,7 @@ videoRoutes.get("/api/video/gate", (c) => c.json(gate(c.req.query("force") === "
 
 videoRoutes.post("/api/video/ricostruisci", (c) => {
   const r = startRebuild();
-  return r.ok ? c.json({ ok: true }) : c.json({ error: r.errore }, 409);
+  return r.ok ? c.json({ ok: true }) : c.json({ error: r.error }, 409);
 });
 videoRoutes.get("/api/video/rebuild", (c) => c.json(rebuildState()));
 

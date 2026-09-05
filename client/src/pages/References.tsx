@@ -18,10 +18,10 @@ export default function ReferencesPage() {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [origine, setOrigine] = useState<string | null>(null);
-  const [state, setState] = useState<{ tipo: "attesa" | "errore" | "ok"; msg: string } | null>(null);
+  const [state, setState] = useState<{ kind: "waiting" | "error" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [refs, setRefs] = useState<Reference[]>([]);
-  const [sopra, setSopra] = useState(false);
+  const [above, setAbove] = useState(false);
   /** Quali reference mostrare. «mai usate» e' il filtro che conta: una
    *  reference a zero e' una passata intera andata nella direzione sbagliata
    *  senza che nessuno lo vedesse (su profilo e' successo 12 volte su 12), e
@@ -68,34 +68,34 @@ export default function ReferencesPage() {
   /** Carica i file scelti, uno per volta: un errore sul terzo non deve far
    *  perdere i primi due, e dirlo su quale e' fallito serve piu' di un
    *  "caricamento fallito" collettivo. */
-  async function loadFiles(files: FileList | File[]) {
-    const lista = [...files];
-    if (lista.length === 0) return;
-    setState({ tipo: "attesa", msg: `Carico ${lista.length} file…` });
-    const errori: string[] = [];
-    for (const f of lista) {
+  async function loadFiles(chosen: FileList | File[]) {
+    const files = [...chosen];
+    if (files.length === 0) return;
+    setState({ kind: "waiting", msg: `Carico ${files.length} file…` });
+    const errors: string[] = [];
+    for (const f of files) {
       const fd = new FormData();
       fd.append("file", f);
       try {
         const r = await fetch(pq("/api/references"), { method: "POST", body: fd });
         if (!r.ok) {
           const b = (await r.json().catch(() => ({}))) as { error?: string };
-          errori.push(`${f.name}: ${b.error ?? r.status}`);
+          errors.push(`${f.name}: ${b.error ?? r.status}`);
         }
       } catch (e) {
-        errori.push(`${f.name}: ${String(e)}`);
+        errors.push(`${f.name}: ${String(e)}`);
       }
     }
     await load();
     setState(
-      errori.length === 0
-        ? { tipo: "ok", msg: `Caricati ${lista.length} riferimenti.` }
-        : { tipo: "errore", msg: errori.join(" · ") },
+      errors.length === 0
+        ? { kind: "ok", msg: `Caricati ${files.length} riferimenti.` }
+        : { kind: "error", msg: errors.join(" · ") },
     );
   }
 
   async function estrai() {
-    setState({ tipo: "attesa", msg: "Leggo il riferimento…" });
+    setState({ kind: "waiting", msg: "Leggo il riferimento…" });
     try {
       const r = await jsonFetch<{ text: string; aspetti: number; missing: string[]; from_reference: string }>(
         "/api/reference/extract",
@@ -111,13 +111,13 @@ export default function ReferencesPage() {
       // Cio' che non e' stato descritto va detto: e' la parte che dovra'
       // scrivere una persona, e se resta implicita non la scrive nessuno.
       setState({
-        tipo: "ok",
+        kind: "ok",
         msg: r.missing.length
           ? `Descritti ${r.aspetti} aspetti su 5. Non è riuscito a descrivere: ${r.missing.join(", ")} — aggiungili a mano.`
           : `Descritti tutti e 5 gli aspetti.`,
       });
     } catch (e) {
-      setState({ tipo: "errore", msg: String((e as Error).message || e) });
+      setState({ kind: "error", msg: String((e as Error).message || e) });
     }
   }
 
@@ -128,10 +128,10 @@ export default function ReferencesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name, body: text, from_reference: origine }),
       });
-      setState({ tipo: "ok", msg: `Ricetta "${name}" salvata.` });
+      setState({ kind: "ok", msg: `Ricetta "${name}" salvata.` });
       load();
     } catch (e) {
-      setState({ tipo: "errore", msg: String((e as Error).message || e) });
+      setState({ kind: "error", msg: String((e as Error).message || e) });
     }
   }
 
@@ -150,17 +150,17 @@ export default function ReferencesPage() {
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          setSopra(true);
+          setAbove(true);
         }}
-        onDragLeave={() => setSopra(false)}
+        onDragLeave={() => setAbove(false)}
         onDrop={(e) => {
           e.preventDefault();
-          setSopra(false);
+          setAbove(false);
           if (e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
         }}
         className={
           "space-y-2 border border-dashed p-3 transition-colors " +
-          (sopra ? "border-amber-500 bg-amber-950/20" : "border-neutral-800")
+          (above ? "border-amber-500 bg-amber-950/20" : "border-neutral-800")
         }
       >
           <div className="flex items-baseline gap-2 flex-wrap">
@@ -249,7 +249,7 @@ export default function ReferencesPage() {
         />
         <button
           onClick={estrai}
-          disabled={!path || state?.tipo === "attesa"}
+          disabled={!path || state?.kind === "waiting"}
           className="px-4 py-2 text-sm border border-neutral-700 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
         >
           Estrai
@@ -260,9 +260,9 @@ export default function ReferencesPage() {
         <div
           className={
             "text-sm border-l-2 pl-3 py-1 " +
-            (state.tipo === "errore"
+            (state.kind === "error"
               ? "border-red-500 text-red-400"
-              : state.tipo === "attesa"
+              : state.kind === "waiting"
                 ? "border-neutral-600 text-neutral-400"
                 : "border-amber-500 text-neutral-300")
           }

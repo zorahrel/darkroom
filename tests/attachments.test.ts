@@ -123,14 +123,14 @@ describe("i file inviati e le posizioni citate coincidono", () => {
 
   test("aggiungere una reference NON sposta cio' che la frase chiama identita'", () => {
     // E' il modo silenzioso di sbagliare: un file in piu' e il prompt mente.
-    const prima = preparaAllegati([io("a.png"), io("b.png"), stile("x.jpg")], { withSource: true });
-    const dopo = preparaAllegati(
+    const before = preparaAllegati([io("a.png"), io("b.png"), stile("x.jpg")], { withSource: true });
+    const after = preparaAllegati(
       [io("a.png"), io("b.png"), stile("x.jpg"), oggetto("y.jpg")],
       { withSource: true },
     );
-    expect(dopo.files.slice(0, 2)).toEqual(prima.files.slice(0, 2));
+    expect(after.files.slice(0, 2)).toEqual(before.files.slice(0, 2));
     // Minuscolo: dentro la frase la posizione segue "The SOURCE photograph and".
-    expect(dopo.preamble).toContain("the first two attached images");
+    expect(after.preamble).toContain("the first two attached images");
   });
 
   test("il numero di file inviati e' quello dichiarato", () => {

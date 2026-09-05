@@ -16,8 +16,8 @@ describe("ricevuta", () => {
   });
 
   test("non tocca quello che non e' un elenco noto", () => {
-    const r = ricevuta({ ok: true, errore: null, bar: 12 }) as any;
-    expect(r).toEqual({ ok: true, errore: null, bar: 12 });
+    const r = ricevuta({ ok: true, error: null, bar: 12 }) as any;
+    expect(r).toEqual({ ok: true, error: null, bar: 12 });
   });
 
   test("un elenco piccolo ma noto si comprime lo stesso: la soglia non e' la lunghezza", () => {

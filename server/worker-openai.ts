@@ -243,8 +243,8 @@ export async function runWorkerOpenAiGenerate(input: {
     };
   }
   const refs = (input.refs ?? []).filter((p) => existsSync(p));
-  const oltre = overCap({ withRefs: refs.length > 0 });
-  if (oltre) return { status: "error", error: oltre };
+  const over = overCap({ withRefs: refs.length > 0 });
+  if (over) return { status: "error", error: over };
   const startedAt = Date.now();
 
   // Con reference si passa da /edits, che è l'unico endpoint che le accetta.
@@ -296,8 +296,8 @@ export async function runWorkerOpenAi(input: {
   // Un edit passa SEMPRE da /edits, che il batch non supporta: mandare qui
   // qualcuno al batch sarebbe un vicolo cieco anche senza reference.
   const wantedQuality = input.quality ?? OPENAI_IMAGE_QUALITY;
-  const oltre = overCap({ withRefs: true, quality: wantedQuality });
-  if (oltre) return { status: "error", error: oltre };
+  const over = overCap({ withRefs: true, quality: wantedQuality });
+  if (over) return { status: "error", error: over };
   const startedAt = Date.now();
   // Con i ruoli dichiarati, il preambolo viene generato dallo stesso elenco che
   // decide l'ordine degli allegati: e' l'unico modo perche' "le prime due sono

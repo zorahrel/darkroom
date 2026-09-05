@@ -67,7 +67,7 @@ export default function StudioPage() {
 
   const visibili = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const dentro = tutti.filter((p) => {
+    const inside = tutti.filter((p) => {
       if (view !== "tutte" && !p.views.includes(view)) return false;
       if (state === "in_corso" && ((p.stats?.queue?.running ?? 0) + (p.stats?.queue?.pending ?? 0)) === 0) return false;
       if (state === "falliti" && (p.stats?.queue?.failed ?? 0) === 0) return false;
@@ -77,7 +77,7 @@ export default function StudioPage() {
       return p.name.toLowerCase().includes(q) || p.root.toLowerCase().includes(q) || p.id.includes(q);
     });
     const weight = (p: StudioProject) => p.stats?.photos ?? p.video?.cuts ?? 0;
-    return dentro.sort((a, b) =>
+    return inside.sort((a, b) =>
       ordine === "nome"
         ? a.name.localeCompare(b.name)
         : ordine === "grandi"
@@ -92,7 +92,7 @@ export default function StudioPage() {
   return (
     <div className="space-y-4">
       <Header title="Progetti"
-               sotto="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
+               below="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
 
       {err && (
         <div className="rounded border border-rose-900 bg-rose-950/40 text-rose-200 text-[12px] px-2.5 py-1.5">
@@ -112,7 +112,7 @@ export default function StudioPage() {
           Due domande diverse, quindi due gruppi, non un elenco unico in cui
           «video» e «in pausa» si escludono a vicenda senza motivo. */}
       <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
-        <Search value={search} onChange={setSearch} segnaposto="cerca un progetto…" />
+        <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
         <div className="flex items-center gap-1">
           <Filter active={view === "tutte"} onClick={() => setView("tutte")} n={count.tutte}>tutti</Filter>
           {VIEWS.map((v) => (
@@ -172,7 +172,7 @@ export default function StudioPage() {
         ))}
       </div>
 
-      <Nuovo onDone={refresh} />
+      <NewProject onDone={refresh} />
     </div>
   );
 }
@@ -206,9 +206,9 @@ function Card({
    *  progetto che si apre su una pagina che non c'è. */
   const changeView = (id: ProjectKind) => {
     if (id === p.kind) return;
-    const dentro = new Set(p.views);
-    if (dentro.has(id)) dentro.delete(id); else dentro.add(id);
-    onViews([...dentro]);
+    const inside = new Set(p.views);
+    if (inside.has(id)) inside.delete(id); else inside.add(id);
+    onViews([...inside]);
   };
 
   return (
@@ -235,11 +235,11 @@ function Card({
           <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
           <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
           <MenuItem onClick={() => onGenera(!p.active)}
-                    nota="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
+                    note="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
             {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
           </MenuItem>
           <div className="border-t border-neutral-800 my-1" />
-          <Confirm taglia="s" className="w-full justify-start"
+          <Confirm size="s" className="w-full justify-start"
                     domanda={`Tolgo «${p.name}»? I file restano dove sono.`}
                     confirm="togli" onConfirm={onTogli}>
             Togli dall'elenco
@@ -262,10 +262,10 @@ function Card({
 
       {numbers && (
         <div className="relative z-10 grid grid-cols-3 gap-1.5 text-center pointer-events-none">
-          {numbers.map(([etichetta, v]) => (
-            <div key={etichetta} className="rounded bg-neutral-900/60 border border-neutral-800 py-1">
+          {numbers.map(([label, v]) => (
+            <div key={label} className="rounded bg-neutral-900/60 border border-neutral-800 py-1">
               <div className="text-[15px] font-semibold tabular-nums leading-tight">{v}</div>
-              <div className="text-[10px] text-neutral-400">{etichetta}</div>
+              <div className="text-[10px] text-neutral-400">{label}</div>
             </div>
           ))}
         </div>
@@ -302,10 +302,10 @@ function Card({
           delle schede della stessa fila finivano a tre pixel di scarto. */}
       <div className="relative z-10 flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]
                       pointer-events-none">
-        {(q.running ?? 0) > 0 && <Badge tono="info">{q.running} in corso</Badge>}
+        {(q.running ?? 0) > 0 && <Badge tone="info">{q.running} in corso</Badge>}
         {(q.pending ?? 0) > 0 && <Badge>{q.pending} in coda</Badge>}
         {(q.failed ?? 0) > 0 && (
-          <Badge tono="male" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
+          <Badge tone="male" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
             {q.failed} falliti
           </Badge>
         )}
@@ -313,12 +313,12 @@ function Card({
             strano. In pausa invece è un'eccezione — i lavori ci sono e nessuno
             li tocca — e quella va detta. */}
         {!p.active && (
-          <Badge tono="attesa" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
+          <Badge tone="attesa" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
             in pausa
           </Badge>
         )}
         <span className="ml-auto text-neutral-400 shrink-0" title="ultima versione generata">
-          {quando(s?.last_version_at ?? null)}
+          {when(s?.last_version_at ?? null)}
         </span>
         <span className="text-neutral-400 group-hover:text-neutral-100 transition-colors
                          inline-flex items-center gap-1 shrink-0">
@@ -330,95 +330,95 @@ function Card({
   );
 }
 
-function MenuItem({ children, onClick, nota }: {
-  children: React.ReactNode; onClick: () => void; nota?: string;
+function MenuItem({ children, onClick, note }: {
+  children: React.ReactNode; onClick: () => void; note?: string;
 }) {
   const close = useCloseMenu();
   return (
-    <button type="button" role="menuitem" title={nota}
+    <button type="button" role="menuitem" title={note}
             onClick={(e) => { e.stopPropagation(); onClick(); close(); }}
             className="w-full text-left px-2 py-1 rounded-sm text-[11px] text-neutral-300
                        hover:bg-neutral-800 hover:text-neutral-100">
       {children}
-      {nota && <span className="block text-[10.5px] text-neutral-400 leading-snug mt-0.5">{nota}</span>}
+      {note && <span className="block text-[10.5px] text-neutral-400 leading-snug mt-0.5">{note}</span>}
     </button>
   );
 }
 
-function Nuovo({ onDone }: { onDone: () => void }) {
+function NewProject({ onDone }: { onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [tipo, setTipo] = useState<ProjectKind>("photo");
-  const [foto, setPhotos] = useState("");
-  const [modo, setModo] = useState<"link" | "copy">("link");
-  const [radice, setRadice] = useState("");
-  const [avanzate, setAvanzate] = useState(false);
-  const [inCorso, setInCorso] = useState(false);
+  const [kind, setKind] = useState<ProjectKind>("photo");
+  const [photos, setPhotos] = useState("");
+  const [linkMode, setLinkMode] = useState<"link" | "copy">("link");
+  const [root, setRoot] = useState("");
+  const [advanced, setAdvanced] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function crea() {
-    setInCorso(true); setErr(null);
+  async function create() {
+    setBusy(true); setErr(null);
     try {
       const res = await api.studioAddProject({
         name: name.trim(),
-        kind: tipo,
-        root: radice.trim() || undefined,
-        photos: foto.trim() ? { path: foto.trim(), mode: modo } : undefined,
+        kind: kind,
+        root: root.trim() || undefined,
+        photos: photos.trim() ? { path: photos.trim(), mode: linkMode } : undefined,
       });
       if (res.summary && res.summary.added === 0 && res.summary.scanned === 0) {
         setErr("Progetto creato, ma in quella cartella non ho trovato foto.");
       }
-      setName(""); setPhotos(""); setRadice(""); setAvanzate(false); setOpen(false);
+      setName(""); setPhotos(""); setRoot(""); setAdvanced(false); setOpen(false);
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
-    } finally { setInCorso(false); }
+    } finally { setBusy(false); }
   }
 
-  if (!open) return <Bott taglia="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
+  if (!open) return <Bott size="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
 
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-3 max-w-lg">
       <div className="text-[13px] font-medium">Nuovo progetto</div>
 
-      <Row etichetta="Come si chiama">
-        <Field value={name} onChange={setName} segnaposto="es. Kyoto 2026" autoFuoco
-               taglia="m" className="w-full" onInvio={() => { if (name.trim()) void crea(); }} />
+      <Row label="Come si chiama">
+        <Field value={name} onChange={setName} placeholder="es. Kyoto 2026" autoFuoco
+               size="m" className="w-full" onInvio={() => { if (name.trim()) void create(); }} />
       </Row>
 
-      <Row etichetta="Che cosa ci fai">
+      <Row label="Che cosa ci fai">
         <div className="grid grid-cols-3 gap-1.5">
           {VIEWS.map((v) => (
-            <BigPick key={v.id} picked={tipo === v.id} onClick={() => setTipo(v.id)}
-                      icon={v.icon} title={v.name} nota={v.spiega} />
+            <BigPick key={v.id} picked={kind === v.id} onClick={() => setKind(v.id)}
+                      icon={v.icon} title={v.name} note={v.spiega} />
           ))}
         </div>
       </Row>
 
-      {tipo === "photo" && (
-        <Row etichetta="Le foto — puoi aggiungerle anche dopo">
-          <Field value={foto} onChange={setPhotos} segnaposto="/Users/…/Foto/Kyoto"
-                 taglia="m" className="w-full font-mono" />
-          {foto.trim() && (
+      {kind === "photo" && (
+        <Row label="Le foto — puoi aggiungerle anche dopo">
+          <Field value={photos} onChange={setPhotos} placeholder="/Users/…/Foto/Kyoto"
+                 size="m" className="w-full font-mono" />
+          {photos.trim() && (
             <div className="grid grid-cols-2 gap-1.5 pt-1.5">
-              <BigPick picked={modo === "link"} onClick={() => setModo("link")}
-                        title="Lasciale dove sono" nota="Le indicizzo sul posto: non copio niente." />
-              <BigPick picked={modo === "copy"} onClick={() => setModo("copy")}
-                        title="Copiale nel progetto" nota="Utile se la cartella è temporanea." />
+              <BigPick picked={linkMode === "link"} onClick={() => setLinkMode("link")}
+                        title="Lasciale dove sono" note="Le indicizzo sul posto: non copio niente." />
+              <BigPick picked={linkMode === "copy"} onClick={() => setLinkMode("copy")}
+                        title="Copiale nel progetto" note="Utile se la cartella è temporanea." />
             </div>
           )}
         </Row>
       )}
 
       <div>
-        <Bott weight="quieto" taglia="s" onClick={() => setAvanzate((v) => !v)}>
-          {avanzate ? "▾" : "▸"} Dove salvare il progetto
+        <Bott weight="quieto" size="s" onClick={() => setAdvanced((v) => !v)}>
+          {advanced ? "▾" : "▸"} Dove salvare il progetto
         </Bott>
-        {avanzate && (
+        {advanced && (
           <div className="pt-1.5">
-            <Row etichetta="Cartella del progetto — vuoto: la crea Darkroom">
-              <Field value={radice} onChange={setRadice} taglia="m"
-                     segnaposto="~/Darkroom/projects/<nome>" className="w-full font-mono" />
+            <Row label="Cartella del progetto — vuoto: la crea Darkroom">
+              <Field value={root} onChange={setRoot} size="m"
+                     placeholder="~/Darkroom/projects/<nome>" className="w-full font-mono" />
             </Row>
           </div>
         )}
@@ -427,17 +427,17 @@ function Nuovo({ onDone }: { onDone: () => void }) {
       {err && <div className="text-[11px] text-amber-300">{err}</div>}
 
       <div className="flex items-center gap-1.5">
-        <Bott weight="primario" taglia="m" onClick={crea} disabilitato={inCorso || !name.trim()}>
-          {inCorso ? "Creo…" : "Crea"}
+        <Bott weight="primario" size="m" onClick={create} disabilitato={busy || !name.trim()}>
+          {busy ? "Creo…" : "Crea"}
         </Bott>
-        <Bott weight="quieto" taglia="m" onClick={() => setOpen(false)}>Annulla</Bott>
+        <Bott weight="quieto" size="m" onClick={() => setOpen(false)}>Annulla</Bott>
       </div>
     </div>
   );
 }
 
-function BigPick({ picked, onClick, title, nota, icon: I }: {
-  picked: boolean; onClick: () => void; title: string; nota: string; icon?: LucideIcon;
+function BigPick({ picked, onClick, title, note, icon: I }: {
+  picked: boolean; onClick: () => void; title: string; note: string; icon?: LucideIcon;
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={picked}
@@ -447,21 +447,21 @@ function BigPick({ picked, onClick, title, nota, icon: I }: {
         {I && <I className="w-3.5 h-3.5 text-neutral-400" aria-hidden />}
         {title}
       </div>
-      <div className="text-[11px] text-neutral-400 leading-snug mt-0.5">{nota}</div>
+      <div className="text-[11px] text-neutral-400 leading-snug mt-0.5">{note}</div>
     </button>
   );
 }
 
-function Row({ etichetta, children }: { etichetta: string; children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] text-neutral-400">{etichetta}</span>
+      <span className="text-[11px] text-neutral-400">{label}</span>
       {children}
     </label>
   );
 }
 
-function quando(ms: number | null): string {
+function when(ms: number | null): string {
   if (!ms) return "";
   const min = Math.round((Date.now() - ms) / 60000);
   if (min < 1) return "adesso";

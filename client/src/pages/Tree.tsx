@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, thumbRefUrl, genUrl, refUrl } from "../api";
 import { useViewState, readBool, readOneOf, readNumber } from "../viewState";
 import { Pills } from "../ui";
-import { VERDICTS, type Verdetto, filterTree, countVerdicts } from "../treeFilter";
+import { VERDICTS, type Verdict, filterTree, countVerdicts } from "../treeFilter";
 
 // Vista di scelta (LIN-02): ogni scatto e i suoi rami, raggruppati per
 // configurazione.
@@ -92,7 +92,7 @@ function Item({
   /** Ingrandimento: una miniatura da 64px serve a riconoscere un'immagine gia'
    *  nota, non a giudicarla. Senza, per vedere cosa era davvero entrato nella
    *  generazione bisognava aprire il file dal Finder. */
-  onZoom?: (grande: string, didascalia: string) => void;
+  onZoom?: (large: string, didascalia: string) => void;
 }) {
   return (
     <div>
@@ -102,7 +102,7 @@ function Item({
           {values!.map((f, i) => {
             const src = ids?.[i] ? thumbRawUrl(ids[i]!, 120) : preview?.(f);
             // A schermo intero si vuole l'originale, non la miniatura ingrandita.
-            const grande = ids?.[i] ? thumbRawUrl(ids[i]!, 1600) : refUrl(f);
+            const large = ids?.[i] ? thumbRawUrl(ids[i]!, 1600) : refUrl(f);
             return (
               <figure key={f} className="m-0 w-16">
                 {src && (
@@ -111,7 +111,7 @@ function Item({
                     alt={f}
                     title={`${f} — clic per ingrandire`}
                     loading="lazy"
-                    onClick={onZoom ? () => onZoom(grande, f) : undefined}
+                    onClick={onZoom ? () => onZoom(large, f) : undefined}
                     className={
                       "w-16 h-16 object-cover border border-neutral-700 bg-neutral-950 " +
                       (onZoom ? "cursor-zoom-in hover:border-amber-500" : "")
@@ -184,7 +184,7 @@ function Recipe({
   onZoom,
 }: {
   v?: Variant;
-  onZoom?: (grande: string, didascalia: string) => void;
+  onZoom?: (large: string, didascalia: string) => void;
 }) {
   if (!v) return null;
   return (
@@ -238,7 +238,7 @@ function Recipe({
 const GLYPH: Record<string, string> = { "": "○", tieni: "●", forse: "?", scarta: "✕" };
 
 /** Come si chiamano i filtri qui dentro. La logica sta in `alberoFiltro`. */
-const VERDICT_LABEL: Record<Verdetto, string> = {
+const VERDICT_LABEL: Record<Verdict, string> = {
   tutte: "tutte",
   tieni: "tenute",
   forse: "forse",
@@ -287,7 +287,7 @@ export default function TreePage() {
    * trenta varianti, "mostrami solo le tenute" e' cio' che si stava guardando,
    * e ricaricare la pagina non deve riportare tutto in mezzo.
    */
-  const [verdetto, setVerdetto] = useViewState<Verdetto>("giudizio", "tutte", {
+  const [verdict, setVerdict] = useViewState<Verdict>("giudizio", "tutte", {
     read: readOneOf(VERDICTS),
     memoria: "darkroom.albero.giudizio",
   });
@@ -296,7 +296,7 @@ export default function TreePage() {
    * al caricamento: e' una misura che apre un processo per immagine, e su una
    * pagina con centinaia di varianti la si pagherebbe tutta per guardarne tre.
    */
-  const [scarti, setScarti] = useState<Record<number, number | null>>({});
+  const [gaps, setScarti] = useState<Record<number, number | null>>({});
   const [measuring, setMeasuring] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
@@ -341,7 +341,7 @@ export default function TreePage() {
    * senza gruppi: una sorgente con l'intestazione e nessuna variante sotto
    * sembra un caricamento a meta', non un filtro che ha funzionato.
    */
-  const visibili = useMemo(() => filterTree(nodes, verdetto), [nodes, verdetto]);
+  const visibili = useMemo(() => filterTree(nodes, verdict), [nodes, verdict]);
   // I controlli compaiono solo se c'e' qualcosa da sovrapporre: su un progetto
   // senza riferimenti sarebbero un interruttore che non accende niente.
   const hasReferences = nodes.some((n) => n.groups.some((g) => (g.refs?.length ?? 0) > 0));
@@ -356,14 +356,14 @@ export default function TreePage() {
     );
     for (const id of daFare) {
       try {
-        const r = await jsonFetch<{ scarto: { distanza: number; saturo?: boolean } | null }>(
-          `/api/versions/${id}/scarto`,
+        const r = await jsonFetch<{ gap: { distance: number; saturated?: boolean } | null }>(
+          `/api/versions/${id}/gap`,
         );
         // Oltre la saturazione la distanza e' un limite inferiore: si mostra
         // col "≥" invece di far credere che sia il valore esatto.
         setScarti((s) => ({
           ...s,
-          [id]: r.scarto ? (r.scarto.saturo ? -r.scarto.distanza : r.scarto.distanza) : null,
+          [id]: r.gap ? (r.gap.saturated ? -r.gap.distance : r.gap.distance) : null,
         }));
       } catch {
         setScarti((s) => ({ ...s, [id]: null }));
@@ -388,8 +388,8 @@ export default function TreePage() {
             (pastiglie con il conteggio), perche' e' la stessa domanda. */}
         <Pills
           items={VERDICTS.map((k) => ({ id: k, name: VERDICT_LABEL[k] }))}
-          pick={verdetto}
-          onScegli={setVerdetto}
+          pick={verdict}
+          onScegli={setVerdict}
           counts={counts}
           neutra="tutte"
         />
@@ -455,8 +455,8 @@ export default function TreePage() {
 
       {visibili.length === 0 && (
         <div className="py-16 text-center text-neutral-500 text-sm">
-          Nessuna variante {VERDICT_LABEL[verdetto]}.{" "}
-          <button onClick={() => setVerdetto("tutte")} className="text-amber-500 hover:underline">
+          Nessuna variante {VERDICT_LABEL[verdict]}.{" "}
+          <button onClick={() => setVerdict("tutte")} className="text-amber-500 hover:underline">
             mostra tutte
           </button>
         </div>
@@ -597,7 +597,7 @@ export default function TreePage() {
                         key={v.id}
                         photo={n.photo}
                         v={v}
-                        scarto={scarti[v.id]}
+                        gap={gaps[v.id]}
                         rif={overlay ? (g.refs?.[0] ?? null) : null}
                         opacita={opacita}
                         modo={modo}
@@ -679,7 +679,7 @@ export default function TreePage() {
 function Leaf({
   photo,
   v,
-  scarto,
+  gap,
   rif,
   opacita,
   modo,
@@ -690,7 +690,7 @@ function Leaf({
   photo: string;
   v: Variant;
   /** Distanza dalla reference: undefined = non misurata, null = non misurabile. */
-  scarto?: number | null;
+  gap?: number | null;
   /** Riferimento da sovrapporre, o null quando la sovrapposizione e' spenta. */
   rif?: string | null;
   opacita?: number;
@@ -778,29 +778,29 @@ function Leaf({
             che descrive. Verde sotto 0.5 (praticamente uguale alla reference),
             ambra fino a 1.5, rosso sopra: sono le soglie che separano le
             calibrazioni riuscite da quelle andate a vuoto su profilo. */}
-        {scarto !== undefined && (
+        {gap !== undefined && (
           <span
             title={
-              scarto === null
+              gap === null
                 ? "questa variante non ha una reference con cui confrontarsi"
-                : scarto < 0
-                  ? `distanza dalla reference: almeno ${(-scarto).toFixed(2)}. La sagoma non si distingue dal fondo, quindi la misura non separa piu' i casi peggiori.`
-                  : `distanza dalla reference: ${scarto.toFixed(2)} (0 = identica)`
+                : gap < 0
+                  ? `distanza dalla reference: almeno ${(-gap).toFixed(2)}. La sagoma non si distingue dal fondo, quindi la misura non separa piu' i casi peggiori.`
+                  : `distanza dalla reference: ${gap.toFixed(2)} (0 = identica)`
             }
             className={
               "absolute top-1 right-1 px-1.5 py-0.5 font-mono text-[10px] border bg-neutral-950/85 " +
-              (scarto === null
+              (gap === null
                 ? "border-neutral-700 text-neutral-500"
-                : scarto < 0
+                : gap < 0
                   ? "border-rose-800 text-rose-300"
-                  : scarto < 0.5
+                  : gap < 0.5
                   ? "border-emerald-700 text-emerald-300"
-                  : scarto < 1.5
+                  : gap < 1.5
                     ? "border-amber-700 text-amber-300"
                     : "border-rose-800 text-rose-300")
             }
           >
-            {scarto === null ? "—" : scarto < 0 ? `≥${(-scarto).toFixed(2)}` : scarto.toFixed(2)}
+            {gap === null ? "—" : gap < 0 ? `≥${(-gap).toFixed(2)}` : gap.toFixed(2)}
           </span>
         )}
         {/* Il glifo e' decorazione: se intercettasse il click, l'ingrandimento

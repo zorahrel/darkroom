@@ -26,7 +26,7 @@ function put(name: string): void {
   writeFileSync(join(refsDir(), name), PNG);
 }
 
-function variante(n: number, refs: string[]): void {
+function variant(n: number, refs: string[]): void {
   db().run(
     `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
      VALUES ('p',?,?,'x',NULL,?,'openai','generated',?)`,
@@ -70,17 +70,17 @@ describe("i riferimenti del progetto si vedono", () => {
 describe("una reference mai usata si vede che è mai usata", () => {
   test("zero varianti quando nessuna generazione l'ha allegata", async () => {
     put("mai-usata.png");
-    variante(1, []);
-    variante(2, []);
+    variant(1, []);
+    variant(2, []);
     const r = (await list()).find((x) => x.file === "mai-usata.png");
     expect(r!.usata_in).toBe(0);
   });
 
   test("il conteggio segue le varianti che l'hanno davvero allegata", async () => {
     put("usata.png");
-    variante(1, ["usata.png"]);
-    variante(2, ["usata.png"]);
-    variante(3, []);
+    variant(1, ["usata.png"]);
+    variant(2, ["usata.png"]);
+    variant(3, []);
     const r = (await list()).find((x) => x.file === "usata.png");
     expect(r!.usata_in).toBe(2);
   });
@@ -89,7 +89,7 @@ describe("una reference mai usata si vede che è mai usata", () => {
     // Dodici varianti che dichiarano uno stile e non allegano niente. Prima di
     // questa vista il numero non esisteva da nessuna parte.
     put("stile-promesso.png");
-    for (let n = 1; n <= 12; n++) variante(n, []);
+    for (let n = 1; n <= 12; n++) variant(n, []);
     const r = (await list()).find((x) => x.file === "stile-promesso.png");
     expect(r!.usata_in).toBe(0);
   });
@@ -100,7 +100,7 @@ describe("una reference mai usata si vede che è mai usata", () => {
     // comunque prima e il test passerebbe senza controllare niente.
     put("a-usata-tanto.png");
     put("z-mai-usata.png");
-    variante(1, ["a-usata-tanto.png"]);
+    variant(1, ["a-usata-tanto.png"]);
     const refs = await list();
     expect(refs.map((r) => r.file)).toEqual(["z-mai-usata.png", "a-usata-tanto.png"]);
   });
@@ -148,9 +148,9 @@ describe("dalla galleria si estrae senza ricostruire il percorso", () => {
 describe("una reference si carica da dentro Darkroom", () => {
   // Prima un file entrava in data/refs solo copiandocelo dal Finder: la
   // galleria mostrava i riferimenti ma non c'era modo di aggiungerne uno.
-  async function load(name: string, bytes: Buffer, tipo = "image/png") {
+  async function load(name: string, bytes: Buffer, contentType = "image/png") {
     const fd = new FormData();
-    fd.append("file", new File([bytes], name, { type: tipo }));
+    fd.append("file", new File([bytes], name, { type: contentType }));
     return app.request("/api/references", { method: "POST", body: fd });
   }
 
@@ -202,7 +202,7 @@ describe("una reference si carica da dentro Darkroom", () => {
     // Sovrascrivere cambierebbe il significato del lineage delle varianti già
     // generate con quel file, senza dirlo a nessuno.
     await load("stile.png", PNG);
-    variante(1, ["stile.png"]);
+    variant(1, ["stile.png"]);
     const r = await load("stile.png", PNG);
     const body = (await r.json()) as { file: string; rinominato: boolean };
     expect(body.rinominato).toBe(true);
@@ -218,7 +218,7 @@ describe("quanto una variante si discosta dalla reference", () => {
   // guardano le varianti: la domanda "mi sto avvicinando?" si poteva porre solo
   // da terminale, e le calibrazioni sono andate avanti tre giri su un'ipotesi
   // sbagliata proprio per quello.
-  function versione(n: number, refs: string[], imagePath: string): number {
+  function version(n: number, refs: string[], imagePath: string): number {
     const r = db().run(
       `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
        VALUES ('p',?,?,'x',NULL,?,'openai','generated',?)`,
@@ -228,27 +228,27 @@ describe("quanto una variante si discosta dalla reference", () => {
   }
 
   test("una variante senza reference lo dichiara invece di inventare un numero", async () => {
-    const id = versione(1, [], join(refsDir(), "qualsiasi.png"));
+    const id = version(1, [], join(refsDir(), "qualsiasi.png"));
     put("qualsiasi.png");
-    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
+    const r = (await (await app.request(`/api/versions/${id}/gap`)).json()) as {
       reference: string | null;
-      scarto: unknown;
+      gap: unknown;
     };
     // È il caso che è costato 12 generazioni su profilo: nessun bersaglio.
     expect(r.reference).toBeNull();
-    expect(r.scarto).toBeNull();
+    expect(r.gap).toBeNull();
   });
 
   test("una reference sparita non fa passare la misura per riuscita", async () => {
-    const id = versione(2, ["mai-esistita.png"], join(refsDir(), "x.png"));
+    const id = version(2, ["mai-esistita.png"], join(refsDir(), "x.png"));
     put("x.png");
-    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
+    const r = (await (await app.request(`/api/versions/${id}/gap`)).json()) as {
       reference: string;
-      scarto: unknown;
+      gap: unknown;
       error?: string;
     };
     expect(r.reference).toBe("mai-esistita.png");
-    expect(r.scarto).toBeNull();
+    expect(r.gap).toBeNull();
     // Il messaggio deve dire CHE COSA manca: senza il controllo esplicito
     // l'errore arriva comunque, ma come sputo di uno stack python che non
     // spiega niente a chi legge la pagina.
@@ -256,12 +256,12 @@ describe("quanto una variante si discosta dalla reference", () => {
   });
 
   test("una versione inesistente è un 404, non un errore di misura", async () => {
-    const r = await app.request("/api/versions/999999/scarto");
+    const r = await app.request("/api/versions/999999/gap");
     expect(r.status).toBe(404);
   });
 
   test("un id non numerico viene rifiutato", async () => {
-    const r = await app.request("/api/versions/pippo/scarto");
+    const r = await app.request("/api/versions/pippo/gap");
     expect(r.status).toBe(400);
   });
 
@@ -270,12 +270,12 @@ describe("quanto una variante si discosta dalla reference", () => {
     // stessa, la scala ha un punto fisso e i numeri sopra vogliono dire qualcosa.
     put("uguale.png");
     const p = join(refsDir(), "uguale.png");
-    const id = versione(3, ["uguale.png"], p);
-    const r = (await (await app.request(`/api/versions/${id}/scarto`)).json()) as {
-      scarto: { distanza: number } | null;
+    const id = version(3, ["uguale.png"], p);
+    const r = (await (await app.request(`/api/versions/${id}/gap`)).json()) as {
+      gap: { distance: number } | null;
     };
-    expect(r.scarto).not.toBeNull();
-    expect(r.scarto!.distanza).toBe(0);
+    expect(r.gap).not.toBeNull();
+    expect(r.gap!.distance).toBe(0);
   }, 30_000);
 });
 
@@ -286,8 +286,8 @@ describe("la distanza si comporta come una distanza", () => {
   const py = (a: string, b: string) => {
     const r = Bun.spawnSync(["python3", "scripts/ref_match.py", a, b], { cwd: process.cwd() });
     return JSON.parse(new TextDecoder().decode(r.stdout)) as {
-      distanza: number;
-      saturo: boolean;
+      distance: number;
+      saturated: boolean;
     };
   };
 
@@ -309,7 +309,7 @@ describe("la distanza si comporta come una distanza", () => {
     }
     let prec = -1;
     for (const f of done) {
-      const d = py(f, src).distanza;
+      const d = py(f, src).distance;
       expect(d).toBeGreaterThanOrEqual(prec);
       prec = d;
     }
@@ -318,7 +318,7 @@ describe("la distanza si comporta come una distanza", () => {
   test("un'immagine dista zero da se stessa", () => {
     put("identica.png");
     const p = join(refsDir(), "identica.png");
-    expect(py(p, p).distanza).toBe(0);
+    expect(py(p, p).distance).toBe(0);
   }, 30_000);
 
   test("quando la sagoma sparisce nel fondo, la misura lo dichiara", async () => {
@@ -333,6 +333,6 @@ describe("la distanza si comporta come una distanza", () => {
     const r = py(out, src);
     // Oltre questa soglia la distanza e' un limite inferiore, non il valore
     // esatto: senza il flag due degradi diversi leggerebbero uguale.
-    expect(r.saturo).toBe(true);
+    expect(r.saturated).toBe(true);
   }, 30_000);
 });

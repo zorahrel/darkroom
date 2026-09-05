@@ -26,7 +26,7 @@ if (process.env.DARKROOM_PORT_FORCE !== "1") {
   }
   if (outcome.state === "ignoto") {
     // Non blocca: un controllo che non sa non ha il diritto di fermare il boot.
-    console.warn(`[porta] controllo saltato (${outcome.perche}) — parto lo stesso.`);
+    console.warn(`[porta] controllo saltato (${outcome.why}) — parto lo stesso.`);
   }
 }
 

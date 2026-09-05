@@ -93,14 +93,14 @@ async function chiedi(immagine: string, domanda: string): Promise<string | null>
 /** Estrae la descrizione riusabile di un'immagine di riferimento. */
 referenceRoutes.post("/api/reference/extract", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { path?: unknown };
-  const richiesto = typeof body.path === "string" ? body.path.trim() : "";
+  const requested = typeof body.path === "string" ? body.path.trim() : "";
   // Un nome nudo si risolve dentro i riferimenti del progetto: la galleria
   // manda il file, non il percorso, e chiedere all'utente di ricostruirlo a
   // mano sarebbe chiedergli di sapere dove Darkroom tiene le sue cose.
   const path =
-    richiesto && !richiesto.includes("/") && existsSync(join(refsDir(), richiesto))
-      ? join(refsDir(), richiesto)
-      : richiesto;
+    requested && !requested.includes("/") && existsSync(join(refsDir(), requested))
+      ? join(refsDir(), requested)
+      : requested;
   if (!path || !existsSync(path)) return c.json({ error: "immagine non trovata" }, 400);
 
   const parts: string[] = [];

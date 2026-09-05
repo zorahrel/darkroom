@@ -38,7 +38,7 @@ export type Allegato = {
 };
 
 /** Come si dice una posizione in inglese, per il prompt. */
-function posizione(indici: number[], total: number): string {
+function position(indici: number[], total: number): string {
   if (total === 1) return "The attached image";
   if (indici.length === 1) {
     const ord = [
@@ -50,9 +50,9 @@ function posizione(indici: number[], total: number): string {
   if (indici.length === total) return "The attached images";
   // Un blocco contiguo si dice per esteso: "the first two", "the last three".
   const contiguo = indici.every((n, i) => i === 0 || n === indici[i - 1]! + 1);
-  const quanti = ["", "one", "two", "three", "four", "five", "six"][indici.length] ?? String(indici.length);
-  if (contiguo && indici[0] === 0) return `The first ${quanti} attached images`;
-  if (contiguo && indici[indici.length - 1] === total - 1) return `The last ${quanti} attached images`;
+  const howMany = ["", "one", "two", "three", "four", "five", "six"][indici.length] ?? String(indici.length);
+  if (contiguo && indici[0] === 0) return `The first ${howMany} attached images`;
+  if (contiguo && indici[indici.length - 1] === total - 1) return `The last ${howMany} attached images`;
   return `Attached images ${indici.map((n) => n + 1).join(", ")}`;
 }
 
@@ -72,18 +72,18 @@ export function preamble(allegati: Allegato[], withSource: boolean): string {
 
   const ident = per("identita");
   if (ident.length > 0 || withSource) {
-    const chi = withSource
+    const who = withSource
       ? ident.length > 0
-        ? `The SOURCE photograph and ${posizione(ident.map((x) => x.i), tot).toLowerCase()}`
+        ? `The SOURCE photograph and ${position(ident.map((x) => x.i), tot).toLowerCase()}`
         : "The SOURCE photograph"
-      : posizione(ident.map((x) => x.i), tot);
+      : position(ident.map((x) => x.i), tot);
     // Il verbo segue QUANTE immagini sono davvero nominate, non il fatto che
     // ci sia una sorgente: con la sola sorgente e nessun allegato d'identita'
     // usciva "The SOURCE photograph are of ME", e una frase sgrammaticata la
     // paga il modello, che la interpreta peggio.
     const quante = (withSource ? 1 : 0) + ident.length;
     frasi.push(
-      `${chi} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
+      `${who} ${quante > 1 ? "are" : "is"} of ME, the same person: ` +
         `use them only to keep my face, bone structure and identity exactly as they show it. ` +
         `Ignore their pose, hands, framing, background and lighting.`,
     );
@@ -91,17 +91,17 @@ export function preamble(allegati: Allegato[], withSource: boolean): string {
 
   for (const { a, i } of per("stile")) {
     frasi.push(
-      `${posizione([i], tot)} is a STYLING reference: never copy the face in it. ` +
+      `${position([i], tot)} is a STYLING reference: never copy the face in it. ` +
         `Take from it ${a.prendi ?? "the lighting, tonality, framing and treatment"}.`,
     );
   }
 
   const ogg = per("oggetto");
   if (ogg.length > 0) {
-    const cosa = ogg[0]!.a.prendi ?? "the object shown";
+    const what = ogg[0]!.a.prendi ?? "the object shown";
     frasi.push(
-      `${posizione(ogg.map((x) => x.i), tot)} ${ogg.length > 1 ? "show" : "shows"} an OBJECT to reproduce: ` +
-        `copy ${cosa} exactly as pictured. Never copy any face from them.`,
+      `${position(ogg.map((x) => x.i), tot)} ${ogg.length > 1 ? "show" : "shows"} an OBJECT to reproduce: ` +
+        `copy ${what} exactly as pictured. Never copy any face from them.`,
     );
   }
 

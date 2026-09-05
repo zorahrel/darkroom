@@ -45,20 +45,20 @@ export type Shot = {
   prompt: string;
   takes: Take[];
   /** Measured, from durezza.json: 0 = calmest shot of the set, 1 = hardest. */
-  durezza: number | null;
+  intensity: number | null;
   moto: number | null;
   dettaglio: number | null;
   /** Seconds of screen time the current plan gives it. */
   inEdit: number;
   kept: boolean;
   /** Why it was dropped, when it was dropped by hand. */
-  perche: string | null;
+  why: string | null;
   /** Il verdetto di chi guarda, in tutt'e due i versi. `null` = mai passata
    *  sotto gli occhi, che è diverso da "tenuta" anche se sta nel montaggio. */
-  giudizio: "tenuta" | "scartata" | null;
+  verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
   /** Problems flagged from the editor. Not a verdict: a note for the next round. */
-  problemi: string[];
+  problems: string[];
   /** Perché questa ripresa merita di essere guardata per prima. Non è un
    *  verdetto: vedi `sospetto()`. `null` = niente di anomalo nei numeri. */
   suspect: string | null;
@@ -67,9 +67,9 @@ export type Shot = {
   /** The act it plays in, from `atti.json`. Null when it is not in the edit. */
   act: string | null;
   /** Seconds into the film where it first appears, null when unused. */
-  minuto: number | null;
+  minute: number | null;
   /** Why it is out, when it was excluded by the planner rather than by hand. */
-  escluso: string | null;
+  excluded: string | null;
 };
 
 export type Cut = {
@@ -91,7 +91,7 @@ export type Cut = {
  *  lasciano il fondo». La scrive `pianifica.py` in atti.json: senza, in Scelta
  *  si legge "atto cammino" e basta, che a chi giudica una ripresa non dice
  *  niente. Puo' mancare sui progetti generati prima del 27/08/2026. */
-export type Act = { da: number; a: number; nome: string; t0: number; t1: number; perche?: string };
+export type Act = { da: number; a: number; nome: string; t0: number; t1: number; why?: string };
 
 const readJson = <T,>(p: string, fallback: T): T => {
   try {
@@ -200,7 +200,7 @@ export function clearProblem(shot: string, i: number) {
  * opposto è peggio del verdetto sbagliato, perché sembra di essere tornati
  * indietro. Misurato su `g_corr` il 04/09.
  */
-export function setPick(shot: string, kept: boolean | null, perche?: string) {
+export function setPick(shot: string, kept: boolean | null, why?: string) {
   const s = picks() as Picks & { tenuti?: Record<string, number> };
   s.tenuti ??= {};
   if (kept === null) {
@@ -210,7 +210,7 @@ export function setPick(shot: string, kept: boolean | null, perche?: string) {
     delete s.scartati[shot];
     s.tenuti[shot] = Date.now();
   } else {
-    s.scartati[shot] = perche?.trim() || "scartato a mano";
+    s.scartati[shot] = why?.trim() || "scartato a mano";
     delete s.tenuti[shot];
   }
   writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
@@ -245,11 +245,11 @@ export function setManualIntensity(shot: string, value: number | null) {
 /** La riga che dice cosa si vede, scritta a mano. Vince sul ritaglio del
  *  prompt, che e' solo un ritaglio. Stringa vuota = torna quello automatico. */
 export function setDescription(shot: string, text: string) {
-  const s = picks() as Picks & { descrizioni?: Record<string, string> };
-  s.descrizioni ??= {};
+  const s = picks() as Picks & { descriptions?: Record<string, string> };
+  s.descriptions ??= {};
   const t = text.trim();
-  if (!t) delete s.descrizioni[shot];
-  else s.descrizioni[shot] = t.slice(0, 240);
+  if (!t) delete s.descriptions[shot];
+  else s.descriptions[shot] = t.slice(0, 240);
   writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
   return s;
 }
@@ -294,11 +294,11 @@ export function setPin(bar: number, shot: string | null) {
  * al secondo giusto. Vivono in `scelte.json` come tutto il resto che l'occhio
  * decide, e il Python li ignora perche' non sono una scelta di montaggio.
  */
-export function setMarker(t: number, nota: string | null) {
+export function setMarker(t: number, note: string | null) {
   const s = picks() as any;
   s.marcatori ??= {};
   const k = t.toFixed(2);
-  if (nota) s.marcatori[k] = nota; else delete s.marcatori[k];
+  if (note) s.marcatori[k] = note; else delete s.marcatori[k];
   writeFileSync(at("scelte.json"), JSON.stringify(s, null, 1));
   return s.marcatori as Record<string, string>;
 }
@@ -315,7 +315,7 @@ export function setMarker(t: number, nota: string | null) {
  */
 export function overrides(): {
   pin: { bar: number; shot: string }[];
-  durata: { bar: number; bars: number }[];
+  duration: { bar: number; bars: number }[];
   discardedByHand: { shot: string; reason: string }[];
 } {
   const s = picks();
@@ -323,7 +323,7 @@ export function overrides(): {
   return {
     pin: Object.entries(s.pin ?? {}).map(([b, p]) => ({ bar: Number(b), shot: String(p) }))
       .sort((a, b) => a.bar - b.bar),
-    durata: Object.entries(s.durata ?? {}).map(([b, v]) => ({ bar: Number(b), bars: Number(v) }))
+    duration: Object.entries(s.durata ?? {}).map(([b, v]) => ({ bar: Number(b), bars: Number(v) }))
       .sort((a, b) => a.bar - b.bar),
     discardedByHand: Object.entries(s.scartati ?? {})
       .filter(([, m]) => daUI(String(m)))
@@ -331,10 +331,10 @@ export function overrides(): {
   };
 }
 
-export function markers(): { t: number; nota: string }[] {
+export function markers(): { t: number; note: string }[] {
   const m = (picks() as any).marcatori ?? {};
   return Object.entries(m)
-    .map(([k, v]) => ({ t: Number(k), nota: String(v) }))
+    .map(([k, v]) => ({ t: Number(k), note: String(v) }))
     .sort((a, b) => a.t - b.t);
 }
 
@@ -381,8 +381,8 @@ export function acts(): Act[] {
 }
 
 /** Guarantees a forced edit suspended, as recorded by the planner. */
-export function held(): { bar: number; garanzia: string }[] {
-  return readJson<any>(at("plan.json"), {}).sospese ?? [];
+export function held(): { bar: number; guarantee: string }[] {
+  return readJson<any>(at("plan.json"), {}).held ?? [];
 }
 
 const actOf = (bar: number, as: Act[]) =>
@@ -406,12 +406,12 @@ const actOf = (bar: number, as: Act[]) =>
  * dieci. E ogni casella porta il video al suo istante, cosi' il sospetto si
  * verifica senza cercare.
  */
-export function take(shot: string, take: string, quanti = 12): string | null {
+export function take(shot: string, take: string, howMany = 12): string | null {
   const clip = at("prev", `${shot}__${take}.mp4`);
   if (!existsSync(clip)) return null;
-  const fuori = at("provini");
-  if (!existsSync(fuori)) mkdirSync(fuori, { recursive: true });
-  const dest = join(fuori, `${shot}__${take}_${quanti}.jpg`);
+  const outside = at("provini");
+  if (!existsSync(outside)) mkdirSync(outside, { recursive: true });
+  const dest = join(outside, `${shot}__${take}_${howMany}.jpg`);
   // Si rifa' solo se la clip e' cambiata dopo: un provino e' un derivato, e
   // rigenerarlo a ogni apertura vuol dire un ffmpeg per ogni scorrimento.
   if (existsSync(dest) && statSync(dest).mtimeMs >= statSync(clip).mtimeMs) return dest;
@@ -421,7 +421,7 @@ export function take(shot: string, take: string, quanti = 12): string | null {
     // `thumbnail=n` prende UN quadro ogni n scegliendo il piu' rappresentativo:
     // su una clip di 61 quadri servono dodici istanti distribuiti, non i primi
     // dodici. `-frames:v 1` chiude dopo il primo mosaico.
-    "-vf", `select='not(mod(n\,${Math.max(1, Math.floor(61 / quanti))}))',scale=180:-1,tile=${quanti}x1`,
+    "-vf", `select='not(mod(n\,${Math.max(1, Math.floor(61 / howMany))}))',scale=180:-1,tile=${howMany}x1`,
     "-frames:v", "1", "-q:v", "4", dest,
   ]);
   if (r.exitCode !== 0 || !existsSync(dest)) return null;
@@ -488,7 +488,7 @@ function suspect(
  * La soglia e' un quarto del progetto: una frase che compare in una ripresa su
  * quattro descrive lo stile, non la scena.
  */
-function descrizioni(prompts: Record<string, any>): Record<string, string> {
+function descriptions(prompts: Record<string, any>): Record<string, string> {
   const frasi = (t: string) =>
     String(t ?? "")
       .split(/(?<=[.!?])\s+/)
@@ -528,9 +528,9 @@ export function shots(): Shot[] {
   const as = acts();
   const esclusi = readJson<any>(at("esclusi.json"), { esclusi: {}, dall_editor: {} });
   const arte = artifacts();
-  const descr = descrizioni(prompts);
+  const descr = descriptions(prompts);
   const manualIntensity = ((sc as any).durezze ?? {}) as Record<string, number>;
-  const manual = ((sc as any).descrizioni ?? {}) as Record<string, string>;
+  const manual = ((sc as any).descriptions ?? {}) as Record<string, string>;
   const discarded = sc.scartati;
   const kept = ((sc as any).tenuti ?? {}) as Record<string, number>;
   const problems = sc.problemi ?? {};
@@ -583,18 +583,18 @@ export function shots(): Shot[] {
 
   return names
     .map((id) => {
-      const qui = existsSync(join(srcDir, id));
-      const files = qui ? readdirSync(join(srcDir, id)) : [];
+      const here = existsSync(join(srcDir, id));
+      const files = here ? readdirSync(join(srcDir, id)) : [];
       // Le riprese erano inchiodate ad a|b|c. I piani generati da testo hanno
       // solo la "a", ma il vincolo era comunque sbagliato nel verso opposto:
       // si ricavano da cio' che c'e' su disco.
-      const lettere = qui
+      const lettere = here
         ? [...new Set(files.map((f) => /^([a-z])_\d+\.png$/.exec(f)?.[1]).filter(Boolean) as string[])]
         : (fromPreview.get(id) ?? []);
       const takes: Take[] = lettere.sort()
         .map((tk) => ({
           take: tk,
-          frames: qui
+          frames: here
             ? files.filter((f) => f.startsWith(`${tk}_`)).length
             : (collected[`${id}__${tk}`]?.frames ?? 0),
           clip: `/api/video/clip/${id}/${tk}`,
@@ -616,37 +616,37 @@ export function shots(): Shot[] {
         descrizione: manual[id] ?? descr[id] ?? descr[`${id}_b`] ?? null,
         descrizioneAMano: manual[id] !== undefined,
         takes,
-        durezza: manualIntensity[id] ?? m.durezza ?? null,
+        intensity: manualIntensity[id] ?? m.durezza ?? null,
         measuredIntensity: m.durezza ?? null,
         manualIntensity: manualIntensity[id] ?? null,
         moto: m.moto ?? null,
         dettaglio: m.dettaglio ?? null,
         inEdit: Math.round((inEdit[id] ?? 0) * 10) / 10,
         kept: !(id in discarded),
-        perche: discarded[id] ?? null,
-        giudizio: (discarded[id] !== undefined ? "scartata" : kept[id] !== undefined ? "tenuta" : null) as Shot["giudizio"],
+        why: discarded[id] ?? null,
+        verdict: (discarded[id] !== undefined ? "scartata" : kept[id] !== undefined ? "tenuta" : null) as Shot["verdict"],
         judgedAt: kept[id] ?? null,
-        problemi: problems[id] ?? [],
+        problems: problems[id] ?? [],
         suspect: sos,
         origine: origine(id),
         act: actOfShot[id] ?? null,
-        minuto: firstTime[id] ?? null,
+        minute: firstTime[id] ?? null,
         apparizioni: apparizioni[id] ?? [],
         // Scartato a mano vs escluso dal pianificatore sono due cose diverse:
         // la prima si annulla da qui, la seconda ha una ragione scritta.
-        escluso: id in discarded ? null : (esclusi.esclusi?.[id] ?? null),
+        excluded: id in discarded ? null : (esclusi.esclusi?.[id] ?? null),
       };
     })
-    .sort((a, b) => (b.durezza ?? -1) - (a.durezza ?? -1));
+    .sort((a, b) => (b.intensity ?? -1) - (a.intensity ?? -1));
 }
 
 /** The edit as a timeline: one entry per cut, already in seconds. */
 export function cuts(): {
   cuts: Cut[];
-  durata: number;
+  duration: number;
   bpm: number | null;
-  atti: Act[];
-  sospese: { bar: number; garanzia: string }[];
+  acts: Act[];
+  held: { bar: number; guarantee: string }[];
 } {
   const plan = readJson<any>(at("plan.json"), { segments: [] });
   const bm = readJson<any>(at("beatmap.json"), {});
@@ -664,7 +664,7 @@ export function cuts(): {
       bar: s.bars[0],
       shot: s.shot,
       soundIntensity: s.durezza ?? 0,
-      shotIntensity: dz.piani?.[s.shot]?.durezza ?? null,
+      shotIntensity: dz.piani?.[s.shot]?.intensity ?? null,
       velocita: s.velocita ?? 1,
       rovescio: !!s.rovescio,
       act: actOf(s.bars[0], as),
@@ -674,10 +674,10 @@ export function cuts(): {
   const last = cuts.at(-1);
   return {
     cuts,
-    durata: last ? last.t + last.dur : 0,
+    duration: last ? last.t + last.dur : 0,
     bpm: bm.tempo_bpm ?? null,
-    atti: as,
-    sospese: plan.sospese ?? [],
+    acts: as,
+    held: plan.sospese ?? [],
   };
 }
 
@@ -694,7 +694,7 @@ export function cuts(): {
  * I picchi si calcolano una volta e restano in `onda.json`: decodificare due
  * minuti e mezzo di mp3 costa un secondo, ma non a ogni apertura di pagina.
  */
-export type Wave = { picchi: number[]; beats: number[]; bars: number[]; durata: number; pronta: boolean };
+export type Wave = { peaks: number[]; beats: number[]; bars: number[]; duration: number; pronta: boolean };
 
 let waveRunning = false;
 
@@ -710,11 +710,11 @@ export function wave(): Wave {
   if (existsSync(f)) {
     const d = readJson<any>(f, {});
     if (Array.isArray(d.picchi) && d.picchi.length) {
-      return { picchi: d.picchi, beats, bars, durata: duration, pronta: true };
+      return { peaks: d.picchi, beats, bars, duration: duration, pronta: true };
     }
   }
   if (!waveRunning) { waveRunning = true; void computeWave().finally(() => { waveRunning = false; }); }
-  return { picchi: [], beats, bars, durata: duration, pronta: false };
+  return { peaks: [], beats, bars, duration: duration, pronta: false };
 }
 
 /**
@@ -749,16 +749,16 @@ async function computeWave(): Promise<void> {
   if (!buf.length) return;
   const N = 2400;                        // un picco ogni ~60 ms su due minuti e mezzo
   const per = Math.max(1, Math.floor(buf.length / N));
-  const picchi: number[] = [];
+  const peaks: number[] = [];
   for (let i = 0; i < N; i++) {
     let max = 0;
     for (let k = i * per; k < Math.min((i + 1) * per, buf.length); k++) {
       const v = Math.abs(buf[k] ?? 0);
       if (v > max) max = v;
     }
-    picchi.push(Math.round((max / 32768) * 1000) / 1000);
+    peaks.push(Math.round((max / 32768) * 1000) / 1000);
   }
-  writeFileSync(at("onda.json"), JSON.stringify({ picchi }));
+  writeFileSync(at("onda.json"), JSON.stringify({ peaks }));
 }
 
 export function assets() {
@@ -794,12 +794,12 @@ export type GateRow = { n: string; text: string; ok: boolean | null };
 export type Gate = {
   rows: GateRow[];
   outcome: "verde" | "rosso" | "sconosciuto";
-  fallite: string[];
+  failed: string[];
   quando: number | null;
   /** Vera mentre `check.py` sta girando: la pagina si disegna subito e la
    *  barra arriva dopo. Misurarla costa un minuto e mezzo di ffmpeg, e far
    *  aspettare la pagina per quello e' il modo sicuro di non guardarla piu'. */
-  calcolo: boolean;
+  computing: boolean;
 };
 
 /**
@@ -823,16 +823,16 @@ export function gate(force = false): Gate {
   const check = at("check.py");
   const master = at("LUNGOMARE.mp4");
   if (!existsSync(check)) {
-    return { rows: [], outcome: "sconosciuto", fallite: [], quando: null, calcolo: false };
+    return { rows: [], outcome: "sconosciuto", failed: [], quando: null, computing: false };
   }
   const key = existsSync(master) ? String(statSync(master).mtimeMs) : "senza-video";
   if (!force && gateCache?.key === key) return gateCache.gate;
   if (gateRunning === key) {
-    return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", fallite: [], quando: null }), calcolo: true };
+    return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], quando: null }), computing: true };
   }
   gateRunning = key;
   void measure(key).finally(() => { gateRunning = null; });
-  return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", fallite: [], quando: null }), calcolo: true };
+  return { ...(gateCache?.gate ?? { rows: [], outcome: "sconosciuto", failed: [], quando: null }), computing: true };
 }
 
 /**
@@ -861,44 +861,44 @@ async function measure(key: string): Promise<Gate> {
   await proc.exited;
   const out = `${so}\n${se}`;
   const rows: GateRow[] = [];
-  const fallite: string[] = [];
+  const failed: string[] = [];
   let inRosso = false;
-  let ripetuti = 0;
+  let repeated = 0;
 
   for (const raw of out.split("\n")) {
     const l = raw.trimEnd();
     if (/^ROSSO:/.test(l)) { inRosso = true; continue; }
-    if (inRosso && /^\s+-\s/.test(l)) { fallite.push(l.replace(/^\s+-\s/, "")); continue; }
+    if (inRosso && /^\s+-\s/.test(l)) { failed.push(l.replace(/^\s+-\s/, "")); continue; }
     const m = /^(\d+b?)\.\s+(.*)$/.exec(l);
     if (!m) continue;
     const n = m[1] ?? "";
     const text = m[2] ?? "";
-    if (n === "2") { if (/SI RIPETE/.test(text)) ripetuti++; continue; }
+    if (n === "2") { if (/SI RIPETE/.test(text)) repeated++; continue; }
     if (n === "3") {
       // Dump dei livelli, un piano per riga in una riga sola: in terminale
       // serve, in pagina e' un muro di numeri. Si tiene il conto.
-      const quanti = (text.match(/=\d/g) ?? []).length;
-      rows.push({ n, text: `livelli normalizzati su ${quanti} piani`, ok: true });
+      const howMany = (text.match(/=\d/g) ?? []).length;
+      rows.push({ n, text: `livelli normalizzati su ${howMany} piani`, ok: true });
       continue;
     }
     rows.push({ n, text, ok: null });
   }
   rows.splice(1, 0, {
     n: "2",
-    text: ripetuti
-      ? `${ripetuti} piani ripassano il proprio girato oltre 2.5 volte`
+    text: repeated
+      ? `${repeated} piani ripassano il proprio girato oltre 2.5 volte`
       : "nessun piano ripassa il proprio girato oltre 2.5 volte",
-    ok: ripetuti === 0,
+    ok: repeated === 0,
   });
 
-  const outcome: Gate["outcome"] = /VERDE/.test(out) ? "verde" : fallite.length ? "rosso" : "sconosciuto";
+  const outcome: Gate["outcome"] = /VERDE/.test(out) ? "verde" : failed.length ? "rosso" : "sconosciuto";
   // Una riga e' rossa se il suo testo compare fra i motivi del fallimento.
   for (const r2 of rows) {
     if (r2.ok !== null) continue;
     const keys = (r2.text.match(/[a-zà-ù]{5,}/gi) ?? []).slice(0, 3);
-    r2.ok = !fallite.some((f) => keys.some((k) => f.toLowerCase().includes(k.toLowerCase())));
+    r2.ok = !failed.some((f) => keys.some((k) => f.toLowerCase().includes(k.toLowerCase())));
   }
-  const b: Gate = { rows, outcome, fallite, quando: Date.now(), calcolo: false };
+  const b: Gate = { rows, outcome, failed, quando: Date.now(), computing: false };
   gateCache = { key, gate: b };
   return b;
 }
@@ -917,10 +917,10 @@ export const rebuildState = () => rebuild;
 
 /** Lancia `master.sh`. Uno per progetto alla volta: due giri in parallelo si
  *  contendono `_work/` e il secondo cancella i quadri del primo. */
-export function startRebuild(): { ok: boolean; errore?: string } {
-  if (rebuild.active) return { ok: false, errore: "una ricostruzione e' gia' in corso" };
+export function startRebuild(): { ok: boolean; error?: string } {
+  if (rebuild.active) return { ok: false, error: "una ricostruzione e' gia' in corso" };
   const sh = at("master.sh");
-  if (!existsSync(sh)) return { ok: false, errore: "master.sh non trovato nel progetto" };
+  if (!existsSync(sh)) return { ok: false, error: "master.sh non trovato nel progetto" };
   rebuild = { active: true, log: "", iniziata: Date.now(), finita: null, output: null };
   const proc = Bun.spawn([sh], { cwd: videoRoot(), stdout: "pipe", stderr: "pipe" });
 

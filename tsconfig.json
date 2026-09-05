@@ -20,5 +20,11 @@
       "@/*": ["./client/src/*"]
     }
   },
-  "include": ["server/**/*.ts", "client/**/*.ts", "client/**/*.tsx", "mcp/**/*.ts"]
+  "include": [
+    "server/**/*.ts",
+    "client/**/*.ts",
+    "client/**/*.tsx",
+    "mcp/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }

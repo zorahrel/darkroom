@@ -13,8 +13,8 @@ import { describe, expect, test } from "bun:test";
  */
 export function queued(q: any, promptId: string): boolean {
   if (!q) return false;
-  const dentro = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
-  return dentro(q.queue_running ?? []) || dentro(q.queue_pending ?? []);
+  const inside = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
+  return inside(q.queue_running ?? []) || inside(q.queue_pending ?? []);
 }
 
 // La forma vera di /queue: [numero, prompt_id, grafo, extra, uscite].

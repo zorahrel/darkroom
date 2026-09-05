@@ -530,7 +530,7 @@ function Section({
                 </button>
               </div>
               {step.onSolo && (
-                <Bott taglia="s" active={step.isSolo} onClick={step.onSolo}
+                <Bott size="s" active={step.isSolo} onClick={step.onSolo}
                       title={step.isSolo
                         ? "Riaccendi tutti gli step"
                         : "Solo questo: spegne gli altri per vedere cosa fa davvero"}>
@@ -538,12 +538,12 @@ function Section({
                 </Bott>
               )}
               {step.onReset && (
-                <Bott weight="quieto" taglia="s" onClick={step.onReset}
+                <Bott weight="quieto" size="s" onClick={step.onReset}
                       title="Rimetti i valori di partenza">
                   <IconReset />
                 </Bott>
               )}
-              <Confirm taglia="s" title="Togli questo passo"
+              <Confirm size="s" title="Togli questo passo"
                         domanda="Tolgo questo passo?"
                         confirm="togli" onConfirm={step.onRemove}>
                 <IconTrash />

@@ -58,7 +58,7 @@ export default function Home() {
     <div className="space-y-4 pb-10">
       <Header
         title="Strumenti"
-        sotto="Tutto quello che Darkroom sa fare, diviso per mestiere. Lo stesso elenco che vede Claude via MCP."
+        below="Tutto quello che Darkroom sa fare, diviso per mestiere. Lo stesso elenco che vede Claude via MCP."
       />
 
       {err && (
@@ -112,7 +112,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       // non i nomi che abbiamo dato ai mestieri.
       return (
         s.name.toLowerCase().includes(q) ||
-        s.cosa.toLowerCase().includes(q) ||
+        s.what.toLowerCase().includes(q) ||
         s.id.includes(q) ||
         s.mcp.some((m) => m.includes(q))
       );
@@ -136,7 +136,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       <div className="sticky top-[var(--h-testata,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
                       border-y border-neutral-800 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Search value={search} onChange={setSearch} segnaposto="cerca uno strumento…" />
+          <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…" />
           <div className="flex items-center gap-1 flex-wrap">
             <Filter active={area === "tutte"} onClick={() => setArea("tutte")} n={counts.tutte ?? 0}>
               tutti
@@ -147,14 +147,14 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
                 active={area === a.id}
                 onClick={() => setArea(a.id)}
                 n={counts[a.id] ?? 0}
-                title={a.cosa}
+                title={a.what}
               >
                 {a.name}
               </Filter>
             ))}
           </div>
           <Bott
-            taglia="m"
+            size="m"
             weight="quieto"
             active={onlyReady}
             onClick={() => setOnlyReady((v) => !v)}
@@ -177,11 +177,11 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
               items={projects.map((p) => ({
                 v: p.id,
                 text: p.name,
-                nota: p.views.join(" · "),
+                note: p.views.join(" · "),
               }))}
               onChange={setPid}
               width={210}
-              taglia="m"
+              size="m"
               title="Il progetto su cui agiscono tutti gli strumenti qui sotto"
             />
           ) : (
@@ -201,7 +201,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
           {cat && (
             <div className="ml-auto flex items-center gap-1.5">
               {Object.entries(cat.requirements).map(([name, r]) => (
-                <Badge key={name} tono={r.ok ? "buono" : "attesa"} title={r.come}>
+                <Badge key={name} tone={r.ok ? "buono" : "attesa"} title={r.how}>
                   {r.ok ? "●" : "○"} {name}
                 </Badge>
               ))}
@@ -231,7 +231,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
             <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1.5">
               <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.name}</h2>
               <span className="text-[11px] text-neutral-500 tabular-nums">{tools.length}</span>
-              <span className="text-[11px] text-neutral-500 truncate">{a.cosa}</span>
+              <span className="text-[11px] text-neutral-500 truncate">{a.what}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
               {tools.map((s) => (
@@ -240,7 +240,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
                   s={s}
                   project={active}
                   projects={projects}
-                  onDone={(rotta) => navigate(rotta)}
+                  onDone={(route) => navigate(route)}
                 />
               ))}
             </div>
@@ -266,7 +266,7 @@ function ToolCard({
   s: Tool;
   project: StudioProject | null;
   projects: StudioProject[];
-  onDone: (rotta: string) => void;
+  onDone: (route: string) => void;
 }) {
   const [open, setOpen] = useState<Start | null>(null);
   const I = ICONS[s.icon] ?? Wrench;
@@ -287,7 +287,7 @@ function ToolCard({
           <div className={"text-[13.5px] font-medium leading-tight " + (s.ready ? "" : "text-neutral-400")}>
             {s.name}
           </div>
-          <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.cosa}</p>
+          <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.what}</p>
         </div>
       </div>
 
@@ -297,7 +297,7 @@ function ToolCard({
         <div className="mt-2 rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5 space-y-0.5">
           {s.missing.map((m) => (
             <div key={m.requirement} className="text-[11px] text-amber-200/90 leading-snug">
-              {m.come}
+              {m.how}
             </div>
           ))}
         </div>
@@ -310,18 +310,18 @@ function ToolCard({
       <div className="mt-auto pt-3 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {s.starters.map((a, i) =>
-            a.modo === "apri" ? (
+            a.mode === "open" ? (
               <Open key={i} start={a} tool={s} project={project} projects={projects} onVai={onDone} />
             ) : (
               <Bott
                 key={i}
-                taglia="m"
+                size="m"
                 weight={i === 0 ? "primario" : "normale"}
                 disabilitato={!s.ready}
-                title={s.ready ? a.nota : s.missing[0]?.come}
+                title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
               >
-                {a.etichetta}
+                {a.label}
               </Bott>
             ),
           )}
@@ -350,7 +350,7 @@ function ToolCard({
         )}
       </div>
 
-      {open && open.modo !== "apri" && (
+      {open && open.mode !== "open" && (
         <Form
           tool={s}
           start={open}
@@ -378,11 +378,11 @@ function ToolCard({
 function Open({
   start, tool, project, projects, onVai,
 }: {
-  start: Extract<Start, { modo: "apri" }>;
+  start: Extract<Start, { mode: "open" }>;
   tool: Tool;
   project: StudioProject | null;
   projects: StudioProject[];
-  onVai: (rotta: string) => void;
+  onVai: (route: string) => void;
 }) {
   const fits = (p: StudioProject) => tool.views.length === 0 || p.views.includes(start.view);
   const onPicked = !!project && fits(project);
@@ -391,7 +391,7 @@ function Open({
 
   return (
     <Bott
-      taglia="m"
+      size="m"
       disabilitato={!bersaglio}
       title={
         bersaglio
@@ -400,9 +400,9 @@ function Open({
             : `«${project?.name ?? "il progetto scelto"}» non ha la vista «${start.view}»: questo apre «${bersaglio.name}», che ce l'ha.`
           : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
       }
-      onClick={() => bersaglio && onVai(start.rotta.replace(":pid", encodeURIComponent(bersaglio.id)))}
+      onClick={() => bersaglio && onVai(start.route.replace(":pid", encodeURIComponent(bersaglio.id)))}
     >
-      {start.etichetta}
+      {start.label}
       {bersaglio && !onPicked && (
         <span className="ml-1 text-neutral-400">in {bersaglio.name}</span>
       )}
@@ -421,19 +421,19 @@ function Form({
   tool, start, project, onCancel, onDone,
 }: {
   tool: Tool;
-  start: Extract<Start, { modo: "nuovo" | "subito" }>;
+  start: Extract<Start, { mode: "new" | "now" }>;
   project: StudioProject | null;
   onCancel: () => void;
-  onDone: (rotta: string) => void;
+  onDone: (route: string) => void;
 }) {
   const [values, setValues] = useState<Record<string, string | number>>(() =>
-    Object.fromEntries(start.fields.map((c) => [c.name, c.predefinito ?? ""])),
+    Object.fromEntries(start.fields.map((c) => [c.name, c.fallback ?? ""])),
   );
   const [inCorso, setInCorso] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<{ text: string; rotta: string } | null>(null);
+  const [done, setDone] = useState<{ text: string; route: string } | null>(null);
 
-  const missing = start.fields.find((c) => c.richiesto && !String(values[c.name] ?? "").trim());
+  const missing = start.fields.find((c) => c.required && !String(values[c.name] ?? "").trim());
 
   async function vai() {
     setInCorso(true);
@@ -442,10 +442,10 @@ function Form({
       const r = await api.startTool(tool.id, {
         // Un avvio che CREA il progetto non ne riceve uno: mandarglielo
         // sarebbe un'istruzione che non guarda nessuno.
-        project: start.modo === "subito" ? project?.id : undefined,
+        project: start.mode === "now" ? project?.id : undefined,
         values,
       });
-      setDone({ text: r.done, rotta: r.rotta });
+      setDone({ text: r.done, route: r.route });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -458,10 +458,10 @@ function Form({
       <div className="mt-2 rounded border border-emerald-900/70 bg-emerald-950/20 p-2.5 space-y-2">
         <div className="text-[12px] text-emerald-200 leading-snug">{done.text}</div>
         <div className="flex items-center gap-1.5">
-          <Bott taglia="m" weight="primario" onClick={() => onDone(done.rotta)}>
+          <Bott size="m" weight="primario" onClick={() => onDone(done.route)}>
             Vai a vedere
           </Bott>
-          <Bott taglia="m" weight="quieto" onClick={onCancel}>Resta qui</Bott>
+          <Bott size="m" weight="quieto" onClick={onCancel}>Resta qui</Bott>
         </div>
       </div>
     );
@@ -469,12 +469,12 @@ function Form({
 
   return (
     <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
-      {start.nota && <p className="text-[11px] text-neutral-400 leading-snug">{start.nota}</p>}
+      {start.note && <p className="text-[11px] text-neutral-400 leading-snug">{start.note}</p>}
 
       {/* Su quale progetto non si chiede più: è quello scelto in cima. Detto,
           non taciuto — altrimenti «Genera adesso» è un tasto che non dice dove
           finisce la roba. */}
-      {start.modo === "subito" && (
+      {start.mode === "now" && (
         <p className="text-[11px] text-neutral-500">
           {project ? <>Va in coda su <span className="text-neutral-300">{project.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
         </p>
@@ -494,15 +494,15 @@ function Form({
 
       <div className="flex items-center gap-1.5">
         <Bott
-          taglia="m"
+          size="m"
           weight="primario"
           disabilitato={inCorso || !!missing}
-          title={missing ? `Manca: ${missing.etichetta}` : undefined}
+          title={missing ? `Manca: ${missing.label}` : undefined}
           onClick={vai}
         >
-          {inCorso ? "Vado…" : start.etichetta}
+          {inCorso ? "Vado…" : start.label}
         </Bott>
-        <Bott taglia="m" weight="quieto" onClick={onCancel}>Annulla</Bott>
+        <Bott size="m" weight="quieto" onClick={onCancel}>Annulla</Bott>
       </div>
     </div>
   );
@@ -519,30 +519,30 @@ function StartField({
   return (
     <label className="block space-y-1">
       <span className="text-[11px] text-neutral-400">
-        {field.etichetta}
-        {field.richiesto && <span className="text-neutral-600"> *</span>}
+        {field.label}
+        {field.required && <span className="text-neutral-600"> *</span>}
       </span>
-      {field.tipo === "lungo" ? (
+      {field.kind === "long" ? (
         <Area
           value={String(value)}
           onChange={onChange}
-          segnaposto={field.segnaposto}
+          placeholder={field.placeholder}
           onInvia={onInvia}
           className="text-[12px] h-20"
         />
-      ) : field.tipo === "numero" ? (
+      ) : field.kind === "number" ? (
         <NumberField value={Number(value) || 1} onChange={onChange} min={1} max={50} />
       ) : (
         <Field
           value={String(value)}
           onChange={onChange}
-          segnaposto={field.segnaposto}
+          placeholder={field.placeholder}
           onInvio={onInvia}
-          taglia="m"
-          className={"w-full " + (field.tipo === "cartella" ? "font-mono" : "")}
+          size="m"
+          className={"w-full " + (field.kind === "folder" ? "font-mono" : "")}
         />
       )}
-      {field.nota && <span className="block text-[10.5px] text-neutral-500">{field.nota}</span>}
+      {field.note && <span className="block text-[10.5px] text-neutral-500">{field.note}</span>}
     </label>
   );
 }

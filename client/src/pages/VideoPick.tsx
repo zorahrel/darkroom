@@ -40,14 +40,14 @@ type Scene = {
   origine: string;
   pezzi: VideoShot[];
   act: string | null;
-  minuto: number | null;
+  minute: number | null;
   inEdit: number;
   kept: boolean;
   /** Il verdetto dato, se c'è. `null` vuol dire mai passata sotto gli occhi —
    *  che non è la stessa cosa di "tenuta": tenere è lo stato di partenza. */
-  giudizio: "tenuta" | "scartata" | null;
+  verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
-  annotata: boolean;
+  annotated: boolean;
   /** Perché guardarla per prima. Non è un verdetto: è un ordine di lettura. */
   suspect: string | null;
   /** Ogni volta che entra nel montaggio. Un totale di secondi non dice se sono
@@ -62,29 +62,29 @@ function raggruppa(shots: VideoShot[]): Scene[] {
   for (const s of shots) per.set(s.origine, [...(per.get(s.origine) ?? []), s]);
   return [...per.entries()]
     .map(([origine, pezzi]) => {
-      const inM = pezzi.filter((p) => p.minuto !== null);
+      const inM = pezzi.filter((p) => p.minute !== null);
       return {
         origine,
         pezzi: pezzi.sort((a, b) => a.id.localeCompare(b.id)),
         act: inM[0]?.act ?? null,
-        minuto: inM.length ? Math.min(...inM.map((p) => p.minuto!)) : null,
+        minute: inM.length ? Math.min(...inM.map((p) => p.minute!)) : null,
         inEdit: pezzi.reduce((n, p) => n + p.inEdit, 0),
         // Una presa e' "tenuta" se almeno un pezzo lo e'.
         kept: pezzi.some((p) => p.kept),
         // Il verdetto della presa: basta un pezzo scartato perche' lo sia, e
         // serve almeno un si' esplicito perche' conti come approvata.
-        giudizio: (pezzi.some((p) => p.giudizio === "scartata") ? "scartata"
-                 : pezzi.some((p) => p.giudizio === "tenuta") ? "tenuta"
-                 : null) as Scene["giudizio"],
+        verdict: (pezzi.some((p) => p.verdict === "scartata") ? "scartata"
+                 : pezzi.some((p) => p.verdict === "tenuta") ? "tenuta"
+                 : null) as Scene["verdict"],
         judgedAt: pezzi.reduce<number | null>(
           (m, p) => (p.judgedAt && (!m || p.judgedAt > m) ? p.judgedAt : m), null),
-        annotata: pezzi.some((p) => p.problems.length > 0),
+        annotated: pezzi.some((p) => p.problems.length > 0),
         // Il sospetto della presa e' quello del primo pezzo che ne ha uno.
         suspect: pezzi.find((p) => p.suspect)?.suspect ?? null,
         apparizioni: pezzi.flatMap((p) => p.apparizioni ?? []).sort((x, y) => x.t - y.t),
       };
     })
-    .sort((a, b) => (a.minuto ?? 1e9) - (b.minuto ?? 1e9) || a.origine.localeCompare(b.origine));
+    .sort((a, b) => (a.minute ?? 1e9) - (b.minute ?? 1e9) || a.origine.localeCompare(b.origine));
 }
 
 /** Una sola definizione, accanto alla regola che dice chi esce dall'elenco:
@@ -170,14 +170,14 @@ function Intensity({ shot, value, measured, manual, moto, dettaglio, onChange }:
       </div>
     );
   }
-  const etichetta = shown >= 0.8 ? "picchia forte" : shown >= 0.55 ? "dura"
+  const label = shown >= 0.8 ? "picchia forte" : shown >= 0.55 ? "dura"
                   : shown >= 0.3 ? "media" : shown >= 0.12 ? "molle" : "quasi ferma";
   return (
     <div className="mt-3">
       <div className="flex items-baseline gap-2 flex-wrap">
         <span className="text-[11px] text-neutral-400">durezza</span>
         <span className="text-[13px] text-neutral-100 tabular-nums">{shown.toFixed(2)}</span>
-        <span className="text-[11px] text-neutral-200">{etichetta}</span>
+        <span className="text-[11px] text-neutral-200">{label}</span>
         {manual !== null && (
           <button onClick={() => onChange(null)}
                   className="text-[10px] px-1.5 py-0.5 rounded-sm border border-amber-700/70
@@ -456,7 +456,7 @@ export default function VideoPick() {
   const [act, setAct] = useState<string>("");
   const [i, setI] = useState(0);
   const [piece, setPiece] = useState(0);
-  const [nota, setNota] = useState<string | null>(null);
+  const [note, setNota] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [rigen, setRigen] = useState(false);
   const [promptMod, setPromptMod] = useState("");
@@ -475,8 +475,8 @@ export default function VideoPick() {
       const el = shell.current;
       if (!el) return;
       const parent = el.parentElement;
-      const sotto = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
-      setHGuscio(Math.max(360, window.innerHeight - el.getBoundingClientRect().top - sotto));
+      const below = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
+      setHGuscio(Math.max(360, window.innerHeight - el.getBoundingClientRect().top - below));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -614,7 +614,7 @@ export default function VideoPick() {
     [scenes],
   );
   const explainAct = useCallback(
-    (n: string | null) => (n ? fullActs.find((a) => a.name === n)?.perche ?? null : null),
+    (n: string | null) => (n ? fullActs.find((a) => a.name === n)?.why ?? null : null),
     [fullActs],
   );
 
@@ -622,12 +622,12 @@ export default function VideoPick() {
     () =>
       scenes.filter((s) => {
         if (act && s.act !== act) return false;
-        if (filter === "da giudicare") return s.giudizio === null && !s.annotata;
-        if (filter === "sospette") return !!s.suspect && s.giudizio === null;
-        if (filter === "tenute") return s.giudizio === "tenuta";
-        if (filter === "scartate") return s.giudizio === "scartata" || !s.kept;
-        if (filter === "annotate") return s.annotata;
-        if (filter === "in montaggio") return s.minuto !== null;
+        if (filter === "da giudicare") return s.verdict === null && !s.annotated;
+        if (filter === "sospette") return !!s.suspect && s.verdict === null;
+        if (filter === "tenute") return s.verdict === "tenuta";
+        if (filter === "scartate") return s.verdict === "scartata" || !s.kept;
+        if (filter === "annotate") return s.annotated;
+        if (filter === "in montaggio") return s.minute !== null;
         return true;
       }),
     [scenes, filter, act],
@@ -675,22 +675,22 @@ export default function VideoPick() {
    * Il terzo stato (`null` = mai giudicata) è l'unico che sa disfare davvero.
    */
   const [last, setLast] = useState<
-    { ids: string[]; name: string; kept: boolean; prima: Map<string, VideoShot["giudizio"]>; indice: number } | null
+    { ids: string[]; name: string; kept: boolean; before: Map<string, VideoShot["verdict"]>; indice: number } | null
   >(null);
 
   const judge = useCallback(
-    async (kept: boolean, perche?: string) => {
+    async (kept: boolean, why?: string) => {
       if (!scene) return;
       const ids = scene.pezzi.map((p) => p.id);
-      const prima = new Map(scene.pezzi.map((p) => [p.id, p.giudizio]));
+      const before = new Map(scene.pezzi.map((p) => [p.id, p.verdict]));
       // Ottimismo: la riga resta come l'utente l'ha messa anche se la rete tarda.
       setShots((prev) =>
         prev.map((s) =>
-          ids.includes(s.id) ? { ...s, kept, giudizio: kept ? "tenuta" : "scartata" } : s));
-      setLast({ ids, name: scene.origine, kept, prima, indice: i });
+          ids.includes(s.id) ? { ...s, kept, verdict: kept ? "tenuta" : "scartata" } : s));
+      setLast({ ids, name: scene.origine, kept, before, indice: i });
       try {
         let u = shots;
-        for (const id of ids) u = (await api.videoPick(id, kept, perche)).shots;
+        for (const id of ids) u = (await api.videoPick(id, kept, why)).shots;
         setShots(u);
       } catch { /* la riga resta come l'utente l'ha messa */ }
       // Avanzare DOPO aver giudicato salta una scena, e la salta in silenzio:
@@ -707,16 +707,16 @@ export default function VideoPick() {
     const u = last;
     setLast(null);
     /** "tenuta" -> sì · "scartata" -> no · mai giudicata -> nessun verdetto. */
-    const verso = (g: VideoShot["giudizio"]) => (g === null ? null : g === "tenuta");
+    const toward = (g: VideoShot["verdict"]) => (g === null ? null : g === "tenuta");
     setShots((prev) =>
       prev.map((s) => {
-        if (!u.prima.has(s.id)) return s;
-        const g = u.prima.get(s.id) ?? null;
-        return { ...s, giudizio: g, kept: g !== "scartata" };
+        if (!u.before.has(s.id)) return s;
+        const g = u.before.get(s.id) ?? null;
+        return { ...s, verdict: g, kept: g !== "scartata" };
       }));
     try {
       let r = shots;
-      for (const id of u.ids) r = (await api.videoPick(id, verso(u.prima.get(id) ?? null))).shots;
+      for (const id of u.ids) r = (await api.videoPick(id, toward(u.before.get(id) ?? null))).shots;
       setShots(r);
     } catch { /* niente */ }
     setI(u.indice); setPiece(0);
@@ -745,7 +745,7 @@ export default function VideoPick() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (onOneField(e.target)) return;
-      if (nota !== null) {
+      if (note !== null) {
         if (e.key === "Escape") { setNota(null); setText(""); }
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void annota();
         return;
@@ -759,14 +759,14 @@ export default function VideoPick() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nota, annota, judge, avanti, undoLast]);
+  }, [note, annota, judge, avanti, undoLast]);
 
-  useEffect(() => { if (nota !== null) field.current?.focus(); }, [nota]);
+  useEffect(() => { if (note !== null) field.current?.focus(); }, [note]);
 
-  const toJudge = scenes.filter((s) => s.giudizio === null && !s.annotata).length;
-  const suspect = scenes.filter((s) => !!s.suspect && s.giudizio === null).length;
-  const kept = scenes.filter((s) => s.giudizio === "tenuta").length;
-  const discarded = scenes.filter((s) => s.giudizio === "scartata").length;
+  const toJudge = scenes.filter((s) => s.verdict === null && !s.annotated).length;
+  const suspect = scenes.filter((s) => !!s.suspect && s.verdict === null).length;
+  const kept = scenes.filter((s) => s.verdict === "tenuta").length;
+  const discarded = scenes.filter((s) => s.verdict === "scartata").length;
 
   return (
     <div ref={shell} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: shellHeight }}>
@@ -834,23 +834,23 @@ export default function VideoPick() {
           <div className="flex-1 min-w-0 flex gap-px h-3.5 overflow-hidden">
             {scenes.map((s) => {
               const color =
-                s.giudizio === "tenuta" ? "bg-emerald-500/70 hover:bg-emerald-400"
-                : s.giudizio === "scartata" ? "bg-rose-500/60 hover:bg-rose-400"
+                s.verdict === "tenuta" ? "bg-emerald-500/70 hover:bg-emerald-400"
+                : s.verdict === "scartata" ? "bg-rose-500/60 hover:bg-rose-400"
                 : s.suspect ? "bg-amber-500/50 hover:bg-amber-400"
                 : "bg-neutral-700/70 hover:bg-neutral-500";
               const suo = scene?.origine === s.origine;
               return (
                 <button
                   key={s.origine}
-                  title={`${s.origine} — ${s.giudizio ?? "mai giudicata"}${
-                    s.minuto !== null ? ` · ${mmss(s.minuto)}` : " · non in montaggio"}`}
+                  title={`${s.origine} — ${s.verdict ?? "mai giudicata"}${
+                    s.minute !== null ? ` · ${mmss(s.minute)}` : " · non in montaggio"}`}
                   onClick={() => {
                     // Saltare a una presa che il filtro corrente nasconde non
                     // puo' fallire in silenzio: si allarga il filtro e ci si
                     // va. Il contrario — un clic che non fa niente — e' il modo
                     // piu' rapido per far credere che la mappa sia decorativa.
-                    const dove = queue.findIndex((c) => c.origine === s.origine);
-                    if (dove >= 0) setI(dove);
+                    const where = queue.findIndex((c) => c.origine === s.origine);
+                    if (where >= 0) setI(where);
                     else { setFilter("tutte"); setAct(""); setI(scenes.indexOf(s)); }
                   }}
                   className={`flex-1 min-w-0 rounded-[1px] transition-colors ${color} ${
@@ -981,15 +981,15 @@ export default function VideoPick() {
                   vede dov'e' messo adesso e si sposta da qui senza tornare in
                   fondo ai tasti. */}
               <State
-                value={scene.giudizio}
+                value={scene.verdict}
                 onChange={async (v) => {
                   if (v === null) {
-                    for (const pz of scene.pezzi) setShots((await api.videoScordaGiudizio(pz.id)).shots);
+                    for (const pz of scene.pezzi) setShots((await api.videoClearVerdict(pz.id)).shots);
                   } else if (v === "tenuta") await judge(true);
                   else setNota("scarto");
                 }}
               />
-              {scene.giudizio && scene.judgedAt && (
+              {scene.verdict && scene.judgedAt && (
                 <span className="text-[10.5px] text-neutral-400">
                   {new Date(scene.judgedAt).toLocaleString("it-IT",
                     { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
@@ -1007,17 +1007,17 @@ export default function VideoPick() {
               onSave={async (t) => setShots((await api.videoDescrizione(current.id, t)).shots)}
             />
 
-            {scene.giudizio === "scartata" && current.perche && (
-              <div className="mt-1 text-[11.5px] text-rose-300/90">scartata — {current.perche}</div>
+            {scene.verdict === "scartata" && current.why && (
+              <div className="mt-1 text-[11.5px] text-rose-300/90">scartata — {current.why}</div>
             )}
-            {!scene.giudizio && scene.kept && (
+            {!scene.verdict && scene.kept && (
               <div className="mt-1 text-[11px] text-neutral-400">
                 È nel montaggio senza che nessuno l'abbia guardata: tenere è il valore di partenza.
               </div>
             )}
-            {current.escluso && (
+            {current.excluded && (
               <div className="mt-1 text-[11px] text-amber-500/80">
-                esclusa dal piano: {current.escluso}
+                esclusa dal piano: {current.excluded}
               </div>
             )}
 
@@ -1121,7 +1121,7 @@ export default function VideoPick() {
                   </div>
                 )}
                 <Area value={promptMod} onChange={setPromptMod}
-                      segnaposto="il prompt che genererà la ripresa"
+                      placeholder="il prompt che genererà la ripresa"
                       className="h-28 text-[11.5px] leading-relaxed" />
                 {/* Non sono costanti nascoste: a 704x1280 con 81 fotogrammi la
                     3090 arriva a 23,9 GB su 24,5 e non scrive niente per un'ora.
@@ -1160,12 +1160,12 @@ export default function VideoPick() {
               </div>
             </details>
 
-            {nota !== null ? (
+            {note !== null ? (
               <div className="mt-4">
                 <Area
                   autoFuoco value={text} onChange={setText}
                   onEsc={() => setNota(null)} onInvia={() => void annota()}
-                  segnaposto={nota === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
+                  placeholder={note === "scarto" ? "perché la scarti?" : "cosa c'è da sistemare?"}
                   className="h-20 text-[12px]"
                 />
                 <div className="mt-1 flex gap-2 text-[11px]">
@@ -1174,11 +1174,11 @@ export default function VideoPick() {
                                inline-flex items-center gap-1.5"
                     onClick={async () => {
                       const t = text;
-                      if (nota === "scarto") { setNota(null); setText(""); await judge(false, t); }
+                      if (note === "scarto") { setNota(null); setText(""); await judge(false, t); }
                       else await annota();
                     }}
                   >
-                    {nota === "scarto" ? "scarta" : "annota"}
+                    {note === "scarto" ? "scarta" : "annota"}
                     <Shortcut>⌘↵</Shortcut>
                   </button>
                   <button className="px-2 py-0.5 rounded-sm border border-neutral-800 text-neutral-400

@@ -296,12 +296,12 @@ describe("collage", () => {
 
   test("foto fuori dal post, o già in un collage, non si uniscono", async () => {
     await post(["a", "b"]);
-    const fuori = await call("POST", "/api/collections/uno/collages", {
+    const outside = await call("POST", "/api/collections/uno/collages", {
       photo_ids: ["a", "c"],
       mode: "split",
     });
-    expect(fuori.status).toBe(400);
-    expect(fuori.json.error).toContain("non in questo post");
+    expect(outside.status).toBe(400);
+    expect(outside.json.error).toContain("non in questo post");
 
     await call("POST", "/api/collections/uno/collages", { photo_ids: ["a", "b"], mode: "split" });
     const again = await call("POST", "/api/collections/uno/collages", {

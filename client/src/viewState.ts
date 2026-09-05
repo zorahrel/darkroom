@@ -60,7 +60,7 @@ function enqueue(
 
 export function useViewState<T extends string | number | boolean>(
   key: string,
-  predefinito: T,
+  fallback: T,
   opzioni: {
     /** Da stringa a valore. Torna `null` se la stringa non e' accettabile:
      *  un `?zoom=banana` deve tornare al default, non rompere la vista. */
@@ -88,7 +88,7 @@ export function useViewState<T extends string | number | boolean>(
         if (v !== null) return v;
       }
     }
-    return predefinito;
+    return fallback;
   });
 
   // Le scritture di piu' hook nello stesso istante vanno RIUNITE prima di
@@ -108,7 +108,7 @@ export function useViewState<T extends string | number | boolean>(
 
   useEffect(() => {
     if (memoria) localStorage.setItem(memoria, String(value));
-    enqueue(key, value === predefinito ? null : String(value), setParams.current);
+    enqueue(key, value === fallback ? null : String(value), setParams.current);
     // `predefinito` e `chiave` sono costanti per chi chiama.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

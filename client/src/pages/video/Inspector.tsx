@@ -30,7 +30,7 @@ type Done = { text: string; undo: () => Promise<unknown> };
 
 export default function Ispettore({ sel, shots, candidati, close, onForzato }: Props) {
   const [done, setDone] = useState<Done | null>(null);
-  const [errore, setErrore] = useState<string | null>(null);
+  const [error, setErrore] = useState<string | null>(null);
   /** Il candidato che si sta guardando. Sceglierlo non cambia niente: cambia
    *  il piano solo il bottone sotto, che dice per esteso cosa farà. Un clic
    *  solo, com'era prima, inchiodava una battuta in silenzio — e una modifica
@@ -199,7 +199,7 @@ export default function Ispettore({ sel, shots, candidati, close, onForzato }: P
           </button>
         </div>
       )}
-      {errore && <div className="mt-2 text-[10.5px] text-rose-400">{errore}</div>}
+      {error && <div className="mt-2 text-[10.5px] text-rose-400">{error}</div>}
     </div>
   );
 }

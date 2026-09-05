@@ -464,7 +464,7 @@ function CastPanel({
           placeholder="Descrizione (cappotto rosso…)"
           className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-64"
         />
-        <Scegli value={ref} onChange={setRef} width={190} taglia="m"
+        <Scegli value={ref} onChange={setRef} width={190} size="m"
                 title="Foto di riferimento"
                 items={[{ v: "", text: "Nessun riferimento" },
                        ...photos.map((p) => ({ v: p.id, text: p.id }))]} />
@@ -580,7 +580,7 @@ function BoardSettings({
         <div className="absolute right-0 mt-1 z-20 w-80 rounded-lg border border-neutral-700 bg-neutral-900 p-3 space-y-2 shadow-xl">
           <label className="block text-xs text-neutral-400 space-y-1">
             <span>Formato</span>
-            <Scegli value={String(settings.aspect_ratio)} width={296} taglia="m"
+            <Scegli value={String(settings.aspect_ratio)} width={296} size="m"
                     onChange={(v) => onChange({ aspect_ratio: Number(v) })}
                     items={[{ v: String(16 / 9), text: "16:9" }, { v: "2.39", text: "2.39:1" },
                            { v: String(4 / 3), text: "4:3" }, { v: "1", text: "1:1" },

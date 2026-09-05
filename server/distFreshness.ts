@@ -59,6 +59,6 @@ export function staleDistWarning(repoRoot: string): string | null {
     return "[dist] MANCA il build del client: la dashboard non verra' servita. Esegui: bun run build:client";
   }
   const mins = Math.round(s.ageSeconds / 60);
-  const quando = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}min`;
-  return `[dist] Il build del client e' VECCHIO di ${quando} rispetto a ${s.newest}: stai servendo una dashboard superata. Esegui: bun run build:client`;
+  const when = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}min`;
+  return `[dist] Il build del client e' VECCHIO di ${when} rispetto a ${s.newest}: stai servendo una dashboard superata. Esegui: bun run build:client`;
 }

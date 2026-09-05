@@ -532,7 +532,7 @@ function StepBody({
             value={String(p.lut ?? "")}
             onChange={(v) => onParams({ lut: v })}
             width={264}
-            taglia="m"
+            size="m"
             items={[
               { v: "", text: "— nessuna —" },
               ...lutGroups.flatMap(([group, arr]) =>
@@ -751,7 +751,7 @@ function AiStepEditor({
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-sm">
         <span className="text-neutral-400">Provider</span>
-        <Scegli value={provider} width={160} taglia="m"
+        <Scegli value={provider} width={160} size="m"
                 onChange={(v) => onParams({ provider: v })}
                 items={[{ v: "chatgpt", text: "ChatGPT (web)" },
                        { v: "higgsfield", text: "Higgsfield" }]} />

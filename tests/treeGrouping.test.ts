@@ -3,23 +3,23 @@ import { app } from "../server/app.ts";
 import { db } from "../server/db.ts";
 
 /**
- * La radice dell'albero è l'INSIEME di sorgenti, non la prima foto di esso.
+ * A tree root is the SET of sources, not the first photo in it.
  *
- * Due regole sbagliate stanno una di qua e una di là da questa: raggruppare per
- * `photo_id` metteva tutte le varianti sotto la prima sorgente e lasciava le
- * altre a "0 varianti"; dare una radice a ogni foto contribuente avrebbe
- * mostrato le stesse 12 varianti tre volte. Quello che si controlla qui è che
- * non si scivoli in nessuna delle due.
+ * Two wrong rules sit on either side of this one: grouping by `photo_id` put
+ * every variant under the first source and left the others showing "0
+ * variants"; giving each contributing photo its own root would have shown the
+ * same 12 variants three times over. What is checked here is that we slide
+ * into neither.
  */
 
-function foto(id: string) {
+function photo(id: string) {
   db().run(
     "INSERT INTO photos (id,original_path,original_ext,created_at,updated_at) VALUES (?,?,'.png',1,1)",
     [id, `/src/${id}.png`],
   );
 }
 
-function variante(n: number, sources: string[], photoId = sources[0]!) {
+function variant(n: number, sources: string[], photoId = sources[0]!) {
   db().run(
     `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
      VALUES (?,?,?,'p',NULL,?,'openai','generated',?)`,
@@ -42,84 +42,85 @@ beforeEach(() => {
   db().run("DELETE FROM photos");
 });
 
-describe("la radice è l'insieme, non la prima foto", () => {
-  test("tre scatti insieme danno UNA radice con tutte e tre", async () => {
-    for (const id of ["A", "B", "C"]) foto(id);
-    for (let n = 1; n <= 12; n++) variante(n, ["A.png", "B.png", "C.png"]);
+describe("the root is the set, not the first photo", () => {
+  test("three shots used together give ONE root holding all three", async () => {
+    for (const id of ["A", "B", "C"]) photo(id);
+    for (let n = 1; n <= 12; n++) variant(n, ["A.png", "B.png", "C.png"]);
 
     const { photos } = await tree();
     const withVariants = photos.filter((p) => p.variants > 0);
     expect(withVariants).toHaveLength(1);
     expect(withVariants[0]!.photos).toHaveLength(3);
     expect(withVariants[0]!.variants).toBe(12);
-    // Il difetto opposto: 3 radici x 12 = 36 apparizioni per 12 generazioni.
+    // The opposite defect: 3 roots x 12 = 36 appearances for 12 generations.
     expect(photos.reduce((a, p) => a + p.variants, 0)).toBe(12);
   });
 
-  test("nessuna foto dell'insieme compare a parte con zero varianti", async () => {
-    for (const id of ["A", "B", "C"]) foto(id);
-    variante(1, ["A.png", "B.png", "C.png"]);
+  test("no photo of the set shows up separately with zero variants", async () => {
+    for (const id of ["A", "B", "C"]) photo(id);
+    variant(1, ["A.png", "B.png", "C.png"]);
     const { photos } = await tree();
-    // B e C hanno contribuito: non devono comparire come radici vuote.
+    // B and C contributed: they must not appear as empty roots.
     expect(photos).toHaveLength(1);
   });
 
-  test("una foto sola è l'insieme di uno, senza casi speciali", async () => {
-    foto("A");
-    foto("B");
-    variante(1, ["A.png"]);
-    variante(2, ["B.png"], "B.png");
+  test("a lone photo is a set of one, with no special case", async () => {
+    photo("A");
+    photo("B");
+    variant(1, ["A.png"]);
+    variant(2, ["B.png"], "B.png");
     const { photos } = await tree();
     expect(photos.filter((p) => p.variants > 0)).toHaveLength(2);
     for (const p of photos) expect(p.photos).toHaveLength(1);
   });
 
-  test("insiemi che si sovrappongono restano radici distinte", async () => {
-    for (const id of ["A", "B", "C"]) foto(id);
-    variante(1, ["A.png", "B.png"]);
-    variante(2, ["A.png", "B.png"]);
-    variante(3, ["A.png", "B.png", "C.png"]);
+  test("overlapping sets stay distinct roots", async () => {
+    for (const id of ["A", "B", "C"]) photo(id);
+    variant(1, ["A.png", "B.png"]);
+    variant(2, ["A.png", "B.png"]);
+    variant(3, ["A.png", "B.png", "C.png"]);
     const { photos } = await tree();
-    const r = photos.filter((p) => p.variants > 0);
-    expect(r).toHaveLength(2);
-    expect(r.map((x) => x.variants).sort()).toEqual([1, 2]);
-    // Nessuna variante contata due volte: {A,B} non è un ramo di {A,B,C}.
-    expect(r.reduce((a, p) => a + p.variants, 0)).toBe(3);
+    const roots = photos.filter((p) => p.variants > 0);
+    expect(roots).toHaveLength(2);
+    expect(roots.map((x) => x.variants).sort()).toEqual([1, 2]);
+    // No variant counted twice: {A,B} is not a branch of {A,B,C}.
+    expect(roots.reduce((a, p) => a + p.variants, 0)).toBe(3);
   });
 
-  test("l'ordine di allegamento non crea due radici per lo stesso insieme", async () => {
-    for (const id of ["A", "B"]) foto(id);
-    variante(1, ["A.png", "B.png"]);
-    variante(2, ["B.png", "A.png"], "A.png");
+  test("attachment order does not create two roots for the same set", async () => {
+    for (const id of ["A", "B"]) photo(id);
+    variant(1, ["A.png", "B.png"]);
+    variant(2, ["B.png", "A.png"], "A.png");
     const { photos } = await tree();
     expect(photos.filter((p) => p.variants > 0)).toHaveLength(1);
   });
 
-  test("le foto che non hanno generato restano visibili", async () => {
-    foto("A");
-    foto("mai-usata");
-    variante(1, ["A.png"]);
+  test("photos that never generated stay visible", async () => {
+    photo("A");
+    photo("never-used");
+    variant(1, ["A.png"]);
     const { photos } = await tree();
-    expect(photos.some((p) => p.photo === "mai-usata" && p.variants === 0)).toBe(true);
+    expect(photos.some((p) => p.photo === "never-used" && p.variants === 0)).toBe(true);
   });
 });
 
-describe("il riferimento si puo' guardare, non solo misurare", () => {
-  // La distanza dalla reference si calcola (fondo, area, rapporto di luce), ma
-  // "quanto ci somiglia" resta un giudizio da fare con gli occhi. Perche' sia
-  // possibile sovrapporla, il file deve essere servito e il lineage deve dire
-  // QUALE file era: il refset e' una frase per un umano, non un percorso.
-  test("il lineage riporta i file di riferimento, non solo il refset", async () => {
-    foto("A");
+describe("a reference can be looked at, not only measured", () => {
+  // Distance from the reference is computed (background, area, light ratio),
+  // but "how much it resembles it" stays a judgement made with the eyes. For
+  // it to be possible to overlay them, the file has to be served and the
+  // lineage has to say WHICH file it was: the refset is a phrase for a human,
+  // not a path.
+  test("lineage reports the reference files, not just the refset", async () => {
+    photo("A");
     db().run(
       `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
        VALUES ('A',1,'/gen/v1.png','p',NULL,?,'openai','generated',?)`,
       [
         JSON.stringify({
           recipe: "r",
-          refset: "3 sorgenti + stile",
+          refset: "3 sources + style",
           sources: ["A.png"],
-          refs: ["stile.png"],
+          refs: ["style.png"],
         }),
         Date.now(),
       ],
@@ -127,21 +128,21 @@ describe("il riferimento si puo' guardare, non solo misurare", () => {
     const { photos } = (await (await app.request("/api/lineage")).json()) as {
       photos: { groups: { refs?: string[] }[] }[];
     };
-    expect(photos[0]!.groups[0]!.refs).toEqual(["stile.png"]);
+    expect(photos[0]!.groups[0]!.refs).toEqual(["style.png"]);
   });
 
-  test("una generazione senza riferimenti non ne inventa", async () => {
-    foto("A");
-    variante(1, ["A.png"]);
+  test("a generation with no references does not invent any", async () => {
+    photo("A");
+    variant(1, ["A.png"]);
     const { photos } = (await (await app.request("/api/lineage")).json()) as {
       photos: { groups: { refs?: string[] }[] }[];
     };
-    // Array vuoto, non undefined: la vista decide se mostrare i controlli
-    // contando questi, e un undefined la farebbe sbagliare in silenzio.
+    // Empty array, not undefined: the view decides whether to show the controls
+    // by counting these, and an undefined would make it fail silently.
     expect(photos[0]!.groups[0]!.refs).toEqual([]);
   });
 
-  test("la rotta dei riferimenti rifiuta il path traversal", async () => {
+  test("the references route refuses path traversal", async () => {
     const r = await app.request("/refs/..%2f..%2fphotos.db");
     expect([400, 404]).toContain(r.status);
   });

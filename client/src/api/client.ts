@@ -440,7 +440,7 @@ export const api = {
     jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/description", {
       method: "POST", body: JSON.stringify({ shot, text }),
     }),
-  videoScordaGiudizio: (shot: string) =>
+  videoClearVerdict: (shot: string) =>
     jsonFetch<{ ok: true; shots: VideoShot[] }>("/api/video/clear-verdict", {
       method: "POST", body: JSON.stringify({ shot }),
     }),
@@ -454,9 +454,9 @@ export const api = {
     }),
   videoOverrides: () => jsonFetch<VideoOverrides>("/api/video/overrides"),
   videoMarkers: () => jsonFetch<{ markers: VideoMarker[] }>("/api/video/markers"),
-  videoMarker: (t: number, nota: string | null) =>
+  videoMarker: (t: number, note: string | null) =>
     jsonFetch<{ markers: VideoMarker[] }>("/api/video/marker", {
-      method: "POST", body: JSON.stringify({ t, nota }),
+      method: "POST", body: JSON.stringify({ t, note }),
     }),
   videoRipresa: (shot: string, take: string, kept: boolean) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/ripresa", {
@@ -469,10 +469,10 @@ export const api = {
       body: JSON.stringify({ shot, text, i }),
     }),
   /** `kept: null` toglie il verdetto e riporta la ripresa a "mai giudicata". */
-  videoPick: (shot: string, kept: boolean | null, perche?: string) =>
+  videoPick: (shot: string, kept: boolean | null, why?: string) =>
     jsonFetch<{ ok: boolean; shots: VideoShot[] }>("/api/video/pick", {
       method: "POST",
-      body: JSON.stringify({ shot, kept, perche }),
+      body: JSON.stringify({ shot, kept, why }),
     }),
   videoPin: (bar: number, shot: string | null) =>
     jsonFetch<{ ok: true }>("/api/video/pin", {
@@ -488,7 +488,7 @@ export const api = {
     jsonFetch<VideoGate>(`/api/video/gate${force ? "?force=1" : ""}`),
   videoRicostruisci: () =>
     jsonFetch<{ ok: true }>("/api/video/ricostruisci", { method: "POST" }),
-  videoRicostruzione: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
+  videoRebuild: () => jsonFetch<VideoRebuild>("/api/video/rebuild"),
   videoGenerazioni: () =>
     jsonFetch<{ jobs: VideoJob[]; default: Record<string, number | string> }>("/api/video/generatetions"),
   videoGenera: (shot: string, prompt: string, take: string, params: Record<string, number | string>) =>

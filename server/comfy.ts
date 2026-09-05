@@ -300,8 +300,8 @@ async function run(job: VideoJob): Promise<void> {
 async function queuedOnComfy(promptId: string): Promise<boolean> {
   const q = await fetch(`${HOST}/queue`).then((x) => x.json() as any).catch(() => null);
   if (!q) return false;
-  const dentro = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
-  return dentro(q.queue_running ?? []) || dentro(q.queue_pending ?? []);
+  const inside = (v: unknown[]) => v.some((x) => Array.isArray(x) && x[1] === promptId);
+  return inside(q.queue_running ?? []) || inside(q.queue_pending ?? []);
 }
 
 /**
@@ -363,7 +363,7 @@ async function collect(job: VideoJob, prefix: string): Promise<void> {
    */
   const reg = join(videoRoot(), "raccolte.json");
   const prec = existsSync(reg) ? JSON.parse(readFileSync(reg, "utf8")) as Record<string, any> : {};
-  prec[`${job.shot}__${job.take}`] = { frames, quando: Date.now(), prompt: job.prompt, remota: true };
+  prec[`${job.shot}__${job.take}`] = { frames, when: Date.now(), prompt: job.prompt, remota: true };
   writeFileSync(reg, JSON.stringify(prec, null, 1));
 
   write(job.id, { status: "done", frames, finished_at: Date.now() });

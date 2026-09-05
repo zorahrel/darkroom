@@ -293,7 +293,7 @@ lineageRoutes.get("/api/lineage", (c) => {
  *  La reference si legge dal lineage della versione: non la si passa da fuori,
  *  altrimenti si potrebbe confrontare una variante con un'immagine che non
  *  c'entra e leggere un numero che sembra un giudizio. */
-lineageRoutes.get("/api/versions/:id/scarto", (c) => {
+lineageRoutes.get("/api/versions/:id/gap", (c) => {
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);
 
@@ -318,22 +318,22 @@ lineageRoutes.get("/api/versions/:id/scarto", (c) => {
   // Nessuna reference non e' un errore: e' l'informazione che questa variante
   // non aveva un bersaglio, ed e' esattamente il caso che è costato 12
   // generazioni su profilo.
-  if (!name) return c.json({ reference: null, scarto: null });
+  if (!name) return c.json({ reference: null, gap: null });
 
   const refPath = join(refsDir(), name);
-  if (!existsSync(refPath)) return c.json({ reference: name, scarto: null, error: "reference mancante" });
+  if (!existsSync(refPath)) return c.json({ reference: name, gap: null, error: "reference mancante" });
 
   const r = spawnSync("python3", [join(REPO_ROOT, "scripts", "ref_match.py"), v.image_path, refPath], {
     encoding: "utf8",
     timeout: 30_000,
   });
   if (r.status !== 0) {
-    return c.json({ reference: name, scarto: null, error: (r.stderr || "misura fallita").slice(0, 200) });
+    return c.json({ reference: name, gap: null, error: (r.stderr || "misura fallita").slice(0, 200) });
   }
   try {
-    return c.json({ reference: name, scarto: JSON.parse(r.stdout) });
+    return c.json({ reference: name, gap: JSON.parse(r.stdout) });
   } catch {
-    return c.json({ reference: name, scarto: null, error: "risposta illeggibile" });
+    return c.json({ reference: name, gap: null, error: "risposta illeggibile" });
   }
 });
 

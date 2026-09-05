@@ -70,11 +70,11 @@ const COSA_CONTROLLA: Record<string, string> = {
 function State({ gate, onRedo }: { gate: VideoGate | null; onRedo: () => void }) {
   const [aperta, setAperta] = useState(false);
   const rows = gate?.rows ?? [];
-  const cadute = gate?.fallite.length ?? 0;
+  const cadute = gate?.failed.length ?? 0;
   const outcome = gate?.outcome ?? "sconosciuto";
 
   const [text, color, pallino] =
-    gate?.calcolo ? ["controllo il video…", "text-neutral-400", "bg-neutral-500 animate-pulse"]
+    gate?.computing ? ["controllo il video…", "text-neutral-400", "bg-neutral-500 animate-pulse"]
     : outcome === "verde" ? [`il video passa tutti i ${rows.length} controlli`, "text-emerald-300", "bg-emerald-500"]
     : outcome === "rosso" ? [`${cadute} ${cadute === 1 ? "controllo non passa" : "controlli non passano"}`, "text-rose-300", "bg-rose-500"]
     : ["video mai controllato", "text-neutral-400", "bg-neutral-600"];
@@ -115,16 +115,16 @@ function State({ gate, onRedo }: { gate: VideoGate | null; onRedo: () => void })
               </div>
             </div>
           ))}
-          {gate?.fallite.map((f, i) => (
+          {gate?.failed.map((f, i) => (
             <div key={i} className="text-[11px] text-rose-300 pt-1">non passa: {f}</div>
           ))}
-          {!rows.length && !gate?.calcolo && (
+          {!rows.length && !gate?.computing && (
             <div className="text-[11px] text-neutral-400">
               nessun controllo ancora: si misurano sul video costruito, quindi servono un
               montaggio e una ricostruzione.
             </div>
           )}
-          {gate?.calcolo && (
+          {gate?.computing && (
             <div className="text-[11px] text-neutral-400">
               sto rileggendo il video sul PC — un minuto e mezzo.
             </div>
@@ -238,8 +238,8 @@ export default function Video() {
       // occhio lascia otto pixel di troppo e la pagina scorre lo stesso — che
       // e' esattamente cio' che questo guscio esiste per evitare.
       const parent = el.parentElement;
-      const sotto = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
-      setHGuscio(Math.max(360, window.innerHeight - top - sotto));
+      const below = parent ? parseFloat(getComputedStyle(parent).paddingBottom) || 0 : 0;
+      setHGuscio(Math.max(360, window.innerHeight - top - below));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -276,16 +276,16 @@ export default function Video() {
    * mossa si fa. Vale per scambi, durate e inchiodature — tutto ciò che finisce
    * in `scelte.json`.
    */
-  type Move = { cosa: string; fa: () => Promise<unknown>; undo: () => Promise<unknown> };
+  type Move = { what: string; fa: () => Promise<unknown>; undo: () => Promise<unknown> };
   const [pila, setPila] = useState<Move[]>([]);
   const [redo, setRedo] = useState<Move[]>([]);
 
   const compi = useCallback(async (
-    cosa: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>,
+    what: string, fa: () => Promise<unknown>, undo: () => Promise<unknown>,
   ) => {
     try {
       await fa();
-      setPila((p) => [...p.slice(-49), { cosa, fa, undo }]);
+      setPila((p) => [...p.slice(-49), { what, fa, undo }]);
       setRedo([]);
       ricarica();
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
@@ -317,7 +317,7 @@ export default function Video() {
         const b = await api.videoGate();
         if (!alive) return;
         setGate(b);
-        if (b.calcolo) setTimeout(chiedi, 3000);
+        if (b.computing) setTimeout(chiedi, 3000);
       } catch { /* niente */ }
     };
     void chiedi();
@@ -343,7 +343,7 @@ export default function Video() {
     if (!ric?.active) return;
     const h = setInterval(async () => {
       try {
-        const r = await api.videoRicostruzione();
+        const r = await api.videoRebuild();
         setRic(r);
         if (!r.active) { ricarica(); api.videoGate(true).then(setGate).catch(() => {}); }
       } catch { /* niente */ }
@@ -365,10 +365,10 @@ export default function Video() {
     if (spola > 0) { vEl.playbackRate = spola; void vEl.play().catch(() => {}); return; }
     vEl.pause();
     const h = setInterval(() => {
-      const nuovo = Math.max(0, vEl.currentTime + (spola / FPS));
-      vEl.currentTime = nuovo;
-      setT(nuovo);
-      if (nuovo <= 0) setSpola(0);
+      const isNew = Math.max(0, vEl.currentTime + (spola / FPS));
+      vEl.currentTime = isNew;
+      setT(isNew);
+      if (isNew <= 0) setSpola(0);
     }, 1000 / FPS);
     return () => clearInterval(h);
   }, [vEl, spola]);
@@ -469,22 +469,22 @@ export default function Video() {
   }, [cuts, forz, compi]);
 
   const changeDuration = useCallback((bar: number, bars: number) => {
-    const prima = forz?.duration.find((f) => f.bar === bar)?.bars ?? null;
+    const before = forz?.duration.find((f) => f.bar === bar)?.bars ?? null;
     void compi(
       `battuta ${bar}: ${bars} battute`,
       () => api.videoDuration(bar, bars),
-      () => api.videoDuration(bar, prima),
+      () => api.videoDuration(bar, before),
     );
   }, [forz, compi]);
 
   const pose = useCallback((i: number, shot: string) => {
     const c = cuts[i];
     if (!c) return;
-    const prima = forz?.pin.find((f) => f.bar === c.bar)?.shot ?? null;
+    const before = forz?.pin.find((f) => f.bar === c.bar)?.shot ?? null;
     void compi(
       `${shot} sulla battuta ${c.bar}`,
       () => api.videoPin(c.bar, shot),
-      () => api.videoPin(c.bar, prima),
+      () => api.videoPin(c.bar, before),
     );
   }, [cuts, forz, compi]);
 
@@ -507,10 +507,10 @@ export default function Video() {
     const perBar = new Map(forz.pin.map((f) => [f.bar, f.shot]));
     const shotData = new Map(shots.map((sh) => [sh.id, sh]));
     return cuts.map((c) => {
-      const nuovo = perBar.get(c.bar);
-      if (!nuovo || nuovo === c.shot) return c;
-      const d = shotData.get(nuovo);
-      return { ...c, shot: nuovo, origine: nuovo.replace(/_?\d$/, ""), shotIntensity: d?.intensity ?? null };
+      const isNew = perBar.get(c.bar);
+      if (!isNew || isNew === c.shot) return c;
+      const d = shotData.get(isNew);
+      return { ...c, shot: isNew, origine: isNew.replace(/_?\d$/, ""), shotIntensity: d?.intensity ?? null };
     });
   }, [cuts, forz, shots]);
 
@@ -545,7 +545,7 @@ export default function Video() {
     void compi(
       shots.length === 1 ? `scarta ${shots[0]}` : `scarta ${shots.length} riprese`,
       async () => { for (const sh of shots) await api.videoPick(sh, false, "scartato dalla timeline"); },
-      async () => { for (const sh of shots) await api.videoScordaGiudizio(sh); },
+      async () => { for (const sh of shots) await api.videoClearVerdict(sh); },
     );
     setSelection(new Set());
   }, [selectedShots, compi]);
@@ -553,11 +553,11 @@ export default function Video() {
   const selectionDuration = useCallback((bars: number) => {
     const barre = molti.map((i) => shownCuts[i]!.bar);
     if (!barre.length) return;
-    const prima = new Map(barre.map((b) => [b, forz?.duration.find((f) => f.bar === b)?.bars ?? null]));
+    const before = new Map(barre.map((b) => [b, forz?.duration.find((f) => f.bar === b)?.bars ?? null]));
     void compi(
       `${barre.length} tagli: ${bars} battute`,
       async () => { for (const b of barre) await api.videoDuration(b, bars); },
-      async () => { for (const b of barre) await api.videoDuration(b, prima.get(b) ?? null); },
+      async () => { for (const b of barre) await api.videoDuration(b, before.get(b) ?? null); },
     );
   }, [molti, shownCuts, forz, compi]);
 
@@ -618,7 +618,7 @@ export default function Video() {
   }, [cuts, t, duration, vaiA, inOut, openCut, cancel, redoLast, tratto, active, selection, discardSelection]);
 
   const launch = async () => {
-    try { await api.videoRicostruisci(); setRic(await api.videoRicostruzione()); }
+    try { await api.videoRicostruisci(); setRic(await api.videoRebuild()); }
     catch (e) { alert(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -640,7 +640,7 @@ export default function Video() {
         )}
         {!!redo.length && (
           <button onClick={() => void redoLast()}
-                  title={`rifai: ${redo[redo.length - 1]?.cosa}`}
+                  title={`rifai: ${redo[redo.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:border-neutral-500 hover:text-neutral-100">
             rifai
@@ -648,10 +648,10 @@ export default function Video() {
         )}
         {!!pila.length && (
           <button onClick={() => void cancel()}
-                  title={`annulla: ${pila[pila.length - 1]?.cosa}`}
+                  title={`annulla: ${pila[pila.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
-            ⌫ {pila[pila.length - 1]?.cosa}
+            ⌫ {pila[pila.length - 1]?.what}
           </button>
         )}
         {!!overrideCount && (
@@ -664,7 +664,7 @@ export default function Video() {
           </button>
         )}
         {!!held.length && (
-          <span className="text-[10.5px] text-amber-400/90" title={held.map((s) => `batt ${s.bar}: ${s.garanzia}`).join(" · ")}>
+          <span className="text-[10.5px] text-amber-400/90" title={held.map((s) => `batt ${s.bar}: ${s.guarantee}`).join(" · ")}>
             {held.length} garanzie sospese
           </span>
         )}
@@ -683,7 +683,7 @@ export default function Video() {
         <aside className="shrink-0 min-w-0" style={{ width: wSx }}>
           <Library shots={shots} inEdit={inEdit} setShots={setShots} open={openShot} />
         </aside>
-        <Handle verso="col" value={wSx} title="larghezza della libreria"
+        <Handle toward="col" value={wSx} title="larghezza della libreria"
                   calcola={(v0, d) => Math.max(150, Math.min(460, v0 + d))}
                   onChange={setWSx} onEnd={save(KEY_LEFT)} />
 
@@ -729,14 +729,14 @@ export default function Video() {
                   if (r) setMarkers(r.markers);
                   setAppunto(null);
                 }}
-                segnaposto="cosa non va — invio per segnarlo, esc per lasciar perdere"
+                placeholder="cosa non va — invio per segnarlo, esc per lasciar perdere"
                 className="w-full text-[11.5px]"
               />
             </div>
           )}
         </main>
 
-        <Handle verso="col" value={wDx} title="larghezza dell'ispettore"
+        <Handle toward="col" value={wDx} title="larghezza dell'ispettore"
                   calcola={(v0, d) => Math.max(240, Math.min(720, v0 - d))}
                   onChange={setWDx} onEnd={save(KEY_RIGHT)} />
         <aside className="flex-1 min-w-0 overflow-y-auto" style={{ minWidth: Math.min(wDx, 720) }}>
@@ -806,7 +806,7 @@ export default function Video() {
                         <button onClick={() => vaiA(m.t, true)} className="text-amber-500/70 tabular-nums shrink-0 hover:text-amber-300">
                           {mmss(m.t)}
                         </button>
-                        <span className="text-neutral-400 leading-tight">{m.nota}</span>
+                        <span className="text-neutral-400 leading-tight">{m.note}</span>
                         <button onClick={() => void api.videoMarker(m.t, null).then((r) => setMarkers(r.markers))}
                                 className="ml-auto text-neutral-400 hover:text-neutral-300">×</button>
                       </div>
@@ -831,7 +831,7 @@ export default function Video() {
       </div>
 
       {/* ---- maniglia ---- */}
-      <Handle verso="riga" value={hTimeline} title="quanto spazio prende la timeline"
+      <Handle toward="riga" value={hTimeline} title="quanto spazio prende la timeline"
                 calcola={(v0, d) => timelineLimit(v0 - d)}
                 onChange={setHTimeline} onEnd={save(KEY_HEIGHT)} />
 
@@ -916,7 +916,7 @@ export default function Video() {
 
             {!!redo.length && (
           <button onClick={() => void redoLast()}
-                  title={`rifai: ${redo[redo.length - 1]?.cosa}`}
+                  title={`rifai: ${redo[redo.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:border-neutral-500 hover:text-neutral-100">
             rifai
@@ -924,10 +924,10 @@ export default function Video() {
         )}
         {!!pila.length && (
           <button onClick={() => void cancel()}
-                  title={`annulla: ${pila[pila.length - 1]?.cosa}`}
+                  title={`annulla: ${pila[pila.length - 1]?.what}`}
                   className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
                              text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
-            ⌫ {pila[pila.length - 1]?.cosa}
+            ⌫ {pila[pila.length - 1]?.what}
           </button>
         )}
         {!!overrideCount && (

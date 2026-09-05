@@ -44,7 +44,7 @@ export type PortOutcome =
   | { state: "occupata"; occupanti: Occupant[] }
   /** Non si e' potuto sapere (lsof assente, permessi). Si parte: un controllo
    *  che non sa non ha il diritto di bloccare il lavoro. */
-  | { state: "ignoto"; perche: string };
+  | { state: "ignoto"; why: string };
 
 export interface GuardiaDeps {
   /** I socket in LISTEN su quella porta, o `null` se non si e' potuto sapere. */
@@ -57,7 +57,7 @@ export interface GuardiaDeps {
 export function checkPort(porta: number, deps: GuardiaDeps): PortOutcome {
   const found = deps.listeners(porta);
   if (found === null) {
-    return { state: "ignoto", perche: "impossibile leggere i socket in ascolto" };
+    return { state: "ignoto", why: "impossibile leggere i socket in ascolto" };
   }
   const altrui = found.filter((o) => o.pid !== deps.pidNostro);
   if (altrui.length === 0) return { state: "libera" };
@@ -72,9 +72,9 @@ export function checkPort(porta: number, deps: GuardiaDeps): PortOutcome {
  */
 export function messaggioOccupata(porta: number, occupanti: Occupant[]): string {
   const rows = occupanti.map((o) => {
-    const dove = o.indirizzo ? ` su ${o.indirizzo}` : "";
-    const cosa = o.comando ? ` — ${o.comando}` : "";
-    return `    pid ${o.pid}${dove}${cosa}`;
+    const where = o.indirizzo ? ` su ${o.indirizzo}` : "";
+    const what = o.comando ? ` — ${o.comando}` : "";
+    return `    pid ${o.pid}${where}${what}`;
   });
   return [
     `[porta] NON PARTO: la porta ${porta} e' gia' servita da qualcun altro.`,
@@ -120,14 +120,14 @@ export function parseLsof(text: string, porta: number): Occupant[] {
   let comando: string | null = null;
   for (const row of text.split("\n")) {
     if (!row) continue;
-    const tipo = row[0];
+    const field = row[0];
     const val = row.slice(1);
-    if (tipo === "p") {
+    if (field === "p") {
       pid = Number(val);
       comando = null;
-    } else if (tipo === "c") {
+    } else if (field === "c") {
       comando = val;
-    } else if (tipo === "n" && pid !== null) {
+    } else if (field === "n" && pid !== null) {
       // `n` puo' comparire piu' volte per lo stesso processo (IPv4 e IPv6):
       // sono due binding distinti e vanno mostrati entrambi.
       if (!val.endsWith(`:${porta}`)) continue;

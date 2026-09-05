@@ -753,7 +753,7 @@ export default function GridPage({
             items={[
               { v: "", text: collectionsBusy ? "Assegno…" : "Assegna a post…" },
               { v: "__new__", text: "＋ Nuovo post…" },
-              ...collections.map((c) => ({ v: c.id, text: c.title, nota: String(c.photo_count) })),
+              ...collections.map((c) => ({ v: c.id, text: c.title, note: String(c.photo_count) })),
               { v: "__none__", text: "— Togli dal post" },
             ]}
             onChange={(v) => { if (v) assignSelection(v === "__none__" ? null : v); }}

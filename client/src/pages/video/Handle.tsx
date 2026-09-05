@@ -12,7 +12,7 @@ import { useCallback } from "react";
 
 type Props = {
   /** "col" separa due colonne (si trascina in orizzontale), "riga" due fasce. */
-  verso: "col" | "riga";
+  toward: "col" | "riga";
   /** Il valore corrente in pixel. */
   value: number;
   /** Quanto vale dopo aver trascinato di `d` pixel: il segno lo decide chi
@@ -24,14 +24,14 @@ type Props = {
   title?: string;
 };
 
-export default function Handle({ verso, value, calcola, onChange, onEnd, title }: Props) {
+export default function Handle({ toward, value, calcola, onChange, onEnd, title }: Props) {
   const giu = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    const p0 = verso === "col" ? e.clientX : e.clientY;
+    const p0 = toward === "col" ? e.clientX : e.clientY;
     const v0 = value;
     let last = v0;
     const move = (ev: PointerEvent) => {
-      const p = verso === "col" ? ev.clientX : ev.clientY;
+      const p = toward === "col" ? ev.clientX : ev.clientY;
       last = calcola(v0, p - p0);
       onChange(last);
     };
@@ -42,9 +42,9 @@ export default function Handle({ verso, value, calcola, onChange, onEnd, title }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", su);
-  }, [verso, value, calcola, onChange, onEnd]);
+  }, [toward, value, calcola, onChange, onEnd]);
 
-  const col = verso === "col";
+  const col = toward === "col";
   return (
     <div
       onPointerDown={giu}

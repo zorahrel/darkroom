@@ -523,8 +523,8 @@ export type VideoShot = {
   dettaglio: number | null;
   inEdit: number;
   kept: boolean;
-  perche: string | null;
-  giudizio: "tenuta" | "scartata" | null;
+  why: string | null;
+  verdict: "tenuta" | "scartata" | null;
   judgedAt: number | null;
   problems: string[];
   /** Perché merita di essere guardata per prima. Non è un verdetto. */
@@ -533,11 +533,11 @@ export type VideoShot = {
   origine: string;
   act: string | null;
   /** Secondo del film in cui compare la prima volta, null se non e' in montaggio. */
-  minuto: number | null;
+  minute: number | null;
   /** OGNI volta che entra nel montaggio, in ordine. Vuoto se non e' montata. */
   apparizioni: { t: number; dur: number; act: string | null }[];
   /** Perche' il pianificatore l'ha escluso, quando non e' stato scartato a mano. */
-  escluso: string | null;
+  excluded: string | null;
 };
 export type VideoCut = {
   t: number; dur: number; bar: number; shot: string;
@@ -545,16 +545,16 @@ export type VideoCut = {
   velocita: number; rovescio: boolean;
   act: string | null; origine: string;
 };
-export type VideoAct = { da: number; a: number; name: string; t0: number; t1: number; perche?: string };
-export type VideoHeld = { bar: number; garanzia: string };
+export type VideoAct = { da: number; a: number; name: string; t0: number; t1: number; why?: string };
+export type VideoHeld = { bar: number; guarantee: string };
 export type VideoAssets = { preview: string | null; reel: string | null; master: string | null };
 export type GateRow = { n: string; text: string; ok: boolean | null };
 export type VideoGate = {
   rows: GateRow[];
   outcome: "verde" | "rosso" | "sconosciuto";
-  fallite: string[];
-  quando: number | null;
-  calcolo: boolean;
+  failed: string[];
+  when: number | null;
+  computing: boolean;
 };
 export type VideoRebuild = {
   active: boolean; log: string;
@@ -582,7 +582,7 @@ export type VideoJob = {
 /** Il suono sotto la timeline: profilo di ampiezza, beat misurati, confini di
  *  battuta. `pronta` e' falso finche' i picchi non sono stati calcolati. */
 export type VideoWave = {
-  picchi: number[];
+  peaks: number[];
   beats: number[];
   bars: number[];
   duration: number;
@@ -590,7 +590,7 @@ export type VideoWave = {
 };
 
 /** Un appunto attaccato a un istante del montaggio. */
-export type VideoMarker = { t: number; nota: string };
+export type VideoMarker = { t: number; note: string };
 
 /** Ciò che è stato forzato a mano sopra il piano derivato. */
 export type VideoOverrides = {
@@ -607,42 +607,42 @@ export type VideoOverrides = {
 export type ToolArea =
   | "immagini" | "colore" | "qualita" | "libreria" | "racconto" | "montaggio" | "sistema";
 
-export type Requirement = "generatore" | "ffmpeg" | "moondream" | "comfy";
+export type Requirement = "generator" | "ffmpeg" | "moondream" | "comfy";
 
 export type StartField = {
   name: string;
-  etichetta: string;
-  tipo: "testo" | "lungo" | "numero" | "cartella";
-  segnaposto?: string;
-  richiesto?: boolean;
-  predefinito?: string | number;
-  nota?: string;
+  label: string;
+  kind: "text" | "long" | "number" | "folder";
+  placeholder?: string;
+  required?: boolean;
+  fallback?: string | number;
+  note?: string;
 };
 
 export type Start =
-  | { modo: "apri"; etichetta: string; rotta: string; view: ProjectKind }
-  | { modo: "nuovo" | "subito"; etichetta: string; fields: StartField[]; nota?: string };
+  | { mode: "open"; label: string; route: string; view: ProjectKind }
+  | { mode: "new" | "now"; label: string; fields: StartField[]; note?: string };
 
 export type Tool = {
   id: string;
   name: string;
-  cosa: string;
+  what: string;
   area: ToolArea;
   icon: string;
   views: ProjectKind[];
   api: string[];
   mcp: string[];
-  richiede: Requirement[];
+  needs: Requirement[];
   starters: Start[];
   /** Usabile adesso su questa macchina. */
   ready: boolean;
   /** Cosa manca, detto con il gesto che lo sistema. */
-  missing: { requirement: Requirement; come: string }[];
+  missing: { requirement: Requirement; how: string }[];
 };
 
 export type Catalogue = {
-  areas: { id: ToolArea; name: string; cosa: string }[];
-  requirements: Record<Requirement, { ok: boolean; come: string }>;
+  areas: { id: ToolArea; name: string; what: string }[];
+  requirements: Record<Requirement, { ok: boolean; how: string }>;
   backend: string;
   tools: Tool[];
 };
@@ -650,7 +650,7 @@ export type Catalogue = {
 /** Cosa è successo avviando uno strumento, e dove si atterra. */
 export type StartOutcome = {
   ok: true;
-  rotta: string;
+  route: string;
   project: string;
   done: string;
   dati?: unknown;

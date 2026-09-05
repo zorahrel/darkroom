@@ -149,7 +149,7 @@ export default function App() {
   useEffect(() => {
     if (!pid || !activeProject || activeProject.kind === "photo") return;
     if (location.pathname.replace(/\/+$/, "") !== `/p/${pid}`) return;
-    navigate(view(activeProject.kind).rotta(pid), { replace: true });
+    navigate(view(activeProject.kind).route(pid), { replace: true });
   }, [pid, activeProject, location.pathname, navigate]);
 
   /**
@@ -290,7 +290,7 @@ export default function App() {
                 voleva dire niente, e nonostante questo era la cosa più
                 appariscente dello schermo. */}
             {health && !health.browser && (
-              <Bott weight="pericolo" taglia="m" disabilitato={launching}
+              <Bott weight="pericolo" size="m" disabilitato={launching}
                     title={health.hint ?? ""}
                     onClick={async () => {
                       setLaunching(true);
@@ -307,7 +307,7 @@ export default function App() {
               </Bott>
             )}
             {jobs?.runner?.paused && jobs.runner.paused_until && (
-              <Badge tono="attesa"
+              <Badge tone="attesa"
                      title={`Limite ChatGPT raggiunto. Riparte da sola alle ${new Date(jobs.runner.paused_until).toLocaleTimeString()}.`}>
                 ⏸ coda ferma fino alle{" "}
                 {new Date(jobs.runner.paused_until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -315,14 +315,14 @@ export default function App() {
             )}
 
             {activeProject?.views.includes("photo") && (
-              <Bott weight="quieto" taglia="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
+              <Bott weight="quieto" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
                     title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
                     className="hidden lg:inline-flex">
                 <SlidersHorizontal className="w-4 h-4" aria-hidden />
               </Bott>
             )}
 
-            <Bott taglia="m" onClick={() => setShowJobs((v) => !v)}
+            <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
               Lavori
               <span className={activeJobs > 0 ? "text-sky-300" : "text-neutral-400"}>
@@ -335,7 +335,7 @@ export default function App() {
                 inventato in barra sarebbe peggio di nessun numero. */}
             {spend && spend.immagini > 0 && (
               <Badge
-                tono={spend.usd >= 5 ? "attesa" : "neutro"}
+                tone={spend.usd >= 5 ? "attesa" : "neutro"}
                 title={
                   `${spend.immagini} chiamate a ${spend.modello}, sommando i token che l'API riporta a ogni richiesta. ` +
                   `E' una STIMA DAL BASSO: conta le chiamate passate da Darkroom, non quelle fatte da script esterni ` +
@@ -348,7 +348,7 @@ export default function App() {
             )}
 
             {pid && activeProject?.kind !== "video" && activeProject?.kind !== "storyboard" && (
-              <Bott taglia="m"
+              <Bott size="m"
                     title="Copia le preferite, già gradate, in una cartella fuori dal progetto"
                     onClick={async () => {
                       const r = await api.exportFavorites();

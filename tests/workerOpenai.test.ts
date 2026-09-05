@@ -254,13 +254,13 @@ describe("si paga la chiamata, non la versione salvata", () => {
       })) as unknown as typeof fetch;
     try {
       const { db } = await import("../server/db.ts");
-      const prima = db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls").get()?.n ?? 0;
+      const before = db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM api_calls").get()?.n ?? 0;
       const mod = await import(`../server/worker-openai.ts?call=${Date.now()}${Math.random()}`);
       await mod.runWorkerOpenAiGenerate({ prompt: "x", output: "/tmp/darkroom-call-test.png" });
-      const dopo = db().query<{ n: number; tot: number }, []>(
+      const after = db().query<{ n: number; tot: number }, []>(
         "SELECT COUNT(*) AS n, SUM(cost_usd) AS tot FROM api_calls",
       ).get();
-      expect(dopo!.n).toBe(prima + 1);
+      expect(after!.n).toBe(before + 1);
       // Il costo registrato e' quello vero, non una stima da tabella.
       const last = db().query<{ cost_usd: number; output_tokens: number }, []>(
         "SELECT cost_usd, output_tokens FROM api_calls ORDER BY id DESC LIMIT 1",

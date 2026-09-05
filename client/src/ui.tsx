@@ -30,13 +30,13 @@ import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
 // ---- misure ---------------------------------------------------------------
 // Tre taglie, non quattordici. `s` per le barre dense di un editor, `m` per i
 // pannelli, `l` per le azioni di pagina.
-const TAGLIA = {
+const SIZE = {
   s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1",
   m: "text-[12px] px-2 py-1 rounded gap-1.5",
   l: "text-[13px] px-3 py-1.5 rounded gap-2",
 } as const;
 
-export type Taglia = keyof typeof TAGLIA;
+export type Size = keyof typeof SIZE;
 export type Weight = "primario" | "normale" | "quieto" | "pericolo";
 
 const WEIGHT: Record<Weight, string> = {
@@ -47,19 +47,19 @@ const WEIGHT: Record<Weight, string> = {
 };
 
 export function Bott({
-  children, onClick, active, weight = "normale", taglia = "m",
-  title, disabilitato, className = "", tipo = "button",
+  children, onClick, active, weight = "normale", size = "m",
+  title, disabilitato, className = "", type = "button",
 }: {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
   /** Stato acceso di un interruttore: si vede senza doverlo leggere. */
   active?: boolean;
   weight?: Weight;
-  taglia?: Taglia;
+  size?: Size;
   title?: string;
   disabilitato?: boolean;
   className?: string;
-  tipo?: "button" | "submit";
+  type?: "button" | "submit";
 }) {
   const stile = disabilitato
     ? "border-neutral-800 text-neutral-400/50 cursor-not-allowed"
@@ -68,7 +68,7 @@ export function Bott({
       : WEIGHT[weight];
   return (
     <button
-      type={tipo}
+      type={type}
       title={title}
       disabled={disabilitato}
       aria-pressed={active}
@@ -76,7 +76,7 @@ export function Bott({
       className={`inline-flex items-center justify-center border whitespace-nowrap
                   transition-colors focus-visible:outline focus-visible:outline-1
                   focus-visible:outline-offset-1 focus-visible:outline-neutral-300
-                  ${TAGLIA[taglia]} ${stile} ${className}`}
+                  ${SIZE[size]} ${stile} ${className}`}
     >
       {children}
     </button>
@@ -92,7 +92,7 @@ export function Bott({
  * sbaglio, e chi la vede la vede insieme a cosa succede davvero.
  */
 export function Confirm({
-  children, domanda, confirm, onConfirm, taglia = "m", title, className = "",
+  children, domanda, confirm, onConfirm, size = "m", title, className = "",
 }: {
   /** Il richiamo, sempre quieto. */
   children: React.ReactNode;
@@ -101,7 +101,7 @@ export function Confirm({
   /** Il testo del bottone rosso: un verbo, non "ok". */
   confirm: string;
   onConfirm: () => void;
-  taglia?: Taglia;
+  size?: Size;
   title?: string;
   className?: string;
 }) {
@@ -115,7 +115,7 @@ export function Confirm({
 
   if (!chiesto) {
     return (
-      <Bott weight="quieto" taglia={taglia} title={title} className={className}
+      <Bott weight="quieto" size={size} title={title} className={className}
             onClick={() => setChiesto(true)}>
         {children}
       </Bott>
@@ -124,10 +124,10 @@ export function Confirm({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-[11px] text-neutral-300">{domanda}</span>
-      <Bott weight="pericolo" taglia={taglia} onClick={() => { setChiesto(false); onConfirm(); }}>
+      <Bott weight="pericolo" size={size} onClick={() => { setChiesto(false); onConfirm(); }}>
         {confirm}
       </Bott>
-      <Bott weight="quieto" taglia={taglia} onClick={() => setChiesto(false)}>lascia stare</Bott>
+      <Bott weight="quieto" size={size} onClick={() => setChiesto(false)}>lascia stare</Bott>
     </span>
   );
 }
@@ -177,10 +177,10 @@ export function VerdictButton({
 }
 
 export function Badge({
-  children, tono = "neutro", title, className = "",
+  children, tone = "neutro", title, className = "",
 }: {
   children: React.ReactNode;
-  tono?: "neutro" | "buono" | "attesa" | "male" | "info";
+  tone?: "neutro" | "buono" | "attesa" | "male" | "info";
   title?: string;
   className?: string;
 }) {
@@ -190,7 +190,7 @@ export function Badge({
     attesa: "border-amber-800 text-amber-200 bg-amber-950/40",
     male: "border-rose-900 text-rose-200 bg-rose-950/40",
     info: "border-sky-800 text-sky-200 bg-sky-950/40",
-  }[tono];
+  }[tone];
   return (
     <span title={title}
           className={`inline-flex items-center gap-1 border rounded-sm px-1.5 py-[1px]
@@ -228,13 +228,13 @@ export function Toggle({
 
 /** L'intestazione di una pagina: titolo e, sotto, cosa ci si fa. */
 export function Header({
-  title, sotto, children,
-}: { title: string; sotto?: string; children?: React.ReactNode }) {
+  title, below, children,
+}: { title: string; below?: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 flex-wrap">
       <div className="min-w-0 space-y-0.5">
         <h1 className="text-[17px] font-semibold tracking-tight leading-tight">{title}</h1>
-        {sotto && <p className="text-[12px] text-neutral-400 leading-snug">{sotto}</p>}
+        {below && <p className="text-[12px] text-neutral-400 leading-snug">{below}</p>}
       </div>
       {children && <div className="ml-auto flex items-center gap-1.5">{children}</div>}
     </div>
@@ -246,32 +246,32 @@ export function Header({
 /** Un menu a tendina. Il valore è una stringa; le voci possono avere
  *  un'etichetta diversa dal valore e una nota a destra. */
 export function Scegli<T extends string>({
-  value, items, onChange, width = 120, title, taglia = "s",
+  value, items, onChange, width = 120, title, size = "s",
 }: {
   value: T;
   /** `gruppo` mette una riga di titolo prima della voce: serve quando l'elenco
    *  è lungo e diviso per famiglia (le LUT, per dire). */
-  items: { v: T; text: string; nota?: string; group?: string }[];
+  items: { v: T; text: string; note?: string; group?: string }[];
   onChange: (v: T) => void;
   width?: number;
   title?: string;
-  taglia?: Taglia;
+  size?: Size;
 }) {
   const [open, setOpen] = useState(false);
   const [evidenziato, setEvidenziato] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
   const pick = items.find((x) => x.v === value);
-  const t = taglia === "s" ? "text-[10.5px] px-1.5 py-0.5" : "text-[12px] px-2 py-1";
+  const t = size === "s" ? "text-[10.5px] px-1.5 py-0.5" : "text-[12px] px-2 py-1";
 
   useEffect(() => {
     if (!open) return;
     setEvidenziato(Math.max(0, items.findIndex((x) => x.v === value)));
-    const fuori = (e: PointerEvent) => {
+    const outside = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false);
     };
-    window.addEventListener("pointerdown", fuori);
-    return () => window.removeEventListener("pointerdown", fuori);
+    window.addEventListener("pointerdown", outside);
+    return () => window.removeEventListener("pointerdown", outside);
   }, [open, items, value]);
 
   const tasti = (e: React.KeyboardEvent) => {
@@ -321,7 +321,7 @@ export function Scegli<T extends string>({
                 className={`w-full flex items-baseline gap-2 px-1.5 py-1 text-left text-[10.5px]
                             ${i === evidenziato ? "bg-neutral-800 text-neutral-100" : "text-neutral-300"}`}>
                 <span className="truncate flex-1">{x.text}</span>
-                {x.nota && <span className="text-neutral-400 tabular-nums shrink-0">{x.nota}</span>}
+                {x.note && <span className="text-neutral-400 tabular-nums shrink-0">{x.note}</span>}
                 {x.v === value && <span className="text-emerald-400 shrink-0">✓</span>}
               </button>
             </li>
@@ -335,24 +335,24 @@ export function Scegli<T extends string>({
 /** Un campo di testo senza la scocca del sistema. `onInvio`/`onEsc` sono i due
  *  tasti che in un editor contano. */
 export function Field({
-  value, onChange, segnaposto, onInvio, onEsc, autoFuoco, taglia = "s", className = "",
+  value, onChange, placeholder, onInvio, onEsc, autoFuoco, size = "s", className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
-  segnaposto?: string;
+  placeholder?: string;
   onInvio?: () => void;
   onEsc?: () => void;
   autoFuoco?: boolean;
-  taglia?: Taglia;
+  size?: Size;
   className?: string;
 }) {
-  const t = taglia === "s" ? "text-[10.5px] px-1.5 py-1" : "text-[12px] px-2 py-1.5";
+  const t = size === "s" ? "text-[10.5px] px-1.5 py-1" : "text-[12px] px-2 py-1.5";
   return (
     <input
       autoFocus={autoFuoco}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={segnaposto}
+      placeholder={placeholder}
       onKeyDown={(e) => {
         // La pagina ascolta lettere singole (spazio, m, z…): mentre si scrive,
         // quelle sono testo, non comandi.
@@ -369,11 +369,11 @@ export function Field({
 
 /** Un'area di testo, stesso trattamento del campo. */
 export function Area({
-  value, onChange, segnaposto, onEsc, onInvia, autoFuoco, className = "",
+  value, onChange, placeholder, onEsc, onInvia, autoFuoco, className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
-  segnaposto?: string;
+  placeholder?: string;
   onEsc?: () => void;
   /** ⌘invio: mandare a capo dev'essere possibile, quindi il solo invio no. */
   onInvia?: () => void;
@@ -385,7 +385,7 @@ export function Area({
       autoFocus={autoFuoco}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={segnaposto}
+      placeholder={placeholder}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === "Escape") onEsc?.();
@@ -500,11 +500,11 @@ export function Altro({
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const fuori = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const outside = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("pointerdown", fuori);
+    window.addEventListener("pointerdown", outside);
     window.addEventListener("keydown", esc);
-    return () => { window.removeEventListener("pointerdown", fuori); window.removeEventListener("keydown", esc); };
+    return () => { window.removeEventListener("pointerdown", outside); window.removeEventListener("keydown", esc); };
   }, [open]);
   const visibilita = !discreto || open
     ? "opacity-100"
@@ -628,11 +628,11 @@ export function Filter({
 
 /** Il campo di ricerca di una barra filtri: la lente sta dentro, non accanto. */
 export function Search({
-  value, onChange, segnaposto, width = "13rem",
+  value, onChange, placeholder, width = "13rem",
 }: {
   value: string;
   onChange: (v: string) => void;
-  segnaposto?: string;
+  placeholder?: string;
   width?: string;
 }) {
   return (
@@ -645,7 +645,7 @@ export function Search({
           e.stopPropagation();
           if (e.key === "Escape") onChange("");
         }}
-        placeholder={segnaposto}
+        placeholder={placeholder}
         style={{ width: width }}
         className="appearance-none bg-neutral-950 border border-neutral-700 rounded-sm pl-7 pr-2 py-1
                    text-[12px] text-neutral-100 placeholder:text-neutral-500 outline-none

@@ -455,13 +455,13 @@ export const tools: Tool[] = [
       properties: {
         shot: { type: "string" },
         kept: { type: "boolean" },
-        perche: { type: "string", description: "Why, in your own words" },
+        why: { type: "string", description: "Why, in your own words" },
         ...PROJECT_FIELD,
       },
       required: ["shot", "kept"],
     },
     handler: (a) =>
-      call("POST", "/api/video/pick", { shot: a.shot, kept: a.kept, perche: a.perche }, a.project),
+      call("POST", "/api/video/pick", { shot: a.shot, kept: a.kept, why: a.why }, a.project),
   },
   {
     name: "video_pin",
@@ -684,7 +684,7 @@ export const tools: Tool[] = [
       const d = (await call("GET", "/api/tools")) as {
         areas: unknown[];
         backend: string;
-        requirements: Record<string, { ok: boolean; come: string }>;
+        requirements: Record<string, { ok: boolean; how: string }>;
         tools: any[];
       };
       const picked = d.tools
@@ -698,18 +698,18 @@ export const tools: Tool[] = [
         tools: picked.map((s) => ({
           id: s.id,
           name: s.name,
-          cosa: s.cosa,
+          what: s.what,
           area: s.area,
           views: s.views,
           mcp: s.mcp,
           ready: s.ready,
-          missing: s.missing?.map((m: { come: string }) => m.come) ?? [],
+          missing: s.missing?.map((m: { how: string }) => m.how) ?? [],
           start: s.starters
-            .filter((v: { modo: string }) => v.modo !== "apri")
-            .map((v: { modo: string; etichetta: string; fields: { name: string; richiesto?: boolean }[] }) => ({
-              modo: v.modo,
-              etichetta: v.etichetta,
-              fields: v.fields.map((cx) => (cx.richiesto ? `${cx.name}*` : cx.name)),
+            .filter((v: { mode: string }) => v.mode !== "open")
+            .map((v: { mode: string; label: string; fields: { name: string; required?: boolean }[] }) => ({
+              mode: v.mode,
+              label: v.label,
+              fields: v.fields.map((cx) => (cx.required ? `${cx.name}*` : cx.name)),
             })),
         })),
       };

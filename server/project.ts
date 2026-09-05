@@ -58,13 +58,13 @@ export type Project = {
  *  `principale` sempre dentro — una vista principale spenta sarebbe un
  *  progetto che si apre su una pagina che non esiste. */
 export function normalizeViews(views: unknown, principale: ProjectKind): ProjectKind[] {
-  const dentro = new Set<ProjectKind>([principale]);
+  const inside = new Set<ProjectKind>([principale]);
   if (Array.isArray(views)) {
     for (const v of views) {
-      if (ALL_VIEWS.includes(v as ProjectKind)) dentro.add(v as ProjectKind);
+      if (ALL_VIEWS.includes(v as ProjectKind)) inside.add(v as ProjectKind);
     }
   }
-  return ALL_VIEWS.filter((v) => dentro.has(v));
+  return ALL_VIEWS.filter((v) => inside.has(v));
 }
 
 export type ProjectDirs = {

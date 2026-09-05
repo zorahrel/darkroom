@@ -18,10 +18,10 @@ import { extname } from "node:path";
 export function serveFile(absPath: string, mime?: string, req?: Request): Response {
   if (!existsSync(absPath)) return new Response("not found", { status: 404 });
   const size = statSync(absPath).size;
-  const tipo = mime ?? guessMime(absPath);
+  const contentType = mime ?? guessMime(absPath);
   const file = Bun.file(absPath);
   const common = {
-    "content-type": tipo,
+    "content-type": contentType,
     "cache-control": "public, max-age=300",
     "accept-ranges": "bytes",
   };

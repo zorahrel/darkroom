@@ -37,7 +37,7 @@ type Props = {
   inquadra: { da: number; a: number; n: number } | null;
   inOut: [number, number] | null;
   setInOut: (v: [number, number] | null) => void;
-  open: (i: number, mod?: { estendi?: boolean; aggiungi?: boolean }) => void;
+  open: (i: number, mod?: { estendi?: boolean; add?: boolean }) => void;
   vaiA: (s: number, parts?: boolean) => void;
   gira: boolean;
   markers: VideoMarker[];
@@ -57,7 +57,7 @@ type Props = {
 export default function Timeline(p: Props) {
   const { cuts, acts, wave, duration, t, poster, picked, selection, inquadra, inOut, open, vaiA, gira, markers, removeMarker, inchiodate, onSwap, onDuration, onPose, forcedDuration } = p;
   const [zoom, setZoom] = useState(0);           // 0 = tutto in vista
-  const [sopra, setSopra] = useState<number | null>(null);
+  const [above, setAbove] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const corpo = useRef<HTMLDivElement>(null);
   const [viewWidth, setViewWidth] = useState(1000);
@@ -104,12 +104,12 @@ export default function Timeline(p: Props) {
 
   /** Zoomando, il punto sotto il cursore resta dov'e': ingrandire e poi dover
    *  ritrovare il punto e' come non aver ingrandito. */
-  const zoomBy = (verso: number, anchorPx?: number) => {
+  const zoomBy = (toward: number, anchorPx?: number) => {
     const el = scroller.current;
     const anc = anchorPx ?? (el ? el.clientWidth / 2 : 0);
     const secondsUnderAnchor = el ? (el.scrollLeft + anc) / pps : 0;
     setZoom((z) => {
-      const nz = Math.max(0, Math.min(8, (z || (verso > 0 ? 0 : 1)) + verso));
+      const nz = Math.max(0, Math.min(8, (z || (toward > 0 ? 0 : 1)) + toward));
       requestAnimationFrame(() => {
         const e2 = scroller.current;
         if (!e2 || !duration) return;
@@ -148,7 +148,7 @@ export default function Timeline(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inquadra?.n]);
 
-  const posizione = (e: { clientX: number; currentTarget: EventTarget | null }) => {
+  const position = (e: { clientX: number; currentTarget: EventTarget | null }) => {
     const el = e.currentTarget as HTMLElement;
     const box = el.getBoundingClientRect();
     return Math.max(0, Math.min(duration, (e.clientX - box.left) / pps));
@@ -157,9 +157,9 @@ export default function Timeline(p: Props) {
   const search = (e: React.PointerEvent) => {
     const el = e.currentTarget as HTMLElement;
     const box = el.getBoundingClientRect();
-    const dove = (cx: number) => vaiA(Math.max(0, Math.min(duration, (cx - box.left) / pps)));
-    dove(e.clientX);
-    const move = (ev: PointerEvent) => dove(ev.clientX);
+    const where = (cx: number) => vaiA(Math.max(0, Math.min(duration, (cx - box.left) / pps)));
+    where(e.clientX);
+    const move = (ev: PointerEvent) => where(ev.clientX);
     const su = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", su); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", su);
   };
@@ -177,7 +177,7 @@ export default function Timeline(p: Props) {
   const onde = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = onde.current;
-    if (!c || !wave?.picchi.length) return;
+    if (!c || !wave?.peaks.length) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.min(width, 16000);
     const H = lanes.suono;
@@ -187,11 +187,11 @@ export default function Timeline(p: Props) {
     if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
-    const n = wave.picchi.length;
+    const n = wave.peaks.length;
     g.fillStyle = "#4b6b80";
     for (let i = 0; i < W; i++) {
       const k = Math.floor((i / W) * n);
-      const h = (wave.picchi[k] ?? 0) * (H - 4);
+      const h = (wave.peaks[k] ?? 0) * (H - 4);
       g.fillRect(i, (H - h) / 2, 1, Math.max(1, h));
     }
   }, [wave, width, lanes.suono]);
@@ -207,8 +207,8 @@ export default function Timeline(p: Props) {
    * derivato: quello che cambia è scritto, non nascosto.
    */
   const [trascino, setTrascino] = useState<
-    { tipo: "sposta"; da: number; a: number | null } |
-    { tipo: "allunga"; i: number; bars: number } | null
+    { kind: "move"; da: number; a: number | null } |
+    { kind: "stretch"; i: number; bars: number } | null
   >(null);
 
   /** Quante battute dura un taglio adesso: la distanza dalla battuta del taglio
@@ -220,7 +220,7 @@ export default function Timeline(p: Props) {
     return Math.max(0.5, Math.round((c.dur / (cuts[1] ? (cuts[1].t - cuts[0]!.t) : c.dur)) * 2) / 2);
   }, [cuts]);
 
-  const quale = useCallback((cx: number, box: DOMRect) => {
+  const which = useCallback((cx: number, box: DOMRect) => {
     const t2 = (cx - box.left) / pps;
     let r: number | null = null;
     cuts.forEach((c, i) => { if (t2 >= c.t && t2 < c.t + c.dur) r = i; });
@@ -241,14 +241,14 @@ export default function Timeline(p: Props) {
     const move = (ev: PointerEvent) => {
       if (!mosso && Math.abs(ev.clientX - x0) < SOGLIA) return;
       mosso = true;
-      setTrascino({ tipo: "sposta", da: i, a: quale(ev.clientX, box) });
+      setTrascino({ kind: "move", da: i, a: which(ev.clientX, box) });
     };
     const su = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
       setTrascino(null);
-      if (!mosso) { open(i, { estendi: ev.shiftKey, aggiungi: ev.metaKey || ev.ctrlKey }); return; }
-      const a = quale(ev.clientX, box);
+      if (!mosso) { open(i, { estendi: ev.shiftKey, add: ev.metaKey || ev.ctrlKey }); return; }
+      const a = which(ev.clientX, box);
       if (a === null || a === i) return;
       onSwap(i, a);
     };
@@ -272,13 +272,13 @@ export default function Timeline(p: Props) {
       // Mezza battuta è il passo del piano: fra una e l'altra non c'è niente
       // che il montaggio sappia rappresentare.
       const b = Math.max(0.5, Math.min(4, Math.round((b0 + db) * 2) / 2));
-      setTrascino({ tipo: "allunga", i, bars: b });
+      setTrascino({ kind: "stretch", i, bars: b });
     };
     const su = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", su);
       setTrascino((t2) => {
-        if (mosso && t2?.tipo === "allunga" && t2.bars !== b0) onDuration(c.bar, t2.bars);
+        if (mosso && t2?.kind === "stretch" && t2.bars !== b0) onDuration(c.bar, t2.bars);
         return null;
       });
     };
@@ -329,17 +329,17 @@ export default function Timeline(p: Props) {
                     onClick={() => p.setInOut(null)}>×</button>
           </>
         )}
-        {trascino?.tipo === "sposta" && trascino.a !== null && trascino.a !== trascino.da && (
+        {trascino?.kind === "move" && trascino.a !== null && trascino.a !== trascino.da && (
           <span className="text-sky-300">
             {cuts[trascino.da]?.shot} ⇄ {cuts[trascino.a]?.shot}
           </span>
         )}
-        {trascino?.tipo === "allunga" && (
+        {trascino?.kind === "stretch" && (
           <span className="text-sky-300">{cuts[trascino.i]?.shot}: {trascino.bars} battute</span>
         )}
         <span className="ml-auto text-neutral-400 tabular-nums">
-          <span className="text-neutral-100">{timecode(sopra ?? t)}</span>
-          {sopra !== null && <span className="text-neutral-400"> (sotto il dito)</span>}
+          <span className="text-neutral-100">{timecode(above ?? t)}</span>
+          {above !== null && <span className="text-neutral-400"> (sotto il dito)</span>}
         </span>
       </div>
 
@@ -414,16 +414,16 @@ export default function Timeline(p: Props) {
             const box = e.currentTarget.getBoundingClientRect();
             zoomBy(e.deltaY < 0 ? 1 : -1, e.clientX - box.left);
           }}
-          onPointerLeave={() => setSopra(null)}>
+          onPointerLeave={() => setAbove(null)}>
           <div className="relative select-none" style={{ width: width }}
-               onPointerMove={(e) => setSopra(posizione(e))}>
+               onPointerMove={(e) => setAbove(position(e))}>
 
             {/* righello e marcatori */}
             <div style={{ height: H_RULER }}
                  className="relative border-b border-neutral-900 cursor-text" onPointerDown={search}>
               {markers.map((m) => (
                 <button key={m.t}
-                        title={`${mmss(m.t)} — ${m.nota}   (clic per andarci · ⇧clic per togliere)`}
+                        title={`${mmss(m.t)} — ${m.note}   (clic per andarci · ⇧clic per togliere)`}
                         onClick={(e) => { e.stopPropagation(); if (e.shiftKey) removeMarker(m.t); else vaiA(m.t, true); }}
                         onPointerDown={(e) => e.stopPropagation()}
                         className="absolute top-[2px] z-30 w-[8px] h-[8px] bg-amber-400 rotate-45 -ml-[4px] hover:bg-amber-200"
@@ -488,13 +488,13 @@ export default function Timeline(p: Props) {
                  onDrop={(e) => {
                    e.preventDefault();
                    const shot = e.dataTransfer.getData("text/darkroom-piano");
-                   const i = quale(e.clientX, e.currentTarget.getBoundingClientRect());
+                   const i = which(e.clientX, e.currentTarget.getBoundingClientRect());
                    if (shot && i !== null) onPose(i, shot);
                  }}>
               {cuts.map((c, i) => {
-                const sposto = trascino?.tipo === "sposta" && trascino.da === i;
-                const bersaglio = trascino?.tipo === "sposta" && trascino.a === i && trascino.da !== i;
-                const largo = trascino?.tipo === "allunga" && trascino.i === i
+                const sposto = trascino?.kind === "move" && trascino.da === i;
+                const bersaglio = trascino?.kind === "move" && trascino.a === i && trascino.da !== i;
+                const wide = trascino?.kind === "stretch" && trascino.i === i
                   ? Math.max(1, x(c.dur * (trascino.bars / Math.max(0.5, barsOf(i)))))
                   : Math.max(1, x(c.dur));
                 return (
@@ -508,7 +508,7 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                                    ${picked === i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10" : ""}
                                    ${selection.has(i) && picked !== i && !bersaglio ? "outline outline-1 -outline-offset-1 outline-orange-300/70 z-10" : ""}`}
                        style={{
-                         left: x(c.t), width: largo,
+                         left: x(c.t), width: wide,
                          height: `${18 + c.soundIntensity * 82}%`,
                          background: c.rovescio ? "#8a5a3a" : "#3f6076",
                        }}>
@@ -558,7 +558,7 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                 const src = poster.get(c.shot);
                 return (
                   <button key={i}
-                          onClick={(e) => open(i, { estendi: e.shiftKey, aggiungi: e.metaKey || e.ctrlKey })}
+                          onClick={(e) => open(i, { estendi: e.shiftKey, add: e.metaKey || e.ctrlKey })}
                           title={`${c.shot} · ${mmss(c.t)}`}
                           className={`absolute inset-y-0 border-r border-black/70 bg-cover bg-center ${
                             picked === i ? "outline outline-1 -outline-offset-1 outline-orange-400 z-10"
@@ -588,7 +588,7 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                 Un blocco che si allunga si ferma sulla mezza battuta piu'
                 vicina: se il punto d'arrivo non si vede, si tira alla cieca e
                 si scopre dov'e' andato solo lasciando. */}
-            {trascino?.tipo === "allunga" && cuts[trascino.i] && (
+            {trascino?.kind === "stretch" && cuts[trascino.i] && (
               <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
                    style={{
                      left: x(cuts[trascino.i]!.t)
@@ -600,15 +600,15 @@ trascina per scambiarlo · tira il bordo destro per la durata`}
                 </div>
               </div>
             )}
-            {trascino?.tipo === "sposta" && trascino.a !== null && cuts[trascino.a] && (
+            {trascino?.kind === "move" && trascino.a !== null && cuts[trascino.a] && (
               <div className="absolute top-0 bottom-0 w-px bg-sky-300 pointer-events-none z-30"
                    style={{ left: x(cuts[trascino.a]!.t) }} />
             )}
 
             {/* dove passa il dito, prima di premere */}
-            {sopra !== null && (
+            {above !== null && (
               <div className="absolute top-0 bottom-0 w-px bg-neutral-500/40 pointer-events-none z-10"
-                   style={{ left: x(sopra) }} />
+                   style={{ left: x(above) }} />
             )}
 
             {/* dove sei */}

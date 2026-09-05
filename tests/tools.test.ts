@@ -30,16 +30,16 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
   test("ogni rotta dichiarata è montata sul server", () => {
     const fantasma: string[] = [];
     for (const s of TOOLS) {
-      for (const rotta of s.api) {
+      for (const route of s.api) {
         // Le rotte dello storyboard sono montate su un prefisso: il catalogo
         // le scrive per intero perché è così che si chiamano da fuori.
-        const [metodo, percorso] = rotta.split(" ") as [string, string];
+        const [metodo, percorso] = route.split(" ") as [string, string];
         const varianti = [
           `${metodo} ${percorso}`,
           `${metodo} ${percorso.replace("/api/storyboard", "")}`,
           `${metodo} ${percorso.replace("/api/verify", "")}`,
         ];
-        if (!varianti.some((v) => ROTTE.has(v))) fantasma.push(`${s.id} → ${rotta}`);
+        if (!varianti.some((v) => ROTTE.has(v))) fantasma.push(`${s.id} → ${route}`);
       }
     }
     expect(fantasma).toEqual([]);
@@ -66,9 +66,9 @@ describe("il catalogo degli strumenti non promette roba che non c'è", () => {
       expect(visti.has(s.id), `id doppio: ${s.id}`).toBe(false);
       visti.add(s.id);
       expect(areas.has(s.area), `area sconosciuta in ${s.id}: ${s.area}`).toBe(true);
-      expect(s.cosa.length, `${s.id} non dice cosa fa`).toBeGreaterThan(20);
+      expect(s.what.length, `${s.id} non dice cosa fa`).toBeGreaterThan(20);
       for (const a of s.starters) {
-        if (a.modo === "apri") expect(a.rotta.includes(":pid")).toBe(true);
+        if (a.mode === "open") expect(a.route.includes(":pid")).toBe(true);
         else expect(Array.isArray(a.fields)).toBe(true);
       }
     }
@@ -88,7 +88,7 @@ describe("GET /api/tools", () => {
       expect(typeof s.ready).toBe("boolean");
       if (!s.ready) {
         expect(s.missing.length).toBeGreaterThan(0);
-        for (const m of s.missing) expect(m.come.length).toBeGreaterThan(10);
+        for (const m of s.missing) expect(m.how.length).toBeGreaterThan(10);
       }
     }
   });
@@ -137,7 +137,7 @@ describe("POST /api/tools/:id/start", () => {
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
     expect(j.ok).toBe(true);
-    expect(j.rotta).toBe(`/p/${j.project}`);
+    expect(j.route).toBe(`/p/${j.project}`);
     expect(j.done).toContain(name);
 
     const list = (await (await app.request("/api/studio/projects")).json()) as any;
@@ -154,12 +154,12 @@ describe("POST /api/tools/:id/start", () => {
     // Senza generatore vivo l'avvio si ferma prima, e lo dice: è il
     // comportamento voluto (409), non un fallimento del catalogo.
     if (r.status === 409) {
-      expect(((await r.json()) as any).missing).toContain("generatore");
+      expect(((await r.json()) as any).missing).toContain("generator");
       return;
     }
     expect(r.status).toBe(200);
     const j = (await r.json()) as any;
-    expect(j.rotta).toBe(`/p/${j.project}/storyboard`);
+    expect(j.route).toBe(`/p/${j.project}/storyboard`);
     const board = (await (
       await app.request("/api/storyboard", { headers: { "x-darkroom-project": j.project } })
     ).json()) as any;
@@ -170,7 +170,7 @@ describe("POST /api/tools/:id/start", () => {
     // Contro il motore, non contro la rotta: chiamare gli avvii per davvero
     // vorrebbe dire far partire Chrome e creare progetti veri dentro la suite.
     const withoutEngine = TOOLS.filter(
-      (s) => s.starters.some((a) => a.modo !== "apri") && !AVVIABILI.has(s.id),
+      (s) => s.starters.some((a) => a.mode !== "open") && !AVVIABILI.has(s.id),
     ).map((s) => s.id);
     expect(withoutEngine).toEqual([]);
   });

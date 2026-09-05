@@ -62,7 +62,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0 px-2 py-1.5 border-b border-neutral-900 space-y-1.5">
         <Field value={q} onChange={setQ} onEsc={() => setQ("")}
-               segnaposto={`cerca fra ${shots.length} piani…`}
+               placeholder={`cerca fra ${shots.length} piani…`}
                className="w-full text-[11px]" />
         <div className="flex flex-wrap gap-1">
           {(["tutti", "in montaggio", "tenuti", "scartati", "annotati"] as const).map(F)}
@@ -72,7 +72,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
       <div className="flex-1 min-h-0 overflow-y-auto">
         {visibili.map((s) => {
           const tk = s.takes.find((x) => x.kept) ?? s.takes[0];
-          const dentro = (inEdit.get(s.id) ?? 0) > 0;
+          const inside = (inEdit.get(s.id) ?? 0) > 0;
           return (
             <div key={s.id}
                  draggable
@@ -86,7 +86,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                  className={`flex gap-2 px-2 py-1.5 border-b border-neutral-900/70 hover:bg-neutral-900/50
                              cursor-grab active:cursor-grabbing
                              ${s.kept ? "" : "opacity-45"}`}>
-              <button onClick={() => open(s.id)} className="shrink-0" title={dentro ? "vai al taglio" : "non è nel montaggio"}>
+              <button onClick={() => open(s.id)} className="shrink-0" title={inside ? "vai al taglio" : "non è nel montaggio"}>
                 {tk ? (
                   <video
                     key={tk.clip} src={pq(tk.clip)} poster={pq(tk.poster)}
@@ -94,7 +94,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                     onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
                     onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
                     className={`w-[42px] aspect-[9/16] object-cover bg-black rounded-sm border
-                                ${dentro ? "border-orange-500/50" : "border-neutral-800"}`}
+                                ${inside ? "border-orange-500/50" : "border-neutral-800"}`}
                   />
                 ) : <div className="w-[42px] aspect-[9/16] bg-neutral-900 rounded-sm" />}
               </button>
@@ -103,7 +103,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                 <div className="flex items-baseline gap-2">
                   <span className="text-[11px] text-neutral-200 truncate">{s.id}</span>
                   <span className="ml-auto text-[9.5px] text-neutral-400 tabular-nums shrink-0">
-                    {dentro ? `${(inEdit.get(s.id) ?? 0).toFixed(1)}s` : "—"}
+                    {inside ? `${(inEdit.get(s.id) ?? 0).toFixed(1)}s` : "—"}
                   </span>
                 </div>
                 <div className="mt-1 h-[3px] bg-neutral-900 rounded-full overflow-hidden">
@@ -131,7 +131,7 @@ export default function Library({ shots, inEdit, setShots, open }: Props) {
                 {scrivo === s.id && (
                   <Field autoFuoco value={text} onChange={setText}
                          onInvio={() => void flag(s.id)} onEsc={() => setScrivo(null)}
-                         segnaposto="cosa non va — invio"
+                         placeholder="cosa non va — invio"
                          className="mt-1 w-full text-[10px] border-amber-900/60" />
                 )}
                 {s.problems.map((p, i) => (

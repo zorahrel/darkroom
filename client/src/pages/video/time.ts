@@ -37,10 +37,10 @@ export type LaneHeights = { suono: number; cuts: number; quadri: number };
  * invece di schiacciare tutto fino a non dire più niente.
  */
 export function laneHeights(height: number): LaneHeights {
-  const resta = Math.max(0, height - H_RULER - H_ACTS - 2);
+  const remains = Math.max(0, height - H_RULER - H_ACTS - 2);
   const minimums = MIN_SUONO + MIN_TAGLI + MIN_QUADRI;
-  if (resta <= minimums) return { suono: MIN_SUONO, cuts: MIN_TAGLI, quadri: MIN_QUADRI };
-  const extra = resta - minimums;
+  if (remains <= minimums) return { suono: MIN_SUONO, cuts: MIN_TAGLI, quadri: MIN_QUADRI };
+  const extra = remains - minimums;
   return {
     suono: Math.round(MIN_SUONO + extra * 0.24),
     cuts: Math.round(MIN_TAGLI + extra * 0.40),
@@ -76,8 +76,8 @@ export function timecode(s: number, fps = 24): string {
 export function shuttle(attuale: number, tasto: "j" | "k" | "l"): number {
   const scala = [1, 2, 4, 8];
   if (tasto === "k") return 0;
-  const verso = tasto === "l" ? 1 : -1;
-  if (Math.sign(attuale) !== verso) return verso;                 // cambio di verso: riparti da 1x
+  const toward = tasto === "l" ? 1 : -1;
+  if (Math.sign(attuale) !== toward) return toward;                 // cambio di verso: riparti da 1x
   const i = scala.indexOf(Math.abs(attuale));
-  return verso * (scala[Math.min(scala.length - 1, i + 1)] ?? 1);
+  return toward * (scala[Math.min(scala.length - 1, i + 1)] ?? 1);
 }

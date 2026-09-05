@@ -32,14 +32,14 @@ toolRoutes.get("/api/tools", async (c) => {
     requirements: req,
     backend: WORKER_BACKEND,
     tools: TOOLS.map((s) => {
-      const missing = s.richiede.filter((r) => !req[r].ok);
+      const missing = s.needs.filter((r) => !req[r].ok);
       return {
         ...s,
         // "Pronto" è una cosa sola: puoi usarlo adesso. Ciò che manca è detto
         // per nome, con il gesto che lo sistema, perché uno strumento grigio
         // senza motivo è solo una porta chiusa.
         ready: missing.length === 0,
-        missing: missing.map((r) => ({ requirement: r, come: req[r].come })),
+        missing: missing.map((r) => ({ requirement: r, how: req[r].how })),
       };
     }),
   });
@@ -56,7 +56,7 @@ const number = (v: Values, k: string, d: number): number => {
 };
 
 /** L'esito di un avvio: dove si atterra, su quale progetto, e cosa è successo. */
-type Outcome = { rotta: string; project: string; done: string; dati?: unknown };
+type Outcome = { route: string; project: string; done: string; dati?: unknown };
 
 /**
  * Il progetto su cui lavorare.
@@ -78,7 +78,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const pid = projectOf(prog);
     const r = withProject(pid, () => creaGenerazioni(prompt, number(v, "conta", 1)));
     return {
-      rotta: `/p/${pid}`,
+      route: `/p/${pid}`,
       project: pid,
       done: `${r.created} ${r.created === 1 ? "immagine messa" : "immagini messe"} in coda.`,
       dati: r,
@@ -97,7 +97,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
       if (prompt) setGlobalPrompt(prompt);
       const enqueued = number(v, "accoda", 1) ? enqueueMissing() : 0;
       return {
-        rotta: `/p/${p.id}`,
+        route: `/p/${p.id}`,
         project: p.id,
         done:
           `${summary.added} foto indicizzate` +
@@ -115,7 +115,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const p = addProject({ name: name, kind: "photo" });
     const { summary } = withProject(p.id, () => addSource({ path: folder, mode: "link" }));
     return {
-      rotta: `/p/${p.id}`,
+      route: `/p/${p.id}`,
       project: p.id,
       done: `${summary.added} foto indicizzate su ${summary.scanned} trovate.`,
       dati: summary,
@@ -133,7 +133,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const p = addProject({ name: name, kind: "storyboard", views: ["photo", "storyboard"] });
     const r = withProject(p.id, () => createPanels(rows.map((description) => ({ description }))));
     return {
-      rotta: `/p/${p.id}/storyboard`,
+      route: `/p/${p.id}/storyboard`,
       project: p.id,
       done: `${r.ids.length} pannelli creati, ${r.enqueued} già in coda per essere disegnati.`,
       dati: r,
@@ -145,7 +145,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     if (!name) throw new Error("Serve un nome per il montaggio.");
     const p = addProject({ name: name, kind: "video", views: ["photo", "video"] });
     return {
-      rotta: `/p/${p.id}/video`,
+      route: `/p/${p.id}/video`,
       project: p.id,
       done: `Progetto video creato in ${p.root}: metti lì le riprese e il brano.`,
       dati: p,
@@ -156,14 +156,14 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const name = text(v, "name");
     if (!name) throw new Error("Serve un nome.");
     const p = addProject({ name: name, kind: "photo" });
-    return { rotta: `/p/${p.id}`, project: p.id, done: `Progetto «${p.name}» creato.`, dati: p };
+    return { route: `/p/${p.id}`, project: p.id, done: `Progetto «${p.name}» creato.`, dati: p };
   },
 
   export: (_v, prog) => {
     const pid = projectOf(prog);
     const r = withProject(pid, () => esportaPreferite());
     return {
-      rotta: `/p/${pid}`,
+      route: `/p/${pid}`,
       project: pid,
       done: r.total
         ? `${r.copied} preferite su ${r.total} copiate in ${r.dir}.`
@@ -176,7 +176,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const pid = projectOf(prog);
     const r = withProject(pid, () => startVerification(200, false));
     return {
-      rotta: `/p/${pid}`,
+      route: `/p/${pid}`,
       project: pid,
       done: r
         ? `Controllo avviato su ${r.started} render. Segnala, non cancella niente.`
@@ -190,7 +190,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     const r = await launchChatgptBrowser();
     if (!r.ok) throw new Error(r.error ?? "Chrome non è partito.");
     return {
-      rotta: `/p/${pid}`,
+      route: `/p/${pid}`,
       project: pid,
       done: "Chrome dedicato avviato: loggati a chatgpt.com nella finestra che si è aperta.",
     };
@@ -220,13 +220,13 @@ toolRoutes.post("/api/tools/:id/start", async (c) => {
   };
 
   const req = await requirements(checkChatgptBrowserAlive);
-  const missing = s.richiede.filter((r: Requirement) => !req[r].ok);
+  const missing = s.needs.filter((r: Requirement) => !req[r].ok);
   // Un requisito che manca si dice PRIMA di fare metà del lavoro: creare il
   // progetto e poi scoprire che il generatore è spento lascia una cartella
   // vuota e nessuna spiegazione.
   if (missing.length && id !== "stato") {
     return c.json(
-      { error: missing.map((r) => req[r].come).join(" "), missing },
+      { error: missing.map((r) => req[r].how).join(" "), missing },
       409,
     );
   }

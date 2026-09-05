@@ -42,9 +42,9 @@ const CASI: [string, string][] = [
 ];
 
 describe("origine", () => {
-  for (const [dentro, fuori] of CASI) {
-    test(`${dentro} -> ${fuori}`, () => {
-      expect(origine(dentro)).toBe(fuori);
+  for (const [inside, outside] of CASI) {
+    test(`${inside} -> ${outside}`, () => {
+      expect(origine(inside)).toBe(outside);
     });
   }
 

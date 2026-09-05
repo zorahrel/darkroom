@@ -20,7 +20,7 @@ export type View = {
   /** Che cosa ci si fa. Va nel titolo del tasto, non in un manuale. */
   spiega: string;
   /** Dove porta, dentro un progetto. */
-  rotta: (pid: string) => string;
+  route: (pid: string) => string;
 };
 
 export const VIEWS: View[] = [
@@ -29,21 +29,21 @@ export const VIEWS: View[] = [
     name: "foto",
     icon: Images,
     spiega: "Galleria: griglia, versioni, colore, esportazione.",
-    rotta: (pid) => `/p/${pid}`,
+    route: (pid) => `/p/${pid}`,
   },
   {
     id: "storyboard",
     name: "storyboard",
     icon: Clapperboard,
     spiega: "Pannelli in sequenza da una scaletta, con durate e personaggi.",
-    rotta: (pid) => `/p/${pid}/storyboard`,
+    route: (pid) => `/p/${pid}/storyboard`,
   },
   {
     id: "video",
     name: "video",
     icon: Film,
     spiega: "Montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza.",
-    rotta: (pid) => `/p/${pid}/video`,
+    route: (pid) => `/p/${pid}/video`,
   },
 ];
 
