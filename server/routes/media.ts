@@ -32,12 +32,27 @@ mediaRoutes.get("/raw/:filename", (c) => {
  *  variant and seeing the gap instead of only measuring it: the distance from
  *  the reference is read from the numbers, but "how much it resembles it" stays
  *  a judgement made with the eyes. */
+/** Dov'e' davvero il file allegato a una generazione.
+ *
+ *  Un riferimento non sta per forza in `refs/`: puo' essere una FOTO DEL
+ *  PROGETTO, ed e' il caso normale quando si allega "un altro mio scatto" per
+ *  tenere ferma l'identita'. Il 07/09 l'albero mostrava due riquadri vuoti al
+ *  posto di 1.PNG proprio per questo: la rotta guardava solo in `refs/` e la
+ *  foto stava in `RAW/`. Si guarda in tutte e due, `refs/` per prima. */
+function refFile(filename: string): string | null {
+  for (const dir of [refsDir(), rawDir()]) {
+    const p = join(dir, filename);
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
 mediaRoutes.get("/refs/:filename", (c) => {
   const filename = c.req.param("filename");
   if (filename.includes("..") || filename.includes("/")) {
     return new Response("bad request", { status: 400 });
   }
-  return serveFile(join(refsDir(), filename));
+  return serveFile(refFile(filename) ?? join(refsDir(), filename));
 });
 
 mediaRoutes.get("/thumb/refs/:filename", async (c) => {
@@ -45,8 +60,8 @@ mediaRoutes.get("/thumb/refs/:filename", async (c) => {
   if (filename.includes("..") || filename.includes("/")) {
     return new Response("bad request", { status: 400 });
   }
-  const src = join(refsDir(), filename);
-  if (!existsSync(src)) return new Response("not found", { status: 404 });
+  const src = refFile(filename);
+  if (!src) return new Response("not found", { status: 404 });
   return serveFile(await thumbnailPath(src, parseWidth(c, 480)));
 });
 

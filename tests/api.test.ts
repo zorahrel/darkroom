@@ -307,3 +307,21 @@ describe("the credits are asked for, not discovered by walking into them", () =>
     expect(src).toContain("hfBalance()");
   });
 });
+
+describe("riferimenti serviti", () => {
+  // Un riferimento allegato a una generazione puo' essere una FOTO DEL
+  // PROGETTO (un altro scatto della stessa persona), che sta in RAW/ e non in
+  // refs/: l'albero la chiedeva a /thumb/refs e riceveva 404, cioe' un riquadro
+  // vuoto al posto della foto usata davvero.
+  test("GET /thumb/refs trova anche una foto che sta in RAW", async () => {
+    mkdirSync(dirs().RAW_DIR, { recursive: true });
+    writeFileSync(join(dirs().RAW_DIR, "solo_in_raw.png"), PNG_1X1);
+    const res = await app.request("/thumb/refs/solo_in_raw.png");
+    expect(res.status).toBe(200);
+  });
+
+  test("GET /thumb/refs resta 404 per un file che non esiste da nessuna parte", async () => {
+    const res = await app.request("/thumb/refs/inesistente.png");
+    expect(res.status).toBe(404);
+  });
+});
