@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cancelPending, listJobs, looksLikePolicyRefusal, parseRefPaths } from "../server/jobs.ts";
+import { cancelPending, listJobs, looksLikeGenError, looksLikePolicyRefusal, parseRefPaths } from "../server/jobs.ts";
 import { db } from "../server/db.ts";
 import { TEST_ROOT } from "./setup.ts";
 
@@ -274,6 +274,39 @@ describe("a refusal from ChatGPT is not a fault", () => {
     expect(src).toContain("if (looksLikePolicyRefusal(err)) {");
     expect(src).toContain("markSkipped(job.photo_id, err)");
     expect(src).toContain("UPDATE photos SET skipped = 1, skip_reason = ?");
+  });
+});
+
+describe("un guasto del generatore non e' un limite d'uso", () => {
+  test("il testo di ChatGPT che dichiara il guasto viene riconosciuto", async () => {
+    const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
+    // Caso reale, job 270 dell'08/09: "Non sono riuscito a generare l'immagine
+    // per un errore del sistema di generazione. Inviami di nuovo la richiesta."
+    // Le regole esistenti non lo prendevano — il rifiuto di policy parla al
+    // presente ("non POSSO"), questo al passato ("non sono RIUSCITO") — e il
+    // ciclo restava fermo i 360s interi.
+    const rx = py.match(/const genError = \/(.+?)\/i\.test\(lastTxt\)/);
+    expect(rx).not.toBeNull();
+    const re = new RegExp(rx![1]!, "i");
+    expect(re.test("non sono riuscito a generare l'immagine per un errore del sistema di generazione")).toBe(true);
+    expect(re.test("i wasn't able to generate that image")).toBe(true);
+    // e non deve scattare su una risposta qualsiasi
+    expect(re.test("ecco l'immagine che hai chiesto")).toBe(false);
+    expect(py).toContain("chatgpt-gen-error");
+  });
+
+  test("la coda lo rimette in coda subito, senza contarlo come rate-limit", async () => {
+    // Diagnosticarlo come "no image in 360s" lo faceva passare per un sospetto
+    // limite d'uso: sei minuti persi e un timeout contato a torto.
+    expect(looksLikeGenError("chatgpt-gen-error: ChatGPT ha risposto a parole che la generazione e' fallita")).toBe(true);
+    expect(looksLikeGenError("no image in 360s (early-exit)")).toBe(false);
+    expect(looksLikeGenError("content-policy refusal (copyright/likeness) — skipped")).toBe(false);
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    expect(src).toContain("if (looksLikeGenError(err)) {");
+    // deve stare PRIMA del ramo del rate-limit, altrimenti non lo vede mai
+    expect(src.indexOf("if (looksLikeGenError(err)) {")).toBeLessThan(
+      src.indexOf("if (looksLikeRateLimit(err)) {"),
+    );
   });
 });
 

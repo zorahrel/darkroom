@@ -422,10 +422,21 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // "render di un altro job" — misurato il 25/08 su 9 job di fila.
             const throttled = /troppe richieste|too many requests|limitato temporaneamente|rate ?limit(?:ed)?|slow down/i.test(document.body.innerText.slice(-2500));
             const refused = /misure di protezione|somiglianza con contenuti|contenuti di terzi|third[- ]party|copyright|can'?t help with|unable to (?:create|generate|help)|non posso (?:aiutarti|creare|generare)|viola(?:no|re)? (?:le|la) (?:nostre|policy)|content polic/i.test(lastTxt);
+            // Il guasto del generatore NON e' un rifiuto e NON e' un'attesa:
+            // ChatGPT risponde a parole "non sono riuscito a generare
+            // l'immagine per un errore del sistema di generazione, inviami di
+            // nuovo la richiesta". Nessuna delle due regole sopra lo prende
+            // (parla al passato: "non sono RIUSCITO", non "non POSSO"), quindi
+            // il ciclo restava fermo i 360s interi e il guasto veniva poi
+            // diagnosticato come "no image in 360s", cioe' un sospetto
+            // rate-limit. Misurato sul job 270 l'08/09: 6 minuti persi per un
+            // errore che il sito stesso chiede di ritentare subito.
+            const genError = /non sono riuscito a generare|errore del sistema di generazione|errore nella generazione|i (?:wasn'?t|was not) able to generate|something went wrong (?:while )?generating|error (?:while )?generating|image generation failed/i.test(lastTxt);
             return {{
               done: !!pick && !stillStreaming,
               src: pick ? pick.src : null,
               refused: refused && !pick && !stillStreaming,
+              genError: genError && !pick && !stillStreaming,
               throttled: throttled && !pick,
               status: pick ? (stillStreaming ? 'img-streaming' : 'img-present') : (stillStreaming ? 'streaming' : 'waiting'),
             }};
@@ -441,6 +452,12 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
         # Content-policy refusal → skip this photo (don't retry forever).
         if info.get("refused"):
             raise RuntimeError("content-policy refusal (copyright/likeness) — skipped")
+        # Guasto del generatore: il sito chiede esplicitamente di rimandare la
+        # richiesta. Uscire subito e dirlo vale quanto sei minuti di attesa.
+        if info.get("genError"):
+            raise RuntimeError(
+                "chatgpt-gen-error: ChatGPT ha risposto a parole che la generazione e' fallita — da ritentare subito"
+            )
         # A non-baseline candidate image that's finished streaming is ours.
         if info.get("done") and info.get("src"):
             return info["src"]

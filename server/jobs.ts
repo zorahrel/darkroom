@@ -246,6 +246,11 @@ function looksLikeRateLimit(error: string): boolean {
   return /no image in \d+s/i.test(error);
 }
 
+/** Guasto del generatore dichiarato a parole da ChatGPT: si ritenta subito. */
+export function looksLikeGenError(error: string): boolean {
+  return /chatgpt-gen-error/i.test(error);
+}
+
 /** Browser/CDP/worker-process transient failures — not the job's fault, retry. */
 /** ChatGPT refused the photo (copyright, likeness of third parties).
  *  Telling this apart from a real error is what allows us to stop retrying: a
@@ -671,6 +676,21 @@ async function processJob(job: JobRow) {
         db().run(
           "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
           [`requeued (browser down): ${err}`.slice(0, 500), job.id],
+        );
+        return;
+      }
+      // Un guasto del generatore (ChatGPT risponde a parole "non sono riuscito
+      // a generare l'immagine ... inviami di nuovo la richiesta") non e' ne' un
+      // rifiuto ne' un limite: e' l'unico caso in cui il sito stesso dice cosa
+      // fare. Si rimette in coda subito, senza pause e senza contarlo fra i
+      // timeout: contarlo farebbe scattare il raffreddamento da rate-limit su
+      // un guasto che dura due minuti.
+      if (looksLikeGenError(err)) {
+        pausedUntilMs = Math.max(pausedUntilMs, Date.now() + 15 * 1000);
+        console.log(`[jobs] job ${job.id}: guasto del generatore — rimesso in coda fra 15s`);
+        db().run(
+          "UPDATE jobs SET status='pending', started_at=NULL, error=? WHERE id=? AND status <> 'cancelled'",
+          [`requeued (guasto del generatore): ${err}`.slice(0, 500), job.id],
         );
         return;
       }
