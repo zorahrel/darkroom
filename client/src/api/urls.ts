@@ -1,3 +1,4 @@
+import { anteprimaInProcesso } from "../guscio";
 /** Image URLs. Every one carries the active project (images can't send headers). */
 
 import { pq } from "./http";
@@ -41,7 +42,16 @@ export function rawUrl(id: string, _ext?: string): string {
   return pq(`/orig/${encodeURIComponent(id)}`);
 }
 
-export function thumbRawUrl(id: string, w?: number): string {
+/**
+ * L'anteprima di uno scatto originale.
+ *
+ * Passando `percorsoFile`, dentro l'applicazione desktop l'immagine arriva dal motore
+ * nello stesso processo e non da una richiesta HTTP. Senza percorso, o nel browser,
+ * resta l'endpoint di sempre: la versione web non perde niente.
+ */
+export function thumbRawUrl(id: string, w?: number, percorsoFile?: string | null): string {
+  const diretta = anteprimaInProcesso(percorsoFile, w ?? 480);
+  if (diretta) return diretta;
   const q = w ? `?w=${w}` : "";
   return pq(`/thumb/raw/${encodeURIComponent(id)}${q}`);
 }

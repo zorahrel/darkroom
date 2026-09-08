@@ -105,6 +105,10 @@ photoRoutes.get("/api/photos", (c) => {
     SELECT
       p.id,
       p.original_ext,
+      -- Il percorso del file serve al guscio desktop, che chiede l'anteprima al
+      -- motore nello stesso processo invece di passare da HTTP. Darkroom e' uno
+      -- strumento locale: il percorso non e' un segreto, e' il documento.
+      p.original_path,
       p.favorite_version_id,
       p.taken_at,
       p.feedback,

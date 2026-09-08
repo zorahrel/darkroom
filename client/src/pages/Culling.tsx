@@ -366,7 +366,7 @@ function Cella({
       }`}
     >
       <img
-        src={thumbRawUrl(scatto.id, 512)}
+        src={thumbRawUrl(scatto.id, 512, scatto.original_path)}
         alt=""
         loading="lazy"
         decoding="async"
@@ -402,7 +402,7 @@ function Visore({ scatto }: { scatto: PhotoListItem }) {
       {/* 2048 e non 512: qui si decide se lo scatto è a fuoco, e a mezza
           risoluzione quella domanda non si può rispondere. */}
       <img
-        src={thumbRawUrl(scatto.id, 2048)}
+        src={thumbRawUrl(scatto.id, 2048, scatto.original_path)}
         alt={scatto.id}
         className="max-h-full max-w-full object-contain"
       />

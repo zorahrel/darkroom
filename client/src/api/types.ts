@@ -3,6 +3,8 @@
 export type PhotoListItem = {
   id: string;
   original_ext: string;
+  /** Il file sul disco. Serve al guscio desktop per le anteprime senza rete. */
+  original_path?: string;
   favorite_version_id: number | null;
   favorite_version_number: number | null;
   latest_version_id: number | null;

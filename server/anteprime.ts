@@ -15,23 +15,10 @@
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT } from "./db.ts";
+import { LIVELLI, livelloPer, type NomeLivello } from "./livelli.ts";
 
-export const LIVELLI = [
-  { nome: "proxy", lato: 256 },
-  { nome: "griglia", lato: 512 },
-  /**
-   * 2048 e non i 3840 di un'applicazione nativa a schermo intero su un Retina:
-   * un'immagine dentro una pagina, anche a tutta larghezza, non supera i ~2500 px
-   * reali, e ogni pixel oltre l'anteprima incorporata si paga con una decodifica
-   * piena del RAW — misurata a 868 ms su una Sony ARW, dove l'anteprima incorporata
-   * si ferma comunque a 1616.
-   */
-  { nome: "visore", lato: 2048 },
-  /** Per l'ingrandimento oltre 1:1, e per chi esporta. */
-  { nome: "nativo", lato: 3840 },
-] as const;
+export { LIVELLI, livelloPer, type NomeLivello };
 
-export type NomeLivello = (typeof LIVELLI)[number]["nome"];
 
 /**
  * Il budget complessivo della cache su disco, in byte.
@@ -54,11 +41,6 @@ export const QUOTE: Record<NomeLivello, number> = {
   nativo: 0.2,
 };
 
-/** Il livello che copre la larghezza richiesta. Si arrotonda sopra, mai sotto. */
-export function livelloPer(lato: number): (typeof LIVELLI)[number] {
-  for (const l of LIVELLI) if (lato <= l.lato) return l;
-  return LIVELLI[LIVELLI.length - 1]!;
-}
 
 export function radiceCache(): string {
   return join(ROOT, "dashboard", ".cache", "thumbs");

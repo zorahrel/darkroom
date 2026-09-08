@@ -1,4 +1,5 @@
 /** Active-project resolution and the fetch wrapper every call goes through. */
+import { nelGuscioDesktop } from "../guscio";
 
 // ---- Active project (multi-project / Studio) ------------------------------
 // The active project is taken from the URL path (`/p/:pid/...`) so links are
@@ -25,17 +26,42 @@ export function lastProject(): string {
   return localStorage.getItem("darkroom.project") || "";
 }
 
+/**
+ * La radice del backend.
+ *
+ * Nel browser è vuota: le chiamate sono relative alla pagina, che il backend serve
+ * già. Nell'applicazione desktop la pagina arriva dal guscio (`tauri://localhost`) e
+ * una chiamata relativa finirebbe lì invece che al backend — che è esattamente il
+ * difetto per cui la prima finestra mostrava «Il catalogo non risponde: 500».
+ *
+ * Le anteprime non passano di qui: nell'applicazione hanno una strada propria che non
+ * tocca la rete (vedi `guscio.ts`). Questo indirizzo serve al resto — database,
+ * lavori, impostazioni — che vive nel backend e non nel motore.
+ */
+export function radiceApi(): string {
+  return nelGuscioDesktop() ? `http://127.0.0.1:${PORTA_BACKEND}` : "";
+}
+
+/** La stessa porta della versione web: l'app è un'altra finestra sullo stesso lavoro. */
+const PORTA_BACKEND = 3535;
+
+/** Un indirizzo assoluto quando serve, relativo quando basta. */
+function assoluto(url: string): string {
+  return url.startsWith("http") || url.startsWith("anteprima:") ? url : radiceApi() + url;
+}
+
 /** Append the active project as a query param (for <img> URLs). */
 export function pq(url: string): string {
   const p = currentProject();
-  if (!p) return url;
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}project=${encodeURIComponent(p)}`;
+  const u = assoluto(url);
+  if (!p) return u;
+  const sep = u.includes("?") ? "&" : "?";
+  return `${u}${sep}project=${encodeURIComponent(p)}`;
 }
 
 export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const p = currentProject();
-  const res = await fetch(url, {
+  const res = await fetch(assoluto(url), {
     ...init,
     headers: {
       "content-type": "application/json",

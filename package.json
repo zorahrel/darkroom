@@ -32,6 +32,10 @@
     "core:build": "cd core && CC=${CC:-/usr/bin/cc} cargo build --release",
     "core:test": "cd core && CC=${CC:-/usr/bin/cc} cargo test --release",
     "core:misura": "core/target/release/darkroom-core misura",
+    "app": "bunx @tauri-apps/cli@latest dev --config app/tauri.conf.json",
+    "app:build": "bun run build:client && cd app && CC=${CC:-/usr/bin/cc} bunx @tauri-apps/cli@latest build",
+    "app:test": "cd app && CC=${CC:-/usr/bin/cc} cargo test --release",
+    "app:misura": "bun run scripts/misura-app.ts",
     "jobs:watch": "bun run scripts/watch-jobs.ts"
   },
   "dependencies": {

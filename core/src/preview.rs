@@ -34,17 +34,28 @@ pub enum Livello {
     Griglia,
     /// Foto aperta nel visore.
     Visore,
-    /// Ingrandimento oltre 1:1. Non ha un lato lungo: e' il file.
+    /// Ingrandimento oltre 1:1.
     Nativo,
 }
 
 impl Livello {
+    /// I lati lunghi dei quattro livelli.
+    ///
+    /// Stessi numeri di `server/livelli.ts`, ed e' un vincolo: le due superfici
+    /// devono produrre gli stessi byte per la stessa foto, altrimenti l'applicazione
+    /// e la versione web sono due cose che si somigliano invece di una sola.
+    /// La prova `i_livelli_sono_gli_stessi_delle_due_superfici` lo verifica.
+    ///
+    /// Il visore e' 2048 e non i 3840 che userebbe un'applicazione nativa a schermo
+    /// intero su un Retina: un'immagine dentro una pagina non supera i ~2500 pixel
+    /// reali, e ogni pixel oltre l'anteprima incorporata si paga con una decodifica
+    /// piena del RAW -- 868 ms misurati su una Sony ARW.
     pub fn lato_lungo(self) -> Option<u32> {
         match self {
             Livello::Proxy => Some(256),
             Livello::Griglia => Some(512),
-            Livello::Visore => Some(3840),
-            Livello::Nativo => None,
+            Livello::Visore => Some(2048),
+            Livello::Nativo => Some(3840),
         }
     }
 
@@ -430,8 +441,32 @@ mod prove {
     fn i_livelli_hanno_i_lati_dichiarati() {
         assert_eq!(Livello::Proxy.lato_lungo(), Some(256));
         assert_eq!(Livello::Griglia.lato_lungo(), Some(512));
-        assert_eq!(Livello::Visore.lato_lungo(), Some(3840));
-        assert_eq!(Livello::Nativo.lato_lungo(), None);
+        assert_eq!(Livello::Visore.lato_lungo(), Some(2048));
+        assert_eq!(Livello::Nativo.lato_lungo(), Some(3840));
+    }
+
+    #[test]
+    fn i_livelli_sono_gli_stessi_delle_due_superfici() {
+        // `server/livelli.ts` e' la stessa tabella per il backend e per
+        // l'interfaccia. Se qui cambia un numero e li' no, l'applicazione desktop e
+        // la versione web servono immagini diverse per la stessa foto -- e sono due
+        // prodotti, non uno.
+        let ts = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../server/livelli.ts"),
+        )
+        .expect("server/livelli.ts non trovato");
+        for (nome, lato) in [
+            ("proxy", 256),
+            ("griglia", 512),
+            ("visore", 2048),
+            ("nativo", 3840),
+        ] {
+            let atteso = format!("nome: \"{nome}\", lato: {lato}");
+            assert!(
+                ts.contains(&atteso),
+                "server/livelli.ts non dichiara `{atteso}`"
+            );
+        }
     }
 
     #[test]

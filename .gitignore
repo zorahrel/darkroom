@@ -40,3 +40,6 @@ scripts/.verify_cache.json
 
 # Compilazione del motore nativo
 core/target/
+
+# Compilazione dell'applicazione desktop
+app/target/
