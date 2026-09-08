@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bott, Confirm, Toggle } from "../../ui";
+import { Bott, Confirm, Toggle, Title } from "../../ui";
 import type { ToolGroup, AddableStep } from "./BottomToolbar";
 import type { MasterControls } from "./EditorShell";
 import {
@@ -100,10 +100,10 @@ export default function EditorRail({
       {/* A single-row header that never overflows: the two action bars are
           shrink-0 (they do not compress), the title is the only one to give up
           space (min-w-0 + truncate → ellipsis) when width runs short. */}
-      <div className="flex items-center gap-1.5 px-2 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         <div className="shrink-0">{leftAction}</div>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-200">{title}</span>
-        <div className="shrink-0">{rightAction}</div>
+        <Title className="min-w-0 flex-1 truncate">{title}</Title>
+        <div className="ml-auto min-w-0">{rightAction}</div>
         {/* Desktop-only rail collapse toggle. */}
         <button
           onClick={() => toggleRail(!railOpen)}

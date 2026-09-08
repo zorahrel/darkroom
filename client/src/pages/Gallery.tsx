@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Bott, SectionHeader } from "../ui";
 import { PanelRightClose } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import type { OutletCtx } from "../App";
@@ -110,14 +111,13 @@ export default function Home() {
             bar — but nobody looks for it there: a window is closed from inside,
             at the corner. */}
         {railOpen && (
-          <button
+          <Bott weight="quiet" size="s"
             onClick={() => setRailOpen(false)}
             title="Nascondi il pannello colore"
-            className="absolute top-1.5 right-1.5 z-20 px-1 py-0.5 rounded-sm leading-none
-                       text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800"
+            className="absolute top-1.5 right-1.5 z-20"
           >
             <PanelRightClose className="w-4 h-4" aria-hidden />
-          </button>
+          </Bott>
         )}
         {grade && (
           <PipelineBar
@@ -138,42 +138,41 @@ export default function Home() {
       {/* Desktop, pipeline closed: a floating button to reopen it without
           having to go back to the top of the page. */}
       {grade && !railOpen && (
-        <button
+        <Bott size="l"
           onClick={() => setRailOpen(true)}
-          className="hidden lg:flex fixed bottom-4 right-4 z-40 items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-900 shadow-lg"
+          className="hidden lg:flex fixed bottom-4 right-4 z-40 bg-neutral-950 shadow-lg"
         >
           <IconLayers /> Pipeline
           <span
             className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
           />
-        </button>
+        </Bott>
       )}
 
       {grade && (
         <>
           {/* Mobile: floating button opens the pipeline as a bottom sheet. */}
-          <button
+          <Bott size="l"
             onClick={() => setSheetOpen(true)}
-            className="lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-100 text-neutral-900 shadow-lg font-medium text-sm"
+            className="lg:hidden fixed bottom-4 right-4 z-40 bg-neutral-950 shadow-lg"
           >
             <IconLayers /> Pipeline
             <span
               className={"w-1.5 h-1.5 rounded-full " + (grade.enabled ? "bg-emerald-500" : "bg-neutral-400")}
             />
-          </button>
+          </Bott>
           {sheetOpen && (
             <div className="lg:hidden fixed inset-0 z-50">
               <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
               <div className="absolute inset-x-0 bottom-0 h-[86dvh] flex flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-950 overflow-hidden shadow-2xl">
                 <div className="flex items-center px-3 py-2 border-b border-neutral-800 shrink-0">
-                  <span className="text-sm font-medium flex-1">Pipeline — default del set</span>
-                  <button
+                  <div className="flex-1"><SectionHeader title="Colore del set" /></div>
+                  <Bott weight="quiet" size="s"
                     onClick={() => setSheetOpen(false)}
-                    className="p-1.5 rounded text-neutral-400 hover:text-white"
                     aria-label="chiudi"
                   >
                     <IconClose />
-                  </button>
+                  </Bott>
                 </div>
                 <div className="flex-1 min-h-0">
                   <PipelineBar

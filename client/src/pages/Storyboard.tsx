@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NumberField, Choose } from "../ui";
+import { Area, Bott, Field, Header, NumberField, Choose, Page, Panel as Surface, SectionHeader } from "../ui";
 import {
   api,
   panelImageUrl,
@@ -88,20 +88,15 @@ export default function StoryboardPage() {
   if (loading) return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">Storyboard</h1>
-        <span className="text-sm text-neutral-400">
-          {panels.length} pannell{panels.length === 1 ? "o" : "i"} · {formatDuration(totalMs)}
-        </span>
-        <div className="flex-1" />
+    <Page>
+      <Header title="Storyboard" below={`${panels.length} pannelli · ${formatDuration(totalMs)}`}>
         {settings && (
           <BoardSettings
             settings={settings}
             onChange={(patch) => run("settings", () => api.setStoryboardSettings(patch))}
           />
         )}
-        <button
+        <Bott weight={panels.length ? "primary" : "normal"}
           disabled={!panels.length || busy !== null}
           onClick={() =>
             run("export", async () => {
@@ -112,11 +107,10 @@ export default function StoryboardPage() {
               alert(`Esportati ${res.boards} pannelli in:\n${res.path}${skipped}`);
             })
           }
-          className="text-sm px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 border border-emerald-700 disabled:opacity-50"
         >
           {busy === "export" ? "Esporto…" : "Esporta per Storyboarder"}
-        </button>
-      </header>
+        </Bott>
+      </Header>
 
       {error && (
         <div className="text-sm rounded border border-red-900 bg-red-950/50 text-red-200 px-3 py-2">
@@ -125,6 +119,7 @@ export default function StoryboardPage() {
       )}
 
       <BeatSheet
+        primary={panels.length === 0}
         characters={characters}
         busy={busy === "beats"}
         onSubmit={(beats) => run("beats", () => api.createPanels(beats))}
@@ -161,17 +156,19 @@ export default function StoryboardPage() {
           onAdd={(ids) => run("add", () => api.addToSequence(ids))}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
 // ---- Beat sheet -------------------------------------------------------------
 
 function BeatSheet({
+  primary,
   characters,
   busy,
   onSubmit,
 }: {
+  primary: boolean;
   characters: Character[];
   busy: boolean;
   onSubmit: (beats: { description: string; scene_label?: string | null; duration_ms?: number; character_ids?: string[] }[]) => void;
@@ -187,23 +184,23 @@ function BeatSheet({
     .filter(Boolean);
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 space-y-3">
-      <div className="text-sm font-medium">Nuovi pannelli</div>
-      <textarea
+    <Surface>
+      <SectionHeader title="Nuovi pannelli" />
+      <Area
         value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={4}
+        onChange={setText}
         placeholder={"Un'inquadratura per riga.\nEs: campo lungo sulla strada vuota all'alba\nEs: primo piano sulle sue mani che tremano"}
-        className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded px-3 py-2 font-mono resize-y"
+        className="h-28 text-[12px] resize-y"
       />
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-xs text-neutral-400 space-y-1">
           <span className="block">Scena</span>
-          <input
+          <Field
             value={scene}
-            onChange={(e) => setScene(e.target.value)}
+            onChange={setScene}
+            size="m"
             placeholder="INT. BAR - NOTTE"
-            className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-56"
+            className="w-56 max-w-full"
           />
         </label>
         <label className="text-xs text-neutral-400 space-y-1">
@@ -216,28 +213,24 @@ function BeatSheet({
             <span className="block">In scena</span>
             <div className="flex flex-wrap gap-1">
               {characters.map((ch) => (
-                <button
+                <Bott
+                  active={cast.includes(ch.id)}
+                  size="s"
                   key={ch.id}
                   onClick={() =>
                     setCast((prev) =>
                       prev.includes(ch.id) ? prev.filter((c) => c !== ch.id) : [...prev, ch.id],
                     )
                   }
-                  className={
-                    "px-2 py-1 rounded border text-xs transition-colors " +
-                    (cast.includes(ch.id)
-                      ? "bg-sky-900/60 border-sky-700 text-sky-100"
-                      : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white")
-                  }
                 >
                   {ch.name}
-                </button>
+                </Bott>
               ))}
             </div>
           </div>
         )}
         <div className="flex-1" />
-        <button
+        <Bott weight={primary ? "primary" : "normal"}
           disabled={!beats.length || busy}
           onClick={() => {
             onSubmit(
@@ -250,12 +243,11 @@ function BeatSheet({
             );
             setText("");
           }}
-          className="text-sm px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-600 border border-sky-700 disabled:opacity-50"
         >
           {busy ? "Accodo…" : `Genera ${beats.length || ""} pannell${beats.length === 1 ? "o" : "i"}`}
-        </button>
+        </Bott>
       </div>
-    </section>
+    </Surface>
   );
 }
 
@@ -363,7 +355,9 @@ function PanelBoard({
                   {characters.map((ch) => {
                     const on = panel.character_ids.includes(ch.id);
                     return (
-                      <button
+                      <Bott
+                        active={on}
+                        size="s"
                         key={ch.id}
                         onClick={() =>
                           onPatch(panel.id, {
@@ -372,15 +366,9 @@ function PanelBoard({
                               : [...panel.character_ids, ch.id],
                           })
                         }
-                        className={
-                          "px-1.5 py-0.5 rounded border text-[11px] transition-colors " +
-                          (on
-                            ? "bg-sky-900/60 border-sky-700 text-sky-100"
-                            : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white")
-                        }
                       >
                         {ch.name}
-                      </button>
+                      </Bott>
                     );
                   })}
                 </div>
@@ -413,8 +401,8 @@ function CastPanel({
   const [ref, setRef] = useState("");
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 space-y-3">
-      <div className="text-sm font-medium">Personaggi</div>
+    <Surface>
+      <SectionHeader title="Personaggi" />
       <p className="text-xs text-neutral-400">
         La foto di riferimento viene allegata a ogni generazione in cui il
         personaggio compare: è ciò che gli tiene la stessa faccia da un pannello
@@ -452,23 +440,25 @@ function CastPanel({
       )}
 
       <div className="flex flex-wrap items-end gap-2">
-        <input
+        <Field
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={setName}
+          size="m"
           placeholder="Nome"
-          className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-40"
+          className="w-40 max-w-full"
         />
-        <input
+        <Field
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
+          size="m"
           placeholder="Descrizione (cappotto rosso…)"
-          className="text-sm bg-neutral-950 border border-neutral-800 rounded px-2 py-1.5 w-64"
+          className="w-64 max-w-full"
         />
         <Choose value={ref} onChange={setRef} width={190} size="m"
                 title="Foto di riferimento"
                 items={[{ v: "", text: "Nessun riferimento" },
                        ...photos.map((p) => ({ v: p.id, text: p.id }))]} />
-        <button
+        <Bott weight="normal"
           disabled={!name.trim() || busy}
           onClick={() => {
             onSave({
@@ -480,12 +470,11 @@ function CastPanel({
             setDescription("");
             setRef("");
           }}
-          className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
         >
           Aggiungi
-        </button>
+        </Bott>
       </div>
-    </section>
+    </Surface>
   );
 }
 
@@ -504,7 +493,7 @@ function AddExisting({
   const [picked, setPicked] = useState<string[]>([]);
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 space-y-3">
+    <Surface>
       <button
         onClick={() => setOpen((v) => !v)}
         className="text-sm font-medium flex items-center gap-2"
@@ -542,19 +531,18 @@ function AddExisting({
               );
             })}
           </div>
-          <button
+          <Bott weight="normal"
             disabled={!picked.length || busy}
             onClick={() => {
               onAdd(picked);
               setPicked([]);
             }}
-            className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 disabled:opacity-50"
           >
             Aggiungi {picked.length || ""} in coda al board
-          </button>
+          </Bott>
         </>
       )}
-    </section>
+    </Surface>
   );
 }
 
@@ -570,12 +558,11 @@ function BoardSettings({
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button
+      <Bott
         onClick={() => setOpen((v) => !v)}
-        className="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
       >
         Formato {ratioLabel(settings.aspect_ratio)} · {settings.fps}fps
-      </button>
+      </Bott>
       {open && (
         <div className="absolute right-0 mt-1 z-20 w-80 rounded-lg border border-neutral-700 bg-neutral-900 p-3 space-y-2 shadow-xl">
           <label className="block text-xs text-neutral-400 space-y-1">

@@ -23,7 +23,7 @@ export type OutletCtx = {
 };
 import JobsPanel from "./components/JobsPanel";
 import { Bott, Badge } from "./ui";
-import { LayoutGrid, SlidersHorizontal, Wrench, type LucideIcon } from "lucide-react";
+import { Logs, LayoutGrid, SlidersHorizontal, ScanSearch, type LucideIcon } from "lucide-react";
 import { VIEWS, view } from "./views";
 
 export default function App() {
@@ -211,7 +211,7 @@ export default function App() {
               were discovered only if you already knew they were there. The two
               areas are always in the bar: from inside a project you go back to
               the tools with one click, not by going back. */}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
             <Link
               to="/"
               className="inline-flex items-center min-h-11 sm:min-h-0 font-semibold tracking-tight shrink-0"
@@ -220,7 +220,7 @@ export default function App() {
               Darkroom
             </Link>
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
-              <ViewTab to="/" icon={Wrench} current={location.pathname === "/" || location.pathname === "/tools"}>
+              <ViewTab to="/" icon={ScanSearch} current={location.pathname === "/" || location.pathname === "/tools"}>
                 Strumenti
               </ViewTab>
               <ViewTab to="/studio" icon={LayoutGrid} current={location.pathname.startsWith("/studio")}>
@@ -228,6 +228,9 @@ export default function App() {
                 {projects.length > 0 && (
                   <span className="ml-1 text-neutral-500 tabular-nums">{projects.length}</span>
                 )}
+              </ViewTab>
+              <ViewTab to="/activity" icon={Logs} current={location.pathname === "/activity"}>
+                Registro
               </ViewTab>
             </nav>
             {pid && (
@@ -275,12 +278,8 @@ export default function App() {
                 return [
                   <ViewTab key="foto" to={`/p/${pid}`} icon={I}
                            current={
-                             location.pathname.startsWith("/p/") &&
-                             !location.pathname.includes("/orphans") &&
-                             !location.pathname.includes("/storyboard") &&
-                             !location.pathname.includes("/tree") &&
-                             !location.pathname.includes("/references") &&
-                             !location.pathname.includes("/video")
+                             location.pathname === `/p/${pid}` ||
+                             location.pathname.startsWith(`/p/${pid}/photo/`)
                            }>
                     Griglia
                   </ViewTab>,
@@ -472,13 +471,13 @@ function ProjectMenu({
   const label = active?.name ?? (activeId || "Tutti i progetti");
 
   return (
-    <div className="relative min-w-0" ref={ref}>
+    <div className="relative min-w-0 max-w-[12rem]" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Progetto attivo"
-        className="flex items-center gap-1 max-w-[12rem] px-2 py-1 rounded text-sm text-white hover:bg-neutral-900 transition-colors"
+        className="flex items-center gap-1 max-w-full px-2 py-1 rounded text-sm text-white hover:bg-neutral-900 transition-colors"
       >
         <span className="truncate">{label}</span>
         <span className="text-neutral-400 text-xs">▾</span>
@@ -486,7 +485,7 @@ function ProjectMenu({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 mt-1 z-40 min-w-[12rem] rounded-lg border border-neutral-700 bg-neutral-900 py-1 shadow-xl"
+          className="absolute left-0 sm:left-auto sm:right-0 mt-1 z-40 min-w-[12rem] max-w-[calc(100vw-2rem)] rounded-lg border border-neutral-700 bg-neutral-900 py-1 shadow-xl"
         >
           {projects.map((p) => (
             <button

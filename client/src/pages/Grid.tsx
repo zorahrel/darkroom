@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Choose } from "../ui";
+import { Bott, Header, Page, Choose } from "../ui";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useViewState, readOneOf, readNumber } from "../viewState";
 import {
@@ -656,7 +656,7 @@ export default function GridPage({
   const activeRun = selectedRun != null ? runs.find((r) => r.id === selectedRun) : null;
 
   return (
-    <div className="space-y-4">
+    <Page>
       {/* Everything that commands the view sits in ONE bar stuck to the
           header: there used to be a summary row, an actions row and a filters
           row, three bands that ate the first screen of photos and scrolled
@@ -668,6 +668,7 @@ export default function GridPage({
         className="sticky top-[var(--h-header,57px)] z-20 border-b border-neutral-800
                    bg-neutral-950/95 py-1.5 backdrop-blur"
       >
+      <Header title="Galleria" className="px-2 pb-2" />
       {selectMode && (
         <div className="flex flex-wrap items-center gap-1.5 rounded bg-neutral-900 border border-neutral-700 px-2.5 py-1.5 text-[12px] mb-1.5">
           <span className="text-neutral-100 font-medium">{selectedCount}</span>
@@ -684,7 +685,7 @@ export default function GridPage({
           >
             {allVisibleSelected ? "Deseleziona tutte" : `Seleziona tutte visibili (${visibleIds.length})`}
           </button>
-          <button
+          <Bott weight="primary"
             disabled={bulkBusy || selectedCount === 0}
             onClick={async () => {
               if (!confirm(`Mettere in coda ${selectedCount} foto?`)) return;
@@ -698,11 +699,9 @@ export default function GridPage({
                 setSelected(new Set());
               }
             }}
-            className="text-[12px] h-7 px-2.5 rounded border border-transparent bg-neutral-100 font-medium
-                       text-neutral-900 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
-          </button>
+          </Bott>
           {/* Merging into a collage only applies inside ONE post: photos from
               different posts do not make a slide. The button is behind the flag
               because in practice it is rarely needed — a composed slide only
@@ -1024,7 +1023,7 @@ export default function GridPage({
             n'è, va a capo invece di sfondare. */}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {counts.missing > 0 && (
-            <button
+            <Bott weight={selectMode ? "normal" : "primary"}
               disabled={activeJobs > 0}
               onClick={async () => {
                 if (!confirm(`Enqueue ${counts.missing} job?`)) return;
@@ -1036,13 +1035,11 @@ export default function GridPage({
                   ? `${activeJobs} job già in coda`
                   : `Genera le ${counts.missing} foto senza versioni`
               }
-              className="shrink-0 h-7 rounded border border-transparent bg-neutral-100 px-2.5 font-medium
-                         text-neutral-900 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               {activeJobs > 0 ? `Coda ${activeJobs}` : `Genera ${counts.missing}`}
-            </button>
+            </Bott>
           )}
-          <button
+          <Bott active={selectMode}
             onClick={() => {
               setSelectMode((m) => {
                 const next = !m;
@@ -1050,15 +1047,9 @@ export default function GridPage({
                 return next;
               });
             }}
-            className={
-              "shrink-0 h-7 rounded border px-2 whitespace-nowrap transition-colors " +
-              (selectMode
-                ? "border-neutral-400 bg-neutral-800 text-neutral-100"
-                : "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100")
-            }
           >
             {selectMode ? "Esci" : "Selezione"}
-          </button>
+          </Bott>
         </div>
 
         {/* Zoom in steps instead of a slider: a range from 100 to 400 takes
@@ -1598,7 +1589,7 @@ export default function GridPage({
           </div>
         </>
       )}
-    </div>
+    </Page>
   );
 }
 

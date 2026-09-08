@@ -8,7 +8,7 @@ import {
   type StudioProject,
 } from "../api";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Other, Bott, Field, Search, Confirm, Filter, Badge, Header, useCloseMenu } from "../ui";
+import { Other, Bott, Field, Search, Confirm, Filter, Badge, Header, Page, Panel, SectionHeader, Toolbar, useCloseMenu } from "../ui";
 import { VIEWS, view } from "../views";
 
 /**
@@ -99,7 +99,7 @@ export default function StudioPage() {
   }, [projects, search, view, state, sortOrder]);
 
   return (
-    <div className="space-y-4">
+    <Page>
       <Header title="Progetti"
                below="Tutti i progetti su questa macchina. Le viste accese dicono cosa sa fare ognuno: si accendono e si spengono da qui." />
 
@@ -120,7 +120,7 @@ export default function StudioPage() {
       {/* The filter bar: first WHAT a project can do, then HOW it is. Two
           different questions, so two groups, not one single list in which
           «video» and «paused» exclude each other for no reason. */}
-      <div className="flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2">
+      <Toolbar>
         <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
         <div className="flex items-center gap-1">
           <Filter active={view === "all"} onClick={() => setView("all")} n={count.all}>tutti</Filter>
@@ -142,14 +142,12 @@ export default function StudioPage() {
         <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
           ordina
           {([["recent", "recenti"], ["name", "nome"], ["largest", "più grandi"]] as const).map(([id, text]) => (
-            <button key={id} type="button" onClick={() => setSortOrder(id)} aria-pressed={sortOrder === id}
-                    className={"px-1.5 py-0.5 rounded-sm border transition-colors " +
-                      (sortOrder === id ? "border-neutral-300 text-neutral-100" : "border-transparent hover:text-neutral-200")}>
+            <Bott key={id} size="s" weight="quiet" onClick={() => setSortOrder(id)} active={sortOrder === id}>
               {text}
-            </button>
+            </Bott>
           ))}
         </div>
-      </div>
+      </Toolbar>
 
       {data && visible.length === 0 && (
         <div className="text-[12px] text-neutral-400">
@@ -179,7 +177,7 @@ export default function StudioPage() {
       </div>
 
       <NewProject onDone={refresh} />
-    </div>
+    </Page>
   );
 }
 
@@ -308,19 +306,14 @@ function Card({
           const fixed = v.id === p.kind;
           const I = v.icon;
           return (
-            <button key={v.id} type="button" disabled={fixed}
+            <Bott key={v.id} size="s" active={on} disabled={fixed}
                     onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
                     title={fixed
                       ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
-                      : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}
-                    className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-[2px] text-[10.5px]
-                                transition-colors ${
-                      !on ? "border-dashed border-neutral-700 text-neutral-400 hover:border-solid hover:border-neutral-500 hover:text-neutral-200"
-                      : fixed ? "border-neutral-500 bg-neutral-800 text-neutral-100 cursor-default"
-                      : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-neutral-500"}`}>
+                      : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}>
               <I className="w-3 h-3" aria-hidden />
               {v.name}
-            </button>
+            </Bott>
           );
         })}
       </div>
@@ -402,11 +395,11 @@ function NewProject({ onDone }: { onDone: () => void }) {
     } finally { setBusy(false); }
   }
 
-  if (!open) return <Bott size="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
+  if (!open) return <Bott weight="primary" size="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-3 max-w-lg">
-      <div className="text-[13px] font-medium">Nuovo progetto</div>
+    <Panel className="max-w-lg">
+      <SectionHeader title="Nuovo progetto" />
 
       <Row label="Come si chiama">
         <Field value={name} onChange={setName} placeholder="es. Kyoto 2026" autoFocus
@@ -459,7 +452,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
         </Bott>
         <Bott weight="quiet" size="m" onClick={() => setOpen(false)}>Annulla</Bott>
       </div>
-    </div>
+    </Panel>
   );
 }
 

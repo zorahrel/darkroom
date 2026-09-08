@@ -11,6 +11,7 @@ import Gallery from "./pages/Gallery";
 // per-photo editor, orphans, studio — are code-split, so their heavy
 // dependencies (StepEditor, PromptBuilder, masks) do not weigh on the first
 // paint.
+const ActivityPage = lazy(() => import("./pages/Activity"));
 const DetailPage = lazy(() => import("./pages/Detail"));
 const OrphansPage = lazy(() => import("./pages/Orphans"));
 const StudioPage = lazy(() => import("./pages/Studio"));
@@ -38,6 +39,7 @@ ReactDOM.createRoot(root).render(
         <Route path="/" element={<App />}>
           <Route index element={<Home />} />
           <Route path="tools" element={<Home />} />
+          <Route path="activity" element={<Suspense fallback={<PageFallback />}><ActivityPage /></Suspense>} />
           <Route
             path="studio"
             element={

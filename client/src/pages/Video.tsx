@@ -11,7 +11,7 @@ import Timeline from "./video/Timeline";
 import Inspector from "./video/Inspector";
 import Library from "./video/Library";
 import Handle from "./video/Handle";
-import { Bott, Field, Choose } from "./video/ui";
+import { Bott, Field, Choose, Title } from "../ui";
 import { cutIndex, shuttle, timecode } from "./video/time";
 
 /**
@@ -251,7 +251,18 @@ export default function Video() {
   }, []);
 
   const H_HANDLE = 6;
-  const H_GATE = 24;
+  const gateBar = useRef<HTMLElement>(null);
+  const [gateHeight, setGateHeight] = useState(52);
+  useLayoutEffect(() => {
+    const bar = gateBar.current;
+    if (!bar) return;
+    const measure = () => setGateHeight(Math.ceil(bar.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+  const H_GATE = gateHeight;
   const topHeight = Math.max(180, shellHeight - H_GATE - H_HANDLE - hTimeline);
   const timelineLimit = (v: number) => Math.max(140, Math.min(shellHeight - H_GATE - H_HANDLE - 180, v));
 
@@ -631,62 +642,54 @@ export default function Video() {
   return (
     <div ref={shell} className="flex flex-col text-neutral-200 overflow-hidden" style={{ height: shellHeight }}>
       {/* ---- barra ---- */}
-      <div className="shrink-0 flex items-center gap-2.5 px-1 border-b border-neutral-900" style={{ height: H_GATE }}>
-        <span className="tracking-[0.22em] text-[10.5px] text-neutral-400">MONTAGGIO</span>
+      <header ref={gateBar} className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-neutral-800">
+        <Title>Montaggio</Title>
         <Link to={`/p/${pid}/video/pick`} className="text-[11px] text-neutral-400 hover:text-neutral-200">scelta →</Link>
-        <span className="text-[10.5px] text-neutral-400 tabular-nums">
+        <span className="text-[12px] text-neutral-400 tabular-nums">
           {cuts.length} tagli · {shots.length} piani{bpm ? ` · ${bpm.toFixed(1)} BPM` : ""} · {mmss(duration)}
         </span>
         <State gate={gate} master={assets?.master ?? null}
                onRedo={() => api.videoGate(true).then(setGate).catch(() => {})} />
-        {loop && inOut && <span className="text-[10.5px] text-amber-400/80">↻ ciclo</span>}
+        {loop && inOut && <span className="text-[12px] text-amber-400">↻ ciclo</span>}
         {shuttleRate !== 0 && (
-          <span className="text-[10.5px] text-sky-300 tabular-nums">
+          <span className="text-[12px] text-sky-300 tabular-nums">
             {shuttleRate > 0 ? "▶▶" : "◀◀"} {Math.abs(shuttleRate)}x
           </span>
         )}
         {!!redo.length && (
-          <button onClick={() => void redoLast()}
-                  title={`rifai: ${redo[redo.length - 1]?.what}`}
-                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
-                             text-neutral-300 hover:border-neutral-500 hover:text-neutral-100">
+          <Bott size="s" onClick={() => void redoLast()}
+                  title={`rifai: ${redo[redo.length - 1]?.what}`}>
             rifai
-          </button>
+          </Bott>
         )}
         {!!stack.length && (
-          <button onClick={() => void cancel()}
-                  title={`annulla: ${stack[stack.length - 1]?.what}`}
-                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-neutral-700
-                             text-neutral-300 hover:text-neutral-100 hover:border-neutral-500">
+          <Bott size="s" onClick={() => void cancel()}
+                  title={`annulla: ${stack[stack.length - 1]?.what}`}>
             ⌫ {stack[stack.length - 1]?.what}
-          </button>
+          </Bott>
         )}
         {!!overrideCount && (
-          <button onClick={() => setShowForced((v) => !v)}
-                  title="cose che hai deciso tu, che scavalcano il montaggio calcolato"
-                  className="text-[10.5px] px-1.5 py-0.5 rounded-sm border border-sky-800 text-sky-300
-                             hover:bg-sky-950/50">
+          <Bott size="s" active={showForced} onClick={() => setShowForced((v) => !v)}
+                  title="cose che hai deciso tu, che scavalcano il montaggio calcolato">
             {overrideCount} {overrideCount === 1 ? "tua scelta" : "tue scelte"}
             {ric?.active ? "" : " · da ricostruire"}
-          </button>
+          </Bott>
         )}
         {!!held.length && (
-          <span className="text-[10.5px] text-amber-400/90" title={held.map((s) => `batt ${s.bar}: ${s.guarantee}`).join(" · ")}>
+          <span className="text-[12px] text-amber-400" title={held.map((s) => `batt ${s.bar}: ${s.guarantee}`).join(" · ")}>
             {held.length} garanzie sospese
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => setHelp((a) => !a)} className="text-[10.5px] text-neutral-400 hover:text-neutral-200">tasti ?</button>
-          <button onClick={launch} disabled={!!ric?.active}
-                  className={`text-[10.5px] px-2 py-0.5 rounded-sm border ${
-                    ric?.active ? "border-neutral-800 text-neutral-400" : "border-neutral-600 text-neutral-200 hover:bg-neutral-900"}`}>
+          <Bott weight="quiet" size="s" onClick={() => setHelp((a) => !a)}>tasti ?</Bott>
+          <Bott size="m" weight={showForced ? "normal" : "primary"} onClick={launch} disabled={!!ric?.active}>
             {ric?.active ? "ricostruisco…" : "ricostruisci"}
-          </button>
+          </Bott>
         </div>
-      </div>
+      </header>
 
       {/* ---- tall row: library · monitor · inspector ---- */}
-      <div className="flex min-h-0" style={{ height: topHeight }}>
+      <div className="flex min-h-0 overflow-x-auto" style={{ height: topHeight }}>
         <aside className="shrink-0 min-w-0" style={{ width: wSx }}>
           <Library shots={shots} inEdit={inEdit} setShots={setShots} open={openShot} />
         </aside>

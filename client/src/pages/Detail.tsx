@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import type { OutletCtx } from "../App";
 import { api, type PhotoDetail, type Lut, type Job, rawUrl } from "../api";
+import { Bott, Header, Page, SectionHeader } from "../ui";
 import VersionCarousel from "../components/VersionCarousel";
 import PromptEditor from "../components/PromptEditor";
 import HiggsfieldButton from "../components/HiggsfieldButton";
@@ -241,14 +242,13 @@ export default function DetailPage() {
 
   const generateButtons = (
     <div className="flex items-center gap-2">
-      <button
+      <Bott weight={versions.length ? "normal" : "primary"}
         onClick={onGenerate}
         disabled={generating}
-        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-50 normal-case font-medium tracking-normal text-white"
       >
         <IconRefresh className="w-3.5 h-3.5" />
-        {generating ? "Enqueue…" : "ChatGPT"}
-      </button>
+        {generating ? "Accodo…" : "ChatGPT"}
+      </Bott>
       <HiggsfieldButton
         photoId={photo.id}
         initialSelection={photo.higgsfield_selection}
@@ -328,45 +328,40 @@ export default function DetailPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <Page>
+      {versions.length === 0 && <Header title={photo.id} below={<JobStatusBadge job={latestJob} />}>
         <Link to={base || "/"} className="text-sm text-neutral-400 hover:text-white">
           ← Indietro
         </Link>
-        <span className="font-mono text-sm text-neutral-300">{photo.id}</span>
-        <JobStatusBadge job={latestJob} />
-        <div className="flex-1" />
         <div className="text-xs text-neutral-400 flex items-center gap-2">
-          <button
+          <Bott size="s"
             onClick={() =>
               siblings.prev &&
               navigate(`${base}/photo/${encodeURIComponent(siblings.prev)}`)
             }
             disabled={!siblings.prev}
             title={siblings.prev ?? undefined}
-            className="w-7 h-7 rounded border border-neutral-700 hover:border-neutral-500 hover:text-white disabled:opacity-30 disabled:hover:border-neutral-700 flex items-center justify-center"
             aria-label="foto precedente"
           >
             ◀
-          </button>
+          </Bott>
           <span className="tabular-nums text-neutral-300 min-w-[4.5rem] text-center">
             {siblings.index >= 0 ? siblings.index + 1 : "—"} / {siblings.total}
           </span>
-          <button
+          <Bott size="s"
             onClick={() =>
               siblings.next &&
               navigate(`${base}/photo/${encodeURIComponent(siblings.next)}`)
             }
             disabled={!siblings.next}
             title={siblings.next ?? undefined}
-            className="w-7 h-7 rounded border border-neutral-700 hover:border-neutral-500 hover:text-white disabled:opacity-30 disabled:hover:border-neutral-700 flex items-center justify-center"
             aria-label="foto successiva"
           >
             ▶
-          </button>
+          </Bott>
           <span className="ml-3 text-neutral-400 hidden md:inline">[g] genera · ←/→ o [/] foto</span>
         </div>
-      </div>
+      </Header>}
 
       <JobStatusBanner pausedUntil={pausedUntil} />
 
@@ -382,9 +377,7 @@ export default function DetailPage() {
       >
         {/* Original */}
         <div className="space-y-2">
-          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-400">
-            Originale
-          </div>
+          <SectionHeader title="Originale" />
           <div className="aspect-square w-full rounded-lg overflow-hidden bg-black border border-neutral-800">
             <img
               src={rawUrl(photo.id, photo.original_ext)}
@@ -396,11 +389,7 @@ export default function DetailPage() {
 
         {/* Generations */}
         <div className="space-y-2">
-          <div className="h-8 flex items-center text-xs uppercase tracking-wider text-neutral-400">
-            <span>Generazioni</span>
-            <div className="flex-1" />
-            {generateButtons}
-          </div>
+          <SectionHeader title="Generazioni">{generateButtons}</SectionHeader>
           {versionCarousel}
         </div>
       </div>
@@ -468,6 +457,6 @@ export default function DetailPage() {
           </details>
         </>
       )}
-    </div>
+    </Page>
   );
 }

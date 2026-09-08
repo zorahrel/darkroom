@@ -1,3 +1,4 @@
+import { Bott } from "../../ui";
 import { useEffect, useState } from "react";
 import {
   api,
@@ -42,7 +43,7 @@ export function ExtraInstructionsCard({
       />
       <div className="flex justify-end gap-2">
         {initial.trim() && (
-          <button
+          <Bott
             disabled={saving}
             onClick={async () => {
               setSaving(true);
@@ -54,12 +55,11 @@ export function ExtraInstructionsCard({
                 setSaving(false);
               }
             }}
-            className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
           >
             Rimuovi
-          </button>
+          </Bott>
         )}
-        <button
+        <Bott
           disabled={saving || !dirty}
           onClick={async () => {
             setSaving(true);
@@ -70,10 +70,9 @@ export function ExtraInstructionsCard({
               setSaving(false);
             }
           }}
-          className="text-sm px-3 py-1.5 rounded bg-sky-700 hover:bg-sky-600 disabled:opacity-50"
         >
           {saving ? "Salvo…" : "Salva"}
-        </button>
+        </Bott>
       </div>
     </div>
   );

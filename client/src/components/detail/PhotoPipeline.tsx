@@ -30,6 +30,7 @@ import PresetsPanel from "../PresetsPanel";
 import { useDebouncedImage } from "../../lib/useDebouncedImage";
 import { useHistory } from "../../lib/useHistory";
 import EditorRail, { type ToolGroup, type AddableStep } from "../mobile/EditorRail";
+import { Bott } from "../../ui";
 import Spinner from "./Spinner";
 import { ExtraInstructionsCard } from "./ExtraInstructionsCard";
 import { FinalPromptView } from "./FinalPromptView";
@@ -368,12 +369,11 @@ export function PhotoPipeline({
             Scarica questa versione con il grade applicato, a piena risoluzione
             (render al volo, come il deliverable finale).
           </p>
-          <button
+          <Bott weight="normal" size="m"
             onClick={doExport}
-            className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
           >
             <IconDownload /> Scarica full-res
-          </button>
+          </Bott>
           <div className="pt-2 mt-2 border-t border-neutral-800 space-y-2">
             <p className="text-sm text-neutral-400">
               <b className="text-neutral-200">Bake</b>: crea una nuova versione con
@@ -383,14 +383,13 @@ export function PhotoPipeline({
               lavoro quotidiano: fino a qui il grade si vede già live nell'anteprima
               e nell'export.
             </p>
-            <button
+            <Bott weight="normal" size="m"
               disabled={baking || dirty}
               onClick={doBake}
               title={dirty ? "Salva prima le modifiche per poter fare il bake" : undefined}
-              className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-violet-700 text-violet-200 hover:bg-violet-950/40 disabled:opacity-50"
             >
               {baking ? "Bake in corso…" : "Bake — nuova versione"}
-            </button>
+            </Bott>
             {dirty && (
               <p className="text-[11px] text-amber-400">
                 Ci sono modifiche non salvate: salva prima di fare il bake.
@@ -465,81 +464,73 @@ export function PhotoPipeline({
           }
           leftAction={
             <div className="flex items-center gap-0.5">
-              <button
+              <Bott weight="quiet" size="s"
                 onClick={onExit}
-                className="p-1.5 rounded text-neutral-400 hover:text-white"
                 aria-label="torna alla libreria"
               >
                 <IconClose />
-              </button>
+              </Bott>
               {photoNav && (
                 <>
-                  <button
+                  <Bott weight="quiet" size="s"
                     onClick={photoNav.onPrev}
                     disabled={!photoNav.prev}
-                    className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-30"
                     aria-label="foto precedente"
                   >
                     <IconChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
+                  </Bott>
+                  <Bott weight="quiet" size="s"
                     onClick={photoNav.onNext}
                     disabled={!photoNav.next}
-                    className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-30"
                     aria-label="foto successiva"
                   >
                     <IconChevronLeft className="w-4 h-4 rotate-180" />
-                  </button>
+                  </Bott>
                 </>
               )}
             </div>
           }
           rightAction={
             <div className="flex items-center gap-1.5">
-              <button
+              <Bott weight="quiet" size="s"
                 disabled={!canUndo}
                 onClick={undo}
                 aria-label="annulla"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-white disabled:opacity-25"
               >
                 <IconUndo />
-              </button>
-              <button
+              </Bott>
+              <Bott weight="quiet" size="s"
                 disabled={!canRedo}
                 onClick={redo}
                 aria-label="ripristina"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-white disabled:opacity-25"
               >
                 <IconRedo />
-              </button>
+              </Bott>
               {dirty && <span className="text-[10px] text-amber-400">•</span>}
               {hasGradeOverride && (
-                <button
+                <Bott weight="normal" size="m"
                   disabled={saving}
                   onClick={doReset}
                   aria-label="reset override"
                   title="Reset override"
-                  className="text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 disabled:opacity-50 whitespace-nowrap"
                 >
                   Reset
-                </button>
+                </Bott>
               )}
-              <button
+              <Bott weight="normal" size="m"
                 disabled={savingGlobal}
                 onClick={doSaveGlobal}
                 aria-label="salva come grade globale"
                 title="Salva questo grade come default per tutto il set (sovrascrive il grade globale — le foto senza override lo erediteranno)"
-                className="text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border border-violet-700 text-violet-200 disabled:opacity-50 whitespace-nowrap"
               >
                 {savingGlobal ? "…" : "Globale"}
-              </button>
-              <button
+              </Bott>
+              <Bott weight="primary" size="m"
                 disabled={saving || !dirty}
                 onClick={doSave}
-                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 text-white disabled:opacity-50"
               >
                 {saving ? "…" : "Salva"}
-              </button>
+              </Bott>
             </div>
           }
           master={{

@@ -10,10 +10,10 @@ import {
   type Tool,
   type StudioProject,
 } from "../api";
-import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header } from "../ui";
+import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header, Page, Panel, SectionHeader } from "../ui";
 import { useViewState } from "../viewState";
 import { ICONS } from "../iconNames";
-import { Wrench } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 
 /**
  * The home: what Darkroom can do.
@@ -55,7 +55,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-4 pb-10">
+    <Page className="pb-10">
       <Header
         title="Strumenti"
         below="Tutto quello che Darkroom sa fare, diviso per mestiere. Lo stesso elenco che vede Claude via MCP."
@@ -68,7 +68,7 @@ export default function Home() {
       )}
 
       <Tools cat={cat} projects={projects} />
-    </div>
+    </Page>
   );
 }
 
@@ -79,6 +79,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
   const [area, setArea] = useState<ToolArea | "all">("all");
   const [onlyReady, setOnlyReady] = useState(false);
   const navigate = useNavigate();
+  const [opened, setOpened] = useState<{ tool: string; start: Start } | null>(null);
 
   /**
    * The project every card works on. It lives in the URL, so a home sent to
@@ -228,16 +229,16 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       <div className="space-y-6">
         {sections.map(({ area: a, tools }) => (
           <section key={a.id} className="space-y-2">
-            <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1.5">
-              <h2 className="text-[12px] uppercase tracking-wide text-neutral-300">{a.name}</h2>
-              <span className="text-[11px] text-neutral-500 tabular-nums">{tools.length}</span>
-              <span className="text-[11px] text-neutral-500 truncate">{a.what}</span>
-            </div>
+            <SectionHeader title={a.name} below={a.what}>
+              <Badge>{tools.length}</Badge>
+            </SectionHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
               {tools.map((s) => (
                 <ToolCard
                   key={s.id}
                   s={s}
+                  open={opened?.tool === s.id ? opened.start : null}
+                  setOpen={(start) => setOpened(start ? { tool: s.id, start } : null)}
                   project={active}
                   projects={projects}
                   onDone={(route) => navigate(route)}
@@ -261,23 +262,19 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
  * of cards was a staircase.
  */
 function ToolCard({
-  s, project, projects, onDone,
+  s, project, projects, onDone, open, setOpen,
 }: {
   s: Tool;
+  open: Start | null;
+  setOpen: (start: Start | null) => void;
   project: StudioProject | null;
   projects: StudioProject[];
   onDone: (route: string) => void;
 }) {
-  const [open, setOpen] = useState<Start | null>(null);
-  const I = ICONS[s.icon] ?? Wrench;
+  const I = ICONS[s.icon] ?? CircleHelp;
 
   return (
-    <div
-      className={
-        "flex h-full flex-col rounded-lg border bg-neutral-950/60 p-3 transition-colors " +
-        (s.ready ? "border-neutral-800 hover:border-neutral-600" : "border-neutral-800/60")
-      }
-    >
+    <Panel className={"flex h-full flex-col transition-colors " + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
       <div className="flex items-start gap-2.5">
         <I
           className={"w-4 h-4 mt-[2px] shrink-0 " + (s.ready ? "text-neutral-300" : "text-neutral-500")}
@@ -316,7 +313,8 @@ function ToolCard({
               <Bott
                 key={i}
                 size="m"
-                weight={i === 0 ? "primary" : "normal"}
+                weight="normal"
+                active={open === a}
                 disabled={!s.ready}
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
@@ -359,7 +357,7 @@ function ToolCard({
           onDone={onDone}
         />
       )}
-    </div>
+    </Panel>
   );
 }
 

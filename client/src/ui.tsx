@@ -29,9 +29,9 @@ import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
 // Three sizes, not fourteen. `s` for the dense bars of an editor, `m` for
 // panels, `l` for page actions.
 const SIZE = {
-  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1 min-h-11 sm:min-h-0",
-  m: "text-[12px] px-2 py-1 rounded gap-1.5 min-h-11 sm:min-h-0",
-  l: "text-[13px] px-3 py-1.5 rounded gap-2 min-h-11 sm:min-h-0",
+  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
+  m: "text-[12px] px-2 py-1 rounded gap-1.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
+  l: "text-[13px] px-3 py-1.5 rounded gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
 } as const;
 
 export type Size = keyof typeof SIZE;
@@ -46,7 +46,7 @@ const WEIGHT: Record<Weight, string> = {
 
 export function Bott({
   children, onClick, active, weight = "normal", size = "m",
-  title, disabled, className = "", type = "button",
+  title, disabled, className = "", type = "button", "aria-label": ariaLabel,
 }: {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
@@ -58,6 +58,7 @@ export function Bott({
   disabled?: boolean;
   className?: string;
   type?: "button" | "submit";
+  "aria-label"?: string;
 }) {
   const style = disabled
     ? "border-neutral-800 text-neutral-400/50 cursor-not-allowed"
@@ -68,6 +69,8 @@ export function Bott({
     <button
       type={type}
       title={title}
+      aria-label={ariaLabel}
+      data-weight={weight}
       disabled={disabled}
       aria-pressed={active}
       onClick={onClick}
@@ -224,18 +227,48 @@ export function Toggle({
   );
 }
 
-/** A page's heading: a title and, below it, what you do here. */
-export function Header({
-  title, below, children,
-}: { title: string; below?: string; children?: React.ReactNode }) {
+/** Spaziatura delle viste: il contenuto cambia, il ritmo resta lo stesso. */
+export function Page({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`min-w-0 space-y-4 ${className}`}>{children}</div>;
+}
+
+/** Un gruppo di controlli con lo stesso bordo, raggio e respiro in ogni vista. */
+export function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <section className={`min-w-0 rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-3 ${className}`}>{children}</section>;
+}
+
+export function Toolbar({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2 ${className}`}>{children}</div>;
+}
+
+/** Titoli di pagina e sezioni condividono scala e allineamento. */
+export function Title({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <h1 className={`text-[17px] font-semibold tracking-tight leading-tight ${className}`}>{children}</h1>;
+}
+
+export function SectionHeader({ title, below, children }: {
+  title: React.ReactNode; below?: React.ReactNode; children?: React.ReactNode;
+}) {
   return (
-    <div className="flex items-start gap-3 flex-wrap">
-      <div className="min-w-0 space-y-0.5">
-        <h1 className="text-[17px] font-semibold tracking-tight leading-tight">{title}</h1>
-        {below && <p className="text-[12px] text-neutral-400 leading-snug">{below}</p>}
-      </div>
-      {children && <div className="ml-auto flex items-center gap-1.5">{children}</div>}
+    <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-2">
+      <h2 className="text-[13px] font-medium leading-snug text-neutral-200">{title}</h2>
+      {below && <div className="min-w-0 text-[12px] leading-snug text-neutral-400">{below}</div>}
+      {children && <div className="ml-auto flex flex-wrap items-center gap-1.5">{children}</div>}
     </div>
+  );
+}
+
+export function Header({
+  title, below, children, className = "",
+}: { title: string; below?: React.ReactNode; children?: React.ReactNode; className?: string }) {
+  return (
+    <header className={`flex items-start gap-3 flex-wrap ${className}`}>
+      <div className="min-w-0 space-y-0.5">
+        <Title>{title}</Title>
+        {below && <div className="max-w-prose text-[12px] text-neutral-400 leading-snug">{below}</div>}
+      </div>
+      {children && <div className="ml-auto flex flex-wrap items-center gap-1.5">{children}</div>}
+    </header>
   );
 }
 
@@ -576,7 +609,7 @@ export function Pills<T extends string>({
               // 44 px sul telefono, che è la misura del polpastrello: questi
               // filtri erano alti 20 px. Sopra i 640 tornano compatti, perché col
               // mouse la densità della barra vale più dello spazio.
-              "px-1.5 py-1 min-h-11 sm:min-h-0 sm:py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
+              "px-1.5 py-1 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 sm:py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
               (active
                 ? "border-amber-500 text-amber-500"
                 : "border-neutral-800 text-neutral-400 hover:border-neutral-600")

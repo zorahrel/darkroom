@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { jsonFetch, pq } from "../api";
-import { Bott } from "../ui";
+import { Bott, Field, Header, Toolbar } from "../ui";
 import { capacita } from "../guscio";
 
 /**
@@ -200,28 +200,31 @@ export default function Girato() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-neutral-800">
-        <input
+      <Header title="Girato" below="Scegli le clip da tenere e definisci attacco e stacco." className="px-4 py-3" />
+      <Toolbar className="px-4">
+        <Field
           value={campo}
-          onChange={(e) => setCampo(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void carica(campo.trim())}
+          onChange={setCampo}
+          onEnter={() => void carica(campo.trim())}
+          size="m"
           placeholder="/percorso/della/cartella con le riprese"
-          className="min-w-0 flex-1 sm:flex-none sm:w-96 min-h-11 sm:min-h-0 px-2 py-1.5 rounded bg-neutral-950 border border-neutral-800 text-sm"
+          className="min-w-0 flex-1 sm:flex-none sm:w-96 min-h-11 sm:min-h-0"
         />
-        <Bott onClick={() => void carica(campo.trim())} disabled={caricando} weight="normal">
+        <Bott onClick={() => void carica(campo.trim())} disabled={caricando} weight={dati ? "normal" : "primary"}>
           {caricando ? "Leggo…" : "Apri"}
         </Bott>
         {dati && (
           <>
             <div className="flex gap-1">
-              <Bott onClick={() => setVista("griglia")} weight={vista === "griglia" ? "primary" : "quiet"}>
+              <Bott onClick={() => setVista("griglia")} weight="quiet" active={vista === "griglia"}>
                 Griglia
               </Bott>
-              <Bott onClick={() => setVista("fila")} weight={vista === "fila" ? "primary" : "quiet"}>
+              <Bott onClick={() => setVista("fila")} weight="quiet" active={vista === "fila"}>
                 Fila
               </Bott>
             </div>
-            <Bott onClick={() => setSoloTenute((v) => !v)} weight={soloTenute ? "primary" : "quiet"}>
+            {vista === "griglia" && attuale && <Bott weight="primary" onClick={() => setVista("fila")}>Guarda la clip</Bott>}
+            <Bott onClick={() => setSoloTenute((v) => !v)} weight="quiet" active={soloTenute}>
               Solo tenute
             </Bott>
             <Bott onClick={() => setMutoDeciso((v) => !v)} weight="quiet">
@@ -229,7 +232,7 @@ export default function Girato() {
             </Bott>
           </>
         )}
-      </header>
+      </Toolbar>
 
       {errore && (
         <div className="px-4 py-2 text-sm text-rose-300 bg-rose-950/30 border-b border-rose-900">
@@ -352,9 +355,9 @@ export default function Girato() {
             <div className="ml-auto flex flex-wrap gap-1">
               <Bott
                 onClick={() => cambia(attuale.s.nome, { tenuta: !attuale.s.tenuta })}
-                weight={attuale.s.tenuta ? "primary" : "normal"}
+                weight="primary"
               >
-                {attuale.s.tenuta ? "Tenuta" : "Scartata"}
+                {attuale.s.tenuta ? "Scarta clip" : "Tieni clip"}
               </Bott>
               <Bott onClick={() => cambia(attuale.s.nome, { attacco: tempo })} weight="quiet">
                 Attacca qui

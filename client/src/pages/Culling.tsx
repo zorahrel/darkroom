@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, thumbRawUrl, type PhotoListItem, type RendicontoCulling } from "../api";
-import { Bott, Pills } from "../ui";
+import { Bott, Pills, Header, Toolbar } from "../ui";
 import { patchDaTasto, tastoGiudica, unisciGiudizio } from "../culling";
 import { capacita } from "../guscio";
 
@@ -314,7 +314,8 @@ export default function Culling() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-neutral-800">
+      <Header title="Culling" below="Scegli gli scatti da portare alla rifinitura." className="px-4 py-3" />
+      <Toolbar className="px-4">
         <Pills
           items={FILTRI.map((f) => ({ id: f.id, name: f.label }))}
           pick={filtro}
@@ -322,10 +323,10 @@ export default function Culling() {
           counts={conteggi}
         />
         <div className="flex gap-1 ml-auto text-xs">
-          <Bott onClick={() => setVista("griglia")} weight={vista === "griglia" ? "primary" : "quiet"}>
+          <Bott onClick={() => setVista("griglia")} weight="quiet" active={vista === "griglia"}>
             Griglia
           </Bott>
-          <Bott onClick={() => setVista("visore")} weight={vista === "visore" ? "primary" : "quiet"}>
+          <Bott onClick={() => setVista("visore")} weight="quiet" active={vista === "visore"}>
             Visore
           </Bott>
         </div>
@@ -338,7 +339,7 @@ export default function Culling() {
         <Bott onClick={mandaAllaRifinitura} disabled={inCorso} weight="primary">
           Manda alla rifinitura
         </Bott>
-      </header>
+      </Toolbar>
 
       {conto && (
         <div className="px-4 py-2 text-xs text-neutral-400 border-b border-neutral-900 flex gap-4 flex-wrap">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, thumbRefUrl, genUrl, refUrl } from "../api";
 import { useViewState, readBool, readOneOf, readNumber } from "../viewState";
-import { Pills } from "../ui";
+import { Bott, Choose, Header, Page, Pills, Toggle, Toolbar } from "../ui";
 import { VERDICTS, type Verdict, filterTree, countVerdicts } from "../treeFilter";
 
 // Pick view (LIN-02): each shot and its branches, grouped by configuration.
@@ -400,13 +400,14 @@ export default function TreePage() {
     return <div className="py-20 text-center text-neutral-400">Nessuna variante generata.</div>;
 
   return (
-    <div className="space-y-6 pb-24">
+    <Page className="pb-24">
+      <Header title="Albero delle varianti" below="Confronta ogni risultato con gli scatti da cui è nato." />
       {/* One bar, compact. The reference controls used to take a tall row with
           labels written out in full and an always-on sentence of explanation:
           a lot of vertical space stolen from the variants, which are the reason
           this page is opened. Now it is a thin strip, and the explanations live
           in the `title`s. */}
-      <div className="sticky top-14 z-30 flex items-center gap-2 flex-wrap text-[11px] border border-neutral-800 bg-neutral-950/95 backdrop-blur px-2 py-1">
+      <Toolbar className="sticky top-[var(--h-header,57px)] z-20 bg-neutral-950/95 backdrop-blur text-[12px] px-2">
         {/* The filters by verdict: same shape as the grid's filters (pills with
             the count), because it is the same question. */}
         <Pills
@@ -420,20 +421,9 @@ export default function TreePage() {
         {hasReferences && (
           <>
             <span className="w-px h-4 bg-neutral-800" />
-            <label
-              className="flex items-center gap-1.5 cursor-pointer select-none"
-              title="Passando il mouse su una variante, il riferimento le compare sopra in trasparenza"
-            >
-              <input
-                type="checkbox"
-                checked={overlay}
-                onChange={(e) => setOverlay(e.target.checked)}
-                className="accent-amber-500 w-3 h-3"
-              />
-              <span className="font-mono uppercase tracking-wide text-[10px] text-amber-500">
-                riferimento
-              </span>
-            </label>
+            <Toggle on={overlay} onChange={setOverlay}
+                    onText="Riferimento visibile" offText="Mostra riferimento"
+                    title="Sovrapponi il riferimento alla variante per confrontarli" />
             {overlay && (
               <span className="flex items-center gap-1.5 shrink-0">
                 <input
@@ -449,33 +439,22 @@ export default function TreePage() {
                 <span className="font-mono text-neutral-500 tabular-nums w-7">
                   {Math.round(opacity * 100)}%
                 </span>
-                <select
-                  value={overlayMode}
-                  onChange={(e) => setOverlayMode(e.target.value as OverlayMode)}
-                  title={
-                    overlayMode === "difference"
-                      ? "Le zone che combaciano restano nere"
-                      : "Il riferimento in trasparenza sopra la variante"
-                  }
-                  className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 text-[10px]"
-                >
-                  {OVERLAY_MODES.map((m) => (
-                    <option key={m.id} value={m.id}>{m.label}</option>
-                  ))}
-                </select>
+                <Choose value={overlayMode} onChange={setOverlayMode} width={130}
+                        title="Come confrontare il riferimento"
+                        items={OVERLAY_MODES.map((m) => ({ v: m.id, text: m.label }))} />
               </span>
             )}
-            <button
+            <Bott
               onClick={measure}
               disabled={measuring}
               title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Piu' basso e' piu' somiglia."
-              className="ml-auto px-1.5 py-0.5 border border-neutral-800 text-neutral-400 hover:border-amber-500 hover:text-amber-500 disabled:opacity-40"
+              className="ml-auto"
             >
               {measuring ? "misuro…" : "misura scarto"}
-            </button>
+            </Bott>
           </>
         )}
-      </div>
+      </Toolbar>
 
       {visible.length === 0 && (
         <div className="py-16 text-center text-neutral-500 text-sm">
@@ -488,7 +467,7 @@ export default function TreePage() {
       {visible.map((n, i) => (
         <section
           key={(n.photos ?? [n.photo]).join("|")}
-          className="grid grid-cols-[168px_1fr] gap-5 py-5 border-b border-neutral-800 items-start"
+          className="grid grid-cols-1 sm:grid-cols-[168px_1fr] gap-4 py-4 border-b border-neutral-800 items-start"
         >
           <div className="sticky top-20 flex flex-col gap-1.5">
             {/* The root is the input SET. When the photos are more than one they
@@ -660,8 +639,7 @@ export default function TreePage() {
         <span className="font-mono text-sm text-neutral-400 tabular-nums">
           <b className="text-amber-500 text-base">{kept.length}</b> / {all.length} tenute
         </span>
-        <button
-          className="text-sm px-3 py-1.5 border border-neutral-700 hover:border-amber-500 hover:text-amber-500"
+        <Bott weight="primary"
           onClick={() => {
             const txt = nodes
               .flatMap((n) =>
@@ -679,7 +657,7 @@ export default function TreePage() {
           }}
         >
           Copia scelte
-        </button>
+        </Bott>
         <span className="font-mono text-xs text-neutral-400 truncate">
           {all.filter((v) => v.verdict === "maybe").length} forse ·{" "}
           {all.filter((v) => v.verdict === "discard").length} scartate ·{" "}
@@ -696,7 +674,7 @@ export default function TreePage() {
           <div className="font-mono text-xs text-neutral-400 pt-2">{zoom.cap}</div>
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
