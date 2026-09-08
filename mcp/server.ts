@@ -14,9 +14,8 @@
  * projects and you cannot tell which one you ended up in. Anyone automating
  * should always pass it.
  *
- * **The port.** The value written here is the last resort: the real server runs
- * where its launchd service says, and that is where to look. `3535` was written
- * by hand while the server listened on 3737 — the MCP never answered anybody.
+ * La porta predefinita è quella del backend web e Tauri (3535). Un servizio su
+ * un'altra porta si seleziona con DARKROOM_API.
  */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -25,7 +24,13 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const API = (process.env.DARKROOM_API ?? "http://localhost:3737").replace(/\/$/, "");
+import { loggedCall } from "./loggedCall.ts";
+import { currentProjectId } from "../server/project.ts";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const invocation = new AsyncLocalStorage<{ project: string | null; scoped: boolean }>();
+
+const API = (process.env.DARKROOM_API ?? "http://localhost:3535").replace(/\/$/, "");
 
 /**
  * A write answers with a RECEIPT, not with the project's state.
@@ -65,6 +70,9 @@ async function call(
     headers: Object.keys(headers).length ? headers : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
+  const context = invocation.getStore();
+  const actualProject = res.headers.get("x-darkroom-project");
+  if (context?.scoped && actualProject) context.project = actualProject;
   const text = await res.text();
   let data: unknown = text;
   try {
@@ -779,30 +787,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   })),
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const tool = tools.find((t) => t.name === req.params.name);
-  if (!tool) {
-    return {
-      isError: true,
-      content: [{ type: "text", text: `unknown tool: ${req.params.name}` }],
-    };
-  }
-  try {
-    const result = await tool.handler(req.params.arguments ?? {});
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  } catch (err) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: "text",
-          text: `error: ${err instanceof Error ? err.message : String(err)}`,
-        },
-      ],
-    };
-  }
-});
+export async function executeTool(name: string, args: Record<string, unknown> = {}) {
+  const tool = tools.find((t) => t.name === name);
+  // Prima della risposta annotiamo il destinatario richiesto; l'HTTP lo precisa
+  // anche quando il backend ha creato progetti dopo l'avvio del processo MCP.
+  const context = {
+    project: name === "update_project" && typeof args.id === "string" ? args.id
+      : tool?.global && name !== "start_tool" ? null
+      : typeof args.project === "string" && args.project ? args.project : currentProjectId(),
+    scoped: !tool?.global,
+  };
+  return invocation.run(context, () => loggedCall(name, args, () => context.project, async () => {
+    if (!tool) throw new Error(`Strumento sconosciuto: ${name}`);
+    const result = await tool.handler(args);
+    if ((name === "add_project" || name === "start_tool") && result && typeof result === "object") {
+      const project = (result as { project?: string | { id?: string } }).project;
+      if (typeof project === "string") context.project = project;
+      else if (project?.id) context.project = project.id;
+    }
+    return result;
+  }));
+}
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
-console.error(`[darkroom-mcp] connected — API ${API}`);
+server.setRequestHandler(CallToolRequestSchema, (req) =>
+  executeTool(req.params.name, req.params.arguments ?? {}),
+);
+
+// Importare il catalogo nelle prove non deve aprire il trasporto stdio.
+if (import.meta.main) {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error(`[darkroom-mcp] connected — API ${API}`);
+}

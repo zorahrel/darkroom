@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { initSchema } from "./db.ts";
-import { getProject, withProject } from "./project.ts";
+import { currentProjectId, getProject, withProject } from "./project.ts";
 import { photoRoutes } from "./routes/photos.ts";
 import { generationRoutes } from "./routes/generation.ts";
 import { settingsRoutes } from "./routes/settings.ts";
@@ -19,6 +19,7 @@ import { mediaRoutes } from "./routes/media.ts";
 import { collectionRoutes } from "./routes/collections.ts";
 import { cullingRoutes } from "./routes/culling.ts";
 import { giratoRoutes } from "./routes/girato.ts";
+import { mcpLogRoutes } from "./routes/mcpLog.ts";
 
 /**
  * The Darkroom HTTP app: middleware + every route module, with no side effects
@@ -43,13 +44,19 @@ app.use("*", cors());
 // project (single-project back-compat). Static SPA assets are project-agnostic.
 app.use("*", async (c, next) => {
   const pid = c.req.query("project") ?? c.req.header("x-darkroom-project") ?? "";
+  const run = async () => {
+    // MCP registra il progetto realmente risolto qui, senza una seconda cache.
+    c.header("x-darkroom-project", currentProjectId());
+    await next();
+  };
   if (pid && getProject(pid)) {
-    return withProject(pid, () => next());
+    return withProject(pid, run);
   }
-  return next();
+  return run();
 });
 
 app.route("/", cullingRoutes);
+app.route("/", mcpLogRoutes);
 app.route("/", giratoRoutes);
 app.route("/", photoRoutes);
 app.route("/", generationRoutes);

@@ -11,9 +11,8 @@ launchctl kickstart -k gui/$(id -u)/com.jarvis.darkroom-backend   # servizio
 bun run dev                                                        # oppure a mano
 ```
 
-`DARKROOM_API` vale `http://localhost:3737` se non si dice altro — la porta del
-servizio launchd. (Fino al 26/08/2026 qui c'era scritto `3535`: il server
-ascoltava sulla 3737 e questo MCP non ha mai raggiunto nessuno.)
+`DARKROOM_API` vale `http://localhost:3535`, come il backend web e Tauri.
+Per un backend su un'altra porta, imposta esplicitamente questa variabile.
 
 ## Registrarlo
 
@@ -26,7 +25,7 @@ gateway_mount {
   transport: "stdio",
   command: "bun",
   args: ["/absolute/path/to/darkroom/mcp/server.ts"],
-  env: { "DARKROOM_API": "http://localhost:3737" }
+  env: { "DARKROOM_API": "http://localhost:3535" }
 }
 ```
 
@@ -42,7 +41,7 @@ Si comincia da `list_projects`: dà l'`id` che tutti gli altri vogliono, le
 viste accese, e i numeri di testa (foto/preferite/versioni, oppure
 tagli/riprese/durata per un progetto video).
 
-Tre strumenti non lo hanno perché non ha senso: `list_projects`,
+Quattro strumenti non lo hanno perché non ha senso: `list_projects`,
 `add_project`, `update_project` e `status` (il generatore è uno solo per tutta
 la macchina).
 
@@ -76,3 +75,30 @@ correlazione fra durezza del suono e durezza dell'immagine dev'essere almeno
 `video_generate` (640×1152, 61 fotogrammi, 20 passi, a tasselli) sono quelli
 che entrano nella memoria della scheda. A 704×1280 con 81 fotogrammi la 3090
 arriva a 23,9 GB su 24,5 e si pianta: un'ora, zero PNG.
+
+## Registro delle chiamate
+
+La voce **Registro** nella barra apre `/activity`. L'endpoint di lettura è
+`GET /api/mcp-log`: filtri `tool`, `outcome=ok|errore`, `project`, paginazione
+con `before` (id esclusivo) e `limit` (1–100, predefinito 50). La risposta contiene
+`entries`, `next_before`, l'elenco `tools` e i limiti `retention`.
+
+Un unico decoratore registra anche errori di rete e strumenti sconosciuti nella
+tabella `mcp_log` del database globale `DARKROOM_DB` (altrimenti `GALLERY_ROOT/photos.db`), senza dipendere dall'HTTP. MCP e backend
+devono quindi condividere configurazione `GALLERY_ROOT`, `DARKROOM_DB` e
+`DARKROOM_REGISTRY`; cambiare solo `DARKROOM_API` non sposta il registro su un altro
+computer. Per le chiamate globali il progetto è nullo; per le altre è quello
+risolto dal backend e restituito nell'header `x-darkroom-project`. Creazione,
+aggiornamento e avvio di strumenti annotano il progetto coinvolto. Se il backend
+è irraggiungibile, resta il destinatario richiesto; togliere un progetto da Studio
+non cambia la posizione del registro.
+
+Gli argomenti vengono salvati con credenziali, chiavi e percorsi oscurati, anche
+quando ricompaiono nei messaggi di errore. I risultati completi non vengono
+copiati nel registro. Il tetto è **5.000 chiamate / 30 giorni**, potato sia alla
+scrittura sia alla lettura; ciascuna voce limita argomenti a 16 KiB e messaggio
+a 2 KiB. SQLite riutilizza le pagine liberate dalle righe eliminate.
+
+L'esito riguarda la chiamata: accodare una generazione riuscita non significa che
+il lavoro sia già terminato. Se il disco non permette di registrare, il chiamante
+riceve un avviso senza trasformare una scrittura riuscita in un invito a ripeterla.

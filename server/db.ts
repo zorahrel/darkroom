@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { currentProjectId, dirsFor, genDir } from "./project.ts";
+import { DB_PATH } from "./config.ts";
 
 // Paths are centralized in config.ts (env-driven). Re-exported here so existing
 // imports from "./db.ts" keep working. These bind to the ENV/default project;
@@ -40,15 +41,22 @@ Style: Cinematic, minimal, editorial photography. Soft atmospheric light. Delica
 
 OUTPUT THE EDITED IMAGE.`;
 
-// One SQLite handle per project, opened lazily and schema-initialized on first
-// use. Keyed by project id so concurrent projects never share a connection.
+// Una connessione per percorso: il registro globale può condividere il database
+// della galleria predefinita, senza aprire due handle sullo stesso file.
 const _handles = new Map<string, Database>();
 
 export function db(): Database {
-  const pid = currentProjectId();
-  const cached = _handles.get(pid);
+  return openDatabase(dirsFor(currentProjectId()).DB_PATH);
+}
+
+/** Il registro globale deve restare raggiungibile anche rimuovendo un progetto. */
+export function defaultDb(): Database {
+  return openDatabase(DB_PATH);
+}
+
+function openDatabase(path: string): Database {
+  const cached = _handles.get(path);
   if (cached) return cached;
-  const path = dirsFor(pid).DB_PATH;
   mkdirSync(dirname(path), { recursive: true });
   const d = new Database(path, { create: true });
   // BEFORE every other PRAGMA. WAL lets readers and a writer coexist but not two
@@ -63,14 +71,27 @@ export function db(): Database {
   d.run("PRAGMA busy_timeout = 5000");
   d.run("PRAGMA journal_mode = WAL");
   d.run("PRAGMA foreign_keys = ON");
-  // Register before initializing so any nested db() during schema init (none
-  // today, but cheap insurance) resolves to this same handle instead of looping.
-  _handles.set(pid, d);
+  // Registriamo prima di inizializzare, così eventuali chiamate annidate
+  // durante la migrazione riusano la stessa connessione.
+  _handles.set(path, d);
   initSchemaOn(d);
   return d;
 }
 
 const SCHEMA_STATEMENTS = [
+  // Il registro sopravvive a MCP e backend: nessun dato della galleria cambia.
+  `CREATE TABLE IF NOT EXISTS mcp_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tool TEXT NOT NULL,
+    arguments TEXT NOT NULL,
+    outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'errore')),
+    message TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL CHECK (duration_ms >= 0),
+    project TEXT,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_mcp_log_when ON mcp_log(created_at, id)`,
+  `CREATE INDEX IF NOT EXISTS idx_mcp_log_filter ON mcp_log(tool, outcome, id DESC)`,
   `CREATE TABLE IF NOT EXISTS photos (
     id TEXT PRIMARY KEY,
     original_path TEXT NOT NULL,
