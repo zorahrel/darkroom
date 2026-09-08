@@ -97,6 +97,12 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ gruppo }),
     }),
+  /** Manda alla coda AI gli scatti tenuti, senza giro su disco. */
+  rifinisciTenuti: (anche_con_versioni = false) =>
+    jsonFetch<{ accodati: number; saltati: number }>("/api/culling/rifinisci", {
+      method: "POST",
+      body: JSON.stringify({ anche_con_versioni }),
+    }),
   motoreCulling: () =>
     jsonFetch<{ disponibile: boolean; come?: string; formati?: { raw: string[] } }>(
       "/api/culling/motore",

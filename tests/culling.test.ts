@@ -315,3 +315,52 @@ conMotore("diagnosi", () => {
     expect(r.status).toBe(404);
   });
 });
+
+describe("dalla scelta alla rifinitura", () => {
+  test("solo gli scatti tenuti finiscono in coda, gli scartati no", async () => {
+    // Si riparte pulito: le prove precedenti hanno lasciato giudizi in giro.
+    db().run("UPDATE photos SET culling_stelle = NULL, culling_colore = NULL");
+    db().run("DELETE FROM jobs");
+    giudica("cull_a", { stelle: 4, colore: "verde" }); // tenuto
+    giudica("cull_b", { stelle: 0, colore: null }); // guardato e scartato
+    // cull_c resta non giudicato
+
+    const r = await chiama("POST", "/api/culling/rifinisci");
+    expect(r.status).toBe(200);
+
+    const inCoda = db()
+      .query<{ photo_id: string }, []>("SELECT photo_id FROM jobs ORDER BY photo_id")
+      .all()
+      .map((x) => x.photo_id);
+    expect(inCoda).toContain("cull_a");
+    expect(inCoda).not.toContain("cull_b");
+    expect(inCoda).not.toContain("cull_c");
+  });
+
+  test("uno scatto a zero stelle è scartato, non «non ancora guardato»", async () => {
+    // È la ragione per cui la distinzione esiste: se zero e NULL fossero la stessa
+    // cosa, uno scatto rifiutato tornerebbe in coda a ogni passata.
+    db().run("UPDATE photos SET culling_stelle = NULL, culling_colore = NULL");
+    db().run("DELETE FROM jobs");
+    giudica("cull_b", { stelle: 0 });
+    const r = await chiama("POST", "/api/culling/rifinisci");
+    expect(r.json.accodati).toBe(0);
+  });
+
+  test("chi ha già un render non torna in coda", async () => {
+    db().run("UPDATE photos SET culling_stelle = NULL, culling_colore = NULL");
+    db().run("DELETE FROM jobs");
+    giudica("cull_c", { stelle: 5 });
+    db().run(
+      `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, created_at)
+       VALUES ('cull_c', 1, '/finto/v01.png', 'x', 'imported', ?)`,
+      [Date.now()],
+    );
+    const primo = await chiama("POST", "/api/culling/rifinisci");
+    expect(primo.json.accodati).toBe(0);
+    // Ma se lo si chiede espressamente, si rifà.
+    const secondo = await chiama("POST", "/api/culling/rifinisci", { anche_con_versioni: true });
+    expect(secondo.json.accodati).toBe(1);
+    db().run("DELETE FROM versions WHERE photo_id = 'cull_c'");
+  });
+});

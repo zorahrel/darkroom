@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, thumbRawUrl, type PhotoListItem, type RendicontoCulling } from "../api";
 import { Bott, Pills } from "../ui";
 import { patchDaTasto, tastoGiudica, unisciGiudizio } from "../culling";
+import { capacita } from "../guscio";
 
 /**
  * Il culling: da qualche migliaio di scatti se ne scelgono qualche centinaio.
@@ -241,6 +242,33 @@ export default function Culling() {
     }
   }
 
+  /**
+   * Gli scatti tenuti passano alla coda AI senza uscire e rientrare dal disco.
+   * È la giuntura fra i due mestieri: senza, sarebbero due programmi nella stessa
+   * finestra.
+   */
+  async function mandaAllaRifinitura() {
+    if (!conto?.tenuti) {
+      setMessaggio("Non c'è ancora niente di tenuto da mandare.");
+      return;
+    }
+    setInCorso(true);
+    setMessaggio(null);
+    try {
+      const e = await api.rifinisciTenuti();
+      setMessaggio(
+        e.accodati === 0
+          ? "Gli scatti tenuti hanno già un render: niente da rifare."
+          : `${e.accodati} in coda per la rifinitura` +
+            (e.saltati ? ` — ${e.saltati} già lavorati o scartati` : ""),
+      );
+    } catch (err) {
+      setMessaggio(err instanceof Error ? err.message : String(err));
+    } finally {
+      setInCorso(false);
+    }
+  }
+
   async function trovaRaffiche() {
     setInCorso(true);
     setMessaggio(null);
@@ -307,6 +335,9 @@ export default function Culling() {
         <Bott onClick={scriviSidecar} disabled={inCorso} weight="normal">
           Scrivi i sidecar…
         </Bott>
+        <Bott onClick={mandaAllaRifinitura} disabled={inCorso} weight="primary">
+          Manda alla rifinitura
+        </Bott>
       </header>
 
       {conto && (
@@ -337,6 +368,14 @@ export default function Culling() {
           {foto.length === 0 && (
             <p className="text-neutral-500 text-sm p-4">Nessuno scatto con questo filtro.</p>
           )}
+        </div>
+      )}
+
+      {!capacita().cartellaLocale && (
+        <div className="px-4 py-1.5 text-[11px] text-neutral-500 border-t border-neutral-900">
+          Nel browser si lavora sulle foto già indicizzate. Aprire una cartella del
+          disco richiede l'applicazione desktop: una pagina web non può leggere il
+          filesystem, e offrirlo per poi fallire sarebbe peggio che dirlo.
         </div>
       )}
 

@@ -2,7 +2,7 @@
 
 Convenzione: `[ ]` da fare, `[x]` fatto+verificato.
 
-**Stato: approvata l'8 settembre 2026, tracce 0-3 consegnate.**
+**Stato: approvata l'8 settembre 2026, tracce 0-4 consegnate.**
 
 Misure raccolte sul percorso, che valgono piu' dei numeri di partenza:
 
@@ -11,7 +11,9 @@ Misure raccolte sul percorso, che valgono piu' dei numeri di partenza:
 | anteprima griglia, 85 ARW da 47 MB, in parallelo | 1859 ms (`sips`) | **2,1 ms** |
 | anteprima visore 3840 px, con decodifica piena | non disponibile | 868 ms |
 | formati indicizzati | 3 | 30 |
-| prove | 536 | **596** + 65 nel motore |
+| prove | 536 | **624** + 66 nel motore + 10 nell'app |
+| pacchetto dell'app | — | 30,9 MB (Electron: ~220) |
+| memoria a riposo | — | 104 MB (Electron: ~250) |
 
 Due cose scoperte misurando, non leggendo:
 
@@ -62,7 +64,7 @@ Ciò che deve diventare vero:
 - [x] 1.1 Formati RAW nell'importer accanto a JPEG/PNG/HEIC/TIFF
 - [x] 1.2 Coppia RAW+JPEG riconosciuta come uno scatto solo
 - [x] 1.3 `server/thumb.ts` chiama il core, `sips` esce dal progetto
-- [ ] 1.4 Piramide a quattro livelli con budget in byte separati per livello
+- [x] 1.4 Piramide a quattro livelli con budget in byte separati per livello
 - [x] 1.5 Diagnosi cartella: anteprima incorporata, tempi per livello, misurati lì
 - [x] 1.6 Le cartelle di anteprime di Darkroom escluse dall'indicizzazione
 
@@ -82,12 +84,12 @@ Ciò che deve diventare vero:
 - [x] 3.5 Vocabolario etichette per lingua, dichiarato
 
 ## 4. Superfici (dipende da 1; la UI si disegna in parallelo a 2)
-- [ ] 4.1 Guscio Tauri v2 che monta il `client/` esistente
-- [ ] 4.2 Core in-process nell'app: nessuna richiesta HTTP per le anteprime
-- [ ] 4.3 UI unica: culling ed editing AI nella stessa base, senza secondo componente
-- [ ] 4.4 Giuntura: dagli scatti tenuti alla coda AI senza giro su disco
-- [ ] 4.5 La versione web dichiara ciò che richiede il disco locale
-- [ ] 4.6 Peso pacchetto e memoria a riposo riportati a ogni compilazione
+- [x] 4.1 Guscio Tauri v2 che monta il `client/` esistente
+- [x] 4.2 Core in-process nell'app: nessuna richiesta HTTP per le anteprime
+- [x] 4.3 UI unica: culling ed editing AI nella stessa base, senza secondo componente
+- [x] 4.4 Giuntura: dagli scatti tenuti alla coda AI senza giro su disco
+- [x] 4.5 La versione web dichiara ciò che richiede il disco locale
+- [x] 4.6 Peso pacchetto e memoria a riposo riportati a ogni compilazione
 
 ## 5. Girato (dipende da 0, indipendente da 2/3/4)
 - [ ] 5.1 Frame e durate via ffmpeg, al posto di AVFoundation

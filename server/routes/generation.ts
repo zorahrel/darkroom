@@ -219,6 +219,60 @@ export function enqueueMissing(): number {
 
 generationRoutes.post("/api/generate-missing", (c) => c.json({ enqueued: enqueueMissing() }));
 
+/**
+ * Manda alla rifinitura gli scatti tenuti nel culling.
+ *
+ * È la giuntura che giustifica l'unione dei due mestieri. Senza, per portare
+ * trecento scelte nel ramo AI servirebbe esportarle e reimportarle a mano — e
+ * sarebbero rimasti due programmi dentro la stessa finestra.
+ *
+ * «Tenuto» è uno scatto con almeno una stella o un'etichetta. Uno a zero stelle è
+ * stato guardato e scartato, e non ci va: la distinzione fra «non ancora giudicata»
+ * e «scartata» esiste apposta perché a valle qualcuno la usi.
+ */
+export function accodaTenuti(soloSenzaVersioni = true): { accodati: number; saltati: number } {
+  const condizioni = [
+    "(p.culling_stelle > 0 OR p.culling_colore IS NOT NULL)",
+    "p.skipped = 0",
+  ];
+  if (soloSenzaVersioni) {
+    // Chi ha già un render è già passato di qui: rimetterlo in coda spenderebbe un
+    // posto della fila per rifare una cosa fatta.
+    condizioni.push("(SELECT COUNT(*) FROM versions v WHERE v.photo_id = p.id) = 0");
+  }
+  const tenuti = db()
+    .query<PhotoRow, []>(
+      `SELECT p.* FROM photos p WHERE ${condizioni.join(" AND ")} ORDER BY p.id ASC`,
+    )
+    .all();
+
+  let accodati = 0;
+  for (const p of tenuti) {
+    const cfg = withExtra(effectiveConfig(p), p);
+    const refPath = colorReferenceFor(p.id);
+    const text = refPath ? `${promptFor(cfg)}\n\n${COLOR_REFERENCE_CLAUSE}` : promptFor(cfg);
+    enqueueJob(
+      p.id, text, JSON.stringify(cfg), "chatgpt", null, "edit", null,
+      refPath ? JSON.stringify([refPath]) : null,
+    );
+    accodati++;
+  }
+  const giudicati = db()
+    .query<{ n: number }, []>(
+      `SELECT COUNT(*) AS n FROM photos p
+       WHERE p.culling_stelle IS NOT NULL OR p.culling_colore IS NOT NULL`,
+    )
+    .get();
+  return { accodati, saltati: (giudicati?.n ?? 0) - accodati };
+}
+
+generationRoutes.post("/api/culling/rifinisci", async (c) => {
+  const body = await c.req
+    .json<{ anche_con_versioni?: boolean }>()
+    .catch(() => ({}) as { anche_con_versioni?: boolean });
+  return c.json(accodaTenuti(!body.anche_con_versioni));
+});
+
 // Generate brand-new images from a text prompt (no source photo). Each creates
 // a `kind='generated'` photo whose first render becomes its original.
 /** Generate from nothing: N empty photos, one per variant, each already queued. */
