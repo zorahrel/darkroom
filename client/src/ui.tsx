@@ -29,9 +29,9 @@ import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
 // Three sizes, not fourteen. `s` for the dense bars of an editor, `m` for
 // panels, `l` for page actions.
 const SIZE = {
-  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1",
-  m: "text-[12px] px-2 py-1 rounded gap-1.5",
-  l: "text-[13px] px-3 py-1.5 rounded gap-2",
+  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1 min-h-11 sm:min-h-0",
+  m: "text-[12px] px-2 py-1 rounded gap-1.5 min-h-11 sm:min-h-0",
+  l: "text-[13px] px-3 py-1.5 rounded gap-2 min-h-11 sm:min-h-0",
 } as const;
 
 export type Size = keyof typeof SIZE;
@@ -558,7 +558,11 @@ export function Pills<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-1 shrink-0 ${className}`}>
+    // `flex-wrap` e non `shrink-0`: su un telefono da 390 px una fila di sei filtri
+    // non ci sta, e con `shrink-0` non si stringeva né andava a capo — spingeva la
+    // pagina a 477 px dentro un viewport da 390, cioè tutta la vista scorreva di
+    // lato. Misurato, non ipotizzato.
+    <div className={`flex flex-wrap items-center gap-1 ${className}`}>
       {items.map((v) => {
         const n = counts[v.id] ?? 0;
         const active = pick === v.id;
@@ -569,7 +573,10 @@ export function Pills<T extends string>({
             disabled={n === 0 && v.id !== neutral}
             title={`${v.name}: ${n}`}
             className={
-              "px-1.5 py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
+              // 44 px sul telefono, che è la misura del polpastrello: questi
+              // filtri erano alti 20 px. Sopra i 640 tornano compatti, perché col
+              // mouse la densità della barra vale più dello spazio.
+              "px-1.5 py-1 min-h-11 sm:min-h-0 sm:py-0.5 border font-mono uppercase tracking-wide text-[10px] disabled:opacity-30 " +
               (active
                 ? "border-amber-500 text-amber-500"
                 : "border-neutral-800 text-neutral-400 hover:border-neutral-600")

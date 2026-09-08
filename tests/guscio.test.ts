@@ -4,19 +4,27 @@ import { anteprimaInProcesso, capacita, nelGuscioDesktop } from "../client/src/g
 
 // Le prove girano in un ambiente senza finestra, quindi ce ne diamo una: è l'unico
 // modo per esercitare la scelta fra i due gusci senza aprire l'applicazione.
-const finestra = globalThis as unknown as { window?: unknown };
-const salva = finestra.window;
+const globale = globalThis as unknown as { window?: unknown; document?: unknown };
+const salvaFinestra = globale.window;
+const salvaDocumento = globale.document;
 
 afterEach(() => {
-  if (salva === undefined) delete finestra.window;
-  else finestra.window = salva;
+  if (salvaFinestra === undefined) delete globale.window;
+  else globale.window = salvaFinestra;
+  if (salvaDocumento === undefined) delete globale.document;
+  else globale.document = salvaDocumento;
 });
 
+function documentoCon(guscio?: string) {
+  globale.document = { documentElement: { dataset: guscio ? { guscio } : {} } };
+}
 function fingiDesktop() {
-  finestra.window = { __TAURI_INTERNALS__: {} };
+  globale.window = { __DARKROOM_GUSCIO__: "desktop" };
+  documentoCon("desktop");
 }
 function fingiBrowser() {
-  finestra.window = {};
+  globale.window = { location: { protocol: "http:" } };
+  documentoCon();
 }
 
 describe("il guscio", () => {
@@ -30,6 +38,38 @@ describe("il guscio", () => {
     fingiDesktop();
     expect(nelGuscioDesktop()).toBe(true);
     expect(capacita()).toEqual({ anteprimeInProcesso: true, cartellaLocale: true });
+  });
+
+  test("il marcatore del guscio basta da solo, anche senza nessuna variabile globale", () => {
+    // È la spia che conta: la mette il guscio con uno script eseguito prima che la
+    // pagina carichi, quindi c'è già al primo disegno. Le variabili globali di Tauri
+    // dipendono da versione e configurazione, e fidarsi solo di quelle dava
+    // un'applicazione che si comportava da browser — col nome sotto i semafori.
+    globale.window = { location: { protocol: "tauri:" } };
+    documentoCon("desktop");
+    expect(nelGuscioDesktop()).toBe(true);
+  });
+
+  test("la variabile basta anche a documento vuoto", () => {
+    // Lo script del guscio gira prima che il documento esista: se il marcatore
+    // fosse solo un attributo sul documento, non verrebbe mai scritto.
+    globale.window = { __DARKROOM_GUSCIO__: "desktop" };
+    globale.document = undefined;
+    expect(nelGuscioDesktop()).toBe(true);
+  });
+
+  test("si riconosce da tre spie diverse, perché ognuna può mancare", () => {
+    // `__TAURI__` c'è solo con `withGlobalTauri`; `__TAURI_INTERNALS__` cambia fra
+    // le versioni; il protocollo della pagina non dipende da nessuna iniezione.
+    // Bastarsi su una sola dava un'applicazione che si comportava da browser: il
+    // nome finiva sotto i semafori.
+    documentoCon();
+    globale.window = { __TAURI__: {} };
+    expect(nelGuscioDesktop()).toBe(true);
+    globale.window = { __TAURI_INTERNALS__: {} };
+    expect(nelGuscioDesktop()).toBe(true);
+    globale.window = { location: { protocol: "tauri:" } };
+    expect(nelGuscioDesktop()).toBe(true);
   });
 });
 

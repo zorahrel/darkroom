@@ -17,15 +17,35 @@
 import { livelloPer } from "../../server/livelli";
 
 type FinestraTauri = Window & {
+  /** Lo mette il guscio, prima che la pagina esista. Vedi `nelGuscioDesktop`. */
+  __DARKROOM_GUSCIO__?: string;
   __TAURI_INTERNALS__?: unknown;
   __TAURI__?: { core?: { invoke?: (cmd: string, args?: unknown) => Promise<unknown> } };
 };
 
-/** Vero quando l'interfaccia gira dentro l'applicazione desktop. */
+/**
+ * Vero quando l'interfaccia gira dentro l'applicazione desktop.
+ *
+ * Tre spie e non una, perché ognuna può mancare: `__TAURI__` esiste solo se il guscio
+ * dichiara `withGlobalTauri`, `__TAURI_INTERNALS__` cambia fra le versioni, e il
+ * protocollo della pagina è l'unica che non dipende da cosa il guscio ha iniettato.
+ * Sbagliare qui non dà un errore: dà un'interfaccia che si comporta da browser dentro
+ * un'applicazione — il nome sotto i semafori, e i comandi che non rispondono.
+ */
 export function nelGuscioDesktop(): boolean {
   if (typeof window === "undefined") return false;
   const w = window as FinestraTauri;
-  return w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined;
+  // La prima spia è l'unica che non si può sbagliare: la mette il guscio con uno
+  // script eseguito prima che la pagina carichi, quindi c'è già al primo disegno.
+  //
+  // È una variabile e non un attributo sul documento apposta: quello script gira a
+  // documento ancora vuoto, dove `document.documentElement` non esiste e scriverci
+  // sopra fallisce in silenzio. È così che il marcatore non arrivava mai e
+  // l'applicazione si comportava da browser, col nome sotto i semafori.
+  if (w.__DARKROOM_GUSCIO__ === "desktop") return true;
+  if (document?.documentElement?.dataset?.guscio === "desktop") return true;
+  if (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined) return true;
+  return /^tauri:$/.test(window.location?.protocol ?? "");
 }
 
 export type Capacita = {

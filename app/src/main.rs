@@ -139,6 +139,51 @@ fn main() {
 
     tauri::Builder::default()
         .manage(BackendNostro(Mutex::new(figlio)))
+        .setup(|app| {
+            // La finestra si costruisce qui e non nella configurazione perche' solo
+            // cosi' si puo' iniettare uno script **prima** che la pagina carichi.
+            //
+            // Serve perche' l'interfaccia deve sapere di essere dentro
+            // l'applicazione gia' al primo disegno: e' lei a lasciare lo spazio per
+            // i semafori, che senza barra del titolo stanno sopra il contenuto.
+            // Indovinarlo da una variabile globale non basta -- quali variabili
+            // esistano dipende dalla versione e dalla configurazione -- e sbagliare
+            // non da' un errore, da' il nome dell'applicazione scritto sotto i tre
+            // bottoni.
+            let finestra = tauri::WebviewWindowBuilder::new(
+                app,
+                "principale",
+                tauri::WebviewUrl::default(),
+            )
+            .title("Darkroom")
+            .inner_size(1440.0, 900.0)
+            .min_inner_size(900.0, 600.0)
+            // Lo script gira a documento ancora vuoto: `document.documentElement`
+            // li' non esiste, e scriverci sopra fallisce in silenzio -- e' esattamente
+            // cosi' che il marcatore non arrivava mai e l'interfaccia si comportava da
+            // browser. La variabile globale invece c'e' sempre; l'attributo si mette
+            // appena il documento c'e', per chi preferisce leggerlo dal CSS.
+            .initialization_script(
+                r#"
+                window.__DARKROOM_GUSCIO__ = 'desktop';
+                (function () {
+                  function marca() {
+                    try { document.documentElement.dataset.guscio = 'desktop'; } catch (e) {}
+                  }
+                  marca();
+                  document.addEventListener('DOMContentLoaded', marca);
+                })();
+                "#,
+            );
+
+            #[cfg(target_os = "macos")]
+            let finestra = finestra
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+
+            finestra.build()?;
+            Ok(())
+        })
         .register_uri_scheme_protocol("anteprima", |_ctx, request| {
             servi_anteprima(&request.uri().to_string())
         })

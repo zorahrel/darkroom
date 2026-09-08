@@ -790,8 +790,12 @@ export default function GridPage({
         </div>
       )}
 
-      <div className="flex flex-nowrap items-center gap-1.5 text-xs">
-        <div className="flex flex-nowrap items-center gap-1">
+      {/* Il divieto di andare a capo vale da 640 px in su, dove la barra ci sta
+          davvero. Sotto, `flex-nowrap` spingeva la pagina a 744 px dentro un
+          viewport da 390: la griglia intera scorreva di lato per non mandare a capo
+          sei filtri. */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1">
           {FILTERS.filter((f) => PRIMARY_FILTERS.includes(f.id)).map((f) => {
             const Icon = f.icon;
             const n = filterCounts[f.id];
@@ -803,7 +807,7 @@ export default function GridPage({
             // review" wrapped inside the button and the bar ended up with three
             // different heights on the same row.
             const base =
-              "inline-flex h-7 items-center gap-1 px-2 rounded border transition-colors whitespace-nowrap ";
+              "inline-flex h-11 sm:h-7 items-center gap-1 px-2 rounded border transition-colors whitespace-nowrap ";
             let cls: string;
             if (isActive) {
               cls =
@@ -870,7 +874,7 @@ export default function GridPage({
               <button
                 onClick={() => setOpenFilterMenu(openFilterMenu === grp.label ? null : grp.label)}
                 className={
-                  "inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 transition-colors whitespace-nowrap " +
+                  "inline-flex h-11 sm:h-7 shrink-0 items-center gap-1 rounded border px-2 transition-colors whitespace-nowrap " +
                   (active
                     ? "border-neutral-500 bg-neutral-700 text-white"
                     : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white")
@@ -957,7 +961,7 @@ export default function GridPage({
           <button
             onClick={() => setOpenFilterMenu(openFilterMenu === "__group" ? null : "__group")}
             title="Come raggruppare le foto"
-            className="inline-flex shrink-0 items-center gap-1 rounded border border-neutral-800 px-2 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-white"
+            className="inline-flex min-h-11 sm:min-h-0 shrink-0 items-center gap-1 rounded border border-neutral-800 px-2 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-white"
           >
             {groupLabel}
             <span className="text-neutral-400">▾</span>
@@ -1014,7 +1018,11 @@ export default function GridPage({
         {/* Actions and count at the end of the same row: they were a separate
             band above the filters, and on a photo grid every extra band is one
             row of photos fewer on the first screen. */}
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        {/* `flex-wrap` e niente `shrink-0`: su un telefono da 390 px questa fila
+            spingeva la pagina a 744, cioè tutta la griglia scorreva di lato.
+            `ml-auto` continua a mandarla a destra dove c'è spazio; dove non ce
+            n'è, va a capo invece di sfondare. */}
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {counts.missing > 0 && (
             <button
               disabled={activeJobs > 0}
@@ -1056,14 +1064,14 @@ export default function GridPage({
         {/* Zoom in steps instead of a slider: a range from 100 to 400 takes
             140px for a choice that in practice is between four sizes. Two
             buttons take 50 and are used without aiming. */}
-        <div className="flex h-7 shrink-0 items-center rounded border border-neutral-800">
+        <div className="flex h-11 sm:h-7 shrink-0 items-center rounded border border-neutral-800">
           <button
             onClick={() => {
               setZoom(Math.max(100, zoom - 40));
             }}
             disabled={zoom <= 100}
             title="Foto più piccole"
-            className="h-full px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
+            className="h-full min-w-11 sm:min-w-0 px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
           >
             −
           </button>
@@ -1076,7 +1084,7 @@ export default function GridPage({
             }}
             disabled={zoom >= 400}
             title="Foto più grandi"
-            className="h-full px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
+            className="h-full min-w-11 sm:min-w-0 px-2 text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
           >
             +
           </button>

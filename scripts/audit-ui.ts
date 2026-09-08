@@ -1,0 +1,215 @@
+/**
+ * Il righello: misura le viste a diverse larghezze e dice cosa si rompe.
+ *
+ * Non guarda: misura. Un modello che stima i pixel a occhio sbaglia proprio dove
+ * conta — tre pixel di disallineamento, un bersaglio da 30 px invece di 44 — quindi
+ * qui si interroga il DOM e si contano i difetti.
+ *
+ * Esce non-zero quando trova qualcosa: è un cancello, non un rapporto.
+ *
+ *   bun run ui:audit                    tutte le viste, tutte le larghezze
+ *   bun run ui:audit -- --larghezza 390 una sola
+ */
+
+import { chromium, type Page } from "playwright";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const RADICE = new URL("..", import.meta.url).pathname;
+const BASE = process.env.DARKROOM_URL ?? "http://127.0.0.1:3535";
+
+/** Le larghezze che contano davvero, e perché. */
+const LARGHEZZE = [
+  { px: 390, nome: "telefono" }, // iPhone in verticale
+  { px: 768, nome: "tavoletta" },
+  { px: 1280, nome: "portatile" },
+  { px: 1920, nome: "scrivania" },
+];
+
+const VISTE = [
+  { percorso: "/", nome: "strumenti" },
+  { percorso: "/p/darkroom", nome: "galleria" },
+  { percorso: "/p/darkroom/culling", nome: "culling" },
+  { percorso: "/p/darkroom/tree", nome: "albero" },
+];
+
+/**
+ * Quando un bersaglio è troppo piccolo.
+ *
+ * Due soglie e non una, perché "44×44" preso alla lettera non è la regola giusta per
+ * uno strumento professionale: applicato a ogni comando distruggerebbe la densità
+ * delle barre di lavoro, dove la vicinanza fra i controlli È la funzionalità.
+ *
+ * - **24 px** su entrambi i lati è WCAG 2.2 «Target Size (Minimum)», livello AA: è
+ *   uno standard, non un'opinione, ed è il minimo assoluto.
+ * - **44 px** su almeno un lato è la misura del polpastrello: un bottone lungo e
+ *   basso si prende bene, uno quadrato da 28 no. Fallisce solo chi è corto in
+ *   *entrambe* le direzioni.
+ */
+const LATO_MINIMO_ASSOLUTO = 24;
+const LATO_COMODO = 44;
+
+type Difetto = { vista: string; larghezza: number; tipo: string; dettaglio: string };
+
+/**
+ * Misura una pagina. Gira dentro il browser, quindi non può chiudere su niente.
+ *
+ * I punti ciechi già pagati altrove sono chiusi qui: i nodi dentro un `details`
+ * chiuso non si misurano (Chrome restituisce il riquadro del contenitore per tutti,
+ * e seicento finte sovrapposizioni seppelliscono quelle vere), e un comando coperto
+ * da un modale non è un comando.
+ */
+const MISURA = `(() => {
+  const MINIMO = ${LATO_MINIMO_ASSOLUTO};
+  const COMODO = ${LATO_COMODO};
+  const vp = document.documentElement.clientWidth;
+  const fuori = { overflowX: null, bersagli: [], testoTroncato: [], sovrapposte: [] };
+
+  const docW = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+  if (docW > vp + 1) {
+    const colpevoli = [];
+    for (const el of document.querySelectorAll('*')) {
+      const b = el.getBoundingClientRect();
+      if (b.width > 0 && b.right > vp + 1) {
+        colpevoli.push({ el: nome(el), oltre: Math.round(b.right - vp), largo: Math.round(b.width) });
+      }
+    }
+    colpevoli.sort((a, b) => b.oltre - a.oltre);
+    fuori.overflowX = { docW, vp, colpevoli: colpevoli.slice(0, 6) };
+  }
+
+  function nome(el) {
+    if (el.id) return '#' + el.id;
+    const c = (el.className && typeof el.className === 'string')
+      ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.') : '';
+    return el.tagName.toLowerCase() + c;
+  }
+  function visibile(el) {
+    if (el.closest('details:not([open])')) return false;
+    if (el.closest('[hidden]')) return false;
+    const s = getComputedStyle(el);
+    if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+    const b = el.getBoundingClientRect();
+    return b.width > 0 && b.height > 0;
+  }
+
+  for (const el of document.querySelectorAll('button, a[href], input, select, [role="button"]')) {
+    if (!visibile(el)) continue;
+    const b = el.getBoundingClientRect();
+    // Un comando coperto da un modale non e' un comando: non si misura.
+    const sopra = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    if (sopra && !el.contains(sopra) && !sopra.contains(el)) continue;
+    const w = Math.round(b.width), h = Math.round(b.height);
+    const sottoIlMinimo = w < MINIMO || h < MINIMO;
+    const scomodo = w < COMODO && h < COMODO;
+    if (sottoIlMinimo || scomodo) {
+      fuori.bersagli.push({ el: nome(el), w, h, perche: sottoIlMinimo ? 'sotto il minimo' : 'corto in entrambe le direzioni' });
+    }
+  }
+
+  // Testo tagliato: il contenuto e' piu' largo del contenitore e non c'e' ellissi.
+  for (const el of document.querySelectorAll('h1,h2,h3,p,span,label,button,a')) {
+    if (!visibile(el) || el.children.length) continue;
+    const s = getComputedStyle(el);
+    if (s.overflow === 'visible' || s.textOverflow === 'ellipsis') continue;
+    if (el.scrollWidth > el.clientWidth + 2) {
+      fuori.testoTroncato.push({ el: nome(el), dentro: el.clientWidth, serve: el.scrollWidth });
+    }
+  }
+
+  return fuori;
+})()`;
+
+async function misura(page: Page, vista: string, larghezza: number): Promise<Difetto[]> {
+  const r = (await page.evaluate(MISURA)) as {
+    overflowX: { docW: number; vp: number; colpevoli: { el: string; oltre: number }[] } | null;
+    bersagli: { el: string; w: number; h: number; perche: string }[];
+    testoTroncato: { el: string; dentro: number; serve: number }[];
+  };
+  const d: Difetto[] = [];
+
+  if (r.overflowX) {
+    d.push({
+      vista,
+      larghezza,
+      tipo: "scorre-in-orizzontale",
+      dettaglio:
+        `la pagina è larga ${r.overflowX.docW} px in un viewport da ${r.overflowX.vp}` +
+        (r.overflowX.colpevoli.length
+          ? ` — ${r.overflowX.colpevoli.map((c) => `${c.el} (+${c.oltre})`).join(", ")}`
+          : ""),
+    });
+  }
+  // Solo sul telefono: col mouse un bersaglio da 30 px si prende benissimo.
+  if (larghezza <= 480) {
+    for (const b of r.bersagli.slice(0, 8)) {
+      d.push({
+        vista,
+        larghezza,
+        tipo: "bersaglio-piccolo",
+        dettaglio: `${b.el} è ${b.w}×${b.h}: ${b.perche}`,
+      });
+    }
+  }
+  for (const t of r.testoTroncato.slice(0, 6)) {
+    d.push({
+      vista,
+      larghezza,
+      tipo: "testo-tagliato",
+      dettaglio: `${t.el} ha ${t.serve} px di testo in ${t.dentro} px, senza ellissi`,
+    });
+  }
+  return d;
+}
+
+const soloLarghezza = Number(
+  process.argv[process.argv.indexOf("--larghezza") + 1] || 0,
+);
+const larghezze = soloLarghezza
+  ? LARGHEZZE.filter((l) => l.px === soloLarghezza)
+  : LARGHEZZE;
+
+const browser = await chromium.launch({ channel: "chrome" });
+const difetti: Difetto[] = [];
+
+for (const l of larghezze) {
+  const page = await browser.newPage({ viewport: { width: l.px, height: 900 } });
+  for (const v of VISTE) {
+    try {
+      // `domcontentloaded` e non `networkidle`: una griglia con duecento immagini
+      // pigre non smette mai di caricare, e aspettare la quiete della rete faceva
+      // scadere proprio le viste piene — cioè quelle in cui il layout si rompe.
+      await page.goto(BASE + v.percorso, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await page.waitForTimeout(2500);
+      difetti.push(...(await misura(page, v.nome, l.px)));
+    } catch (e) {
+      difetti.push({
+        vista: v.nome,
+        larghezza: l.px,
+        tipo: "non-si-apre",
+        dettaglio: e instanceof Error ? e.message.split("\n")[0]! : String(e),
+      });
+    }
+  }
+  await page.close();
+}
+await browser.close();
+
+if (difetti.length === 0) {
+  console.log(`Nessun difetto su ${VISTE.length} viste × ${larghezze.length} larghezze.`);
+  process.exit(0);
+}
+
+const perTipo = new Map<string, Difetto[]>();
+for (const d of difetti) {
+  if (!perTipo.has(d.tipo)) perTipo.set(d.tipo, []);
+  perTipo.get(d.tipo)!.push(d);
+}
+for (const [tipo, elenco] of perTipo) {
+  console.log(`\n${tipo.toUpperCase()} — ${elenco.length}`);
+  for (const d of elenco) {
+    console.log(`  ${d.vista} @ ${d.larghezza}px: ${d.dettaglio}`);
+  }
+}
+console.log(`\n${difetti.length} difetti in totale.`);
+process.exit(1);

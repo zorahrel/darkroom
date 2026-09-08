@@ -1,3 +1,4 @@
+import { nelGuscioDesktop } from "./guscio";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import {
@@ -54,6 +55,8 @@ export default function App() {
   const [gradeWarns, setGradeWarns] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
+  // Il guscio non cambia durante la sessione: si legge una volta.
+  const desktop = nelGuscioDesktop();
   const pid = currentProject();
 
   // Remember the last-opened project so `/` lands back on it.
@@ -177,11 +180,28 @@ export default function App() {
 
   return (
     <div className="min-h-full flex flex-col">
-      <header ref={header} className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800">
+      {/* Nell'applicazione la barra del titolo del sistema non c'è: i semafori
+          stanno sopra il contenuto. Due conseguenze, entrambe qui.
+
+          Il margine a sinistra è lo spazio dei tre bottoni: senza, il nome
+          "Darkroom" ci finirebbe sotto e non si potrebbe cliccare.
+
+          `data-tauri-drag-region` rende la barra la maniglia della finestra. Senza,
+          una finestra senza barra del titolo non si sposta più — e i bottoni dentro
+          continuano a funzionare, perché il trascinamento parte solo dal vuoto. */}
+      <header
+        ref={header}
+        data-tauri-drag-region={desktop ? "" : undefined}
+        className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800"
+      >
         <div
-          className={
-            "mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
-          }
+          data-tauri-drag-region={desktop ? "" : undefined}
+          /* Il margine dei semafori è in linea e non una classe, e non per pigrizia:
+             `sm:px-4` compare più avanti nel foglio di stile e sopra i 640 px lo
+             scavalcava — misurato, la classe c'era e il nome restava sotto i bottoni.
+             Non è comunque un token di stile: è una misura del guscio. */
+          style={desktop ? { paddingLeft: 92 } : undefined}
+          className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
         >
           {/* Navigation has two floors, and they are visible.
 
@@ -192,7 +212,11 @@ export default function App() {
               areas are always in the bar: from inside a project you go back to
               the tools with one click, not by going back. */}
           <div className="flex items-center gap-2 min-w-0">
-            <Link to="/" className="font-semibold tracking-tight shrink-0" title="Darkroom">
+            <Link
+              to="/"
+              className="inline-flex items-center min-h-11 sm:min-h-0 font-semibold tracking-tight shrink-0"
+              title="Darkroom"
+            >
               Darkroom
             </Link>
             <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
@@ -527,7 +551,10 @@ function ViewTab({
       to={to}
       aria-current={current ? "page" : undefined}
       className={
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[13px] transition-colors " +
+        // `min-h-11` sul telefono (44 px, la misura del polpastrello) e compatto
+        // sopra i 640: col mouse la densità della barra vale più dello spazio, col
+        // dito no. Misurato: queste schede erano 27 px di altezza.
+        "inline-flex items-center gap-1.5 px-2.5 py-1 min-h-11 sm:min-h-0 rounded text-[13px] transition-colors " +
         (current
           ? "bg-neutral-800 text-neutral-100"
           : "text-neutral-400 hover:text-neutral-100")

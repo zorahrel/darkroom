@@ -202,7 +202,9 @@ function Recipe({
     // fills the height available and only scrolls if it exceeds it, so the row
     // does not stretch for long prompts.
     <div className="flex flex-wrap items-stretch gap-x-5 gap-y-2 border-l-2 border-neutral-800 pl-3">
-      <div className="flex shrink-0 flex-col gap-2">
+      {/* `min-w-0` e niente `shrink-0`: su un telefono la colonna teneva la sua
+          larghezza naturale e la riga usciva dallo schermo di 266 px. */}
+      <div className="flex min-w-0 flex-col gap-2">
         <How v={v} />
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Item
@@ -224,7 +226,9 @@ function Recipe({
       {/* `min-w-[16rem]` is the threshold below which the prompt goes back to
           being a column of single words: under that, `flex-wrap` sends it to a
           new line by itself. */}
-      <div className="flex min-w-[16rem] flex-1 flex-col">
+      {/* La soglia di 16rem vale dove ci sono 16rem: su un telefono da 390 px
+          teneva la colonna larga a forza e la riga usciva di 108 px. */}
+      <div className="flex min-w-0 sm:min-w-[16rem] flex-1 flex-col">
         <span className="font-mono text-[9px] uppercase tracking-wide text-amber-500">prompt</span>
         {v.prompt ? (
           <p className="mt-0.5 min-h-0 flex-1 select-text overflow-y-auto whitespace-pre-wrap text-[11px] leading-snug text-neutral-300">

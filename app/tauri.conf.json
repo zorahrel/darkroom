@@ -8,25 +8,24 @@
     "devUrl": "http://localhost:5173"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Darkroom",
-        "width": 1440,
-        "height": 900,
-        "minWidth": 900,
-        "minHeight": 600,
-        "theme": "Dark"
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
-    "icon": ["icons/icon.icns", "icons/128x128.png", "icons/32x32.png"],
-    "copyright": "Copyright © 2026 Attilio Cianci",
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "icon": [
+      "icons/icon.icns",
+      "icons/128x128.png",
+      "icons/32x32.png"
+    ],
+    "copyright": "Copyright \u00a9 2026 Attilio Cianci",
     "category": "Photography",
     "shortDescription": "Culling e rifinitura, in locale",
     "longDescription": "Darkroom: si sceglie cosa vale la pena lavorare, poi lo si lavora. Le fotografie non lasciano il computer, tranne quando si chiede espressamente una rifinitura AI."

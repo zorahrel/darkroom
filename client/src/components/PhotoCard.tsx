@@ -221,7 +221,7 @@ export default function PhotoCard({
       {/* Selection check (visible in selectMode) */}
       {selectMode && (
         <div
-          className={`absolute top-1 left-1 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+          className={`absolute top-1 left-1 z-10 w-11 h-11 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
             selected ? "bg-blue-500 text-white" : "bg-black/60 text-neutral-400 border border-neutral-500"
           }`}
         >
@@ -380,7 +380,7 @@ export default function PhotoCard({
         onClick={togglePicked}
         aria-label={picked ? "Non mi piace più" : "Mi piace"}
         aria-pressed={picked}
-        className={`absolute top-1 left-1 z-20 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${
+        className={`absolute top-1 left-1 z-20 w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-sm transition-all ${
           picked
             ? "bg-rose-500/85 text-white shadow backdrop-blur-sm"
             : "bg-black/40 text-neutral-300 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-rose-300"
@@ -399,7 +399,7 @@ export default function PhotoCard({
           onClick={toggleFavorite}
           disabled={busy}
           aria-label={isFavorite ? "Rimuovi preferita" : "Segna preferita"}
-          className={`absolute top-1 right-1 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${
+          className={`absolute top-1 right-1 w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-sm transition-all ${
             isFavorite
               ? "bg-amber-400 text-amber-950 shadow"
               : "bg-black/40 text-neutral-300 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-amber-300"

@@ -14,6 +14,7 @@ import {
 import * as motore from "../core.ts";
 import { db } from "../db.ts";
 import { BUDGET_TOTALE, sfrattaTutti, statoCache } from "../anteprime.ts";
+import { annulla, pianifica as pianificaRaccolta, raccogli } from "../selecta.ts";
 
 /**
  * Il culling: si guarda, si giudica, si scrive fuori.
@@ -136,6 +137,25 @@ cullingRoutes.get("/api/culling/cache", (c) =>
 
 /** Pota subito, invece di aspettare che ci arrivi da sola. */
 cullingRoutes.post("/api/culling/cache/pota", (c) => c.json(sfrattaTutti()));
+
+/**
+ * La raccolta delle scelte, in due tempi come la scrittura dei sidecar: prima si
+ * dice quanti file e dove, poi si fa.
+ */
+cullingRoutes.post("/api/culling/raccolta/piano", (c) => {
+  const piano = pianificaRaccolta();
+  return c.json(piano ?? { cartella: "", voci: [], daCreare: 0, byteRisparmiati: 0 });
+});
+
+cullingRoutes.post("/api/culling/raccolta", (c) => c.json(raccogli()));
+
+/** Si torna indietro: si tolgono solo i file che la raccolta aveva creato. */
+cullingRoutes.post("/api/culling/raccolta/annulla", async (c) => {
+  const body = await c.req.json<{ cartella?: string }>().catch(() => ({}) as { cartella?: string });
+  const cartella = body.cartella ?? pianificaRaccolta()?.cartella;
+  if (!cartella) return c.json({ error: "non c'è nessuna raccolta da annullare" }, 400);
+  return c.json(annulla(cartella));
+});
 
 /** Se il motore nativo c'è, e cosa sa fare su questa macchina. */
 cullingRoutes.get("/api/culling/motore", async (c) => {
