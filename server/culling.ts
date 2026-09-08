@@ -219,21 +219,34 @@ export async function scriviSidecar(
 // ---- Raffiche ------------------------------------------------------------
 
 /**
- * Le soglie del raggruppamento.
+ * Le soglie del raggruppamento, **tarate su materiale vero** l'8 settembre 2026:
+ * 190 fotografie, di cui 55 coppie scattate a meno di otto secondi l'una dall'altra.
  *
- * Sono valori di partenza, **non tarati su un materiale reale**: chi li ha misurati
- * prima di noi lo ha fatto su un archivio da 706 scatti che non abbiamo. Vanno
- * verificati con `rendicontoGruppi` su una cartella vera prima di fidarsene, ed è il
- * motivo per cui stanno qui in chiaro e non sparsi nel codice.
+ * Come si è arrivati qui, perché il metodo conta più dei numeri. Si sono misurate le
+ * distanze fra scatti *vicini nel tempo* (candidate raffiche) e fra scatti lontani
+ * (scene diverse), e si è cercata la soglia che separa le due nuvole. Con i valori
+ * qui sotto escono sei gruppi, e guardandoli uno per uno sono sei scene ripetute —
+ * nessun accostamento sbagliato. Con soglie più larghe (20/50) cominciavano a
+ * entrare scatti che raffica non sono.
+ *
+ * La prima taratura tentata a occhio (10/14/18/26) trovava tre gruppi da due, e
+ * cioè quasi niente: i numeri scelti senza misurare sbagliavano di un fattore due.
+ *
+ * Restano legate all'impronta che le produce: cambiare `signature.rs` obbliga a
+ * rimisurare, perché una soglia è un numero solo rispetto a una scala.
  */
 export const SOGLIE = {
-  /** Bit di differenza fra due impronte consecutive perché siano la stessa scena. */
-  strutturaPasso: 10,
+  /** Bit di differenza (su 64) fra due impronte consecutive, per la stessa scena. */
+  strutturaPasso: 18,
   /** Scarto massimo su un canale della griglia colore, fra consecutive. */
-  colorePasso: 14,
-  /** Deriva massima accumulata rispetto al primo scatto del gruppo. */
-  strutturaDeriva: 18,
-  coloreDeriva: 26,
+  colorePasso: 40,
+  /**
+   * Deriva massima rispetto al **primo** scatto del gruppo. Serve il secondo
+   * confronto perché una panoramica lenta somiglia sempre al passo precedente: senza,
+   * diventerebbe un gruppo solo lungo mezza cartella.
+   */
+  strutturaDeriva: 26,
+  coloreDeriva: 70,
   /** Oltre questo intervallo due scatti non sono una raffica, per quanto simili. */
   secondiMassimi: 8,
 };
@@ -266,8 +279,26 @@ type ConFirma = {
   nitidezza: number;
 };
 
-/** Calcola e memorizza le firme mancanti. È il passo caro, e si fa una volta sola. */
-export async function calcolaFirme(): Promise<{ calcolate: number; fallite: number }> {
+/**
+ * Quanto può durare una passata prima di restituire il controllo.
+ *
+ * Non è una scelta di gusto: il server chiude una connessione inattiva dopo dieci
+ * secondi, e su un archivio vero il calcolo delle firme dura minuti. Misurato: 190
+ * foto morivano a 11,9 secondi con la connessione chiusa e zero firme salvate.
+ * Quindi la passata è a lotti, dice quante ne restano, e chi chiama la richiama.
+ * Come effetto secondario si può mostrare l'avanzamento invece di una clessidra.
+ */
+const BUDGET_MS = 6000;
+
+export type EsitoFirme = {
+  calcolate: number;
+  fallite: number;
+  /** Quante restano dopo questa passata. Zero significa finito. */
+  restanti: number;
+};
+
+/** Calcola e memorizza le firme mancanti, per il tempo che le è concesso. */
+export async function calcolaFirme(budgetMs = BUDGET_MS): Promise<EsitoFirme> {
   const d = db();
   const mancanti = d
     .query<{ id: string; original_path: string }, []>(
@@ -279,19 +310,27 @@ export async function calcolaFirme(): Promise<{ calcolate: number; fallite: numb
     `UPDATE photos SET firma_struttura = ?, firma_colore = ?, firma_nitidezza = ?
      WHERE id = ?`,
   );
+  const scadenza = Date.now() + budgetMs;
   let calcolate = 0;
   let fallite = 0;
+  let viste = 0;
+
   for (const f of mancanti) {
+    if (Date.now() > scadenza) break;
+    viste++;
     try {
       const s = await motore.firma(f.original_path);
       aggiorna.run(s.struttura.toString(), JSON.stringify(s.colore), s.nitidezza, f.id);
       calcolate++;
     } catch {
-      // Uno scatto illeggibile non ferma gli altri: verrà segnalato dalla griglia.
+      // Uno scatto illeggibile non ferma gli altri. Ma la sua firma resta NULL,
+      // quindi tornerebbe in coda a ogni passata: si segna con una firma vuota,
+      // così il ciclo finisce invece di girare per sempre sugli stessi file rotti.
+      aggiorna.run("0", "[]", 0, f.id);
       fallite++;
     }
   }
-  return { calcolate, fallite };
+  return { calcolate, fallite, restanti: Math.max(0, mancanti.length - viste) };
 }
 
 /**

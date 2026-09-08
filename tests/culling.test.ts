@@ -230,11 +230,17 @@ conMotore("raffiche", () => {
     expect(dopo?.g).toBeNull();
   });
 
-  test("le soglie sono dichiarate in un posto solo", () => {
-    // Se un giorno vanno tarate, si tarano qui: sparse nel codice non si trovano più.
+  test("le soglie sono dichiarate in un posto solo e restano coerenti fra loro", () => {
+    // Se un giorno vanno ritarate, si ritarano qui: sparse nel codice non si trovano.
     expect(SOGLIE.strutturaPasso).toBeGreaterThan(0);
-    expect(SOGLIE.strutturaDeriva).toBeGreaterThanOrEqual(SOGLIE.strutturaPasso);
-    expect(SOGLIE.coloreDeriva).toBeGreaterThanOrEqual(SOGLIE.colorePasso);
+    // La deriva dal primo scatto deve essere più larga del passo fra consecutivi:
+    // al contrario il secondo confronto non lascerebbe passare niente e il gruppo
+    // non potrebbe mai superare i due membri.
+    expect(SOGLIE.strutturaDeriva).toBeGreaterThan(SOGLIE.strutturaPasso);
+    expect(SOGLIE.coloreDeriva).toBeGreaterThan(SOGLIE.colorePasso);
+    // Un'impronta è di 64 bit: una soglia oltre i 32 accetterebbe il caso puro.
+    expect(SOGLIE.strutturaPasso).toBeLessThan(32);
+    expect(SOGLIE.strutturaDeriva).toBeLessThan(32);
   });
 });
 

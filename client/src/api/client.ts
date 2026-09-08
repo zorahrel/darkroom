@@ -50,6 +50,9 @@ import type {
   StudioProject,
   Catalogue,
   StartOutcome,
+  RendicontoCulling,
+  PianoSidecar,
+  EsitoSidecar,
 } from "./types";
 
 /** Every REST endpoint the client calls, one method each. */
@@ -59,6 +62,46 @@ export const api = {
     jsonFetch<{ photos: PhotoListItem[] }>(
       `/api/photos?filter=${encodeURIComponent(filter)}`,
     ),
+  // ---- Culling ----------------------------------------------------------
+  // La scrittura dei sidecar è in due tempi apposta: `pianoSidecar` dice quanti
+  // file e dove, `scriviSidecar` li scrive. Quei file finiscono nella cartella
+  // di un cliente accanto ai suoi RAW.
+  rendicontoCulling: () => jsonFetch<RendicontoCulling>("/api/culling/rendiconto"),
+  giudica: (id: string, g: { stelle?: number | null; colore?: string | null }) =>
+    jsonFetch<{ ok: true; giudizio: { stelle: number | null; colore: string | null } }>(
+      `/api/culling/${encodeURIComponent(id)}/giudizio`,
+      { method: "PUT", body: JSON.stringify(g) },
+    ),
+  pianoSidecar: (photo_ids?: string[]) =>
+    jsonFetch<PianoSidecar>("/api/culling/sidecar/piano", {
+      method: "POST",
+      body: JSON.stringify({ photo_ids }),
+    }),
+  scriviSidecar: (photo_ids?: string[]) =>
+    jsonFetch<EsitoSidecar>("/api/culling/sidecar/scrivi", {
+      method: "POST",
+      body: JSON.stringify({ photo_ids }),
+    }),
+  calcolaFirme: () =>
+    jsonFetch<{ calcolate: number; fallite: number; restanti: number }>(
+      "/api/culling/firme",
+      { method: "POST" },
+    ),
+  raggruppaRaffiche: () =>
+    jsonFetch<{ gruppi: number; scatti: number; manualiRispettate: number }>(
+      "/api/culling/raffiche",
+      { method: "POST" },
+    ),
+  correggiGruppo: (id: string, gruppo: string | null) =>
+    jsonFetch(`/api/culling/${encodeURIComponent(id)}/gruppo`, {
+      method: "PUT",
+      body: JSON.stringify({ gruppo }),
+    }),
+  motoreCulling: () =>
+    jsonFetch<{ disponibile: boolean; come?: string; formati?: { raw: string[] } }>(
+      "/api/culling/motore",
+    ),
+
   getPhoto: (id: string) =>
     jsonFetch<PhotoDetail>(`/api/photos/${encodeURIComponent(id)}`),
   setFavorite: (id: string, version_id: number | null) =>

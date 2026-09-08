@@ -18,8 +18,18 @@ import { cpus } from "node:os";
 
 const RADICE = new URL("..", import.meta.url).pathname;
 
-/** Quanti processi tenere. Metà dei core: l'altra metà serve a chi sta usando il Mac. */
-const QUANTI = Math.max(1, Math.min(6, Math.floor(cpus().length / 2)));
+/**
+ * Quanti processi tenere. Metà dei core: l'altra metà serve a chi sta usando il Mac.
+ *
+ * `DARKROOM_CORE_PROCESSI` lo abbassa. Serve alle prove, dove il pool intero è carico
+ * gratuito che rende lente — e a volte rosse per scadenza — prove che non c'entrano
+ * niente col motore.
+ */
+const QUANTI = (() => {
+  const dichiarato = Number(process.env.DARKROOM_CORE_PROCESSI);
+  if (Number.isFinite(dichiarato) && dichiarato >= 1) return Math.floor(dichiarato);
+  return Math.max(1, Math.min(6, Math.floor(cpus().length / 2)));
+})();
 
 /** Oltre questo tempo una richiesta è considerata persa e il processo va riavviato. */
 const ATTESA_MS = 60_000;

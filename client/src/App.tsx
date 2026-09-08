@@ -264,6 +264,12 @@ export default function App() {
               })}
               {activeProject.views.includes("photo") && (
                 <>
+                  {/* Il culling sta prima dell'albero perche' viene prima nel
+                      lavoro: si sceglie cosa lavorare, poi si guarda cosa e' nato
+                      da cosa. */}
+                  <ViewTab to={`/p/${pid}/culling`} current={location.pathname.includes("/culling")}>
+                    Culling
+                  </ViewTab>
                   <ViewTab to={`/p/${pid}/tree`} current={location.pathname.includes("/tree")}>
                     Albero
                   </ViewTab>

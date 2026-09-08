@@ -21,6 +21,7 @@ const VideoPick = lazy(() => import("./pages/VideoPick"));
 // The pick view: as heavy as the grid, so code-split like the others.
 const TreePage = lazy(() => import("./pages/Tree"));
 const ReferencesPage = lazy(() => import("./pages/References"));
+const CullingPage = lazy(() => import("./pages/Culling"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
@@ -90,6 +91,14 @@ ReactDOM.createRoot(root).render(
             element={
               <Suspense fallback={<PageFallback />}>
                 <ReferencesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/culling"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <CullingPage />
               </Suspense>
             }
           />

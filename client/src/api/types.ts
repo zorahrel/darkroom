@@ -19,6 +19,41 @@ export type PhotoListItem = {
   cover_of?: string | null;
   /** Provider of the render shown: 'higgsfield' = master, anything else = web draft. */
   shown_provider: string | null;
+  /** Culling: da 0 a 5. `null` è «non ancora giudicata», che non è «zero stelle». */
+  culling_stelle?: number | null;
+  culling_colore?: string | null;
+  /** Gruppo della raffica, se lo scatto ne fa parte. */
+  culling_gruppo?: string | null;
+  culling_primaria?: number;
+};
+
+/** Il conto di fine culling. I tre stati più i non giudicati fanno il totale. */
+export type RendicontoCulling = {
+  totale: number;
+  tenuti: number;
+  scartati: number;
+  nonGiudicati: number;
+  perColore: Record<string, number>;
+  perStelle: Record<string, number>;
+};
+
+export type PianoSidecar = {
+  righe: {
+    photoId: string;
+    file: string;
+    sidecar: string;
+    esisteva: boolean;
+    cambia: boolean;
+    errore?: string;
+  }[];
+  daScrivere: number;
+  cartelle: string[];
+};
+
+export type EsitoSidecar = {
+  scritti: number;
+  invariati: number;
+  falliti: { photoId: string; errore: string }[];
 };
 
 export type Version = {

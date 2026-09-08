@@ -88,6 +88,18 @@ photoRoutes.get("/api/photos", (c) => {
     where.push("NOT EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)");
   } else if (filter === "assigned") {
     where.push("EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id)");
+  } else if (filter === "non_giudicate") {
+    // La coda del culling: cio' che non e' ancora stato guardato. Distinto da
+    // "scartate": una foto a zero stelle e' stata giudicata, e non torna in coda.
+    where.push("p.culling_stelle IS NULL AND p.culling_colore IS NULL");
+  } else if (filter === "tenute") {
+    where.push("(p.culling_stelle > 0 OR p.culling_colore IS NOT NULL)");
+  } else if (filter === "scartate") {
+    where.push("p.culling_stelle = 0 AND p.culling_colore IS NULL");
+  } else if (filter === "primarie") {
+    // Una per raffica, piu' gli scatti che raffica non sono: e' la cartella
+    // vista senza i doppioni.
+    where.push("(p.culling_primaria = 1 OR p.culling_gruppo IS NULL)");
   }
   const sql = `
     SELECT
@@ -99,6 +111,10 @@ photoRoutes.get("/api/photos", (c) => {
       p.picked,
       p.skipped,
       p.skip_reason,
+      p.culling_stelle,
+      p.culling_colore,
+      p.culling_gruppo,
+      p.culling_primaria,
       -- Il post di cui questa foto e' la COPERTINA. Serve nella vista
       -- "Copertine": sette foto affiancate senza il titolo di cio' che aprono
       -- sono sette foto qualsiasi, e la domanda vera e' se ognuna promette il

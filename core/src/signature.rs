@@ -72,23 +72,67 @@ pub fn firma(img: &Immagine) -> Firma {
     }
 }
 
-/// dHash: si confronta ogni pixel col suo vicino di destra su una griglia 9×8.
+/// Luminanza media di un riquadro. La media, non il pixel al centro: e' la
+/// differenza fra un'impronta e un dado.
+///
+/// Misurato, ed e' il motivo per cui questa funzione esiste: campionando singoli
+/// pixel su 190 fotografie vere, la distanza fra due scatti della stessa raffica
+/// usciva mediana 30 bit su 64 contro i 32 di due scene senza rapporto -- cioe'
+/// nessuna separazione, il caso puro. Due scatti consecutivi differiscono sempre un
+/// po', e un pixel solo trasforma quel poco in un bit casuale; la media del riquadro
+/// lo assorbe.
+fn media_grigio(img: &Immagine, x0: usize, y0: usize, w: usize, h: usize) -> f32 {
+    let (iw, ih) = (img.larghezza as usize, img.altezza as usize);
+    let x1 = (x0 + w).min(iw);
+    let y1 = (y0 + h).min(ih);
+    if x0 >= x1 || y0 >= y1 {
+        return 0.0;
+    }
+    // Campionare tutto un riquadro di 512/9 px per lato costa poco e non serve:
+    // si prende un reticolo, ma abbastanza fitto da fare una media vera.
+    let passo = ((x1 - x0).min(y1 - y0) / 6).max(1);
+    let mut somma = 0f32;
+    let mut quanti = 0f32;
+    let mut y = y0;
+    while y < y1 {
+        let mut x = x0;
+        while x < x1 {
+            somma += grigio(img, x, y);
+            quanti += 1.0;
+            x += passo;
+        }
+        y += passo;
+    }
+    if quanti == 0.0 {
+        0.0
+    } else {
+        somma / quanti
+    }
+}
+
+/// dHash: si confronta la luminanza media di ogni riquadro con quella del riquadro
+/// alla sua destra, su una griglia 9×8.
+///
 /// Confrontare vicini invece di una soglia assoluta e' cio' che rende l'impronta
-/// indifferente a un cambio di esposizione.
+/// indifferente a un cambio di esposizione: se la fotografia si scurisce tutta,
+/// l'ordine fra due riquadri resta quello.
 pub fn struttura(img: &Immagine) -> u64 {
     let (iw, ih) = (img.larghezza as usize, img.altezza as usize);
     if iw < 2 || ih < 2 {
         return 0;
     }
+    // Nove colonne per ottenere otto differenze per riga.
+    let colonne = LATO_DHASH + 1;
+    let pw = (iw / colonne).max(1);
+    let ph = (ih / LATO_DHASH).max(1);
+
     let mut bit = 0u64;
     let mut n = 0;
     for r in 0..LATO_DHASH {
-        let y = r * ih / LATO_DHASH + ih / (LATO_DHASH * 2);
-        let y = y.min(ih - 1);
-        let mut precedente = grigio(img, 0, y);
-        for c in 1..=LATO_DHASH {
-            let x = (c * iw / (LATO_DHASH + 1)).min(iw - 1);
-            let attuale = grigio(img, x, y);
+        let y = r * ph;
+        let mut precedente = media_grigio(img, 0, y, pw, ph);
+        for c in 1..colonne {
+            let attuale = media_grigio(img, c * pw, y, pw, ph);
             if attuale > precedente {
                 bit |= 1 << n;
             }

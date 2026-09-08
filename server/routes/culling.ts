@@ -71,8 +71,15 @@ cullingRoutes.post("/api/culling/sidecar/scrivi", async (c) => {
   return c.json(await scriviSidecar(body.photo_ids, body.vocabolario ?? "it"));
 });
 
-/** Il passo caro: si fa una volta, e le firme restano. */
-cullingRoutes.post("/api/culling/firme", async (c) => c.json(await calcolaFirme()));
+/**
+ * Il passo caro. Una passata dura al massimo qualche secondo e dice quante ne
+ * restano: il server chiude le connessioni inattive dopo dieci secondi, e un
+ * archivio vero ne richiede molti di più.
+ */
+cullingRoutes.post("/api/culling/firme", async (c) => {
+  const budget = Number(c.req.query("budget_ms"));
+  return c.json(await calcolaFirme(Number.isFinite(budget) && budget > 0 ? budget : undefined));
+});
 
 cullingRoutes.post("/api/culling/raffiche", (c) => c.json(raggruppa()));
 

@@ -21,5 +21,9 @@ process.env.DARKROOM_DB = join(root, "photos.db");
 process.env.DARKROOM_PROJECTS_DIR = join(root, "projects");
 // Keep the optional provider off regardless of what the dev machine has.
 process.env.HIGGSFIELD_ENABLED = "0";
+// Il motore nativo apre un processo per core: in produzione è quello che rende
+// istantanea una griglia da duemila scatti, in una suite di prove è carico che
+// rallenta — e fa scadere — prove che col motore non c'entrano.
+process.env.DARKROOM_CORE_PROCESSI = "2";
 
 export const TEST_ROOT = root;
