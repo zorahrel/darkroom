@@ -211,7 +211,15 @@ async function evalOnPage<T>(wsUrl: string, expression: string, timeoutMs = 5000
     const timer = setTimeout(() => finish(undefined), timeoutMs);
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
-      ws.send(JSON.stringify({ id: 1, method: "Runtime.evaluate", params: { expression, returnByValue: true } }));
+      ws.send(
+        JSON.stringify({
+          id: 1,
+          method: "Runtime.evaluate",
+          // awaitPromise: la sonda della sessione interroga /backend-api/me ed e'
+          // quindi async; senza questo tornerebbe il Promise invece del suo valore.
+          params: { expression, returnByValue: true, awaitPromise: true },
+        }),
+      );
     };
     ws.onmessage = (ev) => {
       try {
@@ -256,17 +264,50 @@ export async function checkChatgptSession(): Promise<{ alive: boolean; logged_in
   if (!(await pageResponds(page.webSocketDebuggerUrl))) {
     return { alive: false, logged_in: false, reason: "renderer bloccato" };
   }
-  const probe = await evalOnPage<{ composer: boolean; wall: boolean }>(
+  // Il testo a schermo e' un indizio in ritardo: l'08/09 il token era gia' morto
+  // alle 11:10 e il dialog "La sessione e' scaduta" non era ancora comparso, cosi'
+  // due job sono partiti lo stesso e sono falliti con "references not attached" —
+  // un messaggio che accusa la ricetta di un difetto della sessione. Si chiede
+  // anche alla rete: /backend-api/me risponde 401 `token_revoked` appena il token
+  // e' invalidato, mentre /api/auth/session continua a servire un accessToken
+  // (con nome ed email dell'utente) e sembra tutto a posto.
+  const probe = await evalOnPage<{ composer: boolean; wall: boolean; api: number | null }>(
     page.webSocketDebuggerUrl,
-    `(() => {
+    `(async () => {
        const t = (document.body && document.body.innerText || "").slice(0, 4000);
+       let api = null;
+       try {
+         const s = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
+         const j = await s.json();
+         const r = await fetch('/backend-api/me', {
+           credentials: 'include',
+           cache: 'no-store',
+           headers: j && j.accessToken ? { Authorization: 'Bearer ' + j.accessToken } : {},
+         });
+         // Senza Authorization il backend risponde 200 con un'identita' vuota
+         // (email ""), quindi il solo status non basta: si guarda anche dentro.
+         api = r.status;
+         if (r.status === 200) {
+           const me = await r.json().catch(() => null);
+           if (!me || !me.email) api = 401;
+         }
+       } catch { api = null; }
        return {
          composer: !!document.querySelector('#prompt-textarea, form [contenteditable="true"]'),
          wall: /sessione .{0,3}scaduta|session expired|effettua di nuovo l|log in to continue|Accedi con|Sign up for free/i.test(t),
+         api,
        };
      })()`,
+    8000,
   );
   if (!probe) return { alive: true, logged_in: false, reason: "pagina non interrogabile" };
+  if (probe.api === 401 || probe.api === 403) {
+    return {
+      alive: true,
+      logged_in: false,
+      reason: "token ChatGPT revocato (backend 401): rifai il login nella finestra dedicata",
+    };
+  }
   if (probe.wall || !probe.composer) {
     return { alive: true, logged_in: false, reason: "sessione ChatGPT scaduta: rifai il login nella finestra dedicata" };
   }
