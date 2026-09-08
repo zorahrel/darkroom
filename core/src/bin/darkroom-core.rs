@@ -7,7 +7,7 @@
 //!   Pagare l'avvio a ogni foto e' precisamente il difetto da 1859 ms che stiamo togliendo.
 //! - **comando**: un'operazione e via, per gli script e per guardare cosa succede a mano.
 
-use darkroom_core::{cache, decode, preview, signature, Errore, Risultato};
+use darkroom_core::{cache, decode, preview, signature, xmp, Errore, Risultato};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -41,6 +41,28 @@ enum Richiesta {
     Diagnosi { file: String },
     /// La firma percettiva, per il raggruppamento delle raffiche.
     Firma { file: String },
+    /// Il giudizio scritto nel sidecar accanto al file, se c'e'.
+    XmpLeggi { file: String },
+    /// Cosa farebbe una scrittura, senza farla.
+    XmpPianifica {
+        file: String,
+        #[serde(default)]
+        stelle: Option<u8>,
+        #[serde(default)]
+        colore: Option<String>,
+        #[serde(default)]
+        vocabolario: Option<String>,
+    },
+    /// Scrive il sidecar: copia di sicurezza, modifica mirata, sostituzione atomica.
+    XmpScrivi {
+        file: String,
+        #[serde(default)]
+        stelle: Option<u8>,
+        #[serde(default)]
+        colore: Option<String>,
+        #[serde(default)]
+        vocabolario: Option<String>,
+    },
 }
 
 fn qualita_predefinita() -> u8 {
@@ -181,6 +203,42 @@ fn fai_firma(file: &str) -> Risultato<serde_json::Value> {
     }))
 }
 
+fn giudizio_da(stelle: Option<u8>, colore: Option<String>) -> Risultato<xmp::Giudizio> {
+    let colore = match colore.as_deref() {
+        None | Some("") => None,
+        Some(n) => Some(xmp::Colore::da_nome(n).ok_or_else(|| Errore::Malformato {
+            file: n.to_string(),
+            dettaglio: format!("colore sconosciuto: {n}"),
+        })?),
+    };
+    if let Some(s) = stelle {
+        if s > 5 {
+            return Err(Errore::Malformato {
+                file: String::new(),
+                dettaglio: format!("le stelle vanno da 0 a 5, ricevuto {s}"),
+            });
+        }
+    }
+    Ok(xmp::Giudizio { stelle, colore })
+}
+
+fn vocabolario_da(nome: Option<String>) -> xmp::Vocabolario {
+    nome.as_deref()
+        .and_then(xmp::Vocabolario::da_nome)
+        // L'italiano e' il predefinito perche' e' la lingua di chi usa questa
+        // installazione: un'etichetta scritta nella lingua sbagliata non compare.
+        .unwrap_or(xmp::Vocabolario::Italiano)
+}
+
+fn piano_in_json(p: &xmp::Piano) -> serde_json::Value {
+    serde_json::json!({
+        "sidecar": p.sidecar.to_string_lossy(),
+        "esisteva": p.esisteva,
+        "backup": p.backup.as_ref().map(|b| b.to_string_lossy().into_owned()),
+        "cambia": p.cambia,
+    })
+}
+
 fn esegui(r: Richiesta) -> Risposta {
     let esito = match r {
         Richiesta::Ping => Ok(serde_json::json!({
@@ -199,6 +257,26 @@ fn esegui(r: Richiesta) -> Risposta {
         }
         Richiesta::Diagnosi { file } => fai_diagnosi(&file),
         Richiesta::Firma { file } => fai_firma(&file),
+        Richiesta::XmpLeggi { file } => xmp::leggi(Path::new(&file)).map(|g| {
+            serde_json::json!({
+                "file": file,
+                "stelle": g.stelle,
+                "colore": g.colore.map(|c| c.nome()),
+                "sidecar": xmp::percorso_sidecar(Path::new(&file)).to_string_lossy(),
+            })
+        }),
+        Richiesta::XmpPianifica { file, stelle, colore, vocabolario } => {
+            giudizio_da(stelle, colore).and_then(|g| {
+                xmp::pianifica(Path::new(&file), &g, vocabolario_da(vocabolario))
+                    .map(|p| piano_in_json(&p))
+            })
+        }
+        Richiesta::XmpScrivi { file, stelle, colore, vocabolario } => {
+            giudizio_da(stelle, colore).and_then(|g| {
+                xmp::scrivi(Path::new(&file), &g, vocabolario_da(vocabolario))
+                    .map(|p| piano_in_json(&p))
+            })
+        }
     };
     match esito {
         Ok(v) => Risposta::Ok(v),

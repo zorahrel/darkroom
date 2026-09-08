@@ -396,6 +396,46 @@ export function initSchemaOn(d: Database): void {
     d.run("ALTER TABLE jobs ADD COLUMN input_path TEXT");
   }
 
+  // ---- Culling ------------------------------------------------------------
+  // Il giudizio dato allo scatto mentre si sceglie cosa lavorare. Distinto dalla
+  // stella della versione, che dice quale *render* di una foto e' quello buono:
+  // qui si dice se lo scatto merita di essere lavorato, prima che esista un render.
+  //
+  // NULL non e' zero. Una foto senza stelle e' "non ancora giudicata", una a zero
+  // stelle e' "guardata e scartata", e chi riprende il lavoro il giorno dopo deve
+  // poterle distinguere.
+  if (!hasColumn(d, "photos", "culling_stelle")) {
+    d.run("ALTER TABLE photos ADD COLUMN culling_stelle INTEGER");
+  }
+  // rosso | giallo | verde | blu | viola. Il colore esce nel sidecar XMP.
+  if (!hasColumn(d, "photos", "culling_colore")) {
+    d.run("ALTER TABLE photos ADD COLUMN culling_colore TEXT");
+  }
+  // Gruppo della raffica a cui lo scatto appartiene, e se ne e' la primaria.
+  if (!hasColumn(d, "photos", "culling_gruppo")) {
+    d.run("ALTER TABLE photos ADD COLUMN culling_gruppo TEXT");
+  }
+  if (!hasColumn(d, "photos", "culling_primaria")) {
+    d.run("ALTER TABLE photos ADD COLUMN culling_primaria INTEGER NOT NULL DEFAULT 0");
+  }
+  // Vero quando il raggruppamento e' stato corretto a mano: le correzioni umane
+  // sopravvivono a un nuovo giro dell'algoritmo, le sue no.
+  if (!hasColumn(d, "photos", "culling_gruppo_manuale")) {
+    d.run("ALTER TABLE photos ADD COLUMN culling_gruppo_manuale INTEGER NOT NULL DEFAULT 0");
+  }
+  // Firma percettiva, calcolata dal motore: struttura (64 bit come stringa,
+  // perche' SQLite non ha interi senza segno), colore, nitidezza.
+  if (!hasColumn(d, "photos", "firma_struttura")) {
+    d.run("ALTER TABLE photos ADD COLUMN firma_struttura TEXT");
+  }
+  if (!hasColumn(d, "photos", "firma_colore")) {
+    d.run("ALTER TABLE photos ADD COLUMN firma_colore TEXT");
+  }
+  if (!hasColumn(d, "photos", "firma_nitidezza")) {
+    d.run("ALTER TABLE photos ADD COLUMN firma_nitidezza REAL");
+  }
+  d.run("CREATE INDEX IF NOT EXISTS photos_culling_gruppo ON photos(culling_gruppo)");
+
   // ---- Storyboard ---------------------------------------------------------
   // A storyboard is an ordinary project whose photos are panels: same
   // versioning, same job queue, plus an order and a duration. A photo gallery
@@ -523,6 +563,14 @@ export type PhotoRow = {
   extra_instructions: string | null;
   grade_override: string | null;
   feedback: string | null;
+  culling_stelle: number | null;
+  culling_colore: string | null;
+  culling_gruppo: string | null;
+  culling_primaria: number;
+  culling_gruppo_manuale: number;
+  firma_struttura: string | null;
+  firma_colore: string | null;
+  firma_nitidezza: number | null;
   /** "Like": 1 = I keep it. Independent of the post and of the favourite version. */
   picked: number;
   /** 1 = ChatGPT refuses this photo: do not enqueue it again. */

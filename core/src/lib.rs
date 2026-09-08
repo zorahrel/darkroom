@@ -14,6 +14,7 @@ pub mod error;
 pub mod preview;
 pub mod signature;
 pub mod tiff;
+pub mod xmp;
 
 pub use error::{Errore, Risultato};
 pub use preview::{Immagine, Livello};

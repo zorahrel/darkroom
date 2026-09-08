@@ -288,3 +288,74 @@ export async function formati(): Promise<{ raw: string[]; altri: string[] }> {
   const r = await chiedi({ cmd: "formati" });
   return { raw: (r.raw as string[]) ?? [], altri: (r.altri as string[]) ?? [] };
 }
+
+// ---- Sidecar XMP ---------------------------------------------------------
+
+export type GiudizioXmp = { stelle: number | null; colore: string | null };
+
+export type PianoXmp = {
+  sidecar: string;
+  esisteva: boolean;
+  backup: string | null;
+  /** Falso quando il file direbbe già quello che stiamo per scrivergli. */
+  cambia: boolean;
+};
+
+/** Il giudizio scritto nel sidecar accanto al file, se ce n'è uno. */
+export async function xmpLeggi(file: string): Promise<GiudizioXmp & { sidecar: string }> {
+  const r = await chiedi({ cmd: "xmp_leggi", file });
+  if (r.errore) throw new ErroreMotore(String(r.errore), String(r.codice ?? ""), file);
+  return {
+    stelle: r.stelle == null ? null : Number(r.stelle),
+    colore: r.colore == null ? null : String(r.colore),
+    sidecar: String(r.sidecar),
+  };
+}
+
+/**
+ * Cosa farebbe una scrittura, senza farla.
+ *
+ * Serve a dire quanti file e dove **prima** di toccarli: scrivere trecento sidecar
+ * nella cartella di un cliente non è un'operazione che si scopre dopo.
+ */
+export async function xmpPianifica(
+  file: string,
+  g: GiudizioXmp,
+  vocabolario = "it",
+): Promise<PianoXmp> {
+  const r = await chiedi({
+    cmd: "xmp_pianifica",
+    file,
+    stelle: g.stelle,
+    colore: g.colore,
+    vocabolario,
+  });
+  if (r.errore) throw new ErroreMotore(String(r.errore), String(r.codice ?? ""), file);
+  return pianoDa(r);
+}
+
+/** Scrive il sidecar: copia di sicurezza, modifica mirata, sostituzione atomica. */
+export async function xmpScrivi(
+  file: string,
+  g: GiudizioXmp,
+  vocabolario = "it",
+): Promise<PianoXmp> {
+  const r = await chiedi({
+    cmd: "xmp_scrivi",
+    file,
+    stelle: g.stelle,
+    colore: g.colore,
+    vocabolario,
+  });
+  if (r.errore) throw new ErroreMotore(String(r.errore), String(r.codice ?? ""), file);
+  return pianoDa(r);
+}
+
+function pianoDa(r: RispostaMotore): PianoXmp {
+  return {
+    sidecar: String(r.sidecar),
+    esisteva: Boolean(r.esisteva),
+    backup: r.backup == null ? null : String(r.backup),
+    cambia: Boolean(r.cambia),
+  };
+}
