@@ -712,12 +712,23 @@ async def attach_with_retries(cdp: CDP, primary: list, refs: list, tag: str,
     comunque il tempo dell'upload e viene contato come errore, quindi ritentare
     subito costa meno che rimetterlo in coda dopo. Ogni tentativo riparte da una
     chat pulita, che è ciò che di solito sblocca il composer."""
+    want = len(primary) + len(refs)
     for i in range(1, attempts + 1):
         got = await attach_with_fallback(cdp, primary, refs, tag)
-        if got:
+        if got and len(got) == want:
             if i > 1:
                 log_line(tag, f"allegato al tentativo {i}/{attempts}")
             return got
+        if got:
+            # Degradato: il primario e' salito, i riferimenti no. NON e' un
+            # successo, perche' il prompt PARLA di quelle immagini ("gli
+            # occhiali dell'immagine allegata", "l'ultima e' la luce"): senza,
+            # il modello inventa cio' che crede e la versione viene registrata
+            # come se i riferimenti ci fossero. E' esattamente il difetto
+            # sopravvissuto a 17 generazioni fra il v54 e il v70 — gli occhiali
+            # descritti a parole e mai allegati — e nessuno se n'era accorto
+            # perche' il fallback taceva. Meglio ritentare, e alla fine fallire.
+            log_line(tag, f"allegati {len(got)}/{want}: i riferimenti non sono saliti, non genero a vuoto")
         if i < attempts:
             # Pausa crescente: se la pagina è sotto pressione, insistere subito
             # la peggiora.
@@ -759,7 +770,12 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             await new_chat(cdp)
             attached = await attach_with_retries(cdp, [str(resized)], ref_paths, image.name)
             if not attached:
-                raise RuntimeError("image not attached")
+                raise RuntimeError(
+                    "image not attached"
+                    if not ref_paths
+                    else f"references not attached ({len(ref_paths)} requested) — "
+                    "the prompt talks about them, generating without would be a lie"
+                )
 
             baseline = await snapshot_image_srcs(cdp)
             await send_prompt(cdp, prompt)

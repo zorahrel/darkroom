@@ -7,7 +7,7 @@ import { mkdirSync, existsSync, statSync, renameSync } from "node:fs";
 import { acquireRunnerLock } from "./runnerLock.ts";
 import { RUNNER_LOCK, BACKEND_USES_BROWSER } from "./config.ts";
 import { join } from "node:path";
-import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, restartChatgptBrowser } from "./worker.ts";
+import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, checkChatgptSession, restartChatgptBrowser } from "./worker.ts";
 import { runWorkerCodex } from "./worker-codex.ts";
 import { runWorkerCodexHttp } from "./worker-codex-http.ts";
 import { runWorkerOpenAi, runWorkerOpenAiGenerate } from "./worker-openai.ts";
@@ -216,6 +216,8 @@ const JOB_GAP_MS = Number(process.env.JOB_GAP_MS ?? 20000);
 const JOB_GAP_JITTER_MS = Number(process.env.JOB_GAP_JITTER_MS ?? 15000);
 let consecutiveTimeouts = 0;
 let pausedUntilMs = 0;
+/** Ultimo avviso "sessione scaduta": senza, la pausa stamperebbe una riga al minuto. */
+let lastLoginWarnMs = 0;
 // Guard against an unrecoverable browser: after too many restarts in a row
 // without a successful job, back off long instead of hammering kill+relaunch.
 let consecutiveBrowserRestarts = 0;
@@ -415,6 +417,23 @@ async function loop() {
     if (!next) {
       await sleep(1500);
       continue;
+    }
+    // Sessione ChatGPT scaduta: non si consuma la coda contro un muro di login.
+    // L'08/09 tre job hanno macinato ~5 minuti di tentativi a testa (upload che
+    // "non si posano", composer introvabile) perche' la pagina mostrava
+    // "Effettua di nuovo l'accesso" e nessuno lo guardava. Un job fallito qui
+    // non e' un difetto della ricetta ed e' rumore nelle statistiche: si
+    // aspetta, e il motivo e' leggibile in /api/health.
+    if (next.job.backend !== "higgsfield" && next.job.backend !== "openai") {
+      const s = await checkChatgptSession();
+      if (s.alive && !s.logged_in) {
+        if (Date.now() - lastLoginWarnMs > 5 * 60 * 1000) {
+          lastLoginWarnMs = Date.now();
+          console.log(`[jobs] in pausa: ${s.reason ?? "sessione ChatGPT non valida"}`);
+        }
+        pausedUntilMs = Date.now() + 60 * 1000;
+        continue;
+      }
     }
     // Process the job in ITS project's context so db()/genDir() resolve there.
     await withProject(next.pid, () => processJob(next.job));

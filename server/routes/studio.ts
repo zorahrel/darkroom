@@ -13,7 +13,7 @@ import {
 } from "../project.ts";
 import { getRunnerStatus, jobsSummary } from "../jobs.ts";
 import { addSource, listSources, removeSource, rescanSources } from "../sources.ts";
-import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, launchChatgptBrowser } from "../worker.ts";
+import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, checkChatgptSession, launchChatgptBrowser } from "../worker.ts";
 
 /** Worker health and the multi-project overview. */
 export const studioRoutes = new Hono();
@@ -63,14 +63,21 @@ function hasOpenAiVersions(): boolean {
 // ---- API: health -----------------------------------------------------------
 
 studioRoutes.get("/api/health", async (c) => {
-  const browser = await checkChatgptBrowserAlive();
+  const s = await checkChatgptSession();
+  // `browser` resta "il worker puo' lavorare", che e' la domanda a cui la UI
+  // reagisce: un Chrome acceso ma sloggato non puo', e prima rispondeva di si'.
+  const browser = s.alive && s.logged_in;
   return c.json({
     browser,
+    browser_alive: s.alive,
+    logged_in: s.logged_in,
     openclaw: browser, // legacy alias for older clients
     cdp_url: CHATGPT_CDP_URL,
     hint: browser
       ? null
-      : `ChatGPT browser non avviato. POST /api/browser/launch o usa il bottone in UI.`,
+      : s.alive
+        ? `${s.reason ?? "sessione non valida"} — apri la finestra ChatGPT dedicata e accedi.`
+        : `ChatGPT browser non avviato. POST /api/browser/launch o usa il bottone in UI.`,
   });
 });
 

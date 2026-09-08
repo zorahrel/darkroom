@@ -199,31 +199,78 @@ function truncate(s: string, max = 500): string {
 /** Open a CDP page target and confirm its renderer answers a trivial eval.
  *  Catches the failure mode where Chrome's HTTP endpoint is up but the page
  *  renderer is hung — /json/version still 200s while every JS eval times out. */
-async function pageResponds(wsUrl: string, timeoutMs = 5000): Promise<boolean> {
+async function evalOnPage<T>(wsUrl: string, expression: string, timeoutMs = 5000): Promise<T | undefined> {
   return new Promise((resolve) => {
     let done = false;
-    const finish = (ok: boolean) => {
+    const finish = (v: T | undefined) => {
       if (done) return;
       done = true;
       try { ws.close(); } catch {}
-      resolve(ok);
+      resolve(v);
     };
-    const timer = setTimeout(() => finish(false), timeoutMs);
+    const timer = setTimeout(() => finish(undefined), timeoutMs);
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
-      ws.send(JSON.stringify({ id: 1, method: "Runtime.evaluate", params: { expression: "1+1", returnByValue: true } }));
+      ws.send(JSON.stringify({ id: 1, method: "Runtime.evaluate", params: { expression, returnByValue: true } }));
     };
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
         if (msg.id === 1) {
           clearTimeout(timer);
-          finish(msg?.result?.result?.value === 2);
+          finish(msg?.result?.result?.value as T);
         }
       } catch {}
     };
-    ws.onerror = () => { clearTimeout(timer); finish(false); };
+    ws.onerror = () => { clearTimeout(timer); finish(undefined); };
   });
+}
+
+async function pageResponds(wsUrl: string, timeoutMs = 5000): Promise<boolean> {
+  return (await evalOnPage<number>(wsUrl, "1+1", timeoutMs)) === 2;
+}
+
+/** Is the ChatGPT tab still LOGGED IN?
+ *
+ *  Nasce da un pomeriggio buttato l'08/09: la sessione era scaduta ("La
+ *  sessione e' scaduta — Effettua di nuovo l'accesso"), ogni job falliva con
+ *  "composer not found" o "attachments did not settle", e /api/health
+ *  rispondeva `browser: true` perche' il renderer, semplicemente, rispondeva.
+ *  Chrome acceso e ChatGPT sloggato sono lo stesso stato per un ping, e sono
+ *  stati opposti per la coda: il banner "Browser offline" restava spento mentre
+ *  niente poteva funzionare. Qui si guarda la cosa che serve davvero — il
+ *  composer — e la si distingue dal muro di login. */
+export async function checkChatgptSession(): Promise<{ alive: boolean; logged_in: boolean; reason?: string }> {
+  let pages: Array<{ type?: string; url?: string; webSocketDebuggerUrl?: string }>;
+  try {
+    const res = await fetch(`${CHATGPT_CDP_URL}/json`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return { alive: false, logged_in: false, reason: "CDP non risponde" };
+    pages = (await res.json()) as typeof pages;
+  } catch {
+    return { alive: false, logged_in: false, reason: "browser non avviato" };
+  }
+  const page =
+    pages.find((t) => t.type === "page" && t.webSocketDebuggerUrl && /chatgpt\.com/.test(t.url ?? "")) ??
+    pages.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+  if (!page?.webSocketDebuggerUrl) return { alive: false, logged_in: false, reason: "nessuna pagina" };
+  if (!(await pageResponds(page.webSocketDebuggerUrl))) {
+    return { alive: false, logged_in: false, reason: "renderer bloccato" };
+  }
+  const probe = await evalOnPage<{ composer: boolean; wall: boolean }>(
+    page.webSocketDebuggerUrl,
+    `(() => {
+       const t = (document.body && document.body.innerText || "").slice(0, 4000);
+       return {
+         composer: !!document.querySelector('#prompt-textarea, form [contenteditable="true"]'),
+         wall: /sessione .{0,3}scaduta|session expired|effettua di nuovo l|log in to continue|Accedi con|Sign up for free/i.test(t),
+       };
+     })()`,
+  );
+  if (!probe) return { alive: true, logged_in: false, reason: "pagina non interrogabile" };
+  if (probe.wall || !probe.composer) {
+    return { alive: true, logged_in: false, reason: "sessione ChatGPT scaduta: rifai il login nella finestra dedicata" };
+  }
+  return { alive: true, logged_in: true };
 }
 
 export async function checkChatgptBrowserAlive(): Promise<boolean> {

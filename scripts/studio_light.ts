@@ -82,6 +82,36 @@ const LUCE_DURA =
   "senza mobili. Di quella persona non prendere il viso, i capelli, la posa " +
   "ne' l'eta': non sono io. ";
 
+/**
+ * La cella che l'utente ha chiesto l'08/09 mandando il riferimento: "la
+ * reference era, vedi luce e bg". Cioe' da quella immagine si prende la luce
+ * INSIEME al fondo, non la luce sola.
+ *
+ * E' il caso che le altre due celle non coprono. `dura` e `gel` prendono la
+ * luce e lasciano al modello l'invenzione del fondo, e il 06/09 avevamo
+ * misurato perche' questo non basta: una sfumatura non contiene una lampada,
+ * quindi nessuna frase le inventa una sorgente e il risultato torna a sembrare
+ * incollato. Qui il fondo E' la lampada: misurato sui pixel del riferimento, il
+ * fondale va da (16,27,57) in cima a (10,130,180) al 70% dell'altezza e resta
+ * acceso fino in fondo. Quel bagliore in basso e' l'unica cosa che spiega la
+ * luce fredda sulle spalle, e va detto, altrimenti il modello appiattisce il
+ * gradiente e torniamo al fondale finto.
+ */
+const LUCE_BG_REF =
+  "LA LUCE E IL FONDO: ritratto in STUDIO, e la luce e il fondo sono " +
+  "ESATTAMENTE quelli dell'ultima immagine allegata. Il fondo e' un fondale da " +
+  "studio liscio, continuo, senza oggetti e senza mobili, ed e' ACCESO: in alto " +
+  "e' quasi nero, blu notte, e scendendo si accende progressivamente fino a un " +
+  "ciano-blu acceso e luminoso all'altezza delle spalle, e resta acceso fino al " +
+  "bordo basso dell'inquadratura. Quel bagliore in basso E' una sorgente di " +
+  "luce dentro la stanza, non una tinta: da li' arriva un riflesso ciano freddo " +
+  "che prende il bordo delle spalle, la mascella da sotto e il lato in ombra " +
+  "del collo. La luce principale e' UNA sorgente sola, dura, alta e appena a " +
+  "sinistra, quasi frontale: scolpisce gli zigomi e lascia sotto la mascella " +
+  "un'ombra netta e disegnata. La testa stacca scura contro la parte accesa del " +
+  "fondo. Di quella persona non prendere il viso, i capelli, la posa, gli " +
+  "occhiali, i vestiti ne' l'eta': non sono io. ";
+
 const LUCE_GEL =
   "LA LUCE: ritratto in STUDIO con i gel colorati, e sono illuminato " +
   "ESATTAMENTE come la persona dell'ultima immagine allegata. Da quella " +
@@ -116,17 +146,24 @@ const IN_STUDIO =
 /** I ruoli degli allegati: ora sono cinque, e uno contiene un'altra persona. */
 const RUOLI_VECCHI =
   /Due delle immagini allegate NON sono io.*$/s;
-const RUOLI =
+/**
+ * Cosa si prende dall'ultimo allegato cambia con la cella: `dura` e `gel` ne
+ * usano solo la luce, `ref` anche il fondo. Dirlo storto e' il modo piu' rapido
+ * per riavere il fondo inventato mentre il riferimento ce l'ha gia' dentro.
+ */
+const ruoli = (prendeIlFondo: boolean) =>
   "LE IMMAGINI ALLEGATE, e cosa prendere da ognuna. La foto principale e il " +
   "secondo scatto sono IO: da quelli viene il mio viso. Il ritaglio " +
   "ravvicinato e' la MIA bocca. La foto su fondo grigio sono i MIEI occhiali " +
   "da sole, e basta. L'ultima e' il ritratto di UN'ALTRA PERSONA ed e' li' solo " +
-  "per la luce: di quella non prendere nessun volto, nessun capello, nessuna " +
+  (prendeIlFondo ? "per la luce e per il fondo" : "per la luce") +
+  ": di quella non prendere nessun volto, nessun capello, nessuna " +
   "posa, nessun vestito, nessun oggetto. Nel risultato c'e' una persona sola: io.";
 
 const TUTTE = [
-  ["dura", LUCE_DURA, "style-bw-wet-hair-hardlight.png"],
-  ["gel", LUCE_GEL, "target-shield-gel-rossoverde.png"],
+  ["dura", LUCE_DURA, "style-bw-wet-hair-hardlight.png", false],
+  ["gel", LUCE_GEL, "target-shield-gel-rossoverde.png", false],
+  ["ref", LUCE_BG_REF, "luce-bg-studio-blu.png", true],
 ] as const;
 const chieste = arg("--celle")?.split(",").map((s) => s.trim());
 const CELLE = chieste ? TUTTE.filter(([n]) => chieste.includes(n)) : TUTTE;
@@ -165,7 +202,7 @@ withProject(PID, () => {
   const IO2 = inputScelto ? PRIMA : SELFIE;
 
   for (let g = 1; g <= rounds; g++) {
-    for (const [cella, blocco, luceRef] of CELLE) {
+    for (const [cella, blocco, luceRef, prendeIlFondo] of CELLE) {
       const LUCE_REF = join(refDir, luceRef);
       // L'ordine degli allegati e' quello che il blocco dei ruoli racconta:
       // io, la mia bocca, gli occhiali, e per ultima la luce.
@@ -176,12 +213,15 @@ withProject(PID, () => {
         .replace(ANCORA_BOCCA, BOCCA)
         .replace(POSTO, blocco)
         .replace(NON_IN_STUDIO, IN_STUDIO)
-        .replace(RUOLI_VECCHI, RUOLI);
+        .replace(RUOLI_VECCHI, ruoli(prendeIlFondo));
 
       const lineage = JSON.stringify({
         recipe: `studio-luce-${cella}${inputPath ? "-materia-selfie" : ""}`,
         materia: (inputPath ?? PRIMA).split("/").pop(),
-        refset: "io (input) + io 2° scatto + bocca (ritaglio) + occhiali + luce (altra persona)",
+        refset:
+          "io (input) + io 2° scatto + bocca (ritaglio) + occhiali + " +
+          (prendeIlFondo ? "luce E FONDO" : "luce") +
+          " (altra persona)",
         preamble:
           "bocca sbagliata e luce da studio. La bocca: misurata 0,29-0,33 di viso in tutti i " +
           "render contro 0,24-0,26 nelle foto vere, perche' l'unica foto allegata (1.PNG) ha la " +

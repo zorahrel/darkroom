@@ -119,16 +119,36 @@ def measure(path):
     tint = float(p.mean())
     shade_tint = float(p[l <= lo].mean() - p[l >= hi].mean())
 
+    # gradiente del fondo: L del fondo in basso meno L del fondo in alto, letto
+    # solo sui margini laterali per non passare mai dal soggetto. Serve a dire
+    # se un fondale ACCESO e' stato copiato o appiattito: nel riferimento che
+    # l'utente ha mandato l'08/09 vale +45 (quasi nero sopra, ciano acceso
+    # sotto), e un fondo inventato dal modello sta intorno a 0 o va al contrario.
+    marg = np.zeros(subj.shape, bool)
+    mw = max(2, subj.shape[1] // 25)
+    marg[:, :mw] = True
+    marg[:, -mw:] = True
+    marg &= ~ndimage.binary_dilation(subj, iterations=8)
+    hb = subj.shape[0] // 5
+    top, bot = marg.copy(), marg.copy()
+    top[hb:] = False
+    bot[:-hb] = False
+    grad = (
+        float(L[bot].mean() - L[top].mean())
+        if top.sum() > 50 and bot.sum() > 50
+        else float("nan")
+    )
+
     return dict(
         path=path, spill=spill, tint=tint, shade=shade_tint,
         shadow=float(L[outer].mean() - L[far].mean()),
-        edge=edge_width(lab, bg, subj),
+        edge=edge_width(lab, bg, subj), grad=grad,
         bg_L=float(bg[0]), subj_L=float(L[core].mean()),
     )
 
 
 if __name__ == "__main__":
-    print(f"{'file':<26}{'tinta':>8}{'ombre':>8}{'spill':>8}{'ombra':>8}{'bordo':>7}  {'L sogg/fondo':>13}")
+    print(f"{'file':<26}{'tinta':>8}{'ombre':>8}{'spill':>8}{'ombra':>8}{'bordo':>7}{'grad':>8}  {'L sogg/fondo':>13}")
     for p in sys.argv[1:]:
         r = measure(p)
         name = p.split("/")[-1]
@@ -136,4 +156,5 @@ if __name__ == "__main__":
             print(f"{name:<26}  {r['error']}")
         else:
             print(f"{name:<26}{r['tint']:>8.2f}{r['shade']:>8.2f}{r['spill']:>8.2f}"
-                  f"{r['shadow']:>8.2f}{r['edge']:>7.1f}  {r['subj_L']:>6.1f} /{r['bg_L']:>6.1f}")
+                  f"{r['shadow']:>8.2f}{r['edge']:>7.1f}{r['grad']:>8.1f}  "
+                  f"{r['subj_L']:>6.1f} /{r['bg_L']:>6.1f}")

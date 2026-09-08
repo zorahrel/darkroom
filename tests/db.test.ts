@@ -282,7 +282,11 @@ describe.skipIf(!existsSync(REAL_DB))("real gallery DB", () => {
       d.query<{ c: number }, []>("SELECT COUNT(*) c FROM photos WHERE sequence_index IS NOT NULL").get()!.c,
     ).toBe(0);
     d.close();
-  });
+    // Timeout esplicito: questo test copia il photos.db VERO, che oggi pesa
+    // 100 MB, e la VACUUM INTO ci mette ~9s quando la macchina sta anche
+    // generando. Con i 5s di default falliva per il carico, non per una
+    // migrazione rotta — un rosso che descrive il Mac invece del codice.
+  }, 60_000);
 });
 
 describe("two writers must not blow up the server", () => {
