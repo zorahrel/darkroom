@@ -104,8 +104,13 @@ Ciò che deve diventare vero:
 ## 6. Sviluppo locale (ultimo: è il pezzo duro)
 - [ ] 6.1 Interfaccia di sviluppo con un solo punto di scelta fra pipeline
 - [ ] 6.2 Pipeline di sistema dietro quell'interfaccia, come riferimento da battere
-- [ ] 6.3 **Verifica export CoreML → ONNX dei due modelli**, su immagini vere, prima di
-      costruirci sopra. Se non regge: maschere solo macOS per una release, e si prosegue
+- [x] 6.3a Guardare dentro i due `.mlmodel`: sono conversioni *da* PyTorch (torch 1.10,
+      coremltools 5.1), quindi la strada non è CoreML → ONNX ma risalire ai pesi di
+      monte. E il modello del cielo dichiara sé stesso: BiSeNetV2 di mmsegmentation,
+      Apache 2.0 — la licenza che la documentazione di partenza lasciava da accertare
+- [ ] 6.3b Esportare in ONNX dai pesi di monte e **confrontare le maschere a immagine**
+      con quelle CoreML. Se non reggono: maschere solo macOS per una release, e si
+      prosegue senza fermare le altre tracce
 - [ ] 6.4 Maschere viso e cielo, combinabili, con bordo sfumato
 - [ ] 6.5 Regolazioni salvate come numeri, file creato solo se serve
 - [ ] 6.6 Esportazione JPEG/TIFF con dichiarazione preventiva

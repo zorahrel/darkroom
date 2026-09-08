@@ -179,3 +179,36 @@ di grading: numero giusto, scala sbagliata.
 **Precampionare batte ricampionare.** Interpolare una curva per punti chiamando `sample()` a
 ogni nodo costava 32 ms contro 0,91 di una tabella da 1024 letta una volta — 35 volte, per
 zero guadagno.
+
+
+## I due modelli delle maschere, guardati dentro
+
+La traccia 6 dipende da una domanda che poteva invalidare il piano: i due modelli
+CoreML si possono portare fuori da macOS? La risposta si ricava dagli artefatti,
+non dai documenti — ed è diversa da quello che i documenti dicono.
+
+**Non si converte da CoreML.** Entrambi i file dichiarano
+`com.github.apple.coremltools.source = torch==1.10.0+cu111`: sono conversioni *in*
+CoreML fatte con coremltools 5.1.0 da modelli PyTorch. La direzione supportata è
+quella, non l'inversa. La strada è quindi risalire ai pesi originali ed esportare da
+PyTorch a ONNX, che è un percorso battuto — e che ci lascia anche in una posizione
+più pulita, perché prendiamo il modello dalla sua origine invece che l'artefatto
+compilato di qualcun altro.
+
+**Cosa sono davvero.**
+
+| | dichiarato dal modello | uscita | classi |
+|---|---|---|---|
+| `VisoParsing` | conversione di `zllrunning/face-parsing.PyTorch`, BiSeNet su CelebAMask-HQ | `argmax_out` | 19, di cui servono pelle e capelli |
+| `CieloScena` | **BiSeNetV2 di `open-mmlab/mmsegmentation`** | `squeeze_out` | 19 di Cityscapes, di cui serve `sky` (indice 10) |
+
+**La licenza del modello del cielo era segnata come da accertare, e si accerta qui.**
+La documentazione di partenza sospendeva il giudizio fra `ycszen/BiSeNet` (senza file
+di licenza raggiungibile) e `ycszen/TorchSeg` (MIT). Nessuna delle due: il modello
+porta scritto dentro di sé il proprio indirizzo — `mmsegmentation/configs/bisenetv2`
+— e la propria licenza, **Apache 2.0**. Non è una deduzione, è un campo del file.
+
+**Conseguenza sulla traccia 6.** Il passo 6.3 non è «provare a convertire i
+`.mlmodel`», che è la strada che non esiste: è prendere i pesi da monte ed esportarli
+in ONNX. Il rischio residuo non è più legale né di formato, è solo di fedeltà — e si
+misura confrontando le maschere prodotte, su immagini vere, come chiede `DEV-07`.
