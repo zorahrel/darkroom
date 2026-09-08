@@ -56,6 +56,16 @@ export function thumbRawUrl(id: string, w?: number, percorsoFile?: string | null
   return pq(`/thumb/raw/${encodeURIComponent(id)}${q}`);
 }
 
+/**
+ * L'anteprima di uno scatto di un progetto **diverso** da quello aperto.
+ *
+ * `thumbRawUrl` prende il progetto dall'indirizzo della pagina, e in `/studio` non
+ * c'è: le schede mostrerebbero tutte le foto dello stesso progetto, o nessuna.
+ */
+export function thumbRawUrlDi(pid: string, id: string, w = 256): string {
+  return `/thumb/raw/${encodeURIComponent(id)}?w=${w}&project=${encodeURIComponent(pid)}`;
+}
+
 export function genUrl(photoId: string, versionNumber: number): string {
   const filename = `v${String(versionNumber).padStart(2, "0")}.png`;
   return pq(`/gen/${encodeURIComponent(photoId)}/${filename}`);

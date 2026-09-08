@@ -30,6 +30,7 @@ const VISTE = [
   { percorso: "/", nome: "strumenti" },
   { percorso: "/p/darkroom", nome: "galleria" },
   { percorso: "/p/darkroom/culling", nome: "culling" },
+  { percorso: "/p/darkroom/girato", nome: "girato" },
   { percorso: "/p/darkroom/tree", nome: "albero" },
 ];
 

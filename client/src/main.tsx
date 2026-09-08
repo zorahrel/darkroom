@@ -22,6 +22,7 @@ const VideoPick = lazy(() => import("./pages/VideoPick"));
 const TreePage = lazy(() => import("./pages/Tree"));
 const ReferencesPage = lazy(() => import("./pages/References"));
 const CullingPage = lazy(() => import("./pages/Culling"));
+const GiratoPage = lazy(() => import("./pages/Girato"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
@@ -99,6 +100,14 @@ ReactDOM.createRoot(root).render(
             element={
               <Suspense fallback={<PageFallback />}>
                 <CullingPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/girato"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <GiratoPage />
               </Suspense>
             }
           />

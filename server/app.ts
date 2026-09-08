@@ -18,6 +18,7 @@ import { referenceRoutes } from "./routes/reference.ts";
 import { mediaRoutes } from "./routes/media.ts";
 import { collectionRoutes } from "./routes/collections.ts";
 import { cullingRoutes } from "./routes/culling.ts";
+import { giratoRoutes } from "./routes/girato.ts";
 
 /**
  * The Darkroom HTTP app: middleware + every route module, with no side effects
@@ -49,6 +50,7 @@ app.use("*", async (c, next) => {
 });
 
 app.route("/", cullingRoutes);
+app.route("/", giratoRoutes);
 app.route("/", photoRoutes);
 app.route("/", generationRoutes);
 app.route("/", settingsRoutes);

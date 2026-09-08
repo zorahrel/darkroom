@@ -138,13 +138,41 @@ function projectStats(pid: string) {
   });
 }
 
+/**
+ * Qualche foto del progetto, per la sua scheda.
+ *
+ * Sei nomi e un elenco di numeri non dicono che lavoro è: un progetto di ritratti e
+ * uno di architettura hanno le stesse statistiche. Le anteprime lo dicono a colpo
+ * d'occhio, ed è l'unica informazione della scheda che non si potrebbe ricavare
+ * leggendo.
+ *
+ * Si prendono le preferite per prime, perché sono quelle che qualcuno ha già
+ * giudicato buone. Se non ce ne sono, le prime che ci sono: una scheda con qualcosa
+ * dentro è meglio di una vuota, anche se non è ancora una scelta.
+ */
+function anteprimeProgetto(pid: string, quante = 4): string[] {
+  return withProject(pid, () => {
+    const d = db();
+    const righe = d
+      .query<{ id: string }, [number]>(
+        `SELECT id FROM photos
+         ORDER BY (favorite_version_id IS NULL), COALESCE(taken_at, created_at)
+         LIMIT ?`,
+      )
+      .all(quante);
+    return righe.map((r) => r.id);
+  });
+}
+
 studioRoutes.get("/api/studio/projects", async (c) => {
   const projects = listProjects().map((p) => {
     const d = dirsFor(p.id);
     let stats: ReturnType<typeof projectStats> | null = null;
     let error: string | null = null;
+    let anteprime: string[] = [];
     try {
       stats = projectStats(p.id);
+      anteprime = anteprimeProgetto(p.id);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     }
@@ -153,6 +181,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       db_path: d.DB_PATH,
       root_exists: existsSync(p.root),
       stats,
+      anteprime,
       video: p.views.includes("video") && existsSync(p.root) ? statsVideo(p.root) : null,
       error,
     };

@@ -251,6 +251,8 @@ export type StudioProject = {
   db_path: string;
   root_exists: boolean;
   stats: ProjectStats | null;
+  /** Qualche foto del progetto: sei numeri non dicono che lavoro è, le foto sì. */
+  anteprime?: string[];
   /** Video projects only: the numbers that mean something for an edit. Null
    *  elsewhere. */
   video: { cuts: number; shots: number; duration: number } | null;

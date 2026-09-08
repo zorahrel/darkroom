@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   api,
-
+  thumbRawUrlDi,
   type ProjectKind,
   type StudioOverview,
   type StudioProject,
@@ -226,6 +226,27 @@ function Card({
       <button type="button" onClick={onOpen} aria-label={`Apri ${p.name}`}
               className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-1
                          focus-visible:outline-offset-2 focus-visible:outline-neutral-300" />
+
+      {/* Le anteprime prima del nome: un progetto si riconosce dalle sue fotografie
+          molto prima che dalla parola con cui è stato chiamato. Sono decorative nel
+          senso stretto — l'informazione utile è tutta sotto — quindi restano fuori
+          dall'albero di accessibilità e non intercettano il clic, che appartiene
+          alla scheda intera. */}
+      {p.anteprime && p.anteprime.length > 0 && (
+        <div className="relative z-0 -m-3 mb-0 grid grid-cols-4 gap-px overflow-hidden rounded-t-lg pointer-events-none">
+          {p.anteprime.slice(0, 4).map((id) => (
+            <img
+              key={id}
+              src={thumbRawUrlDi(p.id, id, 256)}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              decoding="async"
+              className="h-16 w-full object-cover bg-neutral-900 opacity-80 transition-opacity group-hover:opacity-100"
+            />
+          ))}
+        </div>
+      )}
 
       <div className="relative z-20 flex items-start gap-2 min-w-0 pointer-events-none">
         <Icon className="w-4 h-4 mt-[3px] shrink-0 text-neutral-400" aria-hidden />

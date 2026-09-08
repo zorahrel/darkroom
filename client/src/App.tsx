@@ -294,6 +294,9 @@ export default function App() {
                   <ViewTab to={`/p/${pid}/culling`} current={location.pathname.includes("/culling")}>
                     Culling
                   </ViewTab>
+                  <ViewTab to={`/p/${pid}/girato`} current={location.pathname.includes("/girato")}>
+                    Girato
+                  </ViewTab>
                   <ViewTab to={`/p/${pid}/tree`} current={location.pathname.includes("/tree")}>
                     Albero
                   </ViewTab>
