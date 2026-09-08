@@ -29,6 +29,9 @@
     "mcp": "bun run mcp/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "core:build": "cd core && CC=${CC:-/usr/bin/cc} cargo build --release",
+    "core:test": "cd core && CC=${CC:-/usr/bin/cc} cargo test --release",
+    "core:misura": "core/target/release/darkroom-core misura",
     "jobs:watch": "bun run scripts/watch-jobs.ts"
   },
   "dependencies": {

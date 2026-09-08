@@ -3,10 +3,69 @@ import { join, extname } from "node:path";
 import { db, initSchema, getGlobalPrompt } from "./db.ts";
 import { rawDir, test1Dir, genDir } from "./project.ts";
 
-const PHOTO_EXTENSIONS = new Set([".jpeg", ".jpg", ".png"]);
+/**
+ * I RAW dei corpi diffusi. Prima di questa lista Darkroom accettava tre estensioni,
+ * quindi un RAW non entrava nemmeno nel database e la fase di culling — che è quella
+ * in cui da migliaia di scatti se ne scelgono centinaia — non era rappresentabile.
+ */
+const RAW_EXTENSIONS = new Set([
+  ".nef", ".nrw",                      // Nikon
+  ".cr2", ".cr3", ".crw",              // Canon
+  ".arw", ".srf", ".sr2",              // Sony
+  ".raf",                              // Fujifilm
+  ".orf",                              // Olympus / OM System
+  ".rw2",                              // Panasonic
+  ".pef",                              // Pentax
+  ".dng", ".gpr",                      // Adobe e GoPro
+  ".iiq",                              // Phase One
+  ".3fr",                              // Hasselblad
+  ".erf",                              // Epson
+  ".mos",                              // Leaf
+  ".mrw",                              // Minolta
+  ".x3f",                              // Sigma
+  ".raw",
+]);
+
+const PHOTO_EXTENSIONS = new Set([
+  ".jpeg", ".jpg", ".jpe", ".png", ".heic", ".heif", ".tif", ".tiff", ".webp",
+  ...RAW_EXTENSIONS,
+]);
+
+/**
+ * Le cartelle che Darkroom scrive da sé. Le sue anteprime non devono mai diventare
+ * sorgenti: senza questa esclusione, dalla seconda apertura di una cartella si
+ * mostrerebbe l'anteprima da 1568 px credendo di mostrare il RAW, e la sostituzione
+ * non si vedrebbe.
+ */
+const CARTELLE_NOSTRE = new Set([
+  "Darkroom_Previews",
+  "Darkroom_XMP_Backup",
+  "Darkroom_Selecta",
+  ".cache",
+]);
+
+function isRawFile(name: string): boolean {
+  return RAW_EXTENSIONS.has(extname(name).toLowerCase());
+}
 
 function isPhotoFile(name: string): boolean {
   return PHOTO_EXTENSIONS.has(extname(name).toLowerCase());
+}
+
+/**
+ * Sceglie quale file rappresenta lo scatto quando lo stesso nome esiste in più
+ * formati. Il RAW vince sempre: contiene tutto quello che contiene il JPEG e in più
+ * i dati da cui si sviluppa. Senza questa regola l'originale dipenderebbe dall'ordine
+ * in cui il sistema restituisce i file, che non è un criterio.
+ */
+export function scegliOriginali(nomi: string[]): Map<string, string> {
+  const scelti = new Map<string, string>();
+  for (const f of nomi) {
+    const id = photoIdFromFilename(f);
+    const attuale = scelti.get(id);
+    if (!attuale || (isRawFile(f) && !isRawFile(attuale))) scelti.set(id, f);
+  }
+  return scelti;
 }
 
 function photoIdFromFilename(filename: string): string {
@@ -36,9 +95,15 @@ export function runImporter(): {
   ensureDir(GEN_DIR);
 
   // 1) Index RAW: every photo file becomes a `photos` row
-  const rawFiles = readdirSync(RAW_DIR)
+  const rawFiles = readdirSync(RAW_DIR, { withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => e.name)
     .filter((f) => !f.startsWith("."))
+    .filter((f) => !CARTELLE_NOSTRE.has(f))
     .filter((f) => isPhotoFile(f));
+
+  // Un RAW e il suo JPEG sono lo stesso scatto, non due.
+  const originali = scegliOriginali(rawFiles);
 
   const insertPhoto = d.prepare(
     `INSERT OR IGNORE INTO photos (id, original_path, original_ext, created_at, updated_at)
@@ -48,8 +113,7 @@ export function runImporter(): {
 
   d.run("BEGIN");
   try {
-    for (const f of rawFiles) {
-      const id = photoIdFromFilename(f);
+    for (const [id, f] of originali) {
       photoIdsInRaw.add(id);
       const ext = extname(f).toLowerCase();
       insertPhoto.run(id, join(RAW_DIR, f), ext, now, now);

@@ -16,6 +16,7 @@ path = "src/bin/darkroom-core.rs"
 [dependencies]
 memmap2 = "0.9"
 zune-jpeg = "0.4"
+png = "0.17"
 jpeg-encoder = "0.6"
 fast_image_resize = "5"
 rayon = "1.10"

@@ -211,9 +211,90 @@ pub fn riduci(img: Immagine, lato_lungo: u32) -> Risultato<Immagine> {
     Ok(Immagine { larghezza: nw, altezza: nh, pixel: destinazione.into_vec() })
 }
 
-/// Estrae l'anteprima incorporata piu' grande, orientata, senza ridimensionarla.
+/// Cosa c'e' dentro il file, guardando i primi byte invece dell'estensione.
+///
+/// L'estensione e' cio' che qualcuno ha scritto nel nome; la firma e' cio' che il file
+/// e'. Un JPEG chiamato `.ARW` esiste, e va mostrato lo stesso.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Formato {
+    /// Contenitore TIFF: tutti i RAW dei corpi diffusi, piu' i TIFF veri.
+    Tiff,
+    /// JPEG diretto, senza contenitore.
+    Jpeg,
+    Png,
+    Ignoto,
+}
+
+pub fn formato(dati: &[u8]) -> Formato {
+    if dati.len() >= 8 && dati[0..8] == [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A] {
+        return Formato::Png;
+    }
+    if dati.len() >= 2 && dati[0] == 0xFF && dati[1] == 0xD8 {
+        return Formato::Jpeg;
+    }
+    if dati.len() >= 4 && (&dati[0..2] == b"II" || &dati[0..2] == b"MM") {
+        return Formato::Tiff;
+    }
+    Formato::Ignoto
+}
+
+fn decodifica_png(dati: &[u8], nome: &str) -> Risultato<Immagine> {
+    let dec = png::Decoder::new(dati);
+    let mut lettore = dec.read_info().map_err(|e| Errore::JpegIllegibile {
+        file: nome.to_string(),
+        causa: e.to_string(),
+    })?;
+    let mut buf = vec![0u8; lettore.output_buffer_size()];
+    let info = lettore.next_frame(&mut buf).map_err(|e| Errore::JpegIllegibile {
+        file: nome.to_string(),
+        causa: e.to_string(),
+    })?;
+    let (w, h) = (info.width, info.height);
+    // Si porta tutto a RGB a 8 bit: il resto del motore conosce un formato solo.
+    let canali = info.color_type.samples();
+    let profondita = if info.bit_depth == png::BitDepth::Sixteen { 2 } else { 1 };
+    let mut pixel = Vec::with_capacity((w * h * 3) as usize);
+    for i in 0..(w as usize * h as usize) {
+        let base = i * canali * profondita;
+        let leggi = |k: usize| -> u8 { buf.get(base + k * profondita).copied().unwrap_or(0) };
+        match canali {
+            1 | 2 => {
+                let g = leggi(0);
+                pixel.extend_from_slice(&[g, g, g]);
+            }
+            _ => pixel.extend_from_slice(&[leggi(0), leggi(1), leggi(2)]),
+        }
+    }
+    Ok(Immagine { larghezza: w, altezza: h, pixel })
+}
+
+/// Estrae l'immagine piu' grande disponibile, orientata, senza ridimensionarla.
+///
+/// Per un RAW e' l'anteprima incorporata; per un JPEG o un PNG e' l'immagine stessa.
 pub fn incorporata(percorso: &Path) -> Risultato<(Immagine, tiff::Struttura)> {
     let (dati, nome) = mappa(percorso)?;
+
+    let vuota = |orientamento: u16| tiff::Struttura {
+        anteprime: Vec::new(),
+        orientamento,
+        lato_lungo_scatto: None,
+    };
+
+    match formato(&dati) {
+        Formato::Png => return Ok((decodifica_png(&dati, &nome)?, vuota(1))),
+        Formato::Jpeg => {
+            // Un JPEG puo' portare l'orientamento in un blocco EXIF, che e' un TIFF
+            // annidato: si prova a leggerlo, e se non c'e' si assume dritto.
+            let img = decodifica_jpeg(&dati, &nome)?;
+            let orientamento = orientamento_exif_in_jpeg(&dati).unwrap_or(1);
+            return Ok((orienta(img, orientamento), vuota(orientamento)));
+        }
+        Formato::Ignoto => {
+            return Err(Errore::NonTiff { file: nome });
+        }
+        Formato::Tiff => {}
+    }
+
     let struttura = tiff::leggi(&dati, &nome)?;
 
     // I candidati si provano dal piu' grande al piu' piccolo: un file puo' dichiarare
@@ -232,22 +313,55 @@ pub fn incorporata(percorso: &Path) -> Risultato<(Immagine, tiff::Struttura)> {
     Err(ultimo.unwrap_or(Errore::SenzaAnteprima { file: nome }))
 }
 
+/// Cerca il blocco EXIF di un JPEG e ne legge l'orientamento.
+/// Il blocco e' un TIFF completo dentro un marcatore APP1: si riusa lo stesso lettore,
+/// coi suoi controlli sui limiti, invece di scriverne un secondo piu' distratto.
+fn orientamento_exif_in_jpeg(dati: &[u8]) -> Option<u16> {
+    let mut i = 2usize;
+    while i + 4 <= dati.len() {
+        if dati[i] != 0xFF {
+            return None;
+        }
+        let marcatore = dati[i + 1];
+        // SOS: da qui in poi ci sono i dati compressi, non piu' marcatori.
+        if marcatore == 0xDA {
+            return None;
+        }
+        let lunghezza = u16::from_be_bytes([dati.get(i + 2).copied()?, dati.get(i + 3).copied()?]) as usize;
+        if lunghezza < 2 {
+            return None;
+        }
+        if marcatore == 0xE1 {
+            let inizio = i + 4;
+            let fine = (inizio + lunghezza - 2).min(dati.len());
+            let blocco = dati.get(inizio..fine)?;
+            if blocco.len() > 6 && &blocco[0..6] == b"Exif\0\0" {
+                return tiff::leggi(&blocco[6..], "<exif>").ok().map(|s| s.orientamento);
+            }
+        }
+        i += 2 + lunghezza;
+    }
+    None
+}
+
+/// L'anteprima a un lato lungo qualunque. E' la primitiva: i livelli ci si appoggiano.
+pub fn anteprima_lato(percorso: &Path, lato_richiesto: Option<u32>) -> Risultato<Anteprima> {
+    let (immagine, _) = incorporata(percorso)?;
+    let richiesto = match lato_richiesto {
+        Some(l) if l > 0 => l,
+        _ => return Ok(Anteprima { immagine, da_incorporata: true, troncata: false }),
+    };
+    let troncata = immagine.lato_lungo() < richiesto;
+    let immagine = riduci(immagine, richiesto)?;
+    Ok(Anteprima { immagine, da_incorporata: true, troncata })
+}
+
 /// L'anteprima a un livello, dall'immagine incorporata quando basta.
 ///
 /// Quando non basta il risultato e' marcato `troncata`: sta al chiamante decidere se
 /// interpolare o chiedere la decodifica piena, che e' lenta e vive in un altro processo.
 pub fn anteprima(percorso: &Path, livello: Livello) -> Risultato<Anteprima> {
-    let (immagine, _) = incorporata(percorso)?;
-    let richiesto = match livello.lato_lungo() {
-        Some(l) => l,
-        None => {
-            return Ok(Anteprima { immagine, da_incorporata: true, troncata: true });
-        }
-    };
-    let disponibile = immagine.lato_lungo();
-    let troncata = disponibile < richiesto;
-    let immagine = riduci(immagine, richiesto)?;
-    Ok(Anteprima { immagine, da_incorporata: true, troncata })
+    anteprima_lato(percorso, livello.lato_lungo())
 }
 
 /// Misura la cartella prima di scegliere una soglia.
@@ -366,6 +480,42 @@ mod prove {
         let j = in_jpeg(&quadro(16, 16), 82).unwrap();
         assert_eq!(&j[0..2], &[0xFF, 0xD8]);
         assert_eq!(&j[j.len() - 2..], &[0xFF, 0xD9]);
+    }
+
+    #[test]
+    fn il_formato_si_riconosce_dai_byte_non_dall_estensione() {
+        assert_eq!(formato(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]), Formato::Png);
+        assert_eq!(formato(&[0xFF, 0xD8, 0xFF, 0xE0]), Formato::Jpeg);
+        assert_eq!(formato(b"II*\0"), Formato::Tiff);
+        assert_eq!(formato(b"MM\0*"), Formato::Tiff);
+        assert_eq!(formato(b"ciao"), Formato::Ignoto);
+        assert_eq!(formato(&[]), Formato::Ignoto);
+    }
+
+    #[test]
+    fn un_jpeg_scritto_da_noi_si_rilegge() {
+        let originale = quadro(64, 48);
+        let byte = in_jpeg(&originale, 92).unwrap();
+        let riletto = decodifica_jpeg(&byte, "andata_e_ritorno").unwrap();
+        assert_eq!((riletto.larghezza, riletto.altezza), (64, 48));
+    }
+
+    #[test]
+    fn un_jpeg_troncato_e_un_errore_non_un_panico() {
+        let byte = in_jpeg(&quadro(64, 48), 82).unwrap();
+        for frazione in [2, 3, 4, 8] {
+            let _ = decodifica_jpeg(&byte[..byte.len() / frazione], "troncato");
+        }
+    }
+
+    #[test]
+    fn senza_lato_richiesto_non_si_ridimensiona() {
+        // La primitiva con `None` restituisce cio' che ha trovato, e non e' troncata:
+        // nessuno ha chiesto una dimensione che non c'era.
+        let img = quadro(100, 50);
+        let a = Anteprima { immagine: img, da_incorporata: true, troncata: false };
+        assert_eq!(a.immagine.lato_lungo(), 100);
+        assert!(!a.troncata);
     }
 
     #[test]

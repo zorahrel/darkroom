@@ -23,7 +23,12 @@ enum Richiesta {
     /// Un'anteprima a un livello, scritta come JPEG.
     Anteprima {
         file: String,
+        /// Uno dei quattro livelli. Ignorato se `lato` e' presente.
+        #[serde(default)]
         livello: String,
+        /// Lato lungo richiesto in pixel, per chi non ragiona per livelli.
+        #[serde(default)]
+        lato: Option<u32>,
         uscita: String,
         #[serde(default = "qualita_predefinita")]
         qualita: u8,
@@ -72,19 +77,28 @@ fn livello_da(nome: &str) -> Risultato<preview::Livello> {
 fn fai_anteprima(
     file: &str,
     livello: &str,
+    lato: Option<u32>,
     uscita: &str,
     qualita: u8,
     consenti_decodifica: bool,
 ) -> Risultato<serde_json::Value> {
     let percorso = Path::new(file);
-    let liv = livello_da(livello)?;
+    // Un lato esplicito vince sul nome del livello: chi chiede 480 px vuole 480 px.
+    let (nome_livello, richiesto) = match lato {
+        Some(l) if l > 0 => ("su misura", Some(l)),
+        _ => {
+            let liv = livello_da(livello)?;
+            (liv.nome(), liv.lato_lungo())
+        }
+    };
     let inizio = Instant::now();
 
-    let mut a = preview::anteprima(percorso, liv)?;
+    let mut a = preview::anteprima_lato(percorso, richiesto)?;
     let mut decodificata = false;
 
     if a.troncata && consenti_decodifica {
-        if let Some(richiesto) = liv.lato_lungo() {
+        {
+            let richiesto = match richiesto { Some(r) => r, None => 0 };
             // Il lato del sensore serve a scegliere fra meta' risoluzione e piena:
             // e' un conto, non una preferenza.
             let lato_sensore = preview::diagnosi(percorso).ok().and_then(|d| d.lato_lungo_scatto);
@@ -129,7 +143,7 @@ fn fai_anteprima(
     Ok(serde_json::json!({
         "file": file,
         "uscita": uscita,
-        "livello": liv.nome(),
+        "livello": nome_livello,
         "larghezza": a.immagine.larghezza,
         "altezza": a.immagine.altezza,
         "da_incorporata": a.da_incorporata,
@@ -180,8 +194,8 @@ fn esegui(r: Richiesta) -> Risposta {
                     "orf","rw2","raw","pef","iiq","3fr","erf","mos","mrw","x3f","gpr"],
             "altri": ["jpg","jpeg","jpe","png","heic","heif","tif","tiff","webp"],
         })),
-        Richiesta::Anteprima { file, livello, uscita, qualita, consenti_decodifica } => {
-            fai_anteprima(&file, &livello, &uscita, qualita, consenti_decodifica)
+        Richiesta::Anteprima { file, livello, lato, uscita, qualita, consenti_decodifica } => {
+            fai_anteprima(&file, &livello, lato, &uscita, qualita, consenti_decodifica)
         }
         Richiesta::Diagnosi { file } => fai_diagnosi(&file),
         Richiesta::Firma { file } => fai_firma(&file),
@@ -330,7 +344,7 @@ fn main() {
             None => eprintln!("uso: darkroom-core firma <file>"),
         },
         Some("anteprima") => match (a.get(2), a.get(3), a.get(4)) {
-            (Some(f), Some(l), Some(u)) => stampa(&match fai_anteprima(f, l, u, 82, true) {
+            (Some(f), Some(l), Some(u)) => stampa(&match fai_anteprima(f, l, l.parse().ok(), u, 82, true) {
                 Ok(v) => Risposta::Ok(v),
                 Err(e) => e.into(),
             }),
