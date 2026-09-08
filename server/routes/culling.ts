@@ -13,6 +13,7 @@ import {
 } from "../culling.ts";
 import * as motore from "../core.ts";
 import { db } from "../db.ts";
+import { BUDGET_TOTALE, sfrattaTutti, statoCache } from "../anteprime.ts";
 
 /**
  * Il culling: si guarda, si giudica, si scrive fuori.
@@ -121,6 +122,20 @@ cullingRoutes.get("/api/culling/:id/diagnosi", async (c) => {
     );
   }
 });
+
+/**
+ * Lo stato della cache delle anteprime, livello per livello.
+ *
+ * Serve a rispondere alla domanda che prima non aveva risposta: quanto occupa, e
+ * quando comincia a togliere. Prima dei livelli erano quindici cartelle e 199 MB che
+ * nessuno aveva chiesto.
+ */
+cullingRoutes.get("/api/culling/cache", (c) =>
+  c.json({ budget_totale: BUDGET_TOTALE, livelli: statoCache() }),
+);
+
+/** Pota subito, invece di aspettare che ci arrivi da sola. */
+cullingRoutes.post("/api/culling/cache/pota", (c) => c.json(sfrattaTutti()));
 
 /** Se il motore nativo c'è, e cosa sa fare su questa macchina. */
 cullingRoutes.get("/api/culling/motore", async (c) => {
