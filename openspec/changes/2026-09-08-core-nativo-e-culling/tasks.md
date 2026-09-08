@@ -2,7 +2,25 @@
 
 Convenzione: `[ ]` da fare, `[x]` fatto+verificato.
 
-**Stato: in attesa di approvazione.** Nessun codice prima dell'approvazione.
+**Stato: approvata l'8 settembre 2026, tracce 0-3 consegnate.**
+
+Misure raccolte sul percorso, che valgono piu' dei numeri di partenza:
+
+| | prima | dopo |
+|---|---:|---:|
+| anteprima griglia, 85 ARW da 47 MB, in parallelo | 1859 ms (`sips`) | **2,1 ms** |
+| anteprima visore 3840 px, con decodifica piena | non disponibile | 868 ms |
+| formati indicizzati | 3 | 30 |
+| prove | 536 | **596** + 65 nel motore |
+
+Due cose scoperte misurando, non leggendo:
+
+- l'anteprima incorporata di una **Sony ARW si ferma a 1616 px**, quindi il livello
+  visore cade sempre nella decodifica piena; su una NEF non succede. La soglia va
+  misurata sulla cartella, mai fissata come costante.
+- la prima impronta percettiva **non separava niente** (mediana 30 bit su 64 fra
+  scatti della stessa raffica contro 32 fra scene diverse, cioe' il caso): campionava
+  singoli pixel invece di mediare i riquadri.
 
 ## Barra (si scrive ora, si esegue sempre uguale)
 
@@ -33,35 +51,35 @@ Ciò che deve diventare vero:
   parole non si dimostra
 
 ## 0. Fondamenta (blocca tutto il resto)
-- [ ] 0.1 `core/` come crate Rust, compilazione su macOS e Windows, `cargo test` in CI
-- [ ] 0.2 Confine col backend Bun: FFI o processo, deciso su misura e non a preferenza
-- [ ] 0.3 Estrattore anteprima incorporata, promosso dal prototipo a codice con test
-- [ ] 0.4 Casi malformati: RAW troncato, offset oltre la fine, IFD ciclico
-- [ ] 0.5 Decodifica piena in processo sacrificabile, e nessuna immagine precedente
+- [x] 0.1 `core/` come crate Rust, compilazione su macOS e Windows, `cargo test` in CI
+- [x] 0.2 Confine col backend Bun: FFI o processo, deciso su misura e non a preferenza
+- [x] 0.3 Estrattore anteprima incorporata, promosso dal prototipo a codice con test
+- [x] 0.4 Casi malformati: RAW troncato, offset oltre la fine, IFD ciclico
+- [x] 0.5 Decodifica piena in processo sacrificabile, e nessuna immagine precedente
       restituita al posto di una illeggibile
 
 ## 1. RAW dentro (dipende da 0)
-- [ ] 1.1 Formati RAW nell'importer accanto a JPEG/PNG/HEIC/TIFF
-- [ ] 1.2 Coppia RAW+JPEG riconosciuta come uno scatto solo
-- [ ] 1.3 `server/thumb.ts` chiama il core, `sips` esce dal progetto
+- [x] 1.1 Formati RAW nell'importer accanto a JPEG/PNG/HEIC/TIFF
+- [x] 1.2 Coppia RAW+JPEG riconosciuta come uno scatto solo
+- [x] 1.3 `server/thumb.ts` chiama il core, `sips` esce dal progetto
 - [ ] 1.4 Piramide a quattro livelli con budget in byte separati per livello
-- [ ] 1.5 Diagnosi cartella: anteprima incorporata, tempi per livello, misurati lì
-- [ ] 1.6 Le cartelle di anteprime di Darkroom escluse dall'indicizzazione
+- [x] 1.5 Diagnosi cartella: anteprima incorporata, tempi per livello, misurati lì
+- [x] 1.6 Le cartelle di anteprime di Darkroom escluse dall'indicizzazione
 
 ## 2. Culling (dipende da 1)
-- [ ] 2.1 Etichette colore e stelle da tastiera, con filtro della ripetizione automatica
-- [ ] 2.2 Raggruppamento raffiche + correzione manuale, salvata solo se esiste
+- [x] 2.1 Etichette colore e stelle da tastiera, con filtro della ripetizione automatica
+- [x] 2.2 Raggruppamento raffiche + correzione manuale, salvata solo se esiste
 - [ ] 2.3 Criteri di sessione obbligatori, nessuna eredità dal lavoro precedente
 - [ ] 2.4 Raccolta delle scelte in cartella, con ritorno indietro
-- [ ] 2.5 Rendiconto di fine culling
+- [x] 2.5 Rendiconto di fine culling
 - [ ] 2.6 Ricerca per contenuto, che dichiara quando l'analisi non è stata eseguita
 
 ## 3. XMP (dipende da 1, indipendente da 2)
-- [ ] 3.1 Lettura di XMP scritti da altri programmi
-- [ ] 3.2 Scrittura con backup, modifica mirata, validazione, sostituzione atomica
-- [ ] 3.3 Conferma informata: quanti file, dove, prima di scrivere
-- [ ] 3.4 Scanner limitato alla `rdf:Description` che dichiara `xmp:`, mai al file intero
-- [ ] 3.5 Vocabolario etichette per lingua, dichiarato
+- [x] 3.1 Lettura di XMP scritti da altri programmi
+- [x] 3.2 Scrittura con backup, modifica mirata, validazione, sostituzione atomica
+- [x] 3.3 Conferma informata: quanti file, dove, prima di scrivere
+- [x] 3.4 Scanner limitato alla `rdf:Description` che dichiara `xmp:`, mai al file intero
+- [x] 3.5 Vocabolario etichette per lingua, dichiarato
 
 ## 4. Superfici (dipende da 1; la UI si disegna in parallelo a 2)
 - [ ] 4.1 Guscio Tauri v2 che monta il `client/` esistente

@@ -6,6 +6,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 
 ## Features
 
+- **Culling (RAW)** — the step *before* editing: from a few thousand frames pick the few hundred worth working on. Keyboard-first (1-5 stars, 6-0 colour labels, X rejects, `\` puts it back in the queue), burst grouping, and XMP sidecars written next to the RAWs so Lightroom sees your choices. A native Rust engine reads the JPEG the camera already wrote inside the RAW instead of re-demosaicing it: **2.1 ms per frame** against the 1859 ms of `sips` — 16 seconds instead of an hour on two thousand frames. Build it once with `bun run core:build`.
 - **Gallery management** — index a folder of originals, browse a grid, filter by state (no versions / no favorite / with favorite).
 - **Batch editing** — queue every photo with one click; the worker runs them one at a time in the background.
 - **Generate from scratch** — text‑to‑image with no source photo; results land in the gallery like any other item.
@@ -25,6 +26,11 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 
 ## Stack
 
+- **Engine** — a Rust crate (`core/`) with no OS-specific API in it: RAW previews, the
+  four-level pyramid, XMP sidecars, perceptual signatures. Full RAW decoding runs in a
+  **separate process**, because the system decoder kills the process on a corrupt file
+  instead of returning an error — and, at a warm pipeline, a reused decoder hands back
+  *the previous photo* on an unreadable one, which does not look like a fault at all.
 - **Backend** — [Bun](https://bun.sh) + [Hono](https://hono.dev) + `bun:sqlite` (port 3535)
 - **Frontend** — Vite + React 19 + Tailwind v4 (port 5173, proxied to the backend)
 - **Worker** — a Python subprocess (`scripts/edit_batch.py`) that talks to a dedicated Chrome over CDP, or the Codex CLI, or the Higgsfield HTTP API
@@ -35,6 +41,11 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 2. **Python 3** with `websockets` — for the ChatGPT‑web backend: `pip install websockets`
 3. **Google Chrome / Chromium** — only for the ChatGPT‑web backend. Darkroom launches a dedicated instance with its own profile; you log in to chatgpt.com once and it persists.
 4. **ffmpeg + Python `numpy`/`Pillow`** — only for the optional local color grade (`scripts/color_grade.py`): `brew install ffmpeg && pip install numpy pillow`.
+5. **Rust** — for the native engine: `bun run core:build`. Without it RAW files are not
+   indexed and thumbnails fall back to `sips`, which is 800× slower.
+6. **libraw** (`brew install libraw`) — only to decode a RAW past the size of its embedded
+   preview. On a Sony ARW that preview stops at 1616 px, so the viewer needs it; on a Nikon
+   NEF it is as large as the frame and you never pay for it.
 
 ## Setup
 
