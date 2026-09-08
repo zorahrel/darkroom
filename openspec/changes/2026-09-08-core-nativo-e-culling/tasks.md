@@ -11,7 +11,7 @@ Misure raccolte sul percorso, che valgono piu' dei numeri di partenza:
 | anteprima griglia, 85 ARW da 47 MB, in parallelo | 1859 ms (`sips`) | **2,1 ms** |
 | anteprima visore 3840 px, con decodifica piena | non disponibile | 868 ms |
 | formati indicizzati | 3 | 30 |
-| prove | 536 | **624** + 66 nel motore + 10 nell'app |
+| prove | 536 | **638** + 66 nel motore + 10 nell'app |
 | pacchetto dell'app | — | 30,9 MB (Electron: ~220) |
 | memoria a riposo | — | 104 MB (Electron: ~250) |
 
@@ -43,6 +43,9 @@ Ciò che deve diventare vero:
 - Confronto pixel fra pipeline di sviluppo portabile e di sistema: artefatto salvato, sotto la
   soglia dichiarata
 - Pacchetto dell'app e memoria a riposo: due numeri riportati a ogni compilazione
+- `bun run ui:audit` esce zero: nessuno scorrimento orizzontale e nessun bersaglio
+  sotto lo standard, su quattro viste per quattro larghezze
+- `bun run app:misura` esce zero: pacchetto e memoria a riposo sotto i tetti
 - Un RAW che fa morire il decoder: l'app resta viva, quel file è dichiarato illeggibile
 - Uno scatto corrotto dopo uno valido **non** mostra il contenuto di quello valido
 - Una notturna legittima non viene scambiata per uno scatto rotto
@@ -72,7 +75,7 @@ Ciò che deve diventare vero:
 - [x] 2.1 Etichette colore e stelle da tastiera, con filtro della ripetizione automatica
 - [x] 2.2 Raggruppamento raffiche + correzione manuale, salvata solo se esiste
 - [ ] 2.3 Criteri di sessione obbligatori, nessuna eredità dal lavoro precedente
-- [ ] 2.4 Raccolta delle scelte in cartella, con ritorno indietro
+- [x] 2.4 Raccolta delle scelte in cartella, con ritorno indietro
 - [x] 2.5 Rendiconto di fine culling
 - [ ] 2.6 Ricerca per contenuto, che dichiara quando l'analisi non è stata eseguita
 
