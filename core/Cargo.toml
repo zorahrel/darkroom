@@ -1,0 +1,28 @@
+[package]
+name = "darkroom-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Motore locale di Darkroom: RAW, anteprime, cache, firme percettive. Nessuna dipendenza dal sistema operativo."
+
+[lib]
+name = "darkroom_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "darkroom-core"
+path = "src/bin/darkroom-core.rs"
+
+[dependencies]
+memmap2 = "0.9"
+zune-jpeg = "0.4"
+jpeg-encoder = "0.6"
+fast_image_resize = "5"
+rayon = "1.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

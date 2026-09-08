@@ -37,3 +37,6 @@ scripts/.verify_cache.json
 
 # Local agent/session state (worktrees, memory, per-machine)
 .claude/
+
+# Compilazione del motore nativo
+core/target/
