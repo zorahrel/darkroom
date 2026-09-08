@@ -156,7 +156,9 @@ mod prove {
 
     #[test]
     fn un_livello_inventato_e_una_richiesta_sbagliata() {
-        let p = scrivi("livelli.jpg", JPEG);
+        // Le prove girano in parallelo: riscrivere livelli.jpg poteva svuotarlo
+        // mentre la prova dei quattro livelli lo leggeva, producendo un falso 415.
+        let p = scrivi("livello-inventato.jpg", JPEG);
         assert_eq!(chiedi("enorme", &p).status(), StatusCode::BAD_REQUEST);
     }
 
