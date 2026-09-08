@@ -1,5 +1,6 @@
-import { Clapperboard, Film, Images, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ProjectKind } from "./api";
+import { ICONS } from "./iconNames";
 
 /**
  * A project's views, in one place.
@@ -26,21 +27,21 @@ export const VIEWS: View[] = [
   {
     id: "photo",
     name: "foto",
-    icon: Images,
+    icon: ICONS.gallery!,
     explains: "Galleria: griglia, versioni, colore, esportazione.",
     route: (pid) => `/p/${pid}`,
   },
   {
     id: "storyboard",
     name: "storyboard",
-    icon: Clapperboard,
+    icon: ICONS.storyboard!,
     explains: "Pannelli in sequenza da una scaletta, con durate e personaggi.",
     route: (pid) => `/p/${pid}/storyboard`,
   },
   {
     id: "video",
     name: "video",
-    icon: Film,
+    icon: ICONS.edit!,
     explains: "Montaggio derivato dalle misure del brano: tagli sul beat, riprese scelte per durezza.",
     route: (pid) => `/p/${pid}/video`,
   },
