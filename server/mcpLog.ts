@@ -7,7 +7,9 @@ export const LOG_ARGUMENT_BYTES = 16_384;
 export const LOG_MESSAGE_BYTES = 2_048;
 const REDACTED = "[oscurato]";
 const SECRET_FIELD = /key|token|secret|password|passwd|auth|credential|cookie|session|private/i;
-const PATH_FIELD = /path|file|folder|directory|root/i;
+// I percorsi NON sono segreti: sono il soggetto del registro. Oscurarli renderebbe
+// illeggibile la cosa che il registro deve dire — su quale foto abbiamo agito — mentre
+// /api/photos serve gli stessi percorsi in chiaro sulla stessa porta.
 
 // Il database predefinito ospita anche le chiamate globali e quelle fallite prima
 // di aprire un progetto. Il contesto HTTP non deve spostare il registro altrove.
@@ -26,14 +28,12 @@ export function redactText(text: string, secrets: string[] = []): string {
     .replace(/\b(?:Bearer|Basic)\s+[^\s,;"']+/gi, REDACTED)
     .replace(/\b(?:sk-[\w-]+|gh[pousr]_[\w]+|github_pat_[\w]+|AKIA[A-Z0-9]{16}|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/g, REDACTED)
     .replace(/\b[\w.-]*(?:key|token|secret|password|passwd|authorization|credential|cookie)[\w.-]*["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|[^\s,;&]+)/gi, REDACTED)
-    .replace(/(?:https?|file):\/\/[^\s<>"']+/gi, REDACTED)
-    .replace(/["'](?:\/|~\/|[A-Za-z]:\\)[^"'\n]+["']/g, REDACTED)
-    .replace(/(?:\b[A-Za-z]:\\|\\\\|~\/|\.{1,2}\/|\/)[^\s<>"',;)}\]]+/g, REDACTED);
+    .replace(/\b[\w.-]*:\/\/[^\s<>"'@]*:[^\s<>"'@]*@[^\s<>"']+/g, REDACTED);
 }
 
 function secretValues(value: unknown, key = "", out: string[] = []): string[] {
   if (typeof value === "string") {
-    if (SECRET_FIELD.test(key) || PATH_FIELD.test(key)) out.push(value, JSON.stringify(value).slice(1, -1));
+    if (SECRET_FIELD.test(key)) out.push(value, JSON.stringify(value).slice(1, -1));
     // Nei prompt si incollano anche oggetti JSON, talvolta già serializzati.
     // Riconoscerli conserva la struttura senza perdere i segreti annidati.
     if (/^[\s]*[\[{"]/.test(value)) {
@@ -59,13 +59,13 @@ function secretValues(value: unknown, key = "", out: string[] = []): string[] {
     }
   }
   else if (value && typeof value === "object") {
-    for (const [k, v] of Object.entries(value)) secretValues(v, SECRET_FIELD.test(key) || PATH_FIELD.test(key) ? key : k, out);
+    for (const [k, v] of Object.entries(value)) secretValues(v, SECRET_FIELD.test(key) ? key : k, out);
   }
   return out;
 }
 
 function redact(value: unknown, secrets: string[], key = ""): unknown {
-  if (SECRET_FIELD.test(key) || PATH_FIELD.test(key)) return REDACTED;
+  if (SECRET_FIELD.test(key)) return REDACTED;
   if (typeof value === "string") return redactText(value, secrets);
   if (Array.isArray(value)) return value.map((v) => redact(v, secrets));
   if (value && typeof value === "object") {

@@ -56,15 +56,25 @@ describe("registro MCP", () => {
     expect(readLog({ tool: "non_esiste" }).entries[0]!.outcome).toBe("errore");
   });
 
-  test("chiavi annidate, percorsi e credenziali nel testo non arrivano a SQLite", () => {
-    const secrets = ["chiave-nascosta", "parola-segreta", "codice-riservato", "/Users/altrui/segreto/file.jpg", "C:\\Privato\\chiave.pem", "sk-finta-123456789", "accesso-riservato"];
+  test("chiavi annidate e credenziali nel testo non arrivano a SQLite", () => {
+    const secrets = ["chiave-nascosta", "parola-segreta", "codice-riservato", "sk-finta-123456789", "accesso-riservato"];
     recordCall(entry({ arguments: { filter: "with_favorite", nested: { apiKey: secrets[0], password: secrets[1], auth: { token: secrets[2] } },
-      path: secrets[3], files: [secrets[4]], prompt: `colori freddi ${secrets[5]} https://esempio.it/?token=${secrets[6]}` },
-      message: `Errore ${secrets.join(" ")} Bearer abcd-riservato`,
+      prompt: `colori freddi ${secrets[3]} https://esempio.it/?token=${secrets[4]}` },
+      message: `Errore ${secrets.join(" ")} Bearer abcd-riservato https://tizio:caio-riservato@esempio.it/x`,
     }), d);
     const raw = JSON.stringify(d.query("SELECT * FROM mcp_log").all());
-    for (const secret of [...secrets, "abcd-riservato"]) expect(raw).not.toContain(secret);
-    expect(readLog({}, d).entries[0]!.arguments).toMatchObject({ filter: "with_favorite", path: "[oscurato]" });
+    for (const secret of [...secrets, "abcd-riservato", "caio-riservato"]) expect(raw).not.toContain(secret);
+    expect(readLog({}, d).entries[0]!.arguments).toMatchObject({ filter: "with_favorite" });
+  });
+
+  test("i percorsi restano leggibili: il registro deve dire su cosa ha agito", () => {
+    recordCall(entry({ tool: "sviluppa_foto",
+      arguments: { file: "/Users/tizio/Pictures/Japan/DSC01234.ARW", cartella: "~/Desktop/Selects", esposizione: 0.3 },
+      message: "Scritto /Users/tizio/Pictures/Japan/DSC01234.xmp",
+    }), d);
+    const riga = readLog({}, d).entries[0]!;
+    expect(riga.arguments).toMatchObject({ file: "/Users/tizio/Pictures/Japan/DSC01234.ARW", cartella: "~/Desktop/Selects" });
+    expect(riga.message).toContain("DSC01234.xmp");
   });
 
   test("JSON incollato e JSON serializzato negli errori oscurano anche le chiavi quoted", () => {
