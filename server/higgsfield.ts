@@ -251,6 +251,24 @@ async function uploadImage(localPath: string): Promise<string> {
 }
 
 /** Full edit pipeline: upload reference → generate → poll → download to outputPath. */
+/**
+ * Un'immagine dal solo testo.
+ *
+ * `generateEdit` parte sempre da una fotografia: e' cio' che serve a rifinire uno
+ * scatto, ma non a fare un'illustrazione che non esiste ancora. La differenza sta
+ * tutta in `medias`, che qui non c'e'; il resto — preventivo, attesa, scaricamento —
+ * e' lo stesso lavoro, quindi e' lo stesso codice.
+ */
+export async function generaDaTesto(opts: {
+  prompt: string;
+  model: string;
+  params?: Record<string, unknown>;
+  outputPath: string;
+  onLog?: (msg: string) => void;
+}): Promise<{ credits: number | null }> {
+  return eseguiGenerazione({ ...opts, mediaId: null });
+}
+
 export async function generateEdit(opts: {
   imagePath: string;
   prompt: string;
@@ -264,6 +282,19 @@ export async function generateEdit(opts: {
 
   log(`upload ${imagePath.split("/").pop()}`);
   const mediaId = await uploadImage(imagePath);
+  return eseguiGenerazione({ prompt, model, params, outputPath, onLog, mediaId });
+}
+
+async function eseguiGenerazione(opts: {
+  prompt: string;
+  model: string;
+  params?: Record<string, unknown>;
+  outputPath: string;
+  onLog?: (msg: string) => void;
+  mediaId: string | null;
+}): Promise<{ credits: number | null }> {
+  const { prompt, model, params = {}, outputPath, mediaId } = opts;
+  const log = opts.onLog ?? (() => {});
 
   // Preflight cost — the generation payload doesn't reliably expose credits,
   // but get_cost.credits_exact matches the actual balance delta.
@@ -280,7 +311,7 @@ export async function generateEdit(opts: {
     params: {
       model,
       prompt,
-      medias: [{ role: "image", value: mediaId }],
+      ...(mediaId ? { medias: [{ role: "image", value: mediaId }] } : {}),
       ...params,
     },
   });

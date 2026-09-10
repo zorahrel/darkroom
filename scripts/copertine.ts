@@ -4,8 +4,10 @@
  *   bun run scripts/copertine.ts            # genera quelle che mancano
  *   bun run scripts/copertine.ts --rifai id # rifa' una sola
  *
- * Le immagini nascono da ChatGPT attraverso la skill `chatgpt-image` (Chrome
- * collegato via CDP, nessuna chiamata all'API a pagamento), poi vengono rifinite qui:
+ * Le immagini nascono da Higgsfield, con cui Darkroom parla gia' per la rifinitura
+ * delle fotografie: due crediti l'una, e nessuna sessione di browser da tenere viva
+ * (la strada per ChatGPT c'era, e si e' rotta a meta' serie quando il login e'
+ * scaduto). Poi vengono rifinite qui:
  * ridotte, e con il nero portato a trasparente perche' si posino sul colore del
  * pannello invece di ritagliarci sopra un quadrato.
  *
@@ -30,8 +32,8 @@
  * Uno strumento nuovo: aggiungi una riga a SOGGETTI e rilancia. Chi c'e' gia' non
  * viene rifatto, cosi' la serie non cambia sotto i piedi.
  */
-import { $ } from "bun";
 import { existsSync, mkdirSync, statSync } from "node:fs";
+import { generaDaTesto } from "../server/higgsfield.ts";
 
 const STILE =
   "Infografica tridimensionale, non un'illustrazione decorativa: la composizione racconta una " +
@@ -56,8 +58,8 @@ const STILE =
  */
 const SOGGETTI: Record<string, string> = {
   generate: "A sinistra tre righe astratte incise nel vetro, come una frase; al centro un passaggio di luce; a destra una lastra fotografica che si e' accesa con un'immagine dentro. Dal testo nasce l'immagine",
-  retouch: "A sinistra una pila di lastre spente e uguali; al centro un passaggio di luce che le attraversa tutte; a destra la stessa pila, ogni lastra ora accesa e diversa. Un intero set rifatto in un colpo",
-  prompt: "Una fila di manopole di alluminio in basso; sopra ognuna una piccola lastra che cambia di conseguenza, dalla piu' spenta alla piu' viva. I controlli e il loro effetto, visibili insieme",
+  retouch: "A sinistra una pila di lastre opache e spente; al centro un passaggio di luce che le attraversa tutte; a destra la stessa pila, ogni lastra ora nitida e illuminata. Un intero set rifatto in un colpo. SOLO ciano e ambra, nessun altro colore",
+  prompt: "Una fila di manopole di alluminio in basso; sopra ognuna una piccola lastra che cambia di conseguenza, dalla piu' scura alla piu' luminosa. I controlli e il loro effetto, visibili insieme. SOLO ciano e ambra, nessun altro colore",
   color: "Una sola lastra fotografica tagliata a meta' da una linea netta verticale: la meta' sinistra grigia e piatta, la meta' destra con lo stesso soggetto ma colore pieno e contrasto. Il prima e il dopo nella stessa immagine",
   export: "Una lastra di vetro finita che scivola fuori da una fessura di alluminio verso destra, uscendo dal contenitore. Il lavoro che esce dal progetto",
   pipeline: "Quattro lastre in fila da sinistra a destra, collegate da un filo di luce: la prima spenta e grezza, ognuna piu' definita, l'ultima finita. La catena intera in un colpo solo",
@@ -79,7 +81,9 @@ const SOGGETTI: Record<string, string> = {
   status: "Un anello di vetro con dentro una corona di luce che pulsa, e accanto una piccola spia accesa. Il motore acceso e il suo stato",
 };
 
-const SKILL = `${process.env.HOME}/jarvis/skills-marketplace/skills/chatgpt-image/run.ts`;
+/** «Qualita' massima, testo e diagrammi»: e' la descrizione del modello, ed e'
+ *  esattamente cio' che serve a un'infografica che deve spiegare uno strumento. */
+const MODELLO = "nano_banana_pro";
 const DESTINAZIONE = "client/public/copertine";
 const GREZZE = ".copertine-grezze";
 /** Nella scheda se ne vede un terzo: oltre questo lato non si guadagna niente. */
@@ -144,7 +148,7 @@ const rifai = process.argv.includes("--rifai") ? process.argv[process.argv.index
 mkdirSync(GREZZE, { recursive: true });
 mkdirSync(DESTINAZIONE, { recursive: true });
 
-let fatte = 0, tenute = 0;
+let fatte = 0, tenute = 0, spesi = 0;
 const rotte: string[] = [];
 for (const [id, soggetto] of Object.entries(SOGGETTI)) {
   if (rifai && id !== rifai) continue;
@@ -152,7 +156,12 @@ for (const [id, soggetto] of Object.entries(SOGGETTI)) {
   const uscita = `${DESTINAZIONE}/${id}.png`;
   try {
     if (!existsSync(grezza) || rifai === id) {
-      await $`bun run ${SKILL} ${`${soggetto}. ${STILE}`} --out ${grezza}`.quiet();
+      const { credits } = await generaDaTesto({
+        model: MODELLO,
+        prompt: `${soggetto}. ${STILE}`,
+        outputPath: grezza,
+      });
+      spesi += credits ?? 0;
       fatte++;
     } else {
       tenute++;
@@ -164,4 +173,4 @@ for (const [id, soggetto] of Object.entries(SOGGETTI)) {
     console.log(`[!] ${id}: ${e instanceof Error ? e.message.slice(0, 140) : e}`);
   }
 }
-console.log(`generate ${fatte}, gia' c'erano ${tenute}, non riuscite ${rotte.length}${rotte.length ? ": " + rotte.join(", ") : ""}`);
+console.log(`generate ${fatte} (${spesi} crediti), gia' c'erano ${tenute}, non riuscite ${rotte.length}${rotte.length ? ": " + rotte.join(", ") : ""}`);
