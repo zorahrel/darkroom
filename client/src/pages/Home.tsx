@@ -154,7 +154,12 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
               </Filter>
             ))}
           </div>
+          {/* Spinto a destra, in colonna con gli indicatori della riga sotto: prima
+              stava attaccato ai filtri delle aree e si leggeva come uno di loro,
+              mentre e' un interruttore che vale su tutti. Le due righe della barra
+              ora cominciano e finiscono nello stesso punto. */}
           <Bott
+            className="ml-auto"
             size="m"
             weight="quiet"
             active={onlyReady}
@@ -272,45 +277,54 @@ function ToolCard({
   onDone: (route: string) => void;
 }) {
   const I = ICONS[s.icon] ?? CircleHelp;
+  const [senzaCopertina, setSenzaCopertina] = useState(false);
 
   return (
     <Panel className={"group relative isolate flex h-full flex-col overflow-hidden transition-colors "
                       + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
-      <div className="flex items-start gap-2.5">
-        <I
-          className={"w-4 h-4 mt-[2px] shrink-0 " + (s.ready ? "text-neutral-300" : "text-neutral-500")}
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
+      {/* La copertina prende il posto dell'icona invece di starle accanto.
+          Averle tutte e due voleva dire dire la stessa cosa due volte, in due
+          linguaggi diversi, a due centimetri di distanza: l'occhio non sapeva
+          quale delle due guardare e nessuna delle due valeva la riga che
+          occupava. La copertina e' piu' grande perche' ha qualcosa da mostrare —
+          l'icona no, ed e' per questo che era piccola.
+
+          Il PNG e' senza fondo, quindi si posa sul pannello invece di
+          ritagliarci sopra un quadrato nero. Uno strumento senza copertina non
+          lascia un buco: al suo posto torna l'icona. */}
+      <div className="flex items-start gap-3">
+        <div className="relative -my-2 -ml-2 flex h-[136px] w-[136px] shrink-0 items-center justify-center">
+          {/* L'icona compare solo se la copertina non arriva davvero. Tenerla
+              sotto come rete voleva dire vederla ATTRAVERSO il PNG, che e'
+              trasparente: due segni sovrapposti che dicono la stessa cosa. */}
+          {senzaCopertina && (
+            <I
+              className={"h-9 w-9 " + (s.ready ? "text-neutral-500" : "text-neutral-600")}
+              aria-hidden
+            />
+          )}
+          <img
+            src={`/copertine/${s.id}.png`}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            decoding="async"
+            onError={() => setSenzaCopertina(true)}
+            className={(senzaCopertina ? "hidden " : "")
+                       + "h-full w-full select-none transition-all duration-500 ease-out "
+                       + "[filter:drop-shadow(0_0_18px_rgba(120,190,255,0.16))] "
+                       + (s.ready
+                          ? "opacity-100 group-hover:scale-105"
+                          : "opacity-35 grayscale")}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1 pt-0.5">
           <div className={"text-[13.5px] font-medium leading-tight " + (s.ready ? "" : "text-neutral-400")}>
             {s.name}
           </div>
           <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.what}</p>
         </div>
-
-        {/* La copertina dello strumento.
-            Sta nel flusso, terza in riga dopo l'icona e il testo, e non appoggiata
-            sopra la scheda: messa in assoluto usciva dal bordo e se ne vedeva una
-            striscia — che non si legge come una copertina, si legge come un errore
-            di disegno — e sulle schede alte finiva dietro alle parole. Qui il testo
-            le si ferma accanto per costruzione, senza margini indovinati.
-            Il PNG e' senza fondo, quindi si posa sul pannello invece di ritagliarci
-            sopra un quadrato nero; l'alone e' l'unica cosa aggiunta qui.
-            Uno strumento senza copertina non lascia un buco: l'immagine si toglie da
-            sola e la riga si richiude. */}
-        <img
-          src={`/copertine/${s.id}.png`}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          decoding="async"
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
-          className={"-mt-1.5 -mr-1 h-16 w-16 shrink-0 select-none transition-all duration-500 ease-out "
-                     + "[filter:drop-shadow(0_0_10px_rgba(120,190,255,0.10))] "
-                     + (s.ready
-                        ? "opacity-80 group-hover:opacity-100 group-hover:scale-[1.06]"
-                        : "opacity-35 grayscale")}
-        />
       </div>
 
       {/* Not ready is not «broken»: it is something missing, with the gesture
