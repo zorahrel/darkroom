@@ -34,9 +34,11 @@ export function lastProject(): string {
  * una chiamata relativa finirebbe lì invece che al backend — che è esattamente il
  * difetto per cui la prima finestra mostrava «Il catalogo non risponde: 500».
  *
- * Le anteprime non passano di qui: nell'applicazione hanno una strada propria che non
- * tocca la rete (vedi `guscio.ts`). Questo indirizzo serve al resto — database,
- * lavori, impostazioni — che vive nel backend e non nel motore.
+ * L'anteprima di uno scatto aperto non passa di qui: nell'applicazione ha una strada
+ * propria che non tocca la rete (vedi `guscio.ts`). Ma quella strada vuole il percorso
+ * del file, e le schede di `/studio` mostrano progetti che non sono aperti: di quei
+ * file non si sa niente. Le loro immagini tornano quindi al backend, e per arrivarci
+ * devono essere assolute come tutto il resto.
  */
 export function radiceApi(): string {
   return nelGuscioDesktop() ? `http://127.0.0.1:${PORTA_BACKEND}` : "";
@@ -46,7 +48,7 @@ export function radiceApi(): string {
 const PORTA_BACKEND = 3535;
 
 /** Un indirizzo assoluto quando serve, relativo quando basta. */
-function assoluto(url: string): string {
+export function assoluto(url: string): string {
   return url.startsWith("http") || url.startsWith("anteprima:") ? url : radiceApi() + url;
 }
 

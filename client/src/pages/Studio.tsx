@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   api,
+  fotogrammaUrl,
   thumbRawUrlDi,
   type ProjectKind,
   type StudioOverview,
@@ -215,6 +216,18 @@ function Card({
     onViews([...inside]);
   };
 
+  // Un progetto di montaggio non ha fotografie: la sua copertina sono i primi
+  // fotogrammi delle clip. Senza, restava l'unica scheda muta della pagina.
+  const copertine = (p.anteprime ?? []).length > 0
+    ? (p.anteprime ?? []).slice(0, 4).map((id) => ({ chiave: id, src: thumbRawUrlDi(p.id, id, 256) }))
+    : (p.video?.clip ?? []).slice(0, 4).map((clip, i) => ({
+        // Secondi scaglionati: in una cartella di montaggio le clip sono spesso
+        // esportazioni dello stesso taglio, e allo stesso istante darebbero quattro
+        // riquadri identici — che si leggono come un errore, non come una copertina.
+        chiave: clip,
+        src: fotogrammaUrl(p.root, clip, 256, 1 + i * 4),
+      }));
+
   return (
     // The whole card is the button to go in: the white rectangle on every box
     // shouted louder than the project's name, and the thing you want to click
@@ -230,12 +243,12 @@ function Card({
           senso stretto — l'informazione utile è tutta sotto — quindi restano fuori
           dall'albero di accessibilità e non intercettano il clic, che appartiene
           alla scheda intera. */}
-      {p.anteprime && p.anteprime.length > 0 && (
+      {copertine.length > 0 && (
         <div className="relative z-0 -m-3 mb-0 grid grid-cols-4 gap-px overflow-hidden rounded-t-lg pointer-events-none">
-          {p.anteprime.slice(0, 4).map((id) => (
+          {copertine.map(({ chiave, src }) => (
             <img
-              key={id}
-              src={thumbRawUrlDi(p.id, id, 256)}
+              key={chiave}
+              src={src}
               alt=""
               aria-hidden
               loading="lazy"

@@ -25,7 +25,7 @@ import { basename, extname, join } from "node:path";
  * l'estensione di un video e senza l'SDK del produttore non si aprono. Per questo
  * l'elenco serve a decidere cosa *provare*, e l'esito lo dà il tentativo.
  */
-const ESTENSIONI = new Set([
+export const ESTENSIONI = new Set([
   ".mov", ".mp4", ".m4v", ".avi", ".mkv", ".webm",
   ".mts", ".m2ts", ".mxf", ".braw", ".r3d",
 ]);

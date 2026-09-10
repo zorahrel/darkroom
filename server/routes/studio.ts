@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { extname, join } from "node:path";
 import { db } from "../db.ts";
 import { WORKER_BACKEND, BACKEND_USES_BROWSER, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, openaiKey } from "../config.ts";
 import {
@@ -11,6 +11,7 @@ import {
   updateProject,
   withProject,
 } from "../project.ts";
+import { ESTENSIONI as ESTENSIONI_VIDEO } from "../girato.ts";
 import { getRunnerStatus, jobsSummary } from "../jobs.ts";
 import { addSource, listSources, removeSource, rescanSources } from "../sources.ts";
 import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, checkChatgptSession, launchChatgptBrowser } from "../worker.ts";
@@ -115,7 +116,28 @@ function statsVideo(root: string) {
     cuts: plan.segments?.length ?? 0,
     shots: Object.keys(intensity.shots ?? {}).length,
     duration: edl.total_s ?? 0,
+    clip: clipDiCopertina(root),
   };
+}
+
+/**
+ * Qualche clip del progetto, per la copertina.
+ *
+ * Un progetto di montaggio non ha fotografie nel database, quindi `anteprimeProgetto`
+ * gli lascia la scheda vuota: restava l'unico dei sei a non dire niente di sé. I nomi
+ * bastano, il fotogramma lo estrae `/api/girato/fotogramma` quando l'immagine viene
+ * davvero richiesta. Si legge la cartella e basta: `elenca` interroga ffprobe clip per
+ * clip, ed è troppo per disegnare una scheda.
+ */
+function clipDiCopertina(root: string, quante = 4): string[] {
+  try {
+    return readdirSync(root)
+      .filter((n) => !n.startsWith(".") && ESTENSIONI_VIDEO.has(extname(n).toLowerCase()))
+      .sort()
+      .slice(0, quante);
+  } catch {
+    return [];
+  }
 }
 
 /** Gather a project's headline stats within its own DB context. */

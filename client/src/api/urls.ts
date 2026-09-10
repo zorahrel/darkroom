@@ -1,7 +1,7 @@
 import { anteprimaInProcesso } from "../guscio";
 /** Image URLs. Every one carries the active project (images can't send headers). */
 
-import { pq } from "./http";
+import { assoluto, pq } from "./http";
 import type { ColorGrade } from "./types";
 
 /** URL of a generation with the global color look applied on the fly.
@@ -63,7 +63,18 @@ export function thumbRawUrl(id: string, w?: number, percorsoFile?: string | null
  * c'è: le schede mostrerebbero tutte le foto dello stesso progetto, o nessuna.
  */
 export function thumbRawUrlDi(pid: string, id: string, w = 256): string {
-  return `/thumb/raw/${encodeURIComponent(id)}?w=${w}&project=${encodeURIComponent(pid)}`;
+  return assoluto(`/thumb/raw/${encodeURIComponent(id)}?w=${w}&project=${encodeURIComponent(pid)}`);
+}
+
+/**
+ * Il fotogramma di una clip, per la copertina di un progetto di montaggio.
+ *
+ * Non passa dal progetto attivo ma dalla cartella, perché è così che il girato è
+ * indirizzato ovunque: le clip vivono su disco, non nel database.
+ */
+export function fotogrammaUrl(cartella: string, clip: string, w = 256, secondo = 1): string {
+  const p = new URLSearchParams({ cartella, clip, w: String(w), t: String(secondo) });
+  return assoluto(`/api/girato/fotogramma?${p.toString()}`);
 }
 
 export function genUrl(photoId: string, versionNumber: number): string {

@@ -255,7 +255,13 @@ export type StudioProject = {
   anteprime?: string[];
   /** Video projects only: the numbers that mean something for an edit. Null
    *  elsewhere. */
-  video: { cuts: number; shots: number; duration: number } | null;
+  video: {
+    cuts: number;
+    shots: number;
+    duration: number;
+    /** Le clip da cui ricavare la copertina, quando non ci sono fotografie. */
+    clip: string[];
+  } | null;
   error: string | null;
 };
 
