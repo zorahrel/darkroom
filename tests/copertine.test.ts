@@ -13,14 +13,14 @@ import { TOOLS } from "../server/tools.ts";
  */
 describe("le copertine degli strumenti", () => {
   const presenti = existsSync("dist/copertine")
-    ? new Set(readdirSync("dist/copertine").filter((n) => n.endsWith(".png")).map((n) => n.slice(0, -4)))
+    ? new Set(readdirSync("dist/copertine").filter((n) => n.endsWith(".webp")).map((n) => n.slice(0, -5)))
     : new Set<string>();
 
   test.skipIf(presenti.size === 0)("arrivano come immagini, non come la pagina", async () => {
     const uno = [...presenti][0]!;
-    const r = await app.request(`/copertine/${uno}.png`);
+    const r = await app.request(`/copertine/${uno}.webp`);
     expect(r.status).toBe(200);
-    expect(r.headers.get("content-type")).toContain("image/png");
+    expect(r.headers.get("content-type")).toContain("image/webp");
   });
 
   test("un percorso che risale la cartella non serve niente", async () => {

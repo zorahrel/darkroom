@@ -86,8 +86,18 @@ const SOGGETTI: Record<string, string> = {
 const MODELLO = "nano_banana_pro";
 const DESTINAZIONE = "client/public/copertine";
 const GREZZE = ".copertine-grezze";
-/** Nella scheda se ne vede un terzo: oltre questo lato non si guadagna niente. */
-const LATO = 256;
+/**
+ * La larghezza dell'immagine finita.
+ *
+ * Era 256, e la scheda la disegnava a 459: veniva INGRANDITA, ed e' esattamente
+ * cio' che si vede come «sgranata». Qui c'e' il doppio della larghezza della
+ * fascia, che e' quello che serve su uno schermo a densita' doppia.
+ */
+const LATO = 960;
+
+/** WebP e non PNG: a questa misura le stesse immagini pesavano dieci volte tanto,
+ *  e finiscono anche dentro il pacchetto dell'applicazione. */
+const ESTENSIONE = "webp";
 
 /**
  * Il nero diventa trasparente.
@@ -123,10 +133,12 @@ const MASCHERA = ["-colorspace", "Gray", "-auto-level", "-level", "6%,60%"];
  */
 async function scontorna(grezza: string, uscita: string) {
   const riquadro = await esegui(["magick", grezza, ...MASCHERA, "-format", "%@", "info:"]);
-  const lato = LATO - 24;
   await esegui([
     "magick", grezza, "-crop", riquadro, "+repage", "-colorspace", "sRGB",
-    "-resize", `${lato}x${lato}`,
+    // Vincolata solo in larghezza, e senza tela quadrata attorno: una composizione
+    // larga deve poter riempire la fascia da bordo a bordo, invece di stare in
+    // mezzo a una cornice trasparente che la rimpicciolisce.
+    "-resize", `${LATO}x>`,
     // Le parentesi sono argomenti veri di magick: una shell che le cita le
     // trasformerebbe in testo, ed e' per questo che qui non c'e' una shell.
     "(", "+clone", ...MASCHERA, ")",
@@ -137,9 +149,7 @@ async function scontorna(grezza: string, uscita: string) {
     // l'immagine sulla tela nuova, e copierebbe l'opacita' del fondo dentro i
     // colori — l'intera serie usciva nera con l'alfa giusta, cioe' silhouette.
     "-compose", "over",
-    // Un respiro uguale per tutte, cosi' nella scheda hanno tutte la stessa aria.
-    "-background", "none", "-gravity", "center", "-extent", `${LATO}x${LATO}`,
-    "-define", "png:compression-level=9",
+    "-quality", "88", "-define", "webp:alpha-quality=95",
     uscita,
   ]);
 }
@@ -153,7 +163,7 @@ const rotte: string[] = [];
 for (const [id, soggetto] of Object.entries(SOGGETTI)) {
   if (rifai && id !== rifai) continue;
   const grezza = `${GREZZE}/${id}.png`;
-  const uscita = `${DESTINAZIONE}/${id}.png`;
+  const uscita = `${DESTINAZIONE}/${id}.${ESTENSIONE}`;
   try {
     if (!existsSync(grezza) || rifai === id) {
       const { credits } = await generaDaTesto({

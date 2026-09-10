@@ -317,13 +317,16 @@ function ToolCard({
           <I className={"h-10 w-10 " + (s.ready ? "text-neutral-600" : "text-neutral-700")} aria-hidden />
         ) : (
           <img
-            src={`/copertine/${s.id}.png`}
+            src={`/copertine/${s.id}.webp`}
             alt=""
             aria-hidden
             loading="lazy"
             decoding="async"
             onError={() => setSenzaCopertina(true)}
-            className={"h-full w-full select-none object-contain p-3 transition-all duration-500 ease-out "
+            /* Senza margine: una composizione larga riempie la fascia da bordo a
+               bordo. Con `p-3` restava una cornice trasparente attorno a un'immagine
+               che aveva gia' il suo respiro dentro, e la rimpiccioliva due volte. */
+            className={"h-full w-full select-none object-contain transition-all duration-500 ease-out "
                        + "[filter:drop-shadow(0_0_24px_rgba(120,190,255,0.18))] "
                        + (s.ready ? "group-hover:scale-[1.04]" : "opacity-35 grayscale")}
           />
