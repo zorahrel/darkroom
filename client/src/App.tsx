@@ -1,6 +1,8 @@
 import { nelGuscioDesktop } from "./guscio";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
+import { ALTEZZA_BARRA } from "./barra";
+import { Trascina } from "./components/Trascina";
 import {
   api,
   currentProject,
@@ -200,7 +202,10 @@ export default function App() {
              `sm:px-4` compare più avanti nel foglio di stile e sopra i 640 px lo
              scavalcava — misurato, la classe c'era e il nome restava sotto i bottoni.
              Non è comunque un token di stile: è una misura del guscio. */
-          style={desktop ? { paddingLeft: 92 } : undefined}
+          /* L'altezza è fissata solo dentro l'applicazione, ed è la stessa misura su
+             cui il guscio centra i semafori: se la barra cambiasse altezza da sola, i
+             semafori resterebbero dove sono e nessuno se ne accorgerebbe. */
+          style={desktop ? { paddingLeft: 92, minHeight: ALTEZZA_BARRA } : undefined}
           className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
         >
           {/* Navigation has two floors, and they are visible.
@@ -228,9 +233,6 @@ export default function App() {
                 {projects.length > 0 && (
                   <span className="ml-1 text-neutral-500 tabular-nums">{projects.length}</span>
                 )}
-              </ViewTab>
-              <ViewTab to="/activity" icon={Logs} current={location.pathname === "/activity"}>
-                Registro
               </ViewTab>
             </nav>
             {pid && (
@@ -355,6 +357,17 @@ export default function App() {
               </Bott>
             )}
 
+            {/* Il registro non è un terzo piano della navigazione: non è né una
+                cosa che Darkroom sa fare né una cosa su cui la stai facendo. È
+                il diario di quello che è già successo, e sta con gli altri
+                indicatori — i lavori, la spesa, la salute del browser. */}
+            <Bott size="m" weight="quiet" active={location.pathname === "/activity"}
+                  onClick={() => navigate("/activity")}
+                  title="Il registro delle chiamate MCP: cosa è stato fatto, quando, e com'è andata">
+              <Logs className="w-4 h-4" aria-hidden />
+              <span className="hidden xl:inline">Registro</span>
+            </Bott>
+
             <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
               Lavori
@@ -394,6 +407,8 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <Trascina />
 
       {gradeWarns.map((w) => (
         <div key={w} className="bg-rose-900/80 text-rose-50 text-xs px-4 py-2 border-b border-rose-700">

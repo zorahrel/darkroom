@@ -73,7 +73,26 @@ export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> 
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`${res.status} ${url}: ${text}`);
+    throw new Error(messaggioErrore(res.status, url, text));
   }
   return (await res.json()) as T;
+}
+
+/**
+ * L'errore come lo leggerebbe una persona.
+ *
+ * Il backend risponde `{"error":"cartella inesistente: …"}`, e finché il corpo veniva
+ * incollato tale e quale l'utente si trovava le graffe e le virgolette in mezzo alla
+ * frase — con il codice di stato e la rotta davanti, che a lui non dicono niente.
+ * Quando la frase c'è si mostra quella; quando non c'è resta tutto, perché a quel
+ * punto lo stato e la rotta sono l'unica cosa da cui ripartire.
+ */
+export function messaggioErrore(stato: number, url: string, corpo: string): string {
+  try {
+    const j = JSON.parse(corpo) as { error?: unknown };
+    if (typeof j.error === "string" && j.error.trim()) return j.error;
+  } catch {
+    /* Non era JSON: sotto c'è il ripiego. */
+  }
+  return `${stato} ${url}: ${corpo}`;
 }

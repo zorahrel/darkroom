@@ -53,3 +53,19 @@ describe("le copertine delle schede raggiungono il backend anche nell'applicazio
     expect(fotogrammaUrl("/Users/x/lungomare", "REEL.mp4").startsWith("/api/girato/")).toBe(true);
   });
 });
+
+import { messaggioErrore } from "../client/src/api/http";
+
+describe("gli errori del backend si leggono", () => {
+  test("la frase del backend arriva senza le graffe attorno", () => {
+    expect(messaggioErrore(400, "/api/sources", '{"error":"cartella inesistente: /x/y"}'))
+      .toBe("cartella inesistente: /x/y");
+  });
+
+  test("quando non c'è una frase restano lo stato e la rotta, che è tutto ciò che si ha", () => {
+    expect(messaggioErrore(502, "/api/sources", "<html>Bad Gateway</html>"))
+      .toBe("502 /api/sources: <html>Bad Gateway</html>");
+    expect(messaggioErrore(500, "/api/x", '{"altro":1}')).toBe('500 /api/x: {"altro":1}');
+    expect(messaggioErrore(500, "/api/x", '{"error":"  "}')).toBe('500 /api/x: {"error":"  "}');
+  });
+});

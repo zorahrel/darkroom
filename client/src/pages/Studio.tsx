@@ -164,7 +164,7 @@ export default function StudioPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch">
         {visible.map((p) => (
           <Card
             key={p.id}
@@ -201,11 +201,24 @@ function Card({
   const primary = view(p.kind);
   const Icon = primary.icon;
 
-  const numbers = p.video
-    ? [["tagli", p.video.cuts], ["riprese", p.video.shots], ["durata", shortDuration(p.video.duration)]] as const
-    : s
-      ? [["foto", s.photos], ["preferite", s.favorites], ["versioni", s.versions]] as const
-      : null;
+  /**
+   * Le cifre della scheda, in una riga sola.
+   *
+   * Erano tre riquadri centrati, sempre tre: un progetto che è insieme foto e
+   * montaggio ne aveva da mostrare cinque e ne mostrava tre, e uno vuoto
+   * disegnava tre cornici attorno a tre zeri. Scritte in fila occupano metà
+   * dello spazio e non hanno più un numero fisso, quindi dicono quello che c'è.
+   */
+  const cifre: Array<[string | number, string]> = [];
+  if (s) {
+    cifre.push([s.photos, s.photos === 1 ? "foto" : "foto"]);
+    if (s.favorites > 0) cifre.push([s.favorites, "preferite"]);
+    if (s.versions > 0) cifre.push([s.versions, "versioni"]);
+    if (s.panels > 0) cifre.push([s.panels, s.panels === 1 ? "quadro" : "quadri"]);
+  }
+  if (p.video && p.video.cuts > 0) cifre.push([p.video.cuts, p.video.cuts === 1 ? "taglio" : "tagli"]);
+  if (p.video && p.video.shots > 0) cifre.push([p.video.shots, "riprese"]);
+  if (p.video && p.video.duration > 0) cifre.push([shortDuration(p.video.duration), "durata"]);
 
   /** Switching a view on and off. The main one cannot be switched off: it
    *  would be a project that opens on a page that is not there. */
@@ -219,146 +232,173 @@ function Card({
   // Un progetto di montaggio non ha fotografie: la sua copertina sono i primi
   // fotogrammi delle clip. Senza, restava l'unica scheda muta della pagina.
   const copertine = (p.anteprime ?? []).length > 0
-    ? (p.anteprime ?? []).slice(0, 4).map((id) => ({ chiave: id, src: thumbRawUrlDi(p.id, id, 256) }))
-    : (p.video?.clip ?? []).slice(0, 4).map((clip, i) => ({
+    ? (p.anteprime ?? []).slice(0, 3).map((id) => ({ chiave: id, src: thumbRawUrlDi(p.id, id, 384) }))
+    : (p.video?.clip ?? []).slice(0, 3).map((clip, i) => ({
         // Secondi scaglionati: in una cartella di montaggio le clip sono spesso
         // esportazioni dello stesso taglio, e allo stesso istante darebbero quattro
         // riquadri identici — che si leggono come un errore, non come una copertina.
         chiave: clip,
-        src: fotogrammaUrl(p.root, clip, 256, 1 + i * 4),
+        src: fotogrammaUrl(p.root, clip, 384, 1 + i * 4),
       }));
 
   return (
     // The whole card is the button to go in: the white rectangle on every box
     // shouted louder than the project's name, and the thing you want to click
     // is the project, not a button inside the project.
-    <div className="group relative rounded-lg border border-neutral-800 bg-neutral-950/60 p-3
-                    flex flex-col gap-2.5 transition-colors hover:border-neutral-600">
+    //
+    // `h-full` piu' la riga che si stira: senza, due schede accanto avevano i
+    // piedi a altezze diverse a seconda di quanti avvisi mostravano, e la
+    // pagina sembrava storta invece che varia.
+    <div className="group relative h-full flex flex-col overflow-hidden rounded-lg border border-neutral-800
+                    bg-neutral-950/60 transition-colors hover:border-neutral-600">
       <button type="button" onClick={onOpen} aria-label={`Apri ${p.name}`}
               className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-1
                          focus-visible:outline-offset-2 focus-visible:outline-neutral-300" />
 
-      {/* Le anteprime prima del nome: un progetto si riconosce dalle sue fotografie
-          molto prima che dalla parola con cui è stato chiamato. Sono decorative nel
-          senso stretto — l'informazione utile è tutta sotto — quindi restano fuori
-          dall'albero di accessibilità e non intercettano il clic, che appartiene
-          alla scheda intera. */}
-      {copertine.length > 0 && (
-        <div className="relative z-0 -m-3 mb-0 grid grid-cols-4 gap-px overflow-hidden rounded-t-lg pointer-events-none">
-          {copertine.map(({ chiave, src }) => (
-            <img
-              key={chiave}
-              src={src}
-              alt=""
-              aria-hidden
-              loading="lazy"
-              decoding="async"
-              className="h-16 w-full object-cover bg-neutral-900 opacity-80 transition-opacity group-hover:opacity-100"
-            />
-          ))}
-        </div>
-      )}
+      {/* La copertina prima del nome: un progetto si riconosce dalle sue fotografie
+          molto prima che dalla parola con cui è stato chiamato. È decorativa nel
+          senso stretto — l'informazione utile è tutta sotto — quindi resta fuori
+          dall'albero di accessibilità e non intercetta il clic, che appartiene
+          alla scheda intera.
 
-      <div className="relative z-20 flex items-start gap-2 min-w-0 pointer-events-none">
-        <Icon className="w-4 h-4 mt-[3px] shrink-0 text-neutral-400" aria-hidden />
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[14px] font-medium truncate group-hover:text-white">{p.name}</span>
+          Una sola grande piu' due piccole invece di quattro francobolli in fila:
+          a sedici pixel di altezza non si riconosceva niente, che è l'unica cosa
+          che una copertina deve fare. Chi non ne ha tiene comunque la sua fascia,
+          altrimenti le schede senza fotografie si accorciavano e la griglia
+          diventava un dente di sega. */}
+      <div className="relative z-0 h-32 shrink-0 bg-neutral-900 pointer-events-none">
+        {copertine.length > 0 ? (
+          <div className={`grid h-full gap-px ${
+            copertine.length === 1 ? "grid-cols-1"
+            : copertine.length === 2 ? "grid-cols-2"
+            : "grid-cols-3 grid-rows-2"}`}>
+            {copertine.map(({ chiave, src }, i) => (
+              <img
+                key={chiave}
+                src={src}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                decoding="async"
+                className={`h-full w-full object-cover bg-neutral-900 opacity-85
+                            transition-opacity group-hover:opacity-100
+                            ${copertine.length > 2 && i === 0 ? "col-span-2 row-span-2" : ""}`}
+              />
+            ))}
           </div>
-          <div className="text-[11px] text-neutral-400 truncate" title={p.root}>{p.root}</div>
-        </div>
-        {/* It appears on hover, and stays if you arrive with the tab key: hidden
-            does not mean unreachable. */}
-        <Other subtle className="pointer-events-auto">
-          <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
-          <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
-          <MenuItem onClick={() => onGenerate(!p.active)}
-                    note="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
-            {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
-          </MenuItem>
-          <div className="border-t border-neutral-800 my-1" />
-          <Confirm size="s" className="w-full justify-start"
-                    question={`Tolgo «${p.name}»? I file restano dove sono.`}
-                    confirm="togli" onConfirm={onRemove}>
-            Togli dall'elenco
-          </Confirm>
-        </Other>
-      </div>
-
-      {!p.root_exists && (
-        <div className="relative z-10 text-[11px] text-amber-300 bg-amber-950/30 border border-amber-900/60
-                        rounded px-2 py-1 pointer-events-none">
-          La cartella non c'è più: {p.root}
-        </div>
-      )}
-      {p.error && (
-        <div className="relative z-10 text-[11px] text-rose-200 bg-rose-950/30 border border-rose-900/60
-                        rounded px-2 py-1 truncate pointer-events-none" title={p.error}>
-          {p.error}
-        </div>
-      )}
-
-      {numbers && (
-        <div className="relative z-10 grid grid-cols-3 gap-1.5 text-center pointer-events-none">
-          {numbers.map(([label, v]) => (
-            <div key={label} className="rounded bg-neutral-900/60 border border-neutral-800 py-1">
-              <div className="text-[15px] font-semibold tabular-nums leading-tight">{v}</div>
-              <div className="text-[10px] text-neutral-400">{label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* What this project can do. They are switched on and off from here: a job
-          starts with photos and ends in an edit, and it must not become two
-          projects on the same folder. */}
-      <div className="relative z-10 flex flex-wrap items-center gap-1"
-           title="Le viste di questo progetto: accendile e spegnile da qui.">
-        {VIEWS.map((v) => {
-          const on = p.views.includes(v.id);
-          const fixed = v.id === p.kind;
-          const I = v.icon;
-          return (
-            <Bott key={v.id} size="s" active={on} disabled={fixed}
-                    onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
-                    title={fixed
-                      ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
-                      : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}>
-              <I className="w-3 h-3" aria-hidden />
-              {v.name}
-            </Bott>
-          );
-        })}
-      </div>
-
-      {/* Fixed height: this row is only on some cards, and without it the feet of
-          the cards in the same row ended up three pixels apart. */}
-      <div className="relative z-10 flex items-center gap-1.5 h-[20px] overflow-hidden text-[11px]
-                      pointer-events-none">
-        {(q.running ?? 0) > 0 && <Badge tone="info">{q.running} in corso</Badge>}
-        {(q.pending ?? 0) > 0 && <Badge>{q.pending} in coda</Badge>}
-        {(q.failed ?? 0) > 0 && (
-          <Badge tone="bad" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
-            {q.failed} falliti
-          </Badge>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Icon className="w-7 h-7 text-neutral-700" aria-hidden />
+          </div>
         )}
-        {/* The normal state is not written out: you can see there is nothing
-            strange. Paused is instead an exception — the jobs are there and
-            nobody is touching them — and that has to be said. */}
-        {!p.active && (
-          <Badge tone="waiting" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
-            in pausa
-          </Badge>
-        )}
-        <span className="ml-auto text-neutral-400 shrink-0" title="ultima versione generata">
-          {when(s?.last_version_at ?? null)}
-        </span>
-        <span className="text-neutral-400 group-hover:text-neutral-100 transition-colors
-                         inline-flex items-center gap-1 shrink-0">
-          apri <ArrowRight className="w-3 h-3" aria-hidden />
-        </span>
       </div>
 
+      <div className="relative z-10 flex flex-1 flex-col gap-2 p-3 pointer-events-none">
+        <div className="flex items-start gap-2 min-w-0">
+          <Icon className="w-4 h-4 mt-[2px] shrink-0 text-neutral-400" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-medium leading-tight truncate group-hover:text-white">{p.name}</div>
+            <div className="text-[11px] leading-tight text-neutral-500 truncate" title={p.root}>{p.root}</div>
+          </div>
+          {/* It appears on hover, and stays if you arrive with the tab key: hidden
+              does not mean unreachable. */}
+          <Other subtle className="pointer-events-auto -mt-1 -mr-1">
+            <MenuItem onClick={onOpen}>Apri il progetto</MenuItem>
+            <MenuItem onClick={() => navigator.clipboard?.writeText(p.root)}>Copia il percorso</MenuItem>
+            <MenuItem onClick={() => onGenerate(!p.active)}
+                      note="Il generatore è uno solo per tutti i progetti. Mettendo in pausa questo, i suoi lavori restano in coda e passano avanti gli altri.">
+              {p.active ? "Metti in pausa" : "Rimetti in lavorazione"}
+            </MenuItem>
+            <div className="border-t border-neutral-800 my-1" />
+            <Confirm size="s" className="w-full justify-start"
+                      question={`Tolgo «${p.name}»? I file restano dove sono.`}
+                      confirm="togli" onConfirm={onRemove}>
+              Togli dall'elenco
+            </Confirm>
+          </Other>
+        </div>
+
+        {!p.root_exists && (
+          <div className="text-[11px] text-amber-300 bg-amber-950/30 border border-amber-900/60
+                          rounded px-2 py-1 truncate" title={p.root}>
+            La cartella non c'è più
+          </div>
+        )}
+        {p.error && (
+          <div className="text-[11px] text-rose-200 bg-rose-950/30 border border-rose-900/60
+                          rounded px-2 py-1 truncate" title={p.error}>
+            {p.error}
+          </div>
+        )}
+
+        {cifre.length > 0 && (
+          <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] text-neutral-500">
+            {cifre.map(([valore, nome]) => (
+              <div key={nome} className="flex items-baseline gap-1">
+                <dd className="text-[13px] font-semibold leading-none tabular-nums text-neutral-100">{valore}</dd>
+                <dt>{nome}</dt>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {/* Il piede sta in fondo — `mt-auto` — e non subito sotto il contenuto:
+            è così che i tasti delle schede accanto stanno sulla stessa riga
+            anche quando una ha un avviso in più dell'altra.
+
+            What this project can do: le viste si accendono e si spengono da qui,
+            perché un lavoro comincia con le fotografie e finisce in un montaggio,
+            e non deve diventare due progetti sulla stessa cartella. */}
+        <div className="mt-auto flex items-end gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-1 min-w-0"
+               title="Le viste di questo progetto: accendile e spegnile da qui.">
+            {VIEWS.map((v) => {
+              const on = p.views.includes(v.id);
+              const fixed = v.id === p.kind;
+              const I = v.icon;
+              return (
+                <Bott key={v.id} size="s" active={on} disabled={fixed}
+                        className="pointer-events-auto"
+                        onClick={(e) => { e.stopPropagation(); changeView(v.id); }}
+                        title={fixed
+                          ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
+                          : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}>
+                  <I className="w-3 h-3" aria-hidden />
+                  {v.name}
+                </Bott>
+              );
+            })}
+          </div>
+          <span className="ml-auto shrink-0 text-[11px] text-neutral-400 group-hover:text-neutral-100
+                           transition-colors inline-flex items-center gap-1">
+            apri <ArrowRight className="w-3 h-3" aria-hidden />
+          </span>
+        </div>
+
+        {/* Altezza fissa: questa riga c'è solo su alcune schede, e senza di essa
+            i piedi delle schede della stessa riga finivano a tre pixel di
+            distanza. */}
+        <div className="flex items-center gap-1.5 h-[18px] overflow-hidden text-[11px]">
+          {(q.running ?? 0) > 0 && <Badge tone="info">{q.running} in corso</Badge>}
+          {(q.pending ?? 0) > 0 && <Badge>{q.pending} in coda</Badge>}
+          {(q.failed ?? 0) > 0 && (
+            <Badge tone="bad" title="Generazioni non riuscite. Si guardano e si nascondono dal pannello Lavori.">
+              {q.failed} falliti
+            </Badge>
+          )}
+          {/* The normal state is not written out: you can see there is nothing
+              strange. Paused is instead an exception — the jobs are there and
+              nobody is touching them — and that has to be said. */}
+          {!p.active && (
+            <Badge tone="waiting" title="Il generatore salta questo progetto: i suoi lavori restano in coda finché non lo rimetti in lavorazione (menu ⋯).">
+              in pausa
+            </Badge>
+          )}
+          <span className="ml-auto text-neutral-500 shrink-0" title="ultima versione generata">
+            {when(s?.last_version_at ?? null)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
