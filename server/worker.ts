@@ -257,10 +257,25 @@ export async function checkChatgptSession(): Promise<{ alive: boolean; logged_in
   } catch {
     return { alive: false, logged_in: false, reason: "browser non avviato" };
   }
-  const page =
-    pages.find((t) => t.type === "page" && t.webSocketDebuggerUrl && /chatgpt\.com/.test(t.url ?? "")) ??
-    pages.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
-  if (!page?.webSocketDebuggerUrl) return { alive: false, logged_in: false, reason: "nessuna pagina" };
+  const page = pages.find(
+    (t) => t.type === "page" && t.webSocketDebuggerUrl && /chatgpt\.com/.test(t.url ?? ""),
+  );
+  const qualsiasi = pages.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+  if (!page?.webSocketDebuggerUrl) {
+    if (!qualsiasi?.webSocketDebuggerUrl) return { alive: false, logged_in: false, reason: "nessuna pagina" };
+    // La finestra dedicata e' finita altrove — stanotte era su `about:blank`
+    // dopo che il worker aveva chiuso la sua ultima chat. Cadere sulla prima
+    // pagina qualsiasi e interrogarla dava "sessione scaduta: rifai il login"
+    // su una sessione perfettamente viva: un login chiesto per niente e la coda
+    // in pausa. Non e' un problema di credenziali, e' una pagina da riportare:
+    // la si riporta, senza disturbare nessuno.
+    await evalOnPage(qualsiasi.webSocketDebuggerUrl, `location.assign('https://chatgpt.com/'), 1`, 3000);
+    return {
+      alive: true,
+      logged_in: false,
+      reason: "la finestra dedicata non era su ChatGPT: riportata, riprovo fra un attimo",
+    };
+  }
   if (!(await pageResponds(page.webSocketDebuggerUrl))) {
     return { alive: false, logged_in: false, reason: "renderer bloccato" };
   }
@@ -308,6 +323,15 @@ export async function checkChatgptSession(): Promise<{ alive: boolean; logged_in
       reason: "token ChatGPT revocato (backend 401): rifai il login nella finestra dedicata",
     };
   }
+  // Il verdetto POSITIVO viene dalla rete, non dal DOM: `api === 200` arriva
+  // solo con un'identita' dentro (l'email), quindi e' la prova che il token e'
+  // buono. Guardare prima il composer era sbagliato — mentre il worker apre una
+  // chat nuova il composer sparisce per un secondo, e in quella finestra la
+  // sonda dichiarava "sessione scaduta" su una sessione viva, mettendo in pausa
+  // la coda che stava lavorando (misurato stanotte sui job 274-276).
+  if (probe.api === 200) return { alive: true, logged_in: true };
+  // Nessuna risposta dalla rete (offline, fetch bloccato): qui gli indizi a
+  // schermo sono tutto quello che resta.
   if (probe.wall || !probe.composer) {
     return { alive: true, logged_in: false, reason: "sessione ChatGPT scaduta: rifai il login nella finestra dedicata" };
   }
