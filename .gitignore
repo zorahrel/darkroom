@@ -43,3 +43,7 @@ core/target/
 
 # Compilazione dell'applicazione desktop
 app/target/
+
+# Le copertine come escono da ChatGPT: pesano un megabyte l'una e servono solo a
+# rifare le versioni ridotte senza rigenerarle. Quelle ridotte sono in client/public.
+.copertine-grezze/

@@ -37,7 +37,8 @@
     "app:test": "cd app && CC=${CC:-/usr/bin/cc} cargo test --release",
     "app:misura": "bun run scripts/misura-app.ts",
     "ui:audit": "bun run scripts/audit-ui.ts",
-    "jobs:watch": "bun run scripts/watch-jobs.ts"
+    "jobs:watch": "bun run scripts/watch-jobs.ts",
+    "copertine": "bun run scripts/copertine.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",

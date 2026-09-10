@@ -274,7 +274,8 @@ function ToolCard({
   const I = ICONS[s.icon] ?? CircleHelp;
 
   return (
-    <Panel className={"flex h-full flex-col transition-colors " + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
+    <Panel className={"group relative isolate flex h-full flex-col overflow-hidden transition-colors "
+                      + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
       <div className="flex items-start gap-2.5">
         <I
           className={"w-4 h-4 mt-[2px] shrink-0 " + (s.ready ? "text-neutral-300" : "text-neutral-500")}
@@ -286,6 +287,30 @@ function ToolCard({
           </div>
           <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.what}</p>
         </div>
+
+        {/* La copertina dello strumento.
+            Sta nel flusso, terza in riga dopo l'icona e il testo, e non appoggiata
+            sopra la scheda: messa in assoluto usciva dal bordo e se ne vedeva una
+            striscia — che non si legge come una copertina, si legge come un errore
+            di disegno — e sulle schede alte finiva dietro alle parole. Qui il testo
+            le si ferma accanto per costruzione, senza margini indovinati.
+            Il PNG e' senza fondo, quindi si posa sul pannello invece di ritagliarci
+            sopra un quadrato nero; l'alone e' l'unica cosa aggiunta qui.
+            Uno strumento senza copertina non lascia un buco: l'immagine si toglie da
+            sola e la riga si richiude. */}
+        <img
+          src={`/copertine/${s.id}.png`}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          className={"-mt-1.5 -mr-1 h-16 w-16 shrink-0 select-none transition-all duration-500 ease-out "
+                     + "[filter:drop-shadow(0_0_10px_rgba(120,190,255,0.10))] "
+                     + (s.ready
+                        ? "opacity-80 group-hover:opacity-100 group-hover:scale-[1.06]"
+                        : "opacity-35 grayscale")}
+        />
       </div>
 
       {/* Not ready is not «broken»: it is something missing, with the gesture

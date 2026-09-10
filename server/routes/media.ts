@@ -195,6 +195,17 @@ mediaRoutes.get("/previews/*", (c) => {
   return serveFile(join(PUBLIC_DIR, rel));
 });
 
+// Le copertine degli strumenti. Stanno in `client/public`, quindi finiscono in
+// `dist` con la build e dentro l'applicazione con il pacchetto — ma dal server
+// vanno servite di proposito: senza questa riga cadevano nel ripiego della SPA,
+// che risponde 200 con dell'HTML, e un `<img>` con dentro dell'HTML non e' un
+// errore che si vede — e' semplicemente una scheda senza copertina.
+mediaRoutes.get("/copertine/*", (c) => {
+  const rel = c.req.path.replace(/^\/+/, "");
+  if (rel.includes("..")) return new Response("bad request", { status: 400 });
+  return serveFile(join(DIST_DIR, rel));
+});
+
 mediaRoutes.get("/assets/*", (c) => {
   const rel = c.req.path.replace(/^\/+/, "");
   if (rel.includes("..")) return new Response("bad request", { status: 400 });
