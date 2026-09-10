@@ -46,11 +46,23 @@ const SIZE = {
 export type Size = keyof typeof SIZE;
 export type Weight = "primary" | "normal" | "quiet" | "danger";
 
+/**
+ * I tre pesi di un tasto, distinti dal PIENO e non dal bordo.
+ *
+ * Erano distinti dal bordo, e il bordo di «normal» era neutral-700: 1,91:1 contro il
+ * fondo, cioe' un contorno che si intuisce piu' che vedersi — mentre per un contorno
+ * che identifica un comando ne servono 3. Alzarlo e basta avrebbe fatto ventidue
+ * rettangoli grigi urlanti su ogni pagina; riempirlo invece dice la stessa cosa piu'
+ * piano: chiaro pieno per l'azione principale, scuro pieno per le altre, solo testo
+ * per quelle di contorno. Tre gradini che si riconoscono da lontano, senza leggere.
+ *
+ * Il testo dentro sta sopra 4,5:1 in tutti e tre — misurato, non stimato.
+ */
 const WEIGHT: Record<Weight, string> = {
   primary: "border-transparent bg-neutral-100 text-neutral-900 hover:bg-white font-medium",
-  normal: "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-neutral-100",
-  quiet: "border-transparent text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70",
-  danger: "border-rose-800 bg-rose-950/40 text-rose-200 hover:bg-rose-900/50",
+  normal: "border-neutral-600 bg-neutral-800 text-neutral-100 hover:border-neutral-400 hover:bg-neutral-700",
+  quiet: "border-transparent text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800",
+  danger: "border-rose-700 bg-rose-950 text-rose-100 hover:bg-rose-900",
 };
 
 export function Bott({
@@ -70,7 +82,10 @@ export function Bott({
   "aria-label"?: string;
 }) {
   const style = disabled
-    ? "border-neutral-800 text-neutral-400/50 cursor-not-allowed"
+    // neutral-500 e non un 400 al cinquanta per cento: quello scendeva a 2,4:1 e
+    // spariva. Un comando spento deve leggersi — e' l'unico modo per capire che
+    // c'e' e che adesso non si puo' usare — e restare chiaramente inerte.
+    ? "border-neutral-800 bg-neutral-900 text-neutral-500 cursor-not-allowed"
     : active
       ? "border-neutral-400 bg-neutral-800 text-neutral-100"
       : WEIGHT[weight];
@@ -536,11 +551,14 @@ const CloseMenu = createContext<() => void>(() => {});
 export const useCloseMenu = () => useContext(CloseMenu);
 
 export function Other({
-  children, title = "Altre azioni", className = "", subtle = false,
+  children, title = "Altre azioni", className = "", subtle = false, trigger,
 }: {
   children: React.ReactNode;
   title?: string;
   className?: string;
+  /** Cosa si preme per aprire il menu. Senza, sono i tre puntini di sempre. Con,
+   *  il menu puo' stare attaccato a un tasto e dire su COSA agirebbe. */
+  trigger?: (aperto: boolean) => React.ReactNode;
   /** Visible only on hover or on arriving with the tab key — but **never**
    *  while it is open: a semi-transparent menu under the finger moving to
    *  choose an entry is a menu that cannot be used. */
@@ -563,9 +581,14 @@ export function Other({
     <div ref={box} className={`relative ${open ? "z-40" : "z-20"} transition-opacity ${visibility} ${className}`}>
       <button type="button" title={title} aria-haspopup="menu" aria-expanded={open}
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((a) => !a); }}
-              className={`px-1 py-0.5 rounded-sm leading-none transition-colors
-                          ${open ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
-        <MoreHorizontal className="w-4 h-4" aria-hidden />
+              className={trigger
+                // Anche una linguetta e' un comando da prendere col pollice: senza
+                // questi minimi era 27x17, cioe' sotto la soglia sotto la quale si
+                // preme quello accanto.
+                ? "inline-flex items-stretch leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0"
+                : `px-1 py-0.5 rounded-sm leading-none transition-colors
+                   ${open ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
+        {trigger ? trigger(open) : <MoreHorizontal className="w-4 h-4" aria-hidden />}
       </button>
       {open && (
         <CloseMenu.Provider value={() => setOpen(false)}>

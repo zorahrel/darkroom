@@ -10,11 +10,12 @@ import {
   type Tool,
   type StudioProject,
 } from "../api";
-import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header, Page, Panel, SectionHeader } from "../ui";
+import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header, Other, Page, Panel, SectionHeader, useCloseMenu } from "../ui";
 import { useViewState } from "../viewState";
 import { ICONE_AREA, ICONS } from "../iconNames";
 import {
   ArrowRight,
+  ChevronDown,
   CircleHelp,
   Play,
   SlidersHorizontal,
@@ -182,45 +183,25 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
           </Bott>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-neutral-400">Lavoro su</span>
-          {projects.length > 0 ? (
-            <Choose
-              value={pid}
-              items={projects.map((p) => ({
-                v: p.id,
-                text: p.name,
-                note: p.views.join(" · "),
-              }))}
-              onChange={setPid}
-              width={210}
-              size="m"
-              title="Il progetto su cui agiscono tutti gli strumenti qui sotto"
-            />
-          ) : (
-            <span className="text-[11px] text-neutral-500">
-              nessun progetto: comincia da uno strumento che ne crea uno.
-            </span>
-          )}
-          {active && (
-            <span className="text-[11px] text-neutral-500 truncate">
-              {active.video
-                ? `${active.video.cuts} tagli`
-                : active.stats
-                  ? `${active.stats.photos} foto · ${active.stats.favorites} preferite`
-                  : ""}
-            </span>
-          )}
-          {cat && (
-            <div className="ml-auto flex items-center gap-1.5">
-              {Object.entries(cat.requirements).map(([name, r]) => (
-                <Badge key={name} tone={r.ok ? "good" : "waiting"} title={r.how}>
-                  {r.ok ? "●" : "○"} {name}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Gli indicatori della macchina restano — dicono quali strumenti possono
+            lavorare adesso — ma il progetto no: sceglierlo QUI voleva dire deciderlo
+            prima di sapere per cosa, e poi ritrovarselo addosso su ventidue schede
+            che con quel progetto non c'entravano. Ora lo si sceglie sul tasto che lo
+            usa, nel momento in cui lo si usa. */}
+        {cat && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {Object.entries(cat.requirements).map(([name, r]) => (
+              <Badge key={name} tone={r.ok ? "good" : "waiting"} title={r.how}>
+                {r.ok ? "●" : "○"} {name}
+              </Badge>
+            ))}
+            {projects.length === 0 && (
+              <span className="text-[11px] text-neutral-500">
+                nessun progetto: comincia da uno strumento che ne crea uno.
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {!cat && <div className="text-[12px] text-neutral-400">Carico il catalogo…</div>}
@@ -406,6 +387,7 @@ function ToolCard({
           tool={s}
           start={open}
           project={project}
+          projects={projects}
           onCancel={() => setOpen(null)}
           onDone={onDone}
         />
@@ -440,28 +422,69 @@ function Open({
   const fallback = onPicked ? null : projects.find(fits) ?? null;
   const target = onPicked ? project : fallback;
 
+  const adatti = projects.filter(fits);
+  const vai = (p: StudioProject) => onVai(start.route.replace(":pid", encodeURIComponent(p.id)));
+
+  /* Il progetto si sceglie QUI, sul tasto che lo usa, e non in cima alla pagina.
+     Sceglierlo prima voleva dire deciderlo senza sapere per cosa, e poi ritrovarselo
+     addosso su ventidue schede che con quel progetto non c'entravano. Il tasto dice
+     su quale progetto agirebbe; la linguetta accanto lo cambia al volo, e compare
+     solo dove c'e' davvero una scelta da fare. */
   return (
-    <Bott
-      size="m"
-      disabled={!target}
-      title={
-        target
-          ? onPicked
+    <span className="inline-flex items-stretch">
+      <Bott
+        size="m"
+        disabled={!target}
+        className={adatti.length > 1 ? "rounded-r-none" : ""}
+        title={
+          target
             ? `Apre «${target.name}»`
-            : `«${project?.name ?? "il progetto scelto"}» non ha la vista «${start.view}»: questo apre «${target.name}», che ce l'ha.`
-          : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
-      }
-      onClick={() => target && onVai(start.route.replace(":pid", encodeURIComponent(target.id)))}
-    >
-      {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
-          vicino apre un modulo qui: due gesti diversi che avevano lo stesso
-          aspetto e si distinguevano solo leggendo l'etichetta. */}
-      <ArrowRight  aria-hidden />
-      {start.label}
-      {target && !onPicked && (
-        <span className="ml-1 text-neutral-400">in {target.name}</span>
+            : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
+        }
+        onClick={() => target && vai(target)}
+      >
+        {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
+            vicino apre un modulo qui: due gesti diversi che avevano lo stesso
+            aspetto e si distinguevano solo leggendo l'etichetta. */}
+        <ArrowRight aria-hidden />
+        {start.label}
+        {target && <span className="text-neutral-400">in {target.name}</span>}
+      </Bott>
+      {adatti.length > 1 && (
+        <Other
+          title="Su quale progetto"
+          trigger={(aperto: boolean) => (
+            <span className={"inline-flex h-full items-center rounded-r border border-l-0 px-1.5 transition-colors "
+                             + (aperto
+                                ? "border-neutral-400 bg-neutral-800 text-neutral-100"
+                                : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-100")}>
+              <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+            </span>
+          )}
+        >
+          {adatti.map((p) => (
+            <MenuItem key={p.id} onClick={() => vai(p)}>
+              {p.name}
+              {p.id === target?.id && <span className="ml-1 text-neutral-500">— l'ultimo</span>}
+            </MenuItem>
+          ))}
+        </Other>
       )}
-    </Bott>
+    </span>
+  );
+}
+
+/** Una voce del menu: chiude il menu da sola, cosi' chi la scrive non deve
+ *  ricordarsene ogni volta. */
+function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  const chiudi = useCloseMenu();
+  return (
+    <button type="button" role="menuitem"
+            onClick={(e) => { e.stopPropagation(); onClick(); chiudi(); }}
+            className="w-full rounded-sm px-2 py-1 text-left text-[12px] text-neutral-300
+                       hover:bg-neutral-800 hover:text-neutral-100">
+      {children}
+    </button>
   );
 }
 
@@ -473,14 +496,19 @@ function Open({
  * stayed invisible here, and nobody would have noticed.
  */
 function Form({
-  tool, start, project, onCancel, onDone,
+  tool, start, project, projects, onCancel, onDone,
 }: {
   tool: Tool;
   start: Extract<Start, { mode: "new" | "now" }>;
   project: StudioProject | null;
+  projects: StudioProject[];
   onCancel: () => void;
   onDone: (route: string) => void;
 }) {
+  /* Su quale progetto si lavora si decide qui dentro, aperto il modulo: prima stava
+     in cima alla pagina, dove lo si sceglieva senza sapere ancora per cosa. */
+  const [su, setSu] = useState(project?.id ?? "");
+  const scelto = projects.find((p) => p.id === su) ?? project ?? null;
   const [values, setValues] = useState<Record<string, string | number>>(() =>
     Object.fromEntries(start.fields.map((c) => [c.name, c.fallback ?? ""])),
   );
@@ -497,7 +525,7 @@ function Form({
       const r = await api.startTool(tool.id, {
         // A start that CREATES the project does not receive one: sending it
         // would be an instruction nobody is looking at.
-        project: start.mode === "now" ? project?.id : undefined,
+        project: start.mode === "now" ? scelto?.id : undefined,
         values,
       });
       setDone({ text: r.done, route: r.route });
@@ -530,13 +558,27 @@ function Form({
     <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/40 p-2.5 space-y-2">
       {start.note && <p className="text-[11px] text-neutral-400 leading-snug">{start.note}</p>}
 
-      {/* Which project is no longer asked: it is the one chosen at the top.
-          Stated, not left unsaid — otherwise «Generate now» is a button that
-          does not say where the stuff ends up. */}
+      {/* Su quale progetto, chiesto qui e non piu' in cima alla pagina: e' il
+          momento in cui la domanda ha senso, perche' si sa gia' cosa si sta per
+          fare. Con un progetto solo non c'e' niente da chiedere e si dice e basta. */}
       {start.mode === "now" && (
+        projects.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-neutral-500">Va in coda su</span>
+            <Choose
+              value={scelto?.id ?? ""}
+              items={projects.map((p) => ({ v: p.id, text: p.name, note: p.views.join(" · ") }))}
+              onChange={setSu}
+              width={190}
+              size="s"
+              title="Il progetto in cui finisce questo lavoro"
+            />
+          </div>
+        ) : (
         <p className="text-[11px] text-neutral-500">
-          {project ? <>Va in coda su <span className="text-neutral-300">{project.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
+          {scelto ? <>Va in coda su <span className="text-neutral-300">{scelto.name}</span>.</> : "Nessun progetto scelto: ne apro uno nuovo."}
         </p>
+        )
       )}
 
       {start.fields.map((c) => (

@@ -64,7 +64,7 @@ const MISURA = `(() => {
   const MINIMO = ${LATO_MINIMO_ASSOLUTO};
   const COMODO = ${LATO_COMODO};
   const vp = document.documentElement.clientWidth;
-  const fuori = { overflowX: null, bersagli: [], testoTroncato: [], sovrapposte: [] };
+  const fuori = { overflowX: null, bersagli: [], testoTroncato: [], sovrapposte: [], contrasto: [] };
 
   const docW = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
   if (docW > vp + 1) {
@@ -108,6 +108,50 @@ const MISURA = `(() => {
     }
   }
 
+  // Contrasto del testo dei comandi.
+  //
+  // Un tasto che non si legge e' un tasto che non c'e'. La soglia e' quella di
+  // WCAG per il testo normale (4,5:1) e quella del testo grande (3:1) sopra i 18px
+  // o i 14 in grassetto. I comandi spenti sono esclusi dalla norma, ma non da qui:
+  // devono restare leggibili, altrimenti non si capisce che ci sono.
+  function canale(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  /** null quando il colore non e' in una forma che sappiamo leggere: meglio non
+   *  misurare che misurare un numero inventato. */
+  function luminanza(rgb) {
+    const m = (rgb || '').match(/[\d.]+/g);
+    if (!m || m.length < 3) return null;
+    const v = m.map(Number);
+    return 0.2126 * canale(v[0]) + 0.7152 * canale(v[1]) + 0.0722 * canale(v[2]);
+  }
+  function opaco(rgb) {
+    const m = (rgb || '').match(/[\d.]+/g);
+    return !!m && m.length >= 3 && (m.length < 4 || Number(m[3]) === 1);
+  }
+  /** Il primo fondo davvero dipinto sopra cui sta questo elemento. */
+  function fondo(el) {
+    for (let e = el; e; e = e.parentElement) {
+      const b = getComputedStyle(e).backgroundColor;
+      if (b && b !== 'transparent' && opaco(b)) return b;
+    }
+    return 'rgb(10, 10, 10)';
+  }
+  for (const el of document.querySelectorAll('button, a[href], [role="button"]')) {
+    if (!visibile(el) || el.textContent.trim().length === 0) continue;
+    const s = getComputedStyle(el);
+    // Il colore va letto dove sta il testo: su un tasto con il pieno chiaro il
+    // fondo e' il tasto stesso, non la pagina sotto.
+    const f = opaco(s.backgroundColor) ? s.backgroundColor : fondo(el.parentElement || el);
+    const la = luminanza(s.color), lb = luminanza(f);
+    if (la === null || lb === null) continue;
+    const r = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    const px = parseFloat(s.fontSize);
+    const grande = px >= 18 || (px >= 14 && Number(s.fontWeight) >= 600);
+    const soglia = grande ? 3 : 4.5;
+    if (r < soglia) {
+      fuori.contrasto.push({ el: nome(el), testo: el.textContent.trim().slice(0, 24), rapporto: Math.round(r * 100) / 100, soglia });
+    }
+  }
+
   // Testo tagliato: il contenuto e' piu' largo del contenitore e non c'e' ellissi.
   for (const el of document.querySelectorAll('h1,h2,h3,p,span,label,button,a')) {
     if (!visibile(el) || el.children.length) continue;
@@ -126,6 +170,7 @@ async function misura(page: Page, vista: string, larghezza: number): Promise<Dif
     overflowX: { docW: number; vp: number; colpevoli: { el: string; oltre: number }[] } | null;
     bersagli: { el: string; w: number; h: number; perche: string }[];
     testoTroncato: { el: string; dentro: number; serve: number }[];
+    contrasto: { el: string; testo: string; rapporto: number; soglia: number }[];
   };
   const d: Difetto[] = [];
 
@@ -151,6 +196,16 @@ async function misura(page: Page, vista: string, larghezza: number): Promise<Dif
         dettaglio: `${b.el} è ${b.w}×${b.h}: ${b.perche}`,
       });
     }
+  }
+  // Il contrasto non dipende dalla larghezza: si guarda una volta sola, e la piu'
+  // stretta e' quella dove i tasti si affollano di piu'.
+  for (const c of r.contrasto.slice(0, 8)) {
+    d.push({
+      vista,
+      larghezza,
+      tipo: "contrasto-basso",
+      dettaglio: `${c.el} «${c.testo}» sta a ${c.rapporto}:1, ne servono ${c.soglia}`,
+    });
   }
   for (const t of r.testoTroncato.slice(0, 6)) {
     d.push({
