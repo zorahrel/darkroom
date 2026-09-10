@@ -8,7 +8,22 @@ import {
   type StudioOverview,
   type StudioProject,
 } from "../api";
-import { ArrowRight, type LucideIcon } from "lucide-react";
+import {
+  ArrowDown01,
+  ArrowDownAZ,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Loader,
+  Pause,
+  Plus,
+  TriangleAlert,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { Other, Bott, Field, Search, Confirm, Filter, Badge, Header, Page, Panel, SectionHeader, Toolbar, useCloseMenu } from "../ui";
 import { VIEWS, view } from "../views";
 
@@ -26,11 +41,13 @@ import { VIEWS, view } from "../views";
 /** Filter ids are English because they are code; the words on the chips are
  *  Italian because they are read. Both come out of STATES, so they cannot
  *  drift apart the way an id and its `<option>` label once did. */
+/** Lo stato di un progetto, col suo segno: quattro parole in fila si distinguono
+ *  a fatica, e sono la fila che si guarda per capire dove intervenire. */
 const STATES = [
-  ["running", "in corso", "Hanno lavori in coda o in corso"],
-  ["failed", "falliti", "Hanno generazioni fallite da guardare"],
-  ["paused", "in pausa", "Il generatore li salta"],
-  ["broken", "da sistemare", "Cartella sparita o database che non si apre"],
+  ["running", "in corso", "Hanno lavori in coda o in corso", Loader],
+  ["failed", "falliti", "Hanno generazioni fallite da guardare", TriangleAlert],
+  ["paused", "in pausa", "Il generatore li salta", Pause],
+  ["broken", "da sistemare", "Cartella sparita o database che non si apre", Wrench],
 ] as const;
 type State = "all" | (typeof STATES)[number][0];
 type SortOrder = "recent" | "name" | "largest";
@@ -127,23 +144,25 @@ export default function StudioPage() {
           <Filter active={view === "all"} onClick={() => setView("all")} n={count.all}>tutti</Filter>
           {VIEWS.map((v) => (
             <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
-                    n={count[v.id]} title={v.explains}>
+                    n={count[v.id]} title={v.explains} icon={v.icon}>
               {v.name}
             </Filter>
           ))}
         </div>
         <span className="w-px h-4 bg-neutral-800" aria-hidden />
         <div className="flex items-center gap-1">
-          {STATES.map(([id, label, title]) => (
-            <Filter key={id} active={state === id} title={title}
+          {STATES.map(([id, label, title, Segno]) => (
+            <Filter key={id} active={state === id} title={title} icon={Segno}
                     onClick={() => setState(state === id ? "all" : id)}
                     n={count[id]}>{label}</Filter>
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
           ordina
-          {([["recent", "recenti"], ["name", "nome"], ["largest", "più grandi"]] as const).map(([id, text]) => (
+          {([["recent", "recenti", Clock], ["name", "nome", ArrowDownAZ], ["largest", "più grandi", ArrowDown01]] as const)
+            .map(([id, text, Segno]) => (
             <Bott key={id} size="s" weight="quiet" onClick={() => setSortOrder(id)} active={sortOrder === id}>
+              <Segno className="w-3 h-3" aria-hidden />
               {text}
             </Bott>
           ))}
@@ -448,7 +467,14 @@ function NewProject({ onDone }: { onDone: () => void }) {
     } finally { setBusy(false); }
   }
 
-  if (!open) return <Bott weight="primary" size="m" onClick={() => setOpen(true)}>+ Nuovo progetto</Bott>;
+  if (!open) {
+    return (
+      <Bott weight="primary" size="m" onClick={() => setOpen(true)}>
+        <Plus className="w-4 h-4" aria-hidden />
+        Nuovo progetto
+      </Bott>
+    );
+  }
 
   return (
     <Panel className="max-w-lg">
@@ -484,8 +510,11 @@ function NewProject({ onDone }: { onDone: () => void }) {
       )}
 
       <div>
+        {/* Il triangolino era un carattere: alla stessa misura degli altri segni
+            dell'interfaccia era un disegno diverso, piu' pesante e mal allineato. */}
         <Bott weight="quiet" size="s" onClick={() => setAdvanced((v) => !v)}>
-          {advanced ? "▾" : "▸"} Dove salvare il progetto
+          {advanced ? <ChevronDown className="w-3 h-3" aria-hidden /> : <ChevronRight className="w-3 h-3" aria-hidden />}
+          Dove salvare il progetto
         </Bott>
         {advanced && (
           <div className="pt-1.5">
@@ -501,9 +530,13 @@ function NewProject({ onDone }: { onDone: () => void }) {
 
       <div className="flex items-center gap-1.5">
         <Bott weight="primary" size="m" onClick={create} disabled={busy || !name.trim()}>
+          <Check className="w-4 h-4" aria-hidden />
           {busy ? "Creo…" : "Crea"}
         </Bott>
-        <Bott weight="quiet" size="m" onClick={() => setOpen(false)}>Annulla</Bott>
+        <Bott weight="quiet" size="m" onClick={() => setOpen(false)}>
+          <X className="w-4 h-4" aria-hidden />
+          Annulla
+        </Bott>
       </div>
     </Panel>
   );

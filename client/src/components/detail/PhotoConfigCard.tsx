@@ -1,3 +1,4 @@
+import { RotateCcw, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   api,
@@ -52,7 +53,8 @@ export function PhotoConfigCard({
               }
             }}
           >
-            Reset al default
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden />
+          Reset al default
           </Bott>
         )}
         <Bott
@@ -67,6 +69,7 @@ export function PhotoConfigCard({
             }
           }}
         >
+          <Save className="w-3.5 h-3.5" aria-hidden />
           {saving ? "Salvo…" : "Salva override"}
         </Bott>
       </div>

@@ -1,3 +1,4 @@
+import { Download, Globe, RotateCcw, Save, Stamp } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   STEP_LABELS,
@@ -372,7 +373,8 @@ export function PhotoPipeline({
           <Bott weight="normal" size="m"
             onClick={doExport}
           >
-            <IconDownload /> Scarica full-res
+            <IconDownload /> <Download className="w-3.5 h-3.5" aria-hidden />
+                Scarica full-res
           </Bott>
           <div className="pt-2 mt-2 border-t border-neutral-800 space-y-2">
             <p className="text-sm text-neutral-400">
@@ -388,7 +390,8 @@ export function PhotoPipeline({
               onClick={doBake}
               title={dirty ? "Salva prima le modifiche per poter fare il bake" : undefined}
             >
-              {baking ? "Bake in corso…" : "Bake — nuova versione"}
+              <Stamp className="w-3.5 h-3.5" aria-hidden />
+                {baking ? "Bake in corso…" : "Bake — nuova versione"}
             </Bott>
             {dirty && (
               <p className="text-[11px] text-amber-400">
@@ -514,6 +517,7 @@ export function PhotoPipeline({
                   aria-label="reset override"
                   title="Reset override"
                 >
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden />
                   Reset
                 </Bott>
               )}
@@ -523,12 +527,14 @@ export function PhotoPipeline({
                 aria-label="salva come grade globale"
                 title="Salva questo grade come default per tutto il set (sovrascrive il grade globale — le foto senza override lo erediteranno)"
               >
+                <Globe className="w-3.5 h-3.5" aria-hidden />
                 {savingGlobal ? "…" : "Globale"}
               </Bott>
               <Bott weight="primary" size="m"
                 disabled={saving || !dirty}
                 onClick={doSave}
               >
+                <Save className="w-3.5 h-3.5" aria-hidden />
                 {saving ? "…" : "Salva"}
               </Bott>
             </div>

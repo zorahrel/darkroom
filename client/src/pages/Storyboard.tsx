@@ -1,3 +1,4 @@
+import { FolderOutput, ImagePlus, ListPlus, Plus, RectangleHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area, Bott, Field, Header, NumberField, Choose, Page, Panel as Surface, SectionHeader } from "../ui";
 import {
@@ -108,6 +109,7 @@ export default function StoryboardPage() {
             })
           }
         >
+          <FolderOutput className="w-3.5 h-3.5" aria-hidden />
           {busy === "export" ? "Esporto…" : "Esporta per Storyboarder"}
         </Bott>
       </Header>
@@ -244,6 +246,7 @@ function BeatSheet({
             setText("");
           }}
         >
+          <ImagePlus className="w-3.5 h-3.5" aria-hidden />
           {busy ? "Accodo…" : `Genera ${beats.length || ""} pannell${beats.length === 1 ? "o" : "i"}`}
         </Bott>
       </div>
@@ -471,6 +474,7 @@ function CastPanel({
             setRef("");
           }}
         >
+          <Plus className="w-3.5 h-3.5" aria-hidden />
           Aggiungi
         </Bott>
       </div>
@@ -538,6 +542,7 @@ function AddExisting({
               setPicked([]);
             }}
           >
+            <ListPlus className="w-3.5 h-3.5" aria-hidden />
             Aggiungi {picked.length || ""} in coda al board
           </Bott>
         </>
@@ -561,6 +566,7 @@ function BoardSettings({
       <Bott
         onClick={() => setOpen((v) => !v)}
       >
+        <RectangleHorizontal className="w-3.5 h-3.5" aria-hidden />
         Formato {ratioLabel(settings.aspect_ratio)} · {settings.fps}fps
       </Bott>
       {open && (

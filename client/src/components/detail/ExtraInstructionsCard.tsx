@@ -1,3 +1,4 @@
+import { Save, Trash2 } from "lucide-react";
 import { Bott } from "../../ui";
 import { useEffect, useState } from "react";
 import {
@@ -56,7 +57,8 @@ export function ExtraInstructionsCard({
               }
             }}
           >
-            Rimuovi
+            <Trash2 className="w-3.5 h-3.5" aria-hidden />
+          Rimuovi
           </Bott>
         )}
         <Bott
@@ -71,6 +73,7 @@ export function ExtraInstructionsCard({
             }
           }}
         >
+          <Save className="w-3.5 h-3.5" aria-hidden />
           {saving ? "Salvo…" : "Salva"}
         </Bott>
       </div>

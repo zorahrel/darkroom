@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
-import { MoreHorizontal, Search as SearchIcon } from "lucide-react";
+import { Check, MoreHorizontal, Search as SearchIcon, X } from "lucide-react";
 
 /**
  * The app's interface pieces.
@@ -125,10 +125,16 @@ export function Confirm({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-[11px] text-neutral-300">{question}</span>
+      {/* Le due uscite di una domanda devono distinguersi prima di essere lette:
+          e' l'unico punto dell'interfaccia in cui premere quello sbagliato costa. */}
       <Bott weight="danger" size={size} onClick={() => { setAsked(false); onConfirm(); }}>
+        <Check className="w-3 h-3" aria-hidden />
         {confirm}
       </Bott>
-      <Bott weight="quiet" size={size} onClick={() => setAsked(false)}>lascia stare</Bott>
+      <Bott weight="quiet" size={size} onClick={() => setAsked(false)}>
+        <X className="w-3 h-3" aria-hidden />
+        lascia stare
+      </Bott>
     </span>
   );
 }
@@ -246,11 +252,15 @@ export function Title({ children, className = "" }: { children: React.ReactNode;
   return <h1 className={`text-[17px] font-semibold tracking-tight leading-tight ${className}`}>{children}</h1>;
 }
 
-export function SectionHeader({ title, below, children }: {
+export function SectionHeader({ title, below, children, icon: Icona }: {
   title: React.ReactNode; below?: React.ReactNode; children?: React.ReactNode;
+  /** Lo stesso segno del filtro che seleziona questa sezione: filtro e titolo
+   *  parlano della stessa cosa, e devono dirlo con lo stesso disegno. */
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-2">
+      {Icona && <Icona className="w-4 h-4 shrink-0 text-neutral-400" aria-hidden />}
       <h2 className="text-[13px] font-medium leading-snug text-neutral-200">{title}</h2>
       {below && <div className="min-w-0 text-[12px] leading-snug text-neutral-400">{below}</div>}
       {children && <div className="ml-auto flex flex-wrap items-center gap-1.5">{children}</div>}
@@ -634,13 +644,16 @@ export function Pills<T extends string>({
  * without matching read as two different things.
  */
 export function Filter({
-  children, active, onClick, n, title,
+  children, active, onClick, n, title, icon: Icona,
 }: {
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
   n: number;
   title?: string;
+  /** Il segno del mestiere. Facoltativo: un filtro che e' solo una parola —
+   *  «tutti», «in pausa» — non guadagna niente da un disegno inventato. */
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <button
@@ -652,14 +665,16 @@ export function Filter({
       className={
         // py-1, not py-0.5: at 22px tall the target was below the threshold under
         // which you hit the wrong pill, and these sit side by side.
-        "px-2 py-1 border rounded-sm text-[11px] leading-[14px] transition-colors disabled:opacity-30 " +
+        "inline-flex items-center gap-1 px-2 py-1 border rounded-sm text-[11px] leading-[14px] " +
+        "transition-colors disabled:opacity-30 " +
         (active
           ? "border-neutral-300 text-neutral-100"
           : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
       }
     >
+      {Icona && <Icona className="w-3 h-3 shrink-0 opacity-80" aria-hidden />}
       {children}
-      <span className="ml-1 opacity-60 tabular-nums">{n}</span>
+      <span className="ml-0.5 opacity-60 tabular-nums">{n}</span>
     </button>
   );
 }

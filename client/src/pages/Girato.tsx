@@ -1,3 +1,18 @@
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronFirst,
+  ChevronLast,
+  FolderOpen,
+  LayoutGrid,
+  Maximize2,
+  Play,
+  Rows3,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { jsonFetch, pq } from "../api";
 import { Bott, Field, Header, Toolbar } from "../ui";
@@ -211,23 +226,31 @@ export default function Girato() {
           className="min-w-0 flex-1 sm:flex-none sm:w-96 min-h-11 sm:min-h-0"
         />
         <Bott onClick={() => void carica(campo.trim())} disabled={caricando} weight={dati ? "normal" : "primary"}>
+          <FolderOpen className="w-3.5 h-3.5" aria-hidden />
           {caricando ? "Leggo…" : "Apri"}
         </Bott>
         {dati && (
           <>
             <div className="flex gap-1">
               <Bott onClick={() => setVista("griglia")} weight="quiet" active={vista === "griglia"}>
+                <LayoutGrid className="w-3.5 h-3.5" aria-hidden />
                 Griglia
               </Bott>
               <Bott onClick={() => setVista("fila")} weight="quiet" active={vista === "fila"}>
+                <Rows3 className="w-3.5 h-3.5" aria-hidden />
                 Fila
               </Bott>
             </div>
-            {vista === "griglia" && attuale && <Bott weight="primary" onClick={() => setVista("fila")}>Guarda la clip</Bott>}
+            {vista === "griglia" && attuale && <Bott weight="primary" onClick={() => setVista("fila")}>
+                <Play className="w-3.5 h-3.5" aria-hidden />
+                Guarda la clip
+              </Bott>}
             <Bott onClick={() => setSoloTenute((v) => !v)} weight="quiet" active={soloTenute}>
+              <Check className="w-3.5 h-3.5" aria-hidden />
               Solo tenute
             </Bott>
             <Bott onClick={() => setMutoDeciso((v) => !v)} weight="quiet">
+              {mutoDeciso ? <VolumeX className="w-3.5 h-3.5" aria-hidden /> : <Volume2 className="w-3.5 h-3.5" aria-hidden />}
               {mutoDeciso ? "Muto" : "Audio"}
             </Bott>
           </>
@@ -357,28 +380,32 @@ export default function Girato() {
                 onClick={() => cambia(attuale.s.nome, { tenuta: !attuale.s.tenuta })}
                 weight="primary"
               >
+                {attuale.s.tenuta ? <X className="w-3.5 h-3.5" aria-hidden /> : <Check className="w-3.5 h-3.5" aria-hidden />}
                 {attuale.s.tenuta ? "Scarta clip" : "Tieni clip"}
               </Bott>
               <Bott onClick={() => cambia(attuale.s.nome, { attacco: tempo })} weight="quiet">
+                <ChevronFirst className="w-3.5 h-3.5" aria-hidden />
                 Attacca qui
               </Bott>
               <Bott onClick={() => cambia(attuale.s.nome, { stacco: tempo })} weight="quiet">
+                <ChevronLast className="w-3.5 h-3.5" aria-hidden />
                 Stacca qui
               </Bott>
               <Bott
                 onClick={() => cambia(attuale.s.nome, { attacco: null, stacco: null })}
                 weight="quiet"
               >
+                <Maximize2 className="w-3.5 h-3.5" aria-hidden />
                 Intera
               </Bott>
               <Bott onClick={() => void sposta(corrente, Math.max(0, corrente - 1))} weight="quiet">
-                ←
+                <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
               </Bott>
               <Bott
                 onClick={() => void sposta(corrente, Math.min(fila.length - 1, corrente + 1))}
                 weight="quiet"
               >
-                →
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden />
               </Bott>
             </div>
           </div>

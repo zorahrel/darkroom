@@ -25,7 +25,16 @@ export type OutletCtx = {
 };
 import JobsPanel from "./components/JobsPanel";
 import { Bott, Badge } from "./ui";
-import { Logs, LayoutGrid, SlidersHorizontal, ScanSearch, type LucideIcon } from "lucide-react";
+import {
+  FolderOutput,
+  LayoutGrid,
+  ListOrdered,
+  Logs,
+  ScanSearch,
+  SlidersHorizontal,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { VIEWS, view } from "./views";
 
 export default function App() {
@@ -345,7 +354,8 @@ export default function App() {
                         alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
                       } finally { setLaunching(false); }
                     }}>
-                {launching ? "avvio Chrome…" : "⚠ Chrome non collegato — avvialo"}
+                <TriangleAlert className="w-4 h-4" aria-hidden />
+                {launching ? "avvio Chrome…" : "Chrome non collegato — avvialo"}
               </Bott>
             )}
             {jobs?.runner?.paused && jobs.runner.paused_until && (
@@ -377,6 +387,7 @@ export default function App() {
 
             <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
+              <ListOrdered className="w-4 h-4" aria-hidden />
               Lavori
               <span className={activeJobs > 0 ? "text-sky-300" : "text-neutral-400"}>
                 {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
@@ -407,6 +418,7 @@ export default function App() {
                       const r = await api.exportFavorites();
                       alert(`Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`);
                     }}>
+                <FolderOutput className="w-4 h-4" aria-hidden />
                 <span className="hidden sm:inline">Esporta preferite</span>
                 <span className="sm:hidden">Esporta</span>
               </Bott>

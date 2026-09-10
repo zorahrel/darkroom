@@ -1,3 +1,4 @@
+import { Keyboard, RefreshCw, SquareDashed, X, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import {
@@ -681,8 +682,12 @@ export default function Video() {
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Bott weight="quiet" size="s" onClick={() => setHelp((a) => !a)}>tasti ?</Bott>
+          <Bott weight="quiet" size="s" onClick={() => setHelp((a) => !a)}>
+            <Keyboard className="w-3.5 h-3.5" aria-hidden />
+            tasti
+          </Bott>
           <Bott size="m" weight={showForced ? "normal" : "primary"} onClick={launch} disabled={!!ric?.active}>
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden />
             {ric?.active ? "ricostruisco…" : "ricostruisci"}
           </Bott>
         </div>
@@ -768,12 +773,15 @@ export default function Video() {
               <div className="flex flex-wrap gap-1">
                 {span && (
                   <Bott onClick={() => setFramed({ da: span[0], a: span[1], n: Date.now() })}>
-                    guarda da vicino
+                    <ZoomIn className="w-3.5 h-3.5" aria-hidden />
+            guarda da vicino
                   </Bott>
                 )}
-                {span && <Bott onClick={() => setInOut(span)}>segna il tratto</Bott>}
+                {span && <Bott onClick={() => setInOut(span)}><SquareDashed className="w-3.5 h-3.5" aria-hidden />
+            segna il tratto</Bott>}
                 <Bott weight="danger" onClick={discardSelection}>
-                  scarta {selectedShots.length === 1 ? "la ripresa" : `le ${selectedShots.length} riprese`}
+                  <X className="w-3.5 h-3.5" aria-hidden />
+            scarta {selectedShots.length === 1 ? "la ripresa" : `le ${selectedShots.length} riprese`}
                 </Bott>
               </div>
               <div className="flex items-center gap-1.5">
@@ -944,7 +952,8 @@ export default function Video() {
               <div className="mt-3 flex items-center gap-2">
                 <Bott weight="primary" onClick={() => { setShowForced(false); void launch(); }}
                       disabled={!!ric?.active}>
-                  ricostruisci il video con queste scelte
+                  <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+            ricostruisci il video con queste scelte
                 </Bott>
                 <span className="text-[10.5px] text-neutral-400">circa dodici minuti, sul PC</span>
               </div>

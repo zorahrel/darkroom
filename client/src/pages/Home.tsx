@@ -12,8 +12,14 @@ import {
 } from "../api";
 import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header, Page, Panel, SectionHeader } from "../ui";
 import { useViewState } from "../viewState";
-import { ICONS } from "../iconNames";
-import { CircleHelp } from "lucide-react";
+import { ICONE_AREA, ICONS } from "../iconNames";
+import {
+  ArrowRight,
+  CircleHelp,
+  Play,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 /**
  * The home: what Darkroom can do.
@@ -149,6 +155,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
                 onClick={() => setArea(a.id)}
                 n={counts[a.id] ?? 0}
                 title={a.what}
+                icon={ICONE_AREA[a.id]}
               >
                 {a.name}
               </Filter>
@@ -234,7 +241,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       <div className="space-y-6">
         {sections.map(({ area: a, tools }) => (
           <section key={a.id} className="space-y-2">
-            <SectionHeader title={a.name} below={a.what}>
+            <SectionHeader title={a.name} below={a.what} icon={ICONE_AREA[a.id]}>
               <Badge>{tools.length}</Badge>
             </SectionHeader>
             {/* Tre colonne, non quattro: le aree hanno 3, 3, 2, 6, 1, 4 e 3 strumenti, e su
@@ -361,6 +368,7 @@ function ToolCard({
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
               >
+                <SlidersHorizontal className="w-4 h-4" aria-hidden />
                 {a.label}
               </Bott>
             ),
@@ -442,6 +450,10 @@ function Open({
       }
       onClick={() => target && onVai(start.route.replace(":pid", encodeURIComponent(target.id)))}
     >
+      {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
+          vicino apre un modulo qui: due gesti diversi che avevano lo stesso
+          aspetto e si distinguevano solo leggendo l'etichetta. */}
+      <ArrowRight className="w-4 h-4" aria-hidden />
       {start.label}
       {target && !onPicked && (
         <span className="ml-1 text-neutral-400">in {target.name}</span>
@@ -499,9 +511,13 @@ function Form({
         <div className="text-[12px] text-emerald-200 leading-snug">{done.text}</div>
         <div className="flex items-center gap-1.5">
           <Bott size="m" weight="primary" onClick={() => onDone(done.route)}>
+            <ArrowRight className="w-4 h-4" aria-hidden />
             Vai a vedere
           </Bott>
-          <Bott size="m" weight="quiet" onClick={onCancel}>Resta qui</Bott>
+          <Bott size="m" weight="quiet" onClick={onCancel}>
+            <X className="w-4 h-4" aria-hidden />
+            Resta qui
+          </Bott>
         </div>
       </div>
     );
@@ -540,9 +556,13 @@ function Form({
           title={missing ? `Manca: ${missing.label}` : undefined}
           onClick={vai}
         >
+          <Play className="w-4 h-4" aria-hidden />
           {inProgress ? "Vado…" : start.label}
         </Bott>
-        <Bott size="m" weight="quiet" onClick={onCancel}>Annulla</Bott>
+        <Bott size="m" weight="quiet" onClick={onCancel}>
+          <X className="w-4 h-4" aria-hidden />
+          Annulla
+        </Bott>
       </div>
     </div>
   );

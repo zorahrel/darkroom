@@ -1,5 +1,10 @@
 import {
+  Aperture,
+  BadgeCheck,
   BookImage,
+  BookOpen,
+  Clapperboard,
+  Cog,
   FolderInput,
   FolderKanban,
   FolderOutput,
@@ -12,7 +17,9 @@ import {
   Images,
   ListChecks,
   ListOrdered,
+  LibraryBig,
   ListX,
+  Palette,
   PlugZap,
   Repeat2,
   ScanEye,
@@ -55,4 +62,23 @@ export const ICONS: Record<string, LucideIcon> = {
   projects: FolderKanban,
   queue: ListOrdered,
   status: PlugZap,
+};
+
+/**
+ * Il mestiere, non lo strumento.
+ *
+ * Il filtro in cima, il titolo della sezione e le schede sotto parlavano dello
+ * stesso mestiere con tre segni diversi — anzi, i primi due senza nessun segno.
+ * Qui ce n'e' uno per area, scelto perche' non somigli a nessuna icona di
+ * strumento della stessa area: dentro «Colore» ci sono gia' il campionario e la
+ * cartella in uscita, quindi l'area e' una tavolozza e non un terzo campionario.
+ */
+export const ICONE_AREA: Record<string, LucideIcon> = {
+  images: Aperture,
+  color: Palette,
+  quality: BadgeCheck,
+  library: LibraryBig,
+  story: BookOpen,
+  edit: Clapperboard,
+  system: Cog,
 };

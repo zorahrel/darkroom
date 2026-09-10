@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import {
+  ChevronDown,
+  RefreshCw,
+} from "lucide-react";
 import { jsonFetch } from "../api";
 import { Badge, Bott, Choose, Header, Page, Panel, SectionHeader, Toolbar } from "../ui";
 
@@ -75,7 +78,10 @@ export default function Activity() {
           </Panel>
         ))}
       </div>
-      {log?.next_before && <Bott disabled={busy} onClick={() => void load(log.next_before!)}>Carica precedenti</Bott>}
+      {log?.next_before && <Bott disabled={busy} onClick={() => void load(log.next_before!)}>
+        <ChevronDown className="w-4 h-4" aria-hidden />
+        Carica precedenti
+      </Bott>}
     </Page>
   );
 }

@@ -16,18 +16,23 @@ import PhotoCard from "../components/PhotoCard";
 import CollageCard from "../components/CollageCard";
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutGrid,
-  Images,
-  ImageOff,
-  Star,
-  StarOff,
-  Clock3,
   AlertTriangle,
-  SlidersHorizontal,
-  Layers,
+  Clock3,
   Heart,
   HeartOff,
+  ImageOff,
+  ImagePlus,
+  Images,
+  Layers,
+  LayoutGrid,
+  ListOrdered,
+  SlidersHorizontal,
   Sparkles,
+  SquareCheck,
+  SquareSlash,
+  Star,
+  StarOff,
+  X,
 } from "lucide-react";
 
 type Filter =
@@ -683,7 +688,9 @@ export default function GridPage({
             }
             className="text-xs px-2 py-1 rounded border border-neutral-700 hover:bg-neutral-800"
           >
-            {allVisibleSelected ? "Deseleziona tutte" : `Seleziona tutte visibili (${visibleIds.length})`}
+            {allVisibleSelected
+              ? <><SquareSlash className="inline w-3.5 h-3.5 mr-1 -mt-px" aria-hidden />Deseleziona tutte</>
+              : <><SquareCheck className="inline w-3.5 h-3.5 mr-1 -mt-px" aria-hidden />{`Seleziona tutte visibili (${visibleIds.length})`}</>}
           </button>
           <Bott weight="primary"
             disabled={bulkBusy || selectedCount === 0}
@@ -700,6 +707,7 @@ export default function GridPage({
               }
             }}
           >
+            <ImagePlus className="w-3.5 h-3.5" aria-hidden />
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </Bott>
           {/* Merging into a collage only applies inside ONE post: photos from
@@ -1036,7 +1044,9 @@ export default function GridPage({
                   : `Genera le ${counts.missing} foto senza versioni`
               }
             >
-              {activeJobs > 0 ? `Coda ${activeJobs}` : `Genera ${counts.missing}`}
+              {activeJobs > 0
+                ? <><ListOrdered className="w-3.5 h-3.5" aria-hidden />{`Coda ${activeJobs}`}</>
+                : <><ImagePlus className="w-3.5 h-3.5" aria-hidden />{`Genera ${counts.missing}`}</>}
             </Bott>
           )}
           <Bott active={selectMode}
@@ -1048,7 +1058,9 @@ export default function GridPage({
               });
             }}
           >
-            {selectMode ? "Esci" : "Selezione"}
+            {selectMode
+              ? <><X className="w-3.5 h-3.5" aria-hidden />Esci</>
+              : <><SquareCheck className="w-3.5 h-3.5" aria-hidden />Selezione</>}
           </Bott>
         </div>
 
