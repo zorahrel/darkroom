@@ -237,7 +237,12 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
             <SectionHeader title={a.name} below={a.what}>
               <Badge>{tools.length}</Badge>
             </SectionHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
+            {/* Tre colonne, non quattro: le aree hanno 3, 3, 2, 6, 1, 4 e 3 strumenti, e su
+                tre righe si chiudono quasi sempre esatte — su quattro ogni sezione
+                lasciava un buco a destra, e sette buchi in fila si leggono come una
+                pagina rotta invece che come una griglia. La quarta colonna torna solo
+                dove c'e' davvero il posto. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
               {tools.map((s) => (
                 <ToolCard
                   key={s.id}
@@ -282,27 +287,28 @@ function ToolCard({
   return (
     <Panel className={"group relative isolate flex h-full flex-col overflow-hidden transition-colors "
                       + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
-      {/* La copertina prende il posto dell'icona invece di starle accanto.
-          Averle tutte e due voleva dire dire la stessa cosa due volte, in due
-          linguaggi diversi, a due centimetri di distanza: l'occhio non sapeva
-          quale delle due guardare e nessuna delle due valeva la riga che
-          occupava. La copertina e' piu' grande perche' ha qualcosa da mostrare —
-          l'icona no, ed e' per questo che era piccola.
+      {/* La copertina in cima, larga quanto la scheda.
+          Prende il posto dell'icona invece di starle accanto: averle tutte e due
+          voleva dire dire la stessa cosa due volte, in due linguaggi diversi, a
+          due centimetri di distanza, e l'occhio non sapeva quale guardare.
 
-          Il PNG e' senza fondo, quindi si posa sul pannello invece di
-          ritagliarci sopra un quadrato nero. Uno strumento senza copertina non
-          lascia un buco: al suo posto torna l'icona. */}
-      <div className="flex items-start gap-3">
-        <div className="relative -my-2 -ml-2 flex h-[136px] w-[136px] shrink-0 items-center justify-center">
-          {/* L'icona compare solo se la copertina non arriva davvero. Tenerla
-              sotto come rete voleva dire vederla ATTRAVERSO il PNG, che e'
-              trasparente: due segni sovrapposti che dicono la stessa cosa. */}
-          {senzaCopertina && (
-            <I
-              className={"h-9 w-9 " + (s.ready ? "text-neutral-500" : "text-neutral-600")}
-              aria-hidden
-            />
-          )}
+          Sta in cima e non a fianco perche' e' cresciuta: di lato, a questa
+          misura, spingeva il testo in una colonna stretta e la scheda diventava
+          larghissima per contenerli tutti e due. Sopra invece la scheda si
+          stringe — ne stanno quattro dove ne stavano tre — e la copertina puo'
+          essere grande quanto merita.
+
+          Il PNG e' senza fondo: si posa sul pannello invece di ritagliarci sopra
+          un quadrato nero. Uno strumento senza copertina non lascia un buco, al
+          suo posto torna l'icona. */}
+      <div className="-mx-3 -mt-3 flex aspect-[3/2] items-center justify-center overflow-hidden
+                      bg-gradient-to-b from-neutral-900/60 to-transparent">
+        {/* L'icona compare solo se la copertina non arriva davvero. Tenerla
+            sotto come rete voleva dire vederla ATTRAVERSO il PNG, che e'
+            trasparente: due segni sovrapposti che dicono la stessa cosa. */}
+        {senzaCopertina ? (
+          <I className={"h-10 w-10 " + (s.ready ? "text-neutral-600" : "text-neutral-700")} aria-hidden />
+        ) : (
           <img
             src={`/copertine/${s.id}.png`}
             alt=""
@@ -310,21 +316,18 @@ function ToolCard({
             loading="lazy"
             decoding="async"
             onError={() => setSenzaCopertina(true)}
-            className={(senzaCopertina ? "hidden " : "")
-                       + "h-full w-full select-none transition-all duration-500 ease-out "
-                       + "[filter:drop-shadow(0_0_18px_rgba(120,190,255,0.16))] "
-                       + (s.ready
-                          ? "opacity-100 group-hover:scale-105"
-                          : "opacity-35 grayscale")}
+            className={"h-full w-full select-none object-contain p-3 transition-all duration-500 ease-out "
+                       + "[filter:drop-shadow(0_0_24px_rgba(120,190,255,0.18))] "
+                       + (s.ready ? "group-hover:scale-[1.04]" : "opacity-35 grayscale")}
           />
-        </div>
+        )}
+      </div>
 
-        <div className="min-w-0 flex-1 pt-0.5">
-          <div className={"text-[13.5px] font-medium leading-tight " + (s.ready ? "" : "text-neutral-400")}>
-            {s.name}
-          </div>
-          <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.what}</p>
+      <div className="min-w-0">
+        <div className={"text-[13.5px] font-medium leading-tight " + (s.ready ? "" : "text-neutral-400")}>
+          {s.name}
         </div>
+        <p className="mt-1 text-[12px] text-neutral-400 leading-snug">{s.what}</p>
       </div>
 
       {/* Not ready is not «broken»: it is something missing, with the gesture
