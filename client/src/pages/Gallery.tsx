@@ -116,7 +116,7 @@ export default function Home() {
             title="Nascondi il pannello colore"
             className="absolute top-1.5 right-1.5 z-20"
           >
-            <PanelRightClose className="w-4 h-4" aria-hidden />
+            <PanelRightClose  aria-hidden />
           </Bott>
         )}
         {grade && (

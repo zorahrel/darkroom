@@ -451,7 +451,7 @@ export default function TreePage() {
               title="Quanto ogni variante si discosta dalla sua reference: fondo, area del soggetto, rapporto fra luce verticale e orizzontale. Piu' basso e' piu' somiglia."
               className="ml-auto"
             >
-              <Ruler className="w-3.5 h-3.5" aria-hidden />
+              <Ruler  aria-hidden />
           {measuring ? "misuro…" : "misura scarto"}
             </Bott>
           </>
@@ -658,7 +658,7 @@ export default function TreePage() {
             navigator.clipboard.writeText(txt || "(nessun giudizio)");
           }}
         >
-          <Copy className="w-3.5 h-3.5" aria-hidden />
+          <Copy  aria-hidden />
             Copia scelte
         </Bott>
         <span className="font-mono text-xs text-neutral-400 truncate">

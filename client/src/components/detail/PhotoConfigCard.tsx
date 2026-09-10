@@ -53,7 +53,7 @@ export function PhotoConfigCard({
               }
             }}
           >
-            <RotateCcw className="w-3.5 h-3.5" aria-hidden />
+            <RotateCcw  aria-hidden />
           Reset al default
           </Bott>
         )}
@@ -69,7 +69,7 @@ export function PhotoConfigCard({
             }
           }}
         >
-          <Save className="w-3.5 h-3.5" aria-hidden />
+          <Save  aria-hidden />
           {saving ? "Salvo…" : "Salva override"}
         </Bott>
       </div>

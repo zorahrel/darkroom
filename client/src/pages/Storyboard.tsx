@@ -109,7 +109,7 @@ export default function StoryboardPage() {
             })
           }
         >
-          <FolderOutput className="w-3.5 h-3.5" aria-hidden />
+          <FolderOutput  aria-hidden />
           {busy === "export" ? "Esporto…" : "Esporta per Storyboarder"}
         </Bott>
       </Header>
@@ -246,7 +246,7 @@ function BeatSheet({
             setText("");
           }}
         >
-          <ImagePlus className="w-3.5 h-3.5" aria-hidden />
+          <ImagePlus  aria-hidden />
           {busy ? "Accodo…" : `Genera ${beats.length || ""} pannell${beats.length === 1 ? "o" : "i"}`}
         </Bott>
       </div>
@@ -474,7 +474,7 @@ function CastPanel({
             setRef("");
           }}
         >
-          <Plus className="w-3.5 h-3.5" aria-hidden />
+          <Plus  aria-hidden />
           Aggiungi
         </Bott>
       </div>
@@ -542,7 +542,7 @@ function AddExisting({
               setPicked([]);
             }}
           >
-            <ListPlus className="w-3.5 h-3.5" aria-hidden />
+            <ListPlus  aria-hidden />
             Aggiungi {picked.length || ""} in coda al board
           </Bott>
         </>
@@ -566,7 +566,7 @@ function BoardSettings({
       <Bott
         onClick={() => setOpen((v) => !v)}
       >
-        <RectangleHorizontal className="w-3.5 h-3.5" aria-hidden />
+        <RectangleHorizontal  aria-hidden />
         Formato {ratioLabel(settings.aspect_ratio)} · {settings.fps}fps
       </Bott>
       {open && (

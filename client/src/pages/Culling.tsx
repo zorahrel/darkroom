@@ -325,24 +325,24 @@ export default function Culling() {
         />
         <div className="flex gap-1 ml-auto text-xs">
           <Bott onClick={() => setVista("griglia")} weight="quiet" active={vista === "griglia"}>
-            <LayoutGrid className="w-3.5 h-3.5" aria-hidden />
+            <LayoutGrid  aria-hidden />
             Griglia
           </Bott>
           <Bott onClick={() => setVista("visore")} weight="quiet" active={vista === "visore"}>
-            <Maximize2 className="w-3.5 h-3.5" aria-hidden />
+            <Maximize2  aria-hidden />
             Visore
           </Bott>
         </div>
         <Bott onClick={trovaRaffiche} disabled={inCorso} weight="quiet">
-          <Layers className="w-3.5 h-3.5" aria-hidden />
+          <Layers  aria-hidden />
           Trova le raffiche
         </Bott>
         <Bott onClick={scriviSidecar} disabled={inCorso} weight="normal">
-          <FileDown className="w-3.5 h-3.5" aria-hidden />
+          <FileDown  aria-hidden />
           Scrivi i sidecar…
         </Bott>
         <Bott onClick={mandaAllaRifinitura} disabled={inCorso} weight="primary">
-          <Send className="w-3.5 h-3.5" aria-hidden />
+          <Send  aria-hidden />
           Manda alla rifinitura
         </Bott>
       </Toolbar>

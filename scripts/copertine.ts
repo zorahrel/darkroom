@@ -34,37 +34,49 @@ import { $ } from "bun";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 
 const STILE =
-  "Render 3D di prodotto su SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. " +
+  "Infografica tridimensionale, non un'illustrazione decorativa: la composizione racconta una " +
+  "TRASFORMAZIONE da sinistra a destra — la cosa che entra, il passaggio, la cosa che esce — e si " +
+  "capisce senza didascalia. SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. " +
   "Materiali: vetro spesso leggermente satinato e alluminio spazzolato scuro. Una sola luce di taglio " +
-  "ciano fredda da sinistra e una ambra calda da destra, niente altri colori, bagliore volumetrico " +
-  "appena accennato. Nessun testo, nessuna lettera, nessun numero, nessun logo, nessuna cornice. " +
-  "Oggetto centrato e piccolo, composizione quadrata con molto nero attorno. Minimalismo estremo, " +
-  "elegante, moderno, coerente con un'interfaccia scura.";
+  "ciano fredda da sinistra e una ambra calda da destra, niente altri colori se non dove il soggetto " +
+  "richiede espressamente un confronto di colore. Nessuna lettera, nessun numero, nessun logo: il testo, " +
+  "quando serve, e' righe astratte incise nel vetro, che si leggono come scrittura senza esserlo. " +
+  "Composizione ORIZZONTALE, oggetti piccoli e molto nero attorno. Minimalismo estremo, elegante, " +
+  "moderno, coerente con un'interfaccia scura.";
 
-/** Il soggetto dice cosa fa lo strumento senza disegnarne l'icona ovvia. */
+/**
+ * Il soggetto deve far capire COSA FA lo strumento, non evocarlo.
+ *
+ * La prima serie era bella e muta: un ventaglio di cilindri di vetro non dice che
+ * quello strumento sviluppa il colore, e due strumenti vicini — generare e rifare —
+ * si somigliavano perche' entrambi erano «una lastra che si illumina». Qui ognuno
+ * mostra il proprio passaggio: cosa entra da sinistra, cosa esce a destra. E' anche
+ * il motivo per cui restano riconoscibili in fila: sono ventidue frasi diverse, non
+ * ventidue variazioni della stessa.
+ */
 const SOGGETTI: Record<string, string> = {
-  generate: "Una lastra di vetro vuota da cui sta emergendo, dall'interno, una forma di luce non ancora definita",
-  retouch: "Una pila di lastre di vetro identiche; una si stacca dalla pila e si accende",
-  prompt: "Un banco di manopole cilindriche di alluminio viste di tre quarti, una sola accesa",
-  color: "Tre cilindri di vetro colorato che si compenetrano e nella zona di sovrapposizione diventano neutri",
-  export: "Una lastra di vetro che scivola fuori da una fessura di alluminio spazzolato",
-  pipeline: "Una fila di anelli di vetro allineati in profondità che si accendono uno dopo l'altro",
-  quality: "Una lente di vetro molto spesso appoggiata su una griglia incisa, che ne raddrizza la porzione sotto di sé",
-  defects: "Una lastra di vetro con una sola crepa luminosa, sospesa e catalogata",
-  gallery: "Una griglia di lastrine di vetro sospese a profondità leggermente diverse",
-  sources: "Un cassetto di alluminio aperto, pieno di lastre di vetro in verticale",
-  posts: "Tre lastre verticali affiancate che scorrono lateralmente, come schede",
-  references: "Una lastrina campione appesa a un gancio di alluminio accanto a una scala di grigi",
-  tree: "Un ramo di vetro che si biforca due volte, ogni punta accesa in modo diverso",
-  orphans: "Una lastrina sola, un po' più lontana e fuori posto, accanto a una griglia ordinata",
-  storyboard: "Una striscia rigida di riquadri di vetro in sequenza, come una pellicola solida",
-  edit: "Una forma d'onda scolpita in alluminio, attraversata da lame di luce verticali",
-  picks: "Due lastre affiancate: quella davanti accesa, quella dietro spenta e opaca",
-  shots: "Un otturatore poligonale di alluminio a metà apertura, con luce che passa dallo spiraglio",
-  gate: "Una barra di vetro orizzontale con una tacca incisa che segna una soglia",
-  projects: "Tre contenitori di alluminio impilati, quello in cima aperto e illuminato dall'interno",
-  queue: "Una fila di gettoni di vetro su un binario di alluminio, solo il primo acceso",
-  status: "Un anello di vetro con dentro una corona di luce, come un indicatore",
+  generate: "A sinistra tre righe astratte incise nel vetro, come una frase; al centro un passaggio di luce; a destra una lastra fotografica che si e' accesa con un'immagine dentro. Dal testo nasce l'immagine",
+  retouch: "A sinistra una pila di lastre spente e uguali; al centro un passaggio di luce che le attraversa tutte; a destra la stessa pila, ogni lastra ora accesa e diversa. Un intero set rifatto in un colpo",
+  prompt: "Una fila di manopole di alluminio in basso; sopra ognuna una piccola lastra che cambia di conseguenza, dalla piu' spenta alla piu' viva. I controlli e il loro effetto, visibili insieme",
+  color: "Una sola lastra fotografica tagliata a meta' da una linea netta verticale: la meta' sinistra grigia e piatta, la meta' destra con lo stesso soggetto ma colore pieno e contrasto. Il prima e il dopo nella stessa immagine",
+  export: "Una lastra di vetro finita che scivola fuori da una fessura di alluminio verso destra, uscendo dal contenitore. Il lavoro che esce dal progetto",
+  pipeline: "Quattro lastre in fila da sinistra a destra, collegate da un filo di luce: la prima spenta e grezza, ognuna piu' definita, l'ultima finita. La catena intera in un colpo solo",
+  quality: "Una lastra fotografica sotto una cornice di misura di alluminio con tacche incise; una zona della lastra e' cerchiata e illuminata, come un difetto trovato. Misurare cosa e' venuto male",
+  defects: "Una griglia di piccole lastre di vetro; tre portano un segno diverso — una crepa, una sfocatura, una zona bruciata — e sono staccate dalle altre. Il catalogo di cio' che puo' andare storto",
+  gallery: "Una griglia ordinata di lastre di vetro sospese; una si stacca e viene avanti, ingrandita e accesa. Sfogliare e scegliere",
+  sources: "A sinistra una cartella di alluminio aperta; da essa un flusso di piccole lastre passa in un vassoio a destra, dove sono allineate. Le fotografie che entrano nel progetto",
+  posts: "Tre lastre verticali affiancate come schede, con un arco di luce che indica lo scorrimento laterale da una all'altra. Un carosello",
+  references: "A sinistra una lastra campione appesa a un gancio; una linea di luce la collega a destra a una seconda lastra, che ne ha preso il colore. Uno stile che si trasferisce",
+  tree: "Una lastra sola in basso, da cui parte un ramo di vetro che si divide in tre lastre diverse in alto. Le versioni nate dalla stessa foto",
+  orphans: "Una griglia ordinata di lastre collegate da fili di luce; una sta fuori, il suo filo spezzato e spento. Una foto che non appartiene a nessuno",
+  storyboard: "Quattro riquadri di vetro in fila su una guida di alluminio, ognuno con dentro una scena diversa, letti da sinistra a destra. Una storia divisa in quadri",
+  edit: "In basso una forma d'onda scolpita in alluminio; sopra, clip di vetro tagliate esattamente in corrispondenza dei picchi, da lame di luce verticali. Tagliare sul ritmo",
+  picks: "Cinque clip di vetro in fila: tre in avanti e accese, due spinte indietro e spente. Scegliere cosa tenere",
+  shots: "A sinistra righe astratte incise nel vetro; a destra una clip di vetro in movimento, con scie di luce che ne mostrano il moto. Dal testo nasce la ripresa",
+  gate: "Una barra di vetro orizzontale con una tacca incisa che segna una soglia; sotto la tacca due clip passano illuminate, sopra una resta ferma e spenta. Una barra da superare",
+  projects: "Tre contenitori di alluminio affiancati, ognuno con lastre dentro; quello centrale e' aperto e illuminato. I lavori, uno accanto all'altro",
+  queue: "Cinque gettoni di vetro su un binario di alluminio che scorre verso destra; il primo sta entrando in una fessura illuminata, gli altri aspettano. Una coda che avanza",
+  status: "Un anello di vetro con dentro una corona di luce che pulsa, e accanto una piccola spia accesa. Il motore acceso e il suo stato",
 };
 
 const SKILL = `${process.env.HOME}/jarvis/skills-marketplace/skills/chatgpt-image/run.ts`;

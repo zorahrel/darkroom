@@ -246,7 +246,7 @@ export default function DetailPage() {
         onClick={onGenerate}
         disabled={generating}
       >
-        <IconRefresh className="w-3.5 h-3.5" />
+        <IconRefresh />
         {generating ? "Accodo…" : "ChatGPT"}
       </Bott>
       <HiggsfieldButton

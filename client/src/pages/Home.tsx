@@ -368,7 +368,7 @@ function ToolCard({
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
               >
-                <SlidersHorizontal className="w-4 h-4" aria-hidden />
+                <SlidersHorizontal  aria-hidden />
                 {a.label}
               </Bott>
             ),
@@ -453,7 +453,7 @@ function Open({
       {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
           vicino apre un modulo qui: due gesti diversi che avevano lo stesso
           aspetto e si distinguevano solo leggendo l'etichetta. */}
-      <ArrowRight className="w-4 h-4" aria-hidden />
+      <ArrowRight  aria-hidden />
       {start.label}
       {target && !onPicked && (
         <span className="ml-1 text-neutral-400">in {target.name}</span>
@@ -511,11 +511,11 @@ function Form({
         <div className="text-[12px] text-emerald-200 leading-snug">{done.text}</div>
         <div className="flex items-center gap-1.5">
           <Bott size="m" weight="primary" onClick={() => onDone(done.route)}>
-            <ArrowRight className="w-4 h-4" aria-hidden />
+            <ArrowRight  aria-hidden />
             Vai a vedere
           </Bott>
           <Bott size="m" weight="quiet" onClick={onCancel}>
-            <X className="w-4 h-4" aria-hidden />
+            <X  aria-hidden />
             Resta qui
           </Bott>
         </div>
@@ -556,11 +556,11 @@ function Form({
           title={missing ? `Manca: ${missing.label}` : undefined}
           onClick={vai}
         >
-          <Play className="w-4 h-4" aria-hidden />
+          <Play  aria-hidden />
           {inProgress ? "Vado…" : start.label}
         </Bott>
         <Bott size="m" weight="quiet" onClick={onCancel}>
-          <X className="w-4 h-4" aria-hidden />
+          <X  aria-hidden />
           Annulla
         </Bott>
       </div>

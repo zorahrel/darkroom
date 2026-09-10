@@ -28,10 +28,19 @@ import { Check, MoreHorizontal, Search as SearchIcon, X } from "lucide-react";
 // ---- sizes ----------------------------------------------------------------
 // Three sizes, not fourteen. `s` for the dense bars of an editor, `m` for
 // panels, `l` for page actions.
+/**
+ * L'ingombro di un tasto, e quello del segno che ci sta dentro.
+ *
+ * La misura dell'icona la decide il tasto, non chi lo scrive: erano settantuno
+ * icone dentro ai tasti in tre misure diverse (12, 14 e 16 punti), scelte una per
+ * una al momento. Nessuna era sbagliata da sola; tutte insieme facevano una barra
+ * in cui niente era allineato con niente. Qui la regola e' una, e chi aggiunge un
+ * tasto domani non ha una decisione da prendere.
+ */
 const SIZE = {
-  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
-  m: "text-[12px] px-2 py-1 rounded gap-1.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
-  l: "text-[13px] px-3 py-1.5 rounded gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0",
+  s: "text-[10.5px] px-1.5 py-0.5 rounded-sm gap-1 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 [&_svg]:w-3.5 [&_svg]:h-3.5 [&_svg]:shrink-0",
+  m: "text-[12px] px-2 py-1 rounded gap-1.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:shrink-0",
+  l: "text-[13px] px-3 py-1.5 rounded gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 [&_svg]:w-[18px] [&_svg]:h-[18px] [&_svg]:shrink-0",
 } as const;
 
 export type Size = keyof typeof SIZE;
@@ -128,11 +137,11 @@ export function Confirm({
       {/* Le due uscite di una domanda devono distinguersi prima di essere lette:
           e' l'unico punto dell'interfaccia in cui premere quello sbagliato costa. */}
       <Bott weight="danger" size={size} onClick={() => { setAsked(false); onConfirm(); }}>
-        <Check className="w-3 h-3" aria-hidden />
+        <Check  aria-hidden />
         {confirm}
       </Bott>
       <Bott weight="quiet" size={size} onClick={() => setAsked(false)}>
-        <X className="w-3 h-3" aria-hidden />
+        <X  aria-hidden />
         lascia stare
       </Bott>
     </span>
@@ -666,13 +675,13 @@ export function Filter({
         // py-1, not py-0.5: at 22px tall the target was below the threshold under
         // which you hit the wrong pill, and these sit side by side.
         "inline-flex items-center gap-1 px-2 py-1 border rounded-sm text-[11px] leading-[14px] " +
-        "transition-colors disabled:opacity-30 " +
+        "transition-colors disabled:opacity-30 [&_svg]:w-3.5 [&_svg]:h-3.5 [&_svg]:shrink-0 " +
         (active
           ? "border-neutral-300 text-neutral-100"
           : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
       }
     >
-      {Icona && <Icona className="w-3 h-3 shrink-0 opacity-80" aria-hidden />}
+      {Icona && <Icona className="opacity-80" aria-hidden />}
       {children}
       <span className="ml-0.5 opacity-60 tabular-nums">{n}</span>
     </button>

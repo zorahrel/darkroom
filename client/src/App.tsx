@@ -354,7 +354,7 @@ export default function App() {
                         alert(`Errore avvio: ${e instanceof Error ? e.message : String(e)}`);
                       } finally { setLaunching(false); }
                     }}>
-                <TriangleAlert className="w-4 h-4" aria-hidden />
+                <TriangleAlert  aria-hidden />
                 {launching ? "avvio Chrome…" : "Chrome non collegato — avvialo"}
               </Bott>
             )}
@@ -370,7 +370,7 @@ export default function App() {
               <Bott weight="quiet" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
                     title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
                     className="hidden lg:inline-flex">
-                <SlidersHorizontal className="w-4 h-4" aria-hidden />
+                <SlidersHorizontal  aria-hidden />
               </Bott>
             )}
 
@@ -381,13 +381,13 @@ export default function App() {
             <Bott size="m" weight="quiet" active={location.pathname === "/activity"}
                   onClick={() => navigate("/activity")}
                   title="Il registro delle chiamate MCP: cosa è stato fatto, quando, e com'è andata">
-              <Logs className="w-4 h-4" aria-hidden />
+              <Logs  aria-hidden />
               <span className="hidden xl:inline">Registro</span>
             </Bott>
 
             <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
-              <ListOrdered className="w-4 h-4" aria-hidden />
+              <ListOrdered  aria-hidden />
               Lavori
               <span className={activeJobs > 0 ? "text-sky-300" : "text-neutral-400"}>
                 {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
@@ -418,7 +418,7 @@ export default function App() {
                       const r = await api.exportFavorites();
                       alert(`Esportate ${r.copied}/${r.total} preferite in:\n${r.dir}`);
                     }}>
-                <FolderOutput className="w-4 h-4" aria-hidden />
+                <FolderOutput  aria-hidden />
                 <span className="hidden sm:inline">Esporta preferite</span>
                 <span className="sm:hidden">Esporta</span>
               </Bott>

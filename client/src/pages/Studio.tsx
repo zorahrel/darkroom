@@ -162,7 +162,7 @@ export default function StudioPage() {
           {([["recent", "recenti", Clock], ["name", "nome", ArrowDownAZ], ["largest", "più grandi", ArrowDown01]] as const)
             .map(([id, text, Segno]) => (
             <Bott key={id} size="s" weight="quiet" onClick={() => setSortOrder(id)} active={sortOrder === id}>
-              <Segno className="w-3 h-3" aria-hidden />
+              <Segno  aria-hidden />
               {text}
             </Bott>
           ))}
@@ -382,7 +382,7 @@ function Card({
                         title={fixed
                           ? `${v.explains} È la vista principale: si apre qui, quindi non si spegne.`
                           : on ? `${v.explains} Clicca per spegnerla.` : `${v.explains} Clicca per accenderla.`}>
-                  <I className="w-3 h-3" aria-hidden />
+                  <I  aria-hidden />
                   {v.name}
                 </Bott>
               );
@@ -470,7 +470,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
   if (!open) {
     return (
       <Bott weight="primary" size="m" onClick={() => setOpen(true)}>
-        <Plus className="w-4 h-4" aria-hidden />
+        <Plus  aria-hidden />
         Nuovo progetto
       </Bott>
     );
@@ -513,7 +513,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
         {/* Il triangolino era un carattere: alla stessa misura degli altri segni
             dell'interfaccia era un disegno diverso, piu' pesante e mal allineato. */}
         <Bott weight="quiet" size="s" onClick={() => setAdvanced((v) => !v)}>
-          {advanced ? <ChevronDown className="w-3 h-3" aria-hidden /> : <ChevronRight className="w-3 h-3" aria-hidden />}
+          {advanced ? <ChevronDown  aria-hidden /> : <ChevronRight  aria-hidden />}
           Dove salvare il progetto
         </Bott>
         {advanced && (
@@ -530,11 +530,11 @@ function NewProject({ onDone }: { onDone: () => void }) {
 
       <div className="flex items-center gap-1.5">
         <Bott weight="primary" size="m" onClick={create} disabled={busy || !name.trim()}>
-          <Check className="w-4 h-4" aria-hidden />
+          <Check  aria-hidden />
           {busy ? "Creo…" : "Crea"}
         </Bott>
         <Bott weight="quiet" size="m" onClick={() => setOpen(false)}>
-          <X className="w-4 h-4" aria-hidden />
+          <X  aria-hidden />
           Annulla
         </Bott>
       </div>

@@ -373,7 +373,7 @@ export function PhotoPipeline({
           <Bott weight="normal" size="m"
             onClick={doExport}
           >
-            <IconDownload /> <Download className="w-3.5 h-3.5" aria-hidden />
+            <IconDownload /> <Download  aria-hidden />
                 Scarica full-res
           </Bott>
           <div className="pt-2 mt-2 border-t border-neutral-800 space-y-2">
@@ -390,7 +390,7 @@ export function PhotoPipeline({
               onClick={doBake}
               title={dirty ? "Salva prima le modifiche per poter fare il bake" : undefined}
             >
-              <Stamp className="w-3.5 h-3.5" aria-hidden />
+              <Stamp  aria-hidden />
                 {baking ? "Bake in corso…" : "Bake — nuova versione"}
             </Bott>
             {dirty && (
@@ -480,14 +480,14 @@ export function PhotoPipeline({
                     disabled={!photoNav.prev}
                     aria-label="foto precedente"
                   >
-                    <IconChevronLeft className="w-4 h-4" />
+                    <IconChevronLeft />
                   </Bott>
                   <Bott weight="quiet" size="s"
                     onClick={photoNav.onNext}
                     disabled={!photoNav.next}
                     aria-label="foto successiva"
                   >
-                    <IconChevronLeft className="w-4 h-4 rotate-180" />
+                    <IconChevronLeft className="rotate-180" />
                   </Bott>
                 </>
               )}
@@ -517,7 +517,7 @@ export function PhotoPipeline({
                   aria-label="reset override"
                   title="Reset override"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" aria-hidden />
+                  <RotateCcw  aria-hidden />
                   Reset
                 </Bott>
               )}
@@ -527,14 +527,14 @@ export function PhotoPipeline({
                 aria-label="salva come grade globale"
                 title="Salva questo grade come default per tutto il set (sovrascrive il grade globale — le foto senza override lo erediteranno)"
               >
-                <Globe className="w-3.5 h-3.5" aria-hidden />
+                <Globe  aria-hidden />
                 {savingGlobal ? "…" : "Globale"}
               </Bott>
               <Bott weight="primary" size="m"
                 disabled={saving || !dirty}
                 onClick={doSave}
               >
-                <Save className="w-3.5 h-3.5" aria-hidden />
+                <Save  aria-hidden />
                 {saving ? "…" : "Salva"}
               </Bott>
             </div>

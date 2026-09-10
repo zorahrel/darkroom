@@ -57,7 +57,7 @@ export function ExtraInstructionsCard({
               }
             }}
           >
-            <Trash2 className="w-3.5 h-3.5" aria-hidden />
+            <Trash2  aria-hidden />
           Rimuovi
           </Bott>
         )}
@@ -73,7 +73,7 @@ export function ExtraInstructionsCard({
             }
           }}
         >
-          <Save className="w-3.5 h-3.5" aria-hidden />
+          <Save  aria-hidden />
           {saving ? "Salvo…" : "Salva"}
         </Bott>
       </div>

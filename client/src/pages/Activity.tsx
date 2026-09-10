@@ -43,7 +43,7 @@ export default function Activity() {
     <Page>
       <Header title="Registro MCP" below="Le chiamate degli strumenti, dalla più recente: progetto, durata ed esito.">
         <Bott weight="primary" size="l" disabled={busy} onClick={() => void load()}>
-          <RefreshCw size={14} aria-hidden /> {busy ? "Carico…" : "Aggiorna"}
+          <RefreshCw aria-hidden /> {busy ? "Carico…" : "Aggiorna"}
         </Bott>
       </Header>
       <Toolbar>
@@ -79,7 +79,7 @@ export default function Activity() {
         ))}
       </div>
       {log?.next_before && <Bott disabled={busy} onClick={() => void load(log.next_before!)}>
-        <ChevronDown className="w-4 h-4" aria-hidden />
+        <ChevronDown  aria-hidden />
         Carica precedenti
       </Bott>}
     </Page>

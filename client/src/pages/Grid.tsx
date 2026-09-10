@@ -707,7 +707,7 @@ export default function GridPage({
               }
             }}
           >
-            <ImagePlus className="w-3.5 h-3.5" aria-hidden />
+            <ImagePlus  aria-hidden />
             {bulkBusy ? "Coda…" : `Genera ${selectedCount}`}
           </Bott>
           {/* Merging into a collage only applies inside ONE post: photos from
@@ -1045,8 +1045,8 @@ export default function GridPage({
               }
             >
               {activeJobs > 0
-                ? <><ListOrdered className="w-3.5 h-3.5" aria-hidden />{`Coda ${activeJobs}`}</>
-                : <><ImagePlus className="w-3.5 h-3.5" aria-hidden />{`Genera ${counts.missing}`}</>}
+                ? <><ListOrdered  aria-hidden />{`Coda ${activeJobs}`}</>
+                : <><ImagePlus  aria-hidden />{`Genera ${counts.missing}`}</>}
             </Bott>
           )}
           <Bott active={selectMode}
@@ -1059,8 +1059,8 @@ export default function GridPage({
             }}
           >
             {selectMode
-              ? <><X className="w-3.5 h-3.5" aria-hidden />Esci</>
-              : <><SquareCheck className="w-3.5 h-3.5" aria-hidden />Selezione</>}
+              ? <><X  aria-hidden />Esci</>
+              : <><SquareCheck  aria-hidden />Selezione</>}
           </Bott>
         </div>
 

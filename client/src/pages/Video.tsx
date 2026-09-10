@@ -683,11 +683,11 @@ export default function Video() {
         )}
         <div className="ml-auto flex items-center gap-2">
           <Bott weight="quiet" size="s" onClick={() => setHelp((a) => !a)}>
-            <Keyboard className="w-3.5 h-3.5" aria-hidden />
+            <Keyboard  aria-hidden />
             tasti
           </Bott>
           <Bott size="m" weight={showForced ? "normal" : "primary"} onClick={launch} disabled={!!ric?.active}>
-            <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+            <RefreshCw  aria-hidden />
             {ric?.active ? "ricostruisco…" : "ricostruisci"}
           </Bott>
         </div>
@@ -773,14 +773,14 @@ export default function Video() {
               <div className="flex flex-wrap gap-1">
                 {span && (
                   <Bott onClick={() => setFramed({ da: span[0], a: span[1], n: Date.now() })}>
-                    <ZoomIn className="w-3.5 h-3.5" aria-hidden />
+                    <ZoomIn  aria-hidden />
             guarda da vicino
                   </Bott>
                 )}
-                {span && <Bott onClick={() => setInOut(span)}><SquareDashed className="w-3.5 h-3.5" aria-hidden />
+                {span && <Bott onClick={() => setInOut(span)}><SquareDashed  aria-hidden />
             segna il tratto</Bott>}
                 <Bott weight="danger" onClick={discardSelection}>
-                  <X className="w-3.5 h-3.5" aria-hidden />
+                  <X  aria-hidden />
             scarta {selectedShots.length === 1 ? "la ripresa" : `le ${selectedShots.length} riprese`}
                 </Bott>
               </div>
@@ -952,7 +952,7 @@ export default function Video() {
               <div className="mt-3 flex items-center gap-2">
                 <Bott weight="primary" onClick={() => { setShowForced(false); void launch(); }}
                       disabled={!!ric?.active}>
-                  <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+                  <RefreshCw  aria-hidden />
             ricostruisci il video con queste scelte
                 </Bott>
                 <span className="text-[10.5px] text-neutral-400">circa dodici minuti, sul PC</span>
