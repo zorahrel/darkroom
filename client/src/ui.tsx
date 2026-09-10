@@ -65,6 +65,19 @@ const WEIGHT: Record<Weight, string> = {
   danger: "border-rose-700 bg-rose-950 text-rose-100 hover:bg-rose-900",
 };
 
+/** Le classi che fanno di un elemento un tasto. Estratte perche' non le usa solo
+ *  `Bott`: un menu che si apre da un tasto deve avere lo stesso identico aspetto,
+ *  e due copie delle stesse classi si separano al primo ritocco. */
+export function classiTasto(size: Size = "m", weight: Weight = "normal", disabled = false): string {
+  const stile = disabled
+    ? "border-neutral-800 bg-neutral-900 text-neutral-500 cursor-not-allowed"
+    : WEIGHT[weight];
+  return `inline-flex items-center justify-center border whitespace-nowrap
+          transition-colors focus-visible:outline focus-visible:outline-1
+          focus-visible:outline-offset-1 focus-visible:outline-neutral-300
+          ${SIZE[size]} ${stile}`;
+}
+
 export function Bott({
   children, onClick, active, weight = "normal", size = "m",
   title, disabled, className = "", type = "button", "aria-label": ariaLabel,
@@ -551,11 +564,17 @@ const CloseMenu = createContext<() => void>(() => {});
 export const useCloseMenu = () => useContext(CloseMenu);
 
 export function Other({
-  children, title = "Altre azioni", className = "", subtle = false, trigger,
+  children, title = "Altre azioni", className = "", subtle = false, trigger, triggerClass, verso = "destra",
 }: {
   children: React.ReactNode;
   title?: string;
   className?: string;
+  /** Le classi del bottone che apre il menu, quando deve sembrare altro dai tre
+   *  puntini — per esempio un tasto d'azione vero e proprio. */
+  triggerClass?: string;
+  /** Da che lato si apre. I tre puntini stanno all'angolo destro e il menu scende
+   *  verso l'interno; un tasto a inizio riga vuole l'opposto, o esce dalla scheda. */
+  verso?: "destra" | "sinistra";
   /** Cosa si preme per aprire il menu. Senza, sono i tre puntini di sempre. Con,
    *  il menu puo' stare attaccato a un tasto e dire su COSA agirebbe. */
   trigger?: (aperto: boolean) => React.ReactNode;
@@ -585,7 +604,7 @@ export function Other({
                 // Anche una linguetta e' un comando da prendere col pollice: senza
                 // questi minimi era 27x17, cioe' sotto la soglia sotto la quale si
                 // preme quello accanto.
-                ? "inline-flex items-stretch leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0"
+                ? (triggerClass ?? "inline-flex items-stretch leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0")
                 : `px-1 py-0.5 rounded-sm leading-none transition-colors
                    ${open ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
         {trigger ? trigger(open) : <MoreHorizontal className="w-4 h-4" aria-hidden />}
@@ -593,8 +612,9 @@ export function Other({
       {open && (
         <CloseMenu.Provider value={() => setOpen(false)}>
           <div role="menu"
-               className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded border border-neutral-700
-                          bg-neutral-950 p-1 shadow-2xl space-y-0.5">
+               className={`absolute ${verso === "destra" ? "right-0" : "left-0"} z-50 mt-1 min-w-[13rem]
+                           max-w-[min(20rem,80vw)] rounded border border-neutral-700 bg-neutral-950 p-1
+                           shadow-2xl space-y-0.5`}>
             {children}
           </div>
         </CloseMenu.Provider>
@@ -697,11 +717,18 @@ export function Filter({
       className={
         // py-1, not py-0.5: at 22px tall the target was below the threshold under
         // which you hit the wrong pill, and these sit side by side.
-        "inline-flex items-center gap-1 px-2 py-1 border rounded-sm text-[11px] leading-[14px] " +
+        // py-1.5 e non py-1: 24 punti di altezza accanto a un campo e a un tasto da
+        // 28 facevano tre file diverse nella stessa barra, ed e' quello che si legge
+        // come «blocchetti buttati li'». Uguali si leggono come una cosa sola.
+        "inline-flex items-center gap-1 px-2.5 py-1.5 border rounded text-[11px] leading-[14px] " +
+        "min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 " +
         "transition-colors disabled:opacity-30 [&_svg]:w-3.5 [&_svg]:h-3.5 [&_svg]:shrink-0 " +
+        // Stessa logica dei tasti: quello che si puo' premere ha un pieno, e quello
+        // scelto ha il contorno chiaro. Il bordo neutral-800 di prima stava a 1,31:1
+        // contro il fondo — un contorno che non c'e'.
         (active
-          ? "border-neutral-300 text-neutral-100"
-          : "border-neutral-800 text-neutral-400 hover:border-neutral-600")
+          ? "border-neutral-300 bg-neutral-800 text-neutral-100"
+          : "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500 hover:text-neutral-100")
       }
     >
       {Icona && <Icona className="opacity-80" aria-hidden />}

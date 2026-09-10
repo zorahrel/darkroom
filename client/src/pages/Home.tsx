@@ -10,7 +10,7 @@ import {
   type Tool,
   type StudioProject,
 } from "../api";
-import { Area, Bott, Field, Search, Filter, NumberField, Choose, Badge, Header, Other, Page, Panel, SectionHeader, useCloseMenu } from "../ui";
+import { Area, Bott, classiTasto, Field, Search, Filter, NumberField, Choose, Badge, Header, Other, Page, Panel, SectionHeader, useCloseMenu } from "../ui";
 import { useViewState } from "../viewState";
 import { ICONE_AREA, ICONS } from "../iconNames";
 import {
@@ -273,7 +273,10 @@ function ToolCard({
   const [senzaCopertina, setSenzaCopertina] = useState(false);
 
   return (
-    <Panel className={"group relative isolate flex h-full flex-col overflow-hidden transition-colors "
+    /* Niente `overflow-hidden` sulla scheda: ci serviva per arrotondare la
+       copertina, e tagliava i menu che si aprono dai tasti sotto. Il ritaglio sta
+       sulla fascia, che e' l'unica cosa da ritagliare. */
+    <Panel className={"group relative flex h-full flex-col transition-colors "
                       + (s.ready ? "hover:border-neutral-600" : "opacity-80")}>
       {/* La copertina in cima, larga quanto la scheda.
           Prende il posto dell'icona invece di starle accanto: averle tutte e due
@@ -290,7 +293,7 @@ function ToolCard({
           un quadrato nero. Uno strumento senza copertina non lascia un buco, al
           suo posto torna l'icona. */}
       <div className="-mx-3 -mt-3 flex aspect-[3/2] items-center justify-center overflow-hidden
-                      bg-gradient-to-b from-neutral-900/60 to-transparent">
+                      rounded-t-lg bg-gradient-to-b from-neutral-900/60 to-transparent">
         {/* L'icona compare solo se la copertina non arriva davvero. Tenerla
             sotto come rete voleva dire vederla ATTRAVERSO il PNG, che e'
             trasparente: due segni sovrapposti che dicono la stessa cosa. */}
@@ -425,52 +428,47 @@ function Open({
   const adatti = projects.filter(fits);
   const vai = (p: StudioProject) => onVai(start.route.replace(":pid", encodeURIComponent(p.id)));
 
-  /* Il progetto si sceglie QUI, sul tasto che lo usa, e non in cima alla pagina.
-     Sceglierlo prima voleva dire deciderlo senza sapere per cosa, e poi ritrovarselo
-     addosso su ventidue schede che con quel progetto non c'entravano. Il tasto dice
-     su quale progetto agirebbe; la linguetta accanto lo cambia al volo, e compare
-     solo dove c'e' davvero una scelta da fare. */
-  return (
-    <span className="inline-flex items-stretch">
-      <Bott
-        size="m"
-        disabled={!target}
-        className={adatti.length > 1 ? "rounded-r-none" : ""}
-        title={
-          target
-            ? `Apre «${target.name}»`
-            : `Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`
-        }
-        onClick={() => target && vai(target)}
-      >
-        {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
-            vicino apre un modulo qui: due gesti diversi che avevano lo stesso
-            aspetto e si distinguevano solo leggendo l'etichetta. */}
-        <ArrowRight aria-hidden />
-        {start.label}
-        {target && <span className="text-neutral-400">in {target.name}</span>}
+  const etichetta = (
+    <>
+      {/* Il segno dice che questo tasto PORTA da qualche parte, mentre il suo
+          vicino apre un modulo qui: due gesti diversi che avevano lo stesso
+          aspetto e si distinguevano solo leggendo l'etichetta. */}
+      <ArrowRight aria-hidden />
+      {start.label}
+    </>
+  );
+
+  /* Il progetto non e' gia' scelto: lo si sceglie premendo.
+     Sceglierlo prima — in cima alla pagina, o scritto sul tasto — voleva dire
+     deciderlo senza sapere per cosa, e portarselo dietro su ventidue schede. Qui il
+     tasto e' uno solo: se c'e' un progetto solo che puo' aprirsi va e basta, se ce
+     ne sono piu' d'uno la domanda arriva nel momento in cui serve. */
+  if (adatti.length === 0) {
+    return (
+      <Bott size="m" disabled
+            title={`Nessun progetto ha la vista «${start.view}»: creane uno dallo strumento che lo fa, o accendile la vista dallo Studio.`}>
+        {etichetta}
       </Bott>
-      {adatti.length > 1 && (
-        <Other
-          title="Su quale progetto"
-          trigger={(aperto: boolean) => (
-            <span className={"inline-flex h-full items-center rounded-r border border-l-0 px-1.5 transition-colors "
-                             + (aperto
-                                ? "border-neutral-400 bg-neutral-800 text-neutral-100"
-                                : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-100")}>
-              <ChevronDown className="w-3.5 h-3.5" aria-hidden />
-            </span>
-          )}
-        >
-          {adatti.map((p) => (
-            <MenuItem key={p.id} onClick={() => vai(p)}>
-              {p.name}
-              {p.id === target?.id && <span className="ml-1 text-neutral-500">— l'ultimo</span>}
-            </MenuItem>
-          ))}
-        </Other>
-      )}
-    </span>
+    );
+  }
+  if (adatti.length === 1) {
+    return (
+      <Bott size="m" title={`Apre «${adatti[0]!.name}»`} onClick={() => vai(adatti[0]!)}>
+        {etichetta}
+      </Bott>
+    );
+  }
+  return (
+    <Other
+      title="Su quale progetto"
+      verso="sinistra"
+      triggerClass={classiTasto("m", "normal")}
+      trigger={() => etichetta}
+    >
+      {adatti.map((p) => (
+        <MenuItem key={p.id} onClick={() => vai(p)}>{p.name}</MenuItem>
+      ))}
+    </Other>
   );
 }
 
