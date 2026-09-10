@@ -37,8 +37,7 @@ export type ToolArea =
   | "color"
   | "quality"
   | "library"
-  | "story"
-  | "edit"
+  | "video"
   | "system";
 
 /** The areas in reading order, with the line that explains them. */
@@ -47,8 +46,11 @@ export const AREAS: { id: ToolArea; name: string; what: string }[] = [
   { id: "color", name: "Colore", what: "Un look solo per tutto il set, e l'uscita." },
   { id: "quality", name: "Qualità", what: "Misurare cosa è venuto male, prima di pubblicarlo." },
   { id: "library", name: "Libreria", what: "Le foto: da dove vengono, come si raggruppano." },
-  { id: "story", name: "Racconto", what: "Dalla scaletta ai pannelli." },
-  { id: "edit", name: "Montaggio", what: "Riprese, tagli sul beat, ricostruzione." },
+  // «Racconto» conteneva un solo strumento e «Montaggio» quattro, e le due cose
+  // sono lo stesso lavoro visto in due momenti: si scrive la storia, la si gira, la
+  // si taglia. Divise erano due sezioni da leggere per capire dove stava il video —
+  // e una sezione da uno strumento lasciava due buchi nella griglia.
+  { id: "video", name: "Video", what: "Dalla scaletta al montaggio: quadri, riprese, tagli sul ritmo." },
   { id: "system", name: "Sistema", what: "Progetti, generatore, stato della macchina." },
 ];
 
@@ -330,7 +332,7 @@ export const TOOLS: Tool[] = [
     id: "storyboard",
     name: "Storyboard",
     what: "Una scaletta diventa pannelli in ordine, uno per battuta, con durata, scena e un cast che tiene la faccia da un pannello all'altro.",
-    area: "story",
+    area: "video",
     icon: "storyboard",
     views: ["storyboard"],
     api: ["GET /api/storyboard", "POST /api/storyboard/panels", "PUT /api/storyboard/sequence", "POST /api/storyboard/export"],
@@ -356,7 +358,7 @@ export const TOOLS: Tool[] = [
     id: "edit",
     name: "Montaggio sul beat",
     what: "Il piano dei tagli deriva dalle misure del brano: durezza del suono contro durezza dell'immagine. Le forzature restano dichiarate.",
-    area: "edit",
+    area: "video",
     icon: "edit",
     views: ["video"],
     api: ["GET /api/video/cuts", "GET /api/video/overrides", "POST /api/video/pin", "POST /api/video/rebuild"],
@@ -376,7 +378,7 @@ export const TOOLS: Tool[] = [
     id: "picks",
     name: "Scelta delle riprese",
     what: "Una ripresa per volta, con i provini e i problemi già misurati: si tiene o si scarta, e si dice perché.",
-    area: "edit",
+    area: "video",
     icon: "picks",
     views: ["video"],
     api: ["GET /api/video/shots", "POST /api/video/pick"],
@@ -388,7 +390,7 @@ export const TOOLS: Tool[] = [
     id: "shots",
     name: "Genera riprese",
     what: "Una ripresa nuova sulla 3090 via ComfyUI, con i parametri che ci stanno davvero nella memoria della scheda.",
-    area: "edit",
+    area: "video",
     icon: "shots",
     views: ["video"],
     api: ["POST /api/video/generate", "GET /api/video/generations"],
@@ -400,7 +402,7 @@ export const TOOLS: Tool[] = [
     id: "gate",
     name: "Barra del montaggio",
     what: "I controlli sul video costruito, ognuno con il numero misurato: tagli sulle battute, niente riprese doppie, correlazione suono/immagine.",
-    area: "edit",
+    area: "video",
     icon: "gate",
     views: ["video"],
     api: ["GET /api/video/gate"],

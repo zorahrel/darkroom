@@ -36,53 +36,50 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import { generaDaTesto } from "../server/higgsfield.ts";
 
 const STILE =
-  "Infografica tridimensionale, non un'illustrazione decorativa: la composizione racconta una " +
-  "TRASFORMAZIONE da sinistra a destra — la cosa che entra, il passaggio, la cosa che esce — e si " +
-  "capisce senza didascalia. SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. " +
-  "Materiali: vetro spesso leggermente satinato e alluminio spazzolato scuro. Una sola luce di taglio " +
-  "ciano fredda da sinistra e una ambra calda da destra, niente altri colori se non dove il soggetto " +
-  "richiede espressamente un confronto di colore. Nessuna lettera, nessun numero, nessun logo: il testo, " +
-  "quando serve, e' righe astratte incise nel vetro, che si leggono come scrittura senza esserlo. " +
-  "Composizione ORIZZONTALE, oggetti piccoli e molto nero attorno. Minimalismo estremo, elegante, " +
-  "moderno, coerente con un'interfaccia scura.";
+  "Illustrazione tridimensionale REALISTICA e concreta, non astratta: si riconoscono oggetti veri — " +
+  "schermi, fotografie stampate, cartelle, manopole, linee del tempo — e si capisce a colpo d'occhio " +
+  "cosa entra e cosa esce. La composizione racconta una TRASFORMAZIONE da sinistra a destra. " +
+  "Le fotografie mostrate sono immagini vere e riconoscibili: paesaggio, ritratto, architettura. " +
+  "Il testo, quando serve, e' breve e LEGGIBILE, in inglese. " +
+  "SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. Illuminazione con una luce " +
+  "ciano fredda da sinistra e una ambra calda da destra; nessun altro colore se non quello delle " +
+  "fotografie mostrate. Composizione ORIZZONTALE, molto nero attorno. Elegante, moderno, nitido, " +
+  "coerente con l'interfaccia scura di un programma di fotografia.";
 
 /**
- * Il soggetto deve far capire COSA FA lo strumento, non evocarlo.
+ * Il soggetto deve far RICONOSCERE lo strumento, non evocarlo.
  *
- * La prima serie era bella e muta: un ventaglio di cilindri di vetro non dice che
- * quello strumento sviluppa il colore, e due strumenti vicini — generare e rifare —
- * si somigliavano perche' entrambi erano «una lastra che si illumina». Qui ognuno
- * mostra il proprio passaggio: cosa entra da sinistra, cosa esce a destra. E' anche
- * il motivo per cui restano riconoscibili in fila: sono ventidue frasi diverse, non
- * ventidue variazioni della stessa.
+ * La prima serie era bella e muta; la seconda raccontava un passaggio ma con sculture
+ * di vetro, e per capirlo bisognava gia' sapere cosa faceva lo strumento. Qui gli
+ * oggetti sono quelli veri del mestiere — un campo di testo, una fotografia, una
+ * cartella, una linea del tempo — perche' l'associazione deve essere immediata: se
+ * uno strumento parte da una frase scritta, nell'immagine si vede una frase scritta.
  */
 const SOGGETTI: Record<string, string> = {
-  generate: "A sinistra tre righe astratte incise nel vetro, come una frase; al centro un passaggio di luce; a destra una lastra fotografica che si e' accesa con un'immagine dentro. Dal testo nasce l'immagine",
-  retouch: "A sinistra una pila di lastre opache e spente; al centro un passaggio di luce che le attraversa tutte; a destra la stessa pila, ogni lastra ora nitida e illuminata. Un intero set rifatto in un colpo. SOLO ciano e ambra, nessun altro colore",
-  prompt: "Una fila di manopole di alluminio in basso; sopra ognuna una piccola lastra che cambia di conseguenza, dalla piu' scura alla piu' luminosa. I controlli e il loro effetto, visibili insieme. SOLO ciano e ambra, nessun altro colore",
-  color: "Una sola lastra fotografica tagliata a meta' da una linea netta verticale: la meta' sinistra grigia e piatta, la meta' destra con lo stesso soggetto ma colore pieno e contrasto. Il prima e il dopo nella stessa immagine",
-  export: "Una lastra di vetro finita che scivola fuori da una fessura di alluminio verso destra, uscendo dal contenitore. Il lavoro che esce dal progetto",
-  pipeline: "Quattro lastre in fila da sinistra a destra, collegate da un filo di luce: la prima spenta e grezza, ognuna piu' definita, l'ultima finita. La catena intera in un colpo solo",
-  quality: "Una lastra fotografica sotto una cornice di misura di alluminio con tacche incise; una zona della lastra e' cerchiata e illuminata, come un difetto trovato. Misurare cosa e' venuto male",
-  defects: "Una griglia di piccole lastre di vetro; tre portano un segno diverso — una crepa, una sfocatura, una zona bruciata — e sono staccate dalle altre. Il catalogo di cio' che puo' andare storto",
-  gallery: "Una griglia ordinata di lastre di vetro sospese; una si stacca e viene avanti, ingrandita e accesa. Sfogliare e scegliere",
-  sources: "A sinistra una cartella di alluminio aperta; da essa un flusso di piccole lastre passa in un vassoio a destra, dove sono allineate. Le fotografie che entrano nel progetto",
-  posts: "Tre lastre verticali affiancate come schede, con un arco di luce che indica lo scorrimento laterale da una all'altra. Un carosello",
-  references: "A sinistra una lastra campione appesa a un gancio; una linea di luce la collega a destra a una seconda lastra, che ne ha preso il colore. Uno stile che si trasferisce",
-  tree: "Una lastra sola in basso, da cui parte un ramo di vetro che si divide in tre lastre diverse in alto. Le versioni nate dalla stessa foto",
-  orphans: "Una griglia ordinata di lastre collegate da fili di luce; una sta fuori, il suo filo spezzato e spento. Una foto che non appartiene a nessuno",
-  storyboard: "Quattro riquadri di vetro in fila su una guida di alluminio, ognuno con dentro una scena diversa, letti da sinistra a destra. Una storia divisa in quadri",
-  edit: "In basso una forma d'onda scolpita in alluminio; sopra, clip di vetro tagliate esattamente in corrispondenza dei picchi, da lame di luce verticali. Tagliare sul ritmo",
-  picks: "Cinque clip di vetro in fila: tre in avanti e accese, due spinte indietro e spente. Scegliere cosa tenere",
-  shots: "A sinistra righe astratte incise nel vetro; a destra una clip di vetro in movimento, con scie di luce che ne mostrano il moto. Dal testo nasce la ripresa",
-  gate: "Una barra di vetro orizzontale con una tacca incisa che segna una soglia; sotto la tacca due clip passano illuminate, sopra una resta ferma e spenta. Una barra da superare",
-  projects: "Tre contenitori di alluminio affiancati, ognuno con lastre dentro; quello centrale e' aperto e illuminato. I lavori, uno accanto all'altro",
-  queue: "Cinque gettoni di vetro su un binario di alluminio che scorre verso destra; il primo sta entrando in una fessura illuminata, gli altri aspettano. Una coda che avanza",
-  status: "Un anello di vetro con dentro una corona di luce che pulsa, e accanto una piccola spia accesa. Il motore acceso e il suo stato",
+  generate: "A sinistra un campo di testo scuro con dentro scritto \"a quiet street at sunset\" e il cursore che lampeggia; una freccia di luce; a destra la fotografia vera che ne e' nata, incorniciata e illuminata. Dal testo nasce la fotografia, senza nessuno scatto di partenza",
+  retouch: "A sinistra una griglia di sei fotografie piatte e slavate; una freccia di luce che le attraversa tutte insieme; a destra la stessa griglia di sei, ognuna ora sviluppata e con contrasto. Un set intero rifatto in un colpo",
+  prompt: "Un pannello di controllo scuro con manopole e cursori etichettati; sopra il pannello la stessa fotografia ripetuta tre volte, che cambia mano a mano che i cursori si spostano. I controlli e il loro effetto, visibili insieme",
+  color: "Una sola fotografia di paesaggio tagliata da una linea verticale netta: la meta' sinistra piatta e desaturata come uscita dalla macchina, la meta' destra sviluppata, con colore e contrasto. Il prima e il dopo nella stessa immagine",
+  export: "Una cartella di sistema aperta a sinistra; tre fotografie finite scivolano fuori verso destra e si posano ordinate fuori dalla cartella. Le preferite che escono dal progetto",
+  pipeline: "Una sola fotografia che attraversa quattro stazioni allineate da sinistra a destra: grezza, sviluppata, rifinita, esportata. La catena intera in un colpo solo",
+  quality: "Una fotografia sotto una lente d'ingrandimento che cerchia una zona sfocata; accanto una piccola lista con tre voci, due spuntate e una segnata in rosso. Misurare cosa e' venuto male",
+  defects: "Quattro fotografie affiancate, ognuna con un difetto diverso e riconoscibile: una mossa, una con le luci bruciate, una rumorosa, una fuori fuoco. Il catalogo di cio' che puo' andare storto",
+  gallery: "Un provino a contatto di molte fotografie su una griglia scura; una si stacca, viene avanti ingrandita e illuminata. Sfogliare e scegliere",
+  sources: "A sinistra una cartella del computer piena di fotografie; una freccia di luce; a destra la finestra di un programma dove le stesse fotografie sono ordinate in griglia. Le foto che entrano nel progetto",
+  posts: "Uno schermo verticale di telefono che mostra un carosello di tre fotografie, con il gesto di scorrimento laterale indicato da un arco di luce. Post e caroselli",
+  references: "A sinistra una fotografia di riferimento con un colore forte; una freccia di luce; a destra una fotografia diversa che ha assunto lo stesso colore. Uno stile che si trasferisce",
+  tree: "Una fotografia in basso da cui partono tre rami di luce verso tre versioni della stessa foto, ognuna sviluppata diversamente. Le versioni nate dallo stesso scatto",
+  orphans: "Una griglia ordinata di fotografie collegate da linee di luce; una sta fuori dalla griglia, la sua linea spezzata e spenta. Una foto che non appartiene a nessun progetto",
+  storyboard: "Quattro riquadri di storyboard in fila su una striscia, ognuno con una scena diversa disegnata dentro, letti da sinistra a destra. Una storia divisa in quadri",
+  edit: "Una linea del tempo di montaggio video: in basso la forma d'onda dell'audio, sopra le clip tagliate esattamente sui picchi, con le linee di taglio evidenziate. Tagliare sul ritmo",
+  picks: "Cinque fotogrammi di riprese video in fila: tre con una spunta verde e in primo piano, due con una croce e spinte indietro, spente. Scegliere quali riprese tenere",
+  shots: "A sinistra un campo di testo con dentro una breve descrizione scritta; una freccia di luce; a destra un fotogramma di video in movimento, con scia di movimento. Dal testo nasce la ripresa",
+  gate: "Una barra orizzontale con una soglia segnata; sotto la soglia due clip passano illuminate, sopra una resta bloccata e spenta. Una barra di qualita' da superare",
+  projects: "Tre schede di progetto affiancate su uno sfondo scuro, ognuna con la sua anteprima fotografica e il suo nome; quella centrale in evidenza. I lavori, uno accanto all'altro",
+  queue: "Un elenco di lavori in coda su uno schermo scuro: il primo con la barra di avanzamento a meta', gli altri in attesa. Una coda che avanza",
+  status: "Un piccolo cruscotto scuro con un indicatore circolare acceso in verde e due righe di stato accanto. Il motore acceso e il suo stato",
 };
 
-/** «Qualita' massima, testo e diagrammi»: e' la descrizione del modello, ed e'
- *  esattamente cio' che serve a un'infografica che deve spiegare uno strumento. */
 const MODELLO = "nano_banana_pro";
 const DESTINAZIONE = "client/public/copertine";
 const GREZZE = ".copertine-grezze";

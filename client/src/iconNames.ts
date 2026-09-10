@@ -2,7 +2,6 @@ import {
   Aperture,
   BadgeCheck,
   BookImage,
-  BookOpen,
   Clapperboard,
   Cog,
   FolderInput,
@@ -78,7 +77,6 @@ export const ICONE_AREA: Record<string, LucideIcon> = {
   color: Palette,
   quality: BadgeCheck,
   library: LibraryBig,
-  story: BookOpen,
-  edit: Clapperboard,
+  video: Clapperboard,
   system: Cog,
 };
