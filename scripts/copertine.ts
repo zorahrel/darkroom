@@ -59,8 +59,7 @@ const STILE =
  * sbagliato, non l'immagine.
  */
 const SOGGETTI: Record<string, string> = {
-  generate: "Solo tre cose: a sinistra un campo di testo scuro con dentro scritto \"a quiet street at sunset\", al centro una freccia, a destra una sola fotografia incorniciata di una strada al tramonto",
-  retouch: "Solo tre cose: a sinistra tre fotografie affiancate piatte e slavate, al centro una freccia, a destra le stesse tre gia' sviluppate e contrastate",
+  generate: "Solo tre cose, due che entrano e una che esce: in alto a sinistra un campo di testo scuro con dentro scritto \"a quiet street at sunset\", in basso a sinistra una cartella aperta con dentro tre fotografie, e a destra, piu' grande, una sola fotografia incorniciata di una strada al tramonto verso cui puntano tutte e due",
   prompt: "Solo due cose: a sinistra tre cursori su un pannello scuro, a destra una sola fotografia che ne risente, piu' chiara",
   color: "Una cosa sola: una fotografia di paesaggio divisa a meta' da una linea verticale netta, la meta' sinistra piatta e desaturata, la meta' destra sviluppata con colore e contrasto",
   export: "Solo due cose: una cartella aperta a sinistra e tre fotografie che ne escono verso destra",

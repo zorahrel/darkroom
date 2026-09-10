@@ -17,8 +17,10 @@ import {
   ArrowRight,
   ChevronDown,
   CircleHelp,
+  FolderInput,
   Play,
   SlidersHorizontal,
+  Type,
   X,
 } from "lucide-react";
 
@@ -253,6 +255,20 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
 // ---------------------------------------------------------------------------
 
 /**
+ * Il segno della partenza.
+ *
+ * Una scheda con due partenze le mette una accanto all'altra: dare a tutte e due
+ * la stessa manopola vuol dire che l'occhio deve leggere le due etichette per
+ * capire che sono due cose diverse. La differenza sta in **da dove parti** — una
+ * frase che scrivi, una cartella che gia' hai — ed e' quella che va disegnata.
+ * Chi non dichiara la porta tiene la manopola: e' l'unica partenza che ha.
+ */
+const SEGNO_PARTENZA: Record<string, typeof SlidersHorizontal> = {
+  testo: Type,
+  cartella: FolderInput,
+};
+
+/**
  * A tool and its ways in.
  *
  * The card is as tall as its sisters: header at the top, controls anchored at
@@ -355,7 +371,10 @@ function ToolCard({
                 title={s.ready ? a.note : s.missing[0]?.how}
                 onClick={() => setOpen(open === a ? null : a)}
               >
-                <SlidersHorizontal  aria-hidden />
+                {(() => {
+                  const Segno = (a.key && SEGNO_PARTENZA[a.key]) || SlidersHorizontal;
+                  return <Segno aria-hidden />;
+                })()}
                 {a.label}
               </Bott>
             ),
@@ -521,6 +540,7 @@ function Form({
     setErr(null);
     try {
       const r = await api.startTool(tool.id, {
+        starter: start.key,
         // A start that CREATES the project does not receive one: sending it
         // would be an instruction nobody is looking at.
         project: start.mode === "now" ? scelto?.id : undefined,

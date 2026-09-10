@@ -78,8 +78,8 @@ export type StartField = {
  */
 export type Start =
   | { mode: "open"; label: string; route: string; view: ProjectKind }
-  | { mode: "new"; label: string; fields: StartField[]; note?: string }
-  | { mode: "now"; label: string; fields: StartField[]; note?: string };
+  | { mode: "new"; label: string; fields: StartField[]; note?: string; key?: string }
+  | { mode: "now"; label: string; fields: StartField[]; note?: string; key?: string };
 
 export type Tool = {
   id: string;
@@ -103,41 +103,37 @@ export const TOOLS: Tool[] = [
   // ---- immagini -----------------------------------------------------------
   {
     id: "generate",
-    name: "Genera immagini",
-    what: "Da un testo, senza foto di partenza. Finiscono in galleria come tutto il resto.",
+    name: "Genera e rifai immagini",
+    what: "Da una frase, o da una cartella di scatti che gia' hai. Finiscono in galleria come tutto il resto.",
     area: "images",
     icon: "generate",
     views: ["photo"],
-    api: ["POST /api/generate-new", "GET /api/jobs"],
-    mcp: ["generate_image", "list_jobs"],
+    api: [
+      "POST /api/generate-new", "GET /api/jobs",
+      "POST /api/generate-missing", "POST /api/photos/:id/generate",
+      "PUT /api/settings/global-prompt",
+    ],
+    mcp: ["generate_image", "list_jobs", "generate_missing", "edit_photo", "set_global_prompt"],
     needs: ["generator"],
+    // Due partenze, una scheda. Erano due schede — «genera» e «rifai» — con la
+    // stessa icona, lo stesso progetto e lo stesso posto dove finivano le foto: si
+    // leggevano come due strumenti diversi mentre sono due ingressi dello stesso.
+    // Cosa cambia e' solo da dove parti: una frase, o una cartella che gia' hai.
     starters: [
       {
         mode: "now",
-        label: "Genera adesso",
-        note: "Va in coda sul progetto scelto. Se non ne scegli uno, ne apro uno nuovo.",
+        key: "testo",
+        label: "Da una frase",
+        note: "Nessuno scatto di partenza: descrivi e basta. Va in coda sul progetto scelto.",
         fields: [
           { name: "prompt", label: "Cosa vuoi vedere", kind: "long", required: true,
             placeholder: "un vicolo di Kyoto sotto la pioggia, insegne al neon, 35mm" },
           { name: "count", label: "Quante", kind: "number", fallback: 1 },
         ],
       },
-      { mode: "open", label: "Apri la galleria", route: "/p/:pid", view: "photo" },
-    ],
-  },
-  {
-    id: "retouch",
-    name: "Rifai un set di foto",
-    what: "Mette in coda ogni foto senza versioni, con il prompt del progetto. Una cartella intera in un clic.",
-    area: "images",
-    icon: "retouch",
-    views: ["photo"],
-    api: ["POST /api/generate-missing", "POST /api/photos/:id/generate", "PUT /api/settings/global-prompt"],
-    mcp: ["generate_missing", "edit_photo", "set_global_prompt"],
-    needs: ["generator"],
-    starters: [
       {
         mode: "new",
+        key: "cartella",
         label: "Da una cartella",
         note: "Indicizzo la cartella (senza copiare niente) e accodo tutte le foto.",
         fields: [

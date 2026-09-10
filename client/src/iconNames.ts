@@ -20,7 +20,6 @@ import {
   ListX,
   Palette,
   PlugZap,
-  Repeat2,
   ScanEye,
   ScissorsLineDashed,
   SlidersHorizontal,
@@ -40,7 +39,6 @@ import {
  */
 export const ICONS: Record<string, LucideIcon> = {
   generate: ImagePlus,
-  retouch: Repeat2,
   prompt: SlidersHorizontal,
   color: SwatchBook,
   export: FolderOutput,

@@ -119,6 +119,21 @@ describe("POST /api/tools/:id/start", () => {
     expect(((await r.json()) as any).error).toContain("progetto");
   });
 
+  test("a start asked by a name that does not exist names the real ones", async () => {
+    // Il caso vero: una pagina rimasta indietro chiede «genera» senza dire da quale
+    // delle due porte. Rispondere «non ha un avvio rapido», come per gli strumenti
+    // che si aprono e basta, manderebbe a cercare un motore mancante che c'e'.
+    const r = await app.request("/api/tools/generate/start", {
+      method: "POST",
+      body: JSON.stringify({ values: {} }),
+    });
+    expect(r.status).toBe(400);
+    const messaggio = ((await r.json()) as any).error as string;
+    expect(messaggio).toContain("testo");
+    expect(messaggio).toContain("cartella");
+    expect(messaggio).not.toContain("non ha un avvio rapido");
+  });
+
   test("a missing required field returns the reason, not a 500", async () => {
     const r = await app.request("/api/tools/projects/start", {
       method: "POST",

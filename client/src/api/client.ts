@@ -558,7 +558,10 @@ export const api = {
   toolProjects: (id: string) =>
     jsonFetch<{ projects: StudioProject[] }>(`/api/tools/${encodeURIComponent(id)}/projects`),
   /** Begins a tool: does the work and answers with the page to go to. */
-  startTool: (id: string, body: { project?: string; values?: Record<string, string | number> }) =>
+  startTool: (
+    id: string,
+    body: { project?: string; values?: Record<string, string | number>; starter?: string },
+  ) =>
     jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/start`, {
       method: "POST",
       body: JSON.stringify(body),

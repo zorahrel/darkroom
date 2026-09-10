@@ -72,8 +72,15 @@ function projectOf(given?: string): string {
   return currentProjectId();
 }
 
+/**
+ * Chi esegue un avvio.
+ *
+ * La chiave e' l'id dello strumento, oppure `id:chiave` quando lo strumento ha piu'
+ * di una partenza: «genera e rifai» ne ha due — da una frase e da una cartella — e
+ * sono due lavori diversi che finiscono nello stesso posto.
+ */
 const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promise<Outcome>> = {
-  generate: (v, prog) => {
+  "generate:testo": (v, prog) => {
     const prompt = text(v, "prompt");
     if (!prompt) throw new Error("Serve il prompt: senza, non c'è niente da generare.");
     const pid = projectOf(prog);
@@ -86,7 +93,7 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
     };
   },
 
-  retouch: (v) => {
+  "generate:cartella": (v) => {
     const name = text(v, "name");
     const folder = text(v, "folder");
     if (!name) throw new Error("Serve un nome per il lavoro.");
@@ -198,27 +205,48 @@ const STARTERS: Record<string, (v: Values, project?: string) => Outcome | Promis
   },
 };
 
-/** The ids that have an engine. Exported for the test that verifies the
- *  correspondence with the catalogue without having to CALL the starts —
- *  calling them would mean launching Chrome inside a suite. */
-export const STARTABLE = new Set(Object.keys(STARTERS));
+/** Gli id che hanno un motore. Esportato per la prova che verifica la
+ *  corrispondenza col catalogo senza CHIAMARE gli avvii — chiamarli vorrebbe dire
+ *  aprire Chrome dentro una suite.
+ *
+ *  Una chiave composta `id:partenza` conta per il suo id: al catalogo interessa che
+ *  lo strumento sia avviabile, non da quale delle sue porte. */
+export const STARTABLE = new Set(Object.keys(STARTERS).map((k) => k.split(":")[0]!));
+
+/** Le chiavi cosi' come sono scritte, `id` oppure `id:partenza`. Serve alla prova
+ *  che le confronta col catalogo: una partenza che cambia nome da una parte sola non
+ *  darebbe nessun errore, il tasto cadrebbe sull'altro avvio e farebbe il lavoro
+ *  sbagliato. */
+export const CHIAVI_AVVIO = new Set(Object.keys(STARTERS));
 
 toolRoutes.post("/api/tools/:id/start", async (c) => {
   const id = c.req.param("id");
   const s = tool(id);
   if (!s) return c.json({ error: `strumento sconosciuto: ${id}` }, 404);
-  const start = STARTERS[id];
-  if (!start) {
-    return c.json(
-      { error: `«${s.name}» si apre dentro un progetto: non ha un avvio rapido.` },
-      400,
-    );
-  }
-
   const body = (await c.req.json().catch(() => ({}))) as {
     project?: string;
     values?: Values;
+    starter?: string;
   };
+
+  // La partenza scelta, quando ce n'e' piu' d'una. Senza, resta quella sola dello
+  // strumento: chi ne ha un avvio solo non ha niente da dichiarare.
+  const chiave = String(body.starter ?? "");
+  const start = (chiave && STARTERS[`${id}:${chiave}`]) || STARTERS[id];
+  if (!start) {
+    // Due assenze diverse, e dirle uguali manderebbe a cercare la cosa sbagliata:
+    // lo strumento che si apre e basta non ha motori; quello a piu' partenze li ha,
+    // ed e' la partenza chiesta a non esistere — di solito una pagina non aggiornata.
+    const porte = [...CHIAVI_AVVIO].filter((k) => k.startsWith(`${id}:`)).map((k) => k.slice(id.length + 1));
+    return c.json(
+      {
+        error: porte.length
+          ? `«${s.name}» ha ${porte.length} partenze (${porte.join(", ")}) e «${chiave || "nessuna"}» non e' una di quelle.`
+          : `«${s.name}» si apre dentro un progetto: non ha un avvio rapido.`,
+      },
+      400,
+    );
+  }
 
   const req = await requirements(saluteBrowser);
   const missing = s.needs.filter((r: Requirement) => !req[r].ok);

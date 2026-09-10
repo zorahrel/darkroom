@@ -667,7 +667,9 @@ export type StartField = {
 
 export type Start =
   | { mode: "open"; label: string; route: string; view: ProjectKind }
-  | { mode: "new" | "now"; label: string; fields: StartField[]; note?: string };
+  /** `key` distingue le partenze di uno strumento che ne ha piu' d'una: e' quella
+   *  che il server usa per sapere quale lavoro sta cominciando. */
+  | { mode: "new" | "now"; label: string; fields: StartField[]; note?: string; key?: string };
 
 export type Tool = {
   id: string;
