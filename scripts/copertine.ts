@@ -37,51 +37,49 @@ import { generaDaTesto } from "../server/higgsfield.ts";
 
 const STILE =
   "Illustrazione tridimensionale REALISTICA e concreta: si riconoscono oggetti veri — schermi, " +
-  "fotografie stampate, cartelle, manopole, linee del tempo. " +
+  "fotografie stampate, cartelle, manopole, pellicola. " +
   "SEMPLICISSIMA: AL MASSIMO TRE ELEMENTI in tutta l'immagine, grandi e ben distanziati. Niente " +
-  "sfondi affollati, niente pile di oggetti, niente cavi, niente etichette esplicative: l'immagine " +
-  "va letta in mezzo secondo dentro un riquadro piccolo. " +
+  "sfondi affollati, niente pile di oggetti, niente cavi: l'immagine va letta in mezzo secondo " +
+  "dentro un riquadro piccolo. " +
+  "DISPOSIZIONE SU UNA RIGA, da sinistra a destra: a SINISTRA cio' che entra, a DESTRA cio' che " +
+  "esce. L'insieme e' LARGO E BASSO, mai impilato in verticale, e riempie l'inquadratura in " +
+  "orizzontale. " +
+  "NESSUNA PAROLA. Niente lettere, niente numeri, niente etichette, niente didascalie sotto gli " +
+  "oggetti, niente scritte sugli schermi, niente loghi, niente simboli, niente spunte e niente " +
+  "croci. Se per capirla servisse una parola scritta, l'immagine e' sbagliata: la differenza fra " +
+  "due oggetti si deve VEDERE nell'oggetto, non leggere accanto. " +
   "Tutto AMPIAMENTE DENTRO L'INQUADRATURA, con molto nero attorno: nessun oggetto deve toccare o " +
   "oltrepassare i bordi. " +
   "Le fotografie mostrate sono immagini vere e riconoscibili: paesaggio, ritratto, architettura. " +
-  "Testo solo dove e' il soggetto stesso (una frase dentro un campo), breve e leggibile, in inglese. " +
-  "SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. Una luce ciano fredda da " +
-  "sinistra e una ambra calda da destra; nessun altro colore se non quello delle fotografie. " +
+  "SFONDO NERO PURO uniforme, senza pavimento e senza ombre proiettate. " +
+  "DUE SOLI COLORI DI LUCE: una ciano fredda da sinistra e una ambra calda da destra. Nessun " +
+  "verde, nessun rosso, nessun blu acceso, nessuna spia colorata: fuori da ciano e ambra ci sono " +
+  "solo i colori naturali dentro le fotografie. " +
   "Composizione ORIZZONTALE, elegante, moderna, nitida.";
 
-/**
- * Il soggetto deve far RICONOSCERE lo strumento in mezzo secondo.
- *
- * Le prime serie erano astratte e mute; la terza era concreta ma affollata — motori,
- * cavi, etichette, pile di stampe — e in un riquadro da 460 punti diventava una
- * texture. Qui ogni soggetto ha DUE O TRE cose in croce: quello che entra, la
- * freccia, quello che esce. Se serve una didascalia per capirlo, il soggetto e'
- * sbagliato, non l'immagine.
- */
 const SOGGETTI: Record<string, string> = {
-  generate: "Solo tre cose, due che entrano e una che esce: in alto a sinistra un campo di testo scuro con dentro scritto \"a quiet street at sunset\", in basso a sinistra una cartella aperta con dentro tre fotografie, e a destra, piu' grande, una sola fotografia incorniciata di una strada al tramonto verso cui puntano tutte e due",
-  prompt: "Solo due cose: a sinistra tre cursori su un pannello scuro, a destra una sola fotografia che ne risente, piu' chiara",
-  color: "Una cosa sola: una fotografia di paesaggio divisa a meta' da una linea verticale netta, la meta' sinistra piatta e desaturata, la meta' destra sviluppata con colore e contrasto",
-  export: "Solo due cose: una cartella aperta a sinistra e tre fotografie che ne escono verso destra",
-  pipeline: "Solo tre cose: la stessa fotografia in tre stadi allineati da sinistra a destra, grezza, sviluppata, finita",
-  quality: "Solo due cose: una fotografia e una lente d'ingrandimento che cerchia un punto sfocato dentro di essa",
-  defects: "Solo tre cose: tre fotografie affiancate, una mossa, una con le luci bruciate, una fuori fuoco",
-  gallery: "Solo due cose: una griglia di nove fotografie e una che si stacca e viene avanti",
-  sources: "Solo due cose: una cartella del computer a sinistra e una griglia ordinata di fotografie a destra",
-  posts: "Una cosa sola: uno schermo verticale di telefono che mostra tre fotografie in carosello",
-  references: "Solo tre cose: una fotografia a sinistra con un colore forte, una freccia, una fotografia diversa a destra che ha assunto lo stesso colore",
-  tree: "Solo due cose: una fotografia in basso e tre versioni della stessa in alto, collegate da tre rami",
-  orphans: "Solo due cose: una griglia ordinata di fotografie e una sola fotografia fuori dalla griglia, staccata",
-  storyboard: "Una cosa sola: quattro riquadri di storyboard disegnati, in fila su una striscia",
-  edit: "Solo due cose: una forma d'onda audio in basso e tre clip video sopra, tagliate sui picchi",
-  picks: "Solo tre cose: tre fotogrammi video affiancati, due con una spunta e uno con una croce",
-  shots: "Solo tre cose: a sinistra un campo di testo con una breve frase, al centro una freccia, a destra un fotogramma video con scia di movimento",
-  gate: "Solo due cose: una barra orizzontale con una soglia segnata, e due clip video, una che passa sotto e una bloccata sopra",
-  projects: "Una cosa sola: tre schede di progetto affiancate, ognuna con la sua anteprima fotografica",
-  queue: "Una cosa sola: tre righe di lavori in coda su uno schermo scuro, la prima con la barra di avanzamento a meta'",
-  status: "Solo due cose: un indicatore circolare acceso in verde e una riga di stato accanto",
+  generate: "A sinistra due cose che entrano: in alto un campo di testo scuro con dentro scritto \"a quiet street at sunset\" (l'unica scritta ammessa in tutta la serie, perche' e' il soggetto stesso), in basso una cartella aperta con dentro tre fotografie. A destra, piu' grande, quello che esce: una sola fotografia incorniciata di una strada al tramonto",
+  prompt: "A sinistra tre cursori su un pannello scuro. A destra la stessa fotografia due volte, una sopra l'altra: quella in alto piatta e slavata, quella in basso contrastata e viva",
+  color: "Una sola fotografia di paesaggio, grande, divisa a meta' da una linea verticale netta: la meta' sinistra piatta e desaturata, la meta' destra sviluppata con colore e contrasto pieni",
+  export: "A sinistra tre fotografie stampate in fila che entrano. A destra una cartella aperta che le riceve",
+  pipeline: "La stessa fotografia tre volte, in fila da sinistra a destra: grigia e piatta, poi sviluppata, poi finita e incorniciata. Nessuna etichetta sotto: la differenza si vede nelle tre immagini",
+  quality: "A sinistra una fotografia grande. A destra una lente d'ingrandimento che ne ingrandisce un angolo, e dentro la lente si vede che quel punto e' mosso e sfocato",
+  defects: "Tre fotografie affiancate in fila, tutte e tre visibilmente rovinate in modo diverso: la prima mossa e strisciata, la seconda bruciata di bianco, la terza fuori fuoco. Nessuna scritta sotto: il difetto si vede nella fotografia stessa",
+  gallery: "A sinistra una griglia ordinata di nove fotografie piccole. A destra una sola di quelle, staccata e venuta avanti, grande e nitida",
+  sources: "A sinistra una cartella di computer chiusa. A destra le fotografie che ne escono, disposte in una griglia ordinata",
+  posts: "A sinistra tre fotografie stampate in pila. A destra uno schermo di telefono verticale che ne mostra una a tutto schermo",
+  references: "A sinistra una fotografia con un colore molto forte. Al centro una freccia semplice di metallo scuro. A destra una fotografia diversa che ha preso lo stesso colore",
+  tree: "In basso a sinistra una fotografia. In alto a destra tre versioni della stessa fotografia, collegate a quella di partenza da tre rami sottili",
+  orphans: "A sinistra una griglia ordinata di fotografie. A destra una sola fotografia caduta fuori dalla griglia, storta e staccata dalle altre",
+  storyboard: "A sinistra una sola fotografia. A destra quattro riquadri disegnati a matita, in fila su una striscia, che raccontano la stessa scena",
+  edit: "In basso una lunga forma d'onda audio. Sopra, tre spezzoni di video allineati che finiscono esattamente dove la forma d'onda ha i picchi",
+  picks: "Tre fotogrammi video affiancati in fila: due accesi, luminosi e nitidi, il terzo spento, scuro e spinto indietro. Nessun segno di spunta e nessuna croce: la scelta si vede dalla luce",
+  shots: "A sinistra un campo di testo scuro. Al centro una freccia semplice di metallo scuro. A destra un fotogramma video con una scia di movimento",
+  gate: "Una barra orizzontale di metallo con una tacca in mezzo. Sotto la tacca uno spezzone di video luminoso che passa; sopra, uno spezzone spento e fermo",
+  projects: "A sinistra una cartella. A destra tre schede affiancate, ognuna con la propria anteprima fotografica diversa",
+  queue: "A sinistra tre fotografie in pila che entrano. A destra uno schermo scuro con tre righe orizzontali, la prima riempita a meta'",
+  status: "A sinistra tre fotografie. A destra un solo quadrante circolare di metallo scuro con la lancetta a meta', illuminato in ambra",
 };
-
 const MODELLO = "nano_banana_pro";
 const DESTINAZIONE = "client/public/copertine";
 const GREZZE = ".copertine-grezze";
@@ -93,6 +91,21 @@ const GREZZE = ".copertine-grezze";
  * fascia, che e' quello che serve su uno schermo a densita' doppia.
  */
 const LATO = 960;
+
+/** L'altezza: 3:2, la stessa forma della fascia in cima alla scheda.
+ *
+ *  Ogni copertina finisce su una tela di questa misura, con lo stesso margine. E'
+ *  l'unica cosa che rende la serie davvero uniforme: prima si ritagliava fino al
+ *  pixel acceso e basta, e le altezze andavano da 321 a 1199 -- quasi quattro volte.
+ *  Nella fascia, che e' sempre la stessa, `storyboard` riempiva da bordo a bordo e
+ *  `posts` diventava un francobollo in mezzo. Non era il modello: era questa
+ *  rifinitura. */
+const ALTEZZA = Math.round((LATO * 2) / 3);
+
+/** Il margine trasparente, uguale per tutte. Il ritaglio stringe fino al pixel
+ *  acceso, quindi senza questo un soggetto che nel render toccava il bordo si
+ *  legge come tagliato dalla cornice della scheda. */
+const MARGINE = Math.round(LATO * 0.035);
 
 /** WebP e non PNG: a questa misura le stesse immagini pesavano dieci volte tanto,
  *  e finiscono anche dentro il pacchetto dell'applicazione. */
@@ -134,10 +147,11 @@ async function scontorna(grezza: string, uscita: string) {
   const riquadro = await esegui(["magick", grezza, ...MASCHERA, "-format", "%@", "info:"]);
   await esegui([
     "magick", grezza, "-crop", riquadro, "+repage", "-colorspace", "sRGB",
-    // Vincolata solo in larghezza, e senza tela quadrata attorno: una composizione
-    // larga deve poter riempire la fascia da bordo a bordo, invece di stare in
-    // mezzo a una cornice trasparente che la rimpicciolisce.
-    "-resize", `${LATO}x>`,
+    // Dentro il riquadro utile, non solo in larghezza: cosi' una composizione larga
+    // riempie comunque la fascia da bordo a bordo, e una alta -- che il modello non
+    // dovrebbe fare, ma fa -- resta grande quanto le altre invece di allargare la
+    // propria tela. La forma finale la decide `-extent`, qui sotto, non il soggetto.
+    "-resize", `${LATO - 2 * MARGINE}x${ALTEZZA - 2 * MARGINE}`,
     // Le parentesi sono argomenti veri di magick: una shell che le cita le
     // trasformerebbe in testo, ed e' per questo che qui non c'e' una shell.
     "(", "+clone", ...MASCHERA, ")",
@@ -148,10 +162,9 @@ async function scontorna(grezza: string, uscita: string) {
     // l'immagine sulla tela nuova, e copierebbe l'opacita' del fondo dentro i
     // colori — l'intera serie usciva nera con l'alfa giusta, cioe' silhouette.
     "-compose", "over",
-    // Un margine trasparente attorno, dopo il ritaglio: il ritaglio stringe fino al
-    // pixel acceso, quindi un soggetto che nel render toccava il bordo restava a filo
-    // e nella scheda si leggeva come tagliato dalla cornice.
-    "-bordercolor", "none", "-border", `${Math.round(LATO * 0.035)}`,
+    // La tela: sempre 3:2, sempre la stessa, col soggetto in mezzo. E' qui che
+    // ventuno immagini di ventuno forme diverse diventano una serie.
+    "-background", "none", "-gravity", "center", "-extent", `${LATO}x${ALTEZZA}`,
     "-quality", "88", "-define", "webp:alpha-quality=95",
     uscita,
   ]);
