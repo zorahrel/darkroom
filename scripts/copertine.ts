@@ -57,6 +57,45 @@ const STILE =
   "solo i colori naturali dentro le fotografie. " +
   "Composizione ORIZZONTALE, elegante, moderna, nitida.";
 
+/**
+ * Il soggetto delle fotografie, uno per strumento.
+ *
+ * Non e' decorazione: in un riquadro piccolo la prima cosa che si guarda e' la
+ * FOTOGRAFIA, non la disposizione degli oggetti attorno. Con ventuno copertine
+ * costruite diversamente ma tutte con dentro la stessa strada al tramonto, la serie
+ * torna a sembrare tutta uguale -- e' successo, ed e' la ragione per cui questa
+ * lista esiste.
+ *
+ * Chiederlo al modello «vari i soggetti» non basta: in una richiesta sola varia, ma
+ * riordina anche i riquadri, e una copertina finita sullo strumento sbagliato e'
+ * peggio di una ripetuta (misurato: la seconda riga e' tornata ruotata di uno, e
+ * «cerca i difetti» aveva preso l'immagine della galleria). Assegnandoli qui, la
+ * varieta' e' garantita e ogni immagine nasce gia' al suo posto.
+ */
+const FOTOGRAFIE: Record<string, string> = {
+  generate: "una strada di citta' al tramonto",
+  prompt: "montagne innevate",
+  color: "un ritratto in primo piano",
+  export: "architettura moderna di vetro",
+  pipeline: "un molo sul mare",
+  quality: "una strada di citta' di notte con le luci",
+  defects: "un bosco di alberi alti",
+  gallery: "un deserto con rocce rosse",
+  sources: "una spiaggia con le dune",
+  posts: "fiori di campo in primo piano",
+  references: "un interno di stanza con una finestra",
+  tree: "un campo di grano",
+  orphans: "un ponte sospeso",
+  storyboard: "un orso in un fiume",
+  edit: "una folla a un concerto",
+  picks: "una nave in porto",
+  shots: "un'auto in corsa di notte",
+  gate: "un vicolo stretto illuminato",
+  projects: "pioggia su una finestra",
+  queue: "un lago all'alba",
+  status: "un girasole",
+};
+
 const SOGGETTI: Record<string, string> = {
   generate: "A sinistra due cose che entrano: in alto un campo di testo scuro con dentro scritto \"a quiet street at sunset\" (l'unica scritta ammessa in tutta la serie, perche' e' il soggetto stesso), in basso una cartella aperta con dentro tre fotografie. A destra, piu' grande, quello che esce: una sola fotografia incorniciata di una strada al tramonto",
   prompt: "A sinistra tre cursori su un pannello scuro. A destra la stessa fotografia due volte, una sopra l'altra: quella in alto piatta e slavata, quella in basso contrastata e viva",
@@ -170,6 +209,161 @@ async function scontorna(grezza: string, uscita: string) {
   ]);
 }
 
+/**
+ * Tutte in una richiesta sola.
+ *
+ * Ventuno richieste separate danno ventuno immagini che non si sono mai viste fra
+ * loro: il modello ripete la stessa composizione che gli riesce meglio, e la serie
+ * esce uniforme ma indistinguibile — tre fotografie e un oggetto, ventuno volte.
+ * In una richiesta sola, invece, le altre venti sono davanti a lui mentre disegna
+ * la ventunesima, e differenziarle diventa il compito.
+ *
+ * Il foglio esce 3:2 a 4k e si taglia in 5x5: e' l'unica griglia in cui i riquadri
+ * sono a loro volta 3:2 -- (5x3)/(5x2) = 3/2 -- cioe' esattamente la forma della
+ * fascia nella scheda. Restano quattro caselle vuote, e vanno chieste nere.
+ */
+const RIGHE = 4, COLONNE = 6;
+
+function promptDelFoglio(ids: string[]): string {
+  const celle = ids.map((id, i) => `Riquadro ${i + 1}: ${SOGGETTI[id]}.`).join("\n");
+  const vuote = RIGHE * COLONNE - ids.length;
+  return (
+    `Un foglio unico diviso in una griglia regolare di ESATTAMENTE ${COLONNE} colonne per ` +
+    `${RIGHE} righe: ${RIGHE * COLONNE} riquadri della stessa identica misura, tutte e ${RIGHE} le ` +
+    `righe presenti. Ogni riquadro e' un'illustrazione a se' stante, e si contano da sinistra a ` +
+    `destra e dall'alto in basso. NON disegnare i numeri dei riquadri.\n\n` +
+    `${celle}\n\n` +
+    (vuote > 0
+      ? `Gli ultimi ${vuote} riquadri della griglia esistono ma sono vuoti: nero pieno, niente ` +
+        `dentro. La griglia resta di ${COLONNE} per ${RIGHE}.\n\n`
+      : "") +
+    `I ${ids.length} riquadri pieni devono essere RICONOSCIBILMENTE DIVERSI L'UNO DALL'ALTRO: ` +
+    `oggetti diversi, disposizioni diverse, inquadrature diverse. Non ripetere la stessa ` +
+    `composizione due volte.\n\n` +
+    // Alla prova precedente aveva fatto ventuno composizioni diverse con dentro la
+    // STESSA fotografia di una strada al tramonto: la serie sembrava di nuovo tutta
+    // uguale, perche' cio' che si guarda in un riquadro piccolo e' l'immagine, non
+    // la disposizione. Il soggetto delle fotografie va imposto, non sperato.
+    `E OGNI RIQUADRO MOSTRA FOTOGRAFIE DI SOGGETTI DIVERSI: montagna, ritratto in primo piano, ` +
+    `architettura moderna, mare, strada di citta' di notte, bosco, deserto, neve, fiori, ` +
+    `interno, ponte, campo di grano, spiaggia, animale, folla, nave, aereo, vicolo, pioggia, ` +
+    `tramonto sul lago. Mai la stessa scena o lo stesso soggetto in due riquadri: e' cio' che ` +
+    `si guarda per primo, e ventuno volte la stessa fotografia rende la serie indistinguibile ` +
+    `anche se le composizioni sono diverse.\n\n` +
+    // Il fondo non e' un dettaglio estetico: da quello si ricava la trasparenza, e
+    // alla prima prova il foglio aveva una sfumatura verde-bruna che rendeva ogni
+    // copertina un rettangolo opaco appoggiato sulla scheda invece di posarcisi.
+    `IL FONDO DI OGNI RIQUADRO E' NERO ASSOLUTO, lo stesso nero dello spazio fra un riquadro e ` +
+    `l'altro: nessuna sfumatura, nessun alone, nessuna luce diffusa sul fondo, nessun colore ` +
+    `di fondo. Solo gli oggetti sono illuminati.\n\n` +
+    `Ogni riquadro segue queste regole: ${STILE}`
+  );
+}
+
+/**
+ * Quanto e' VARIA ogni riga (o colonna) del foglio.
+ *
+ * Non la luminosita': il colore del corridoio fra un riquadro e l'altro non si puo'
+ * prevedere. Misurato su due fogli fatti con lo stesso identico prompt: nel primo i
+ * corridoi erano neri, nel secondo bianchi a 255. Qualunque soglia sulla luce ne
+ * indovina uno e sbaglia l'altro — e sbagliare vuol dire ventuno ritagli storti,
+ * senza nessun errore.
+ *
+ * Cio' che un corridoio e' sempre, invece, e' UNIFORME: nero pieno o bianco pieno,
+ * tutti i pixel uguali. Dentro un riquadro c'e' un disegno, quindi i pixel variano.
+ * Si misura quello, e il colore smette di contare.
+ */
+async function variazione(foglio: string, verso: "righe" | "colonne", punti: number): Promise<number[]> {
+  const TRAVERSO = 64;
+  const forma = verso === "righe" ? `${TRAVERSO}x${punti}!` : `${punti}x${TRAVERSO}!`;
+  const testo = await esegui([
+    "magick", foglio, "-colorspace", "gray", "-resize", forma, "-depth", "8", "txt:-",
+  ]);
+  const griglia: number[][] = Array.from({ length: punti }, () => []);
+  for (const riga of testo.split("\n").slice(1)) {
+    const m = riga.match(/^(\d+),(\d+):.*gray\((\d+)\)/);
+    if (!m) continue;
+    const [x, y, v] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const dove = verso === "righe" ? y : x;
+    griglia[dove]?.push(v);
+  }
+  return griglia.map((valori) => {
+    if (!valori.length) return 0;
+    const media = valori.reduce((a, b) => a + b, 0) / valori.length;
+    return Math.sqrt(valori.reduce((a, b) => a + (b - media) ** 2, 0) / valori.length);
+  });
+}
+
+/** Le fasce che contengono un disegno: quelle dove la variazione non e' piatta. */
+function bandePiene(varianze: number[]): [number, number][] {
+  const soglia = Math.max(...varianze) * 0.18;
+  const minimo = varianze.length * 0.03;
+  const bande: [number, number][] = [];
+  let inizio: number | null = null;
+  for (let i = 0; i < varianze.length; i++) {
+    const dentro = varianze[i]! > soglia;
+    if (dentro && inizio === null) inizio = i;
+    if (!dentro && inizio !== null) {
+      if (i - inizio > minimo) bande.push([inizio, i]);
+      inizio = null;
+    }
+  }
+  if (inizio !== null && varianze.length - inizio > minimo) bande.push([inizio, varianze.length]);
+  return bande;
+}
+
+/** Taglia il foglio nei singoli grezzi, seguendo la griglia che c'e' davvero. */
+async function tagliaFoglio(foglio: string, ids: string[]) {
+  const dim = await esegui(["magick", "identify", "-format", "%w %h", foglio]);
+  const [L, A] = dim.trim().split(/\s+/).map(Number) as [number, number];
+  const PUNTI = 240;
+
+  const righe = bandePiene(await variazione(foglio, "righe", PUNTI));
+  const colonne = bandePiene(await variazione(foglio, "colonne", PUNTI));
+  console.log(`griglia misurata: ${colonne.length} colonne x ${righe.length} righe`);
+  if (colonne.length * righe.length < ids.length) {
+    throw new Error(
+      `il foglio ha ${colonne.length}x${righe.length} riquadri e ne servono ${ids.length}: ` +
+      `rifallo con --rigenera`,
+    );
+  }
+
+  for (const [i, id] of ids.entries()) {
+    const [c0, c1] = colonne[i % colonne.length]!;
+    const [r0, r1] = righe[Math.floor(i / colonne.length)]!;
+    await esegui([
+      "magick", foglio,
+      "-crop",
+      `${Math.round(((c1 - c0) / PUNTI) * L)}x${Math.round(((r1 - r0) / PUNTI) * A)}` +
+      `+${Math.round((c0 / PUNTI) * L)}+${Math.round((r0 / PUNTI) * A)}`,
+      "+repage", `${GREZZE}/${id}.png`,
+    ]);
+  }
+}
+
+const foglio = process.argv.includes("--foglio");
+if (foglio) {
+  const ids = Object.keys(SOGGETTI);
+  const grezzo = `${GREZZE}/_foglio.png`;
+  mkdirSync(GREZZE, { recursive: true });
+  mkdirSync(DESTINAZIONE, { recursive: true });
+  if (!existsSync(grezzo) || process.argv.includes("--rigenera")) {
+    const { credits } = await generaDaTesto({
+      model: MODELLO,
+      prompt: promptDelFoglio(ids),
+      params: { resolution: "4k", aspect_ratio: "3:2" },
+      outputPath: grezzo,
+    });
+    console.log(`foglio: ${credits ?? "?"} crediti, ${await esegui(["magick", "identify", "-format", "%wx%h", grezzo])}`);
+  }
+  await tagliaFoglio(grezzo, ids);
+  for (const id of ids) {
+    await scontorna(`${GREZZE}/${id}.png`, `${DESTINAZIONE}/${id}.${ESTENSIONE}`);
+  }
+  console.log(`tagliate ${ids.length} copertine dal foglio`);
+  process.exit(0);
+}
+
 const rifai = process.argv.includes("--rifai") ? process.argv[process.argv.indexOf("--rifai") + 1] : null;
 mkdirSync(GREZZE, { recursive: true });
 mkdirSync(DESTINAZIONE, { recursive: true });
@@ -184,7 +378,8 @@ for (const [id, soggetto] of Object.entries(SOGGETTI)) {
     if (!existsSync(grezza) || rifai === id) {
       const { credits } = await generaDaTesto({
         model: MODELLO,
-        prompt: `${soggetto}. ${STILE}`,
+        prompt: `${soggetto}. TUTTE le fotografie mostrate in questa immagine raffigurano ${FOTOGRAFIE[id] ?? "un paesaggio"}, e nient'altro. ${STILE}`,
+        params: { resolution: "2k", aspect_ratio: "3:2" },
         outputPath: grezza,
       });
       spesi += credits ?? 0;

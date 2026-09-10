@@ -45,7 +45,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 MOONDREAM = os.environ.get("MOONDREAM_BIN", "/Users/zorahrel/bin/moondream")
 
@@ -84,7 +84,15 @@ def misura(path: Path) -> dict:
     mx, mn = crop.max(2), crop.min(2)
     sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1), 0)
     macchia = (lum > mediana + picco / 2) & (sat < 0.25)
-    return {"picco": picco, "area": 100 * float(macchia.mean()), "mediana": mediana}
+    # Micro-contrasto: deviazione standard dell'high-pass, sul viso portato a una
+    # scala fissa. Serve per la meta' dell'affermazione che il numero sopra non
+    # copre: togliere il lucido non deve togliere i pori. Una pelle di plastica
+    # ha area 0 e micro-contrasto crollato, e senza questa colonna sarebbe
+    # indistinguibile da una pelle opaca vera.
+    g = Image.fromarray(lum.astype(np.uint8)).resize((400, 400), Image.LANCZOS)
+    ga = np.asarray(g, float)
+    micro = float((ga - np.asarray(g.filter(ImageFilter.GaussianBlur(2)), float)).std())
+    return {"picco": picco, "area": 100 * float(macchia.mean()), "mediana": mediana, "micro": micro}
 
 
 def main() -> int:
@@ -92,15 +100,15 @@ def main() -> int:
     if not args:
         print(__doc__)
         return 2
-    print(f"{'file':32} {'picco':>7} {'area%':>7} {'L viso':>7}")
+    print(f"{'file':32} {'area%':>7} {'micro':>7} {'picco':>7} {'L viso':>7}")
     for p in args:
         path = Path(p)
         try:
             r = misura(path)
         except Exception as e:
-            print(f"{path.name[:32]:32} {'—':>7} {'—':>7} {'—':>7}  {e}")
+            print(f"{path.name[:32]:32} {'—':>7} {'—':>7} {'—':>7} {'—':>7}  {e}")
             continue
-        print(f"{path.name[:32]:32} {r['picco']:7.1f} {r['area']:7.2f} {r['mediana']:7.1f}")
+        print(f"{path.name[:32]:32} {r['area']:7.2f} {r['micro']:7.2f} {r['picco']:7.1f} {r['mediana']:7.1f}")
     return 0
 
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { app } from "../server/app.ts";
 import { TOOLS } from "../server/tools.ts";
 
@@ -32,5 +32,32 @@ describe("le copertine degli strumenti", () => {
   test.skipIf(presenti.size === 0)("ogni strumento del catalogo ha la sua", () => {
     const senza = TOOLS.map((t) => t.id).filter((id) => !presenti.has(id));
     expect(senza).toEqual([]);
+  });
+});
+
+/**
+ * Ogni strumento ha la sua fotografia, e nessuno la divide con un altro.
+ *
+ * E' l'unica cosa che tiene la serie distinguibile: in un riquadro da 460 punti si
+ * guarda l'immagine, non la disposizione. Quando questa lista non c'era, ventuno
+ * copertine composte in ventuno modi diversi mostravano tutte la stessa strada al
+ * tramonto e sembravano la stessa copertina. Una riga dimenticata su uno strumento
+ * nuovo non darebbe nessun errore: darebbe due schede gemelle.
+ */
+describe("le fotografie delle copertine", () => {
+  const sorgente = readFileSync(new URL("../scripts/copertine.ts", import.meta.url), "utf8");
+  const blocco = (nome: string) =>
+    new RegExp(`const ${nome}[^=]*= \\{([\\s\\S]*?)\\n\\};`).exec(sorgente)?.[1] ?? "";
+  const chiavi = (nome: string) => [...blocco(nome).matchAll(/^ {2}(\w+):/gm)].map((m) => m[1]!);
+
+  test("ogni soggetto ha la sua fotografia assegnata", () => {
+    const senza = chiavi("SOGGETTI").filter((k) => !chiavi("FOTOGRAFIE").includes(k));
+    expect(senza).toEqual([]);
+  });
+
+  test("e nessuna fotografia e' usata da due strumenti", () => {
+    const valori = [...blocco("FOTOGRAFIE").matchAll(/^ {2}\w+: "([^"]+)"/gm)].map((m) => m[1]!);
+    const doppie = valori.filter((v, i) => valori.indexOf(v) !== i);
+    expect(doppie).toEqual([]);
   });
 });

@@ -328,6 +328,12 @@ fn main() {
             .title("Darkroom")
             .inner_size(1440.0, 900.0)
             .min_inner_size(900.0, 600.0)
+            // In mezzo allo schermo attivo. Senza, la finestra nasce dove il sistema
+            // decide -- e con due monitor «dove decide» e' finita a y = -1282, cioe'
+            // interamente sopra il bordo del portatile, sull'ultrawide: c'era, era
+            // visibile, e non era dove si stava guardando. Una finestra che non si
+            // trova e' indistinguibile da una che non si e' aperta.
+            .center()
             // Lo script gira a documento ancora vuoto: `document.documentElement`
             // li' non esiste, e scriverci sopra fallisce in silenzio -- e' esattamente
             // cosi' che il marcatore non arrivava mai e l'interfaccia si comportava da
