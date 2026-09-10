@@ -190,14 +190,21 @@ export default function App() {
 
           `data-tauri-drag-region` rende la barra la maniglia della finestra. Senza,
           una finestra senza barra del titolo non si sposta più — e i bottoni dentro
-          continuano a funzionare, perché il trascinamento parte solo dal vuoto. */}
+          continuano a funzionare, perché il trascinamento parte solo dal vuoto.
+
+          Il valore è `deep` e non l'attributo nudo: nudo vuol dire «solo se il clic
+          cade proprio su QUESTO elemento», e la barra è fatta di riquadri dentro
+          riquadri — la nav, il gruppo di sinistra, quello di destra — che coprono
+          quasi tutto. Il vuoto apparteneva a loro, non all'elemento con l'attributo,
+          e la finestra si spostava solo da poche fessure. Con `deep` vale tutto il
+          sottoalbero, e i cliccabili (bottoni, collegamenti, campi) si fermano da
+          soli perché bloccano il trascinamento prima di arrivare qui. */}
       <header
         ref={header}
-        data-tauri-drag-region={desktop ? "" : undefined}
+        data-tauri-drag-region={desktop ? "deep" : undefined}
         className="sticky top-0 z-30 backdrop-blur bg-neutral-950/80 border-b border-neutral-800"
       >
         <div
-          data-tauri-drag-region={desktop ? "" : undefined}
           /* Il margine dei semafori è in linea e non una classe, e non per pigrizia:
              `sm:px-4` compare più avanti nel foglio di stile e sopra i 640 px lo
              scavalcava — misurato, la classe c'era e il nome restava sotto i bottoni.

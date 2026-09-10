@@ -8,7 +8,8 @@ import { enqueueMissing, createGenerations } from "./generation.ts";
 import { exportFavorites } from "./pipeline.ts";
 import { startVerification } from "./verify.ts";
 import { createPanels } from "../storyboard.ts";
-import { checkChatgptBrowserAlive, launchChatgptBrowser } from "../worker.ts";
+import { launchChatgptBrowser } from "../worker.ts";
+import { saluteBrowser } from "./studio.ts";
 
 /**
  * The tool catalogue, and the way to begin one.
@@ -26,7 +27,7 @@ import { checkChatgptBrowserAlive, launchChatgptBrowser } from "../worker.ts";
 export const toolRoutes = new Hono();
 
 toolRoutes.get("/api/tools", async (c) => {
-  const req = await requirements(checkChatgptBrowserAlive);
+  const req = await requirements(saluteBrowser);
   return c.json({
     areas: AREAS,
     requirements: req,
@@ -219,7 +220,7 @@ toolRoutes.post("/api/tools/:id/start", async (c) => {
     values?: Values;
   };
 
-  const req = await requirements(checkChatgptBrowserAlive);
+  const req = await requirements(saluteBrowser);
   const missing = s.needs.filter((r: Requirement) => !req[r].ok);
   // A missing requirement is stated BEFORE half the work is done: creating the
   // project and then discovering the generator is off leaves an empty folder

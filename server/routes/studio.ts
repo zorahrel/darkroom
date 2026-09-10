@@ -15,6 +15,16 @@ import { ESTENSIONI as ESTENSIONI_VIDEO } from "../girato.ts";
 import { getRunnerStatus, jobsSummary } from "../jobs.ts";
 import { addSource, listSources, removeSource, rescanSources } from "../sources.ts";
 import { CHATGPT_CDP_URL, checkChatgptBrowserAlive, checkChatgptSession, launchChatgptBrowser } from "../worker.ts";
+import { creaSaluteBrowser } from "../saluteBrowser.ts";
+
+/**
+ * La salute di Chrome per chi la mostra soltanto.
+ *
+ * `/api/health` continua a fare il controllo vero, perché è il suo argomento ed è
+ * chiamata per conto suo. Le pagine che la citano di sfuggita — i progetti, gli
+ * strumenti — leggono questa, che non le fa aspettare.
+ */
+export const saluteBrowser = creaSaluteBrowser(checkChatgptBrowserAlive);
 
 /** Worker health and the multi-project overview. */
 export const studioRoutes = new Hono();
@@ -208,8 +218,7 @@ studioRoutes.get("/api/studio/projects", async (c) => {
       error,
     };
   });
-  const browserAlive =
-    BACKEND_USES_BROWSER ? await checkChatgptBrowserAlive().catch(() => false) : null;
+  const browserAlive = BACKEND_USES_BROWSER ? await saluteBrowser() : null;
 
   // How much it has cost so far, summed from the jobs. The BALANCE cannot be
   // read: the /organization/costs and /dashboard/billing endpoints answer 403
