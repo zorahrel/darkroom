@@ -296,6 +296,20 @@ fn ambiente() -> serde_json::Value {
     })
 }
 
+/// Chiude il motore che abbiamo avviato noi.
+///
+/// Quello che c'era gia' non si tocca: non e' nostro, e chiuderlo vorrebbe dire
+/// spegnere il lavoro di qualcun altro.
+fn chiudi_backend(app: &tauri::AppHandle) {
+    if let Some(stato) = app.try_state::<BackendNostro>() {
+        if let Ok(mut b) = stato.0.lock() {
+            if let Some(mut c) = b.take() {
+                let _ = c.kill();
+            }
+        }
+    }
+}
+
 fn main() {
     let figlio = match avvia_backend() {
         Ok(f) => f,
@@ -376,19 +390,23 @@ fn main() {
         .invoke_handler(tauri::generate_handler![diagnosi, ambiente])
         .on_window_event(|finestra, evento| {
             if let tauri::WindowEvent::Destroyed = evento {
-                // Il backend che abbiamo avviato noi si chiude con noi. Quello che
-                // c'era gia' non si tocca: non e' nostro.
-                if let Some(stato) = finestra.app_handle().try_state::<BackendNostro>() {
-                    if let Ok(mut b) = stato.0.lock() {
-                        if let Some(mut c) = b.take() {
-                            let _ = c.kill();
-                        }
-                    }
-                }
+                chiudi_backend(finestra.app_handle());
             }
         })
-        .run(tauri::generate_context!())
-        .expect("l'applicazione non parte");
+        .build(tauri::generate_context!())
+        .expect("l'applicazione non parte")
+        // Anche all'uscita, non solo quando si distrugge la finestra.
+        //
+        // Chiudendo l'applicazione in un modo che non passa di li' -- Cmd+Q, o un
+        // segnale -- il motore restava vivo, riadottato da launchd, e continuava a
+        // tenere la porta. Chi apriva Darkroom dopo lo trovava in ascolto e ci si
+        // attaccava: un server che serve il catalogo di ieri, senza nessun errore.
+        // E' successo due volte oggi, e tutte e due sembrava un guasto dell'app.
+        .run(|app, evento| {
+            if let tauri::RunEvent::Exit = evento {
+                chiudi_backend(app);
+            }
+        });
 }
 
 #[cfg(test)]
