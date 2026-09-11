@@ -111,8 +111,8 @@ const SOGGETTI: Record<string, string> = {
   tree: "In basso a sinistra una fotografia. In alto a destra tre versioni della stessa fotografia, collegate a quella di partenza da tre rami sottili",
   orphans: "A sinistra una griglia ordinata di fotografie. A destra una sola fotografia caduta fuori dalla griglia, storta e staccata dalle altre",
   storyboard: "A sinistra una sola fotografia. A destra quattro riquadri disegnati a matita, in fila su una striscia, che raccontano la stessa scena",
-  edit: "In basso una lunga forma d'onda audio. Sopra, tre spezzoni di video allineati che finiscono esattamente dove la forma d'onda ha i picchi",
-  picks: "Tre fotogrammi video affiancati in fila: due accesi, luminosi e nitidi, il terzo spento, scuro e spinto indietro. Nessun segno di spunta e nessuna croce: la scelta si vede dalla luce",
+  edit: "Su fondo completamente nero: in basso una lunga forma d'onda audio luminosa, e sopra tre spezzoni di video allineati che finiscono esattamente dove la forma d'onda ha i picchi. Nessun pannello, nessun foglio e nessuna superficie chiara dietro: solo il nero",
+  picks: "Tre fotogrammi video affiancati in fila, tutti e tre ben visibili e della stessa misura: i primi due in piena luce e in avanti, il terzo piu' spento e girato di lato, scartato ma ancora chiaramente riconoscibile. Nessun segno di spunta e nessuna croce: la scelta si vede dalla luce",
   shots: "A sinistra un campo di testo scuro. Al centro una freccia semplice di metallo scuro. A destra un fotogramma video con una scia di movimento",
   gate: "Una barra orizzontale di metallo con una tacca in mezzo. Sotto la tacca uno spezzone di video luminoso che passa; sopra, uno spezzone spento e fermo",
   projects: "A sinistra una cartella. A destra tre schede affiancate, ognuna con la propria anteprima fotografica diversa",
@@ -388,7 +388,15 @@ for (const [id, soggetto] of Object.entries(SOGGETTI)) {
       tenute++;
     }
     await scontorna(grezza, uscita);
-    console.log(`${id}: ${(statSync(uscita).size / 1024).toFixed(0)} KB`);
+    // Quanta parte della copertina resta opaca. La trasparenza si ricava dalla luce,
+    // quindi un render col fondo chiaro non si scontorna: resta un rettangolo pieno
+    // che nella scheda si vede come una toppa. E' successo, e a occhio in un foglio
+    // da ventuno non si nota -- si nota qui, che la mediana sta sul 18%.
+    const opaco = Number(
+      await esegui(["magick", uscita, "-alpha", "extract", "-threshold", "50%", "-format", "%[fx:mean*100]", "info:"]),
+    );
+    const sospetto = opaco > 50 ? "  [!] fondo non scontornato: rifalla" : "";
+    console.log(`${id}: ${(statSync(uscita).size / 1024).toFixed(0)} KB, opaca al ${opaco.toFixed(0)}%${sospetto}`);
   } catch (e) {
     rotte.push(id);
     console.log(`[!] ${id}: ${e instanceof Error ? e.message.slice(0, 140) : e}`);

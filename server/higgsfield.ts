@@ -90,6 +90,20 @@ function parseRpc(raw: string): any {
   throw new Error(`risposta MCP non parsabile: ${raw.slice(0, 200)}`);
 }
 
+/**
+ * Un errore di rete passeggero, non una risposta di rifiuto.
+ *
+ * Serve a distinguere «la connessione e' caduta» da «il servizio ha detto di no»:
+ * il primo si puo' ritentare, il secondo no. Misurato durante una serie di ventuno
+ * generazioni: due su tre sono morte con «The socket connection was closed
+ * unexpectedly» mentre chiedevano lo stato di un lavoro GIA' PAGATO, e con esse i
+ * crediti spesi.
+ */
+export function erroreDiRete(e: unknown): boolean {
+  const testo = e instanceof Error ? `${e.name} ${e.message}` : String(e);
+  return /socket|ECONNRESET|ETIMEDOUT|EPIPE|ENOTFOUND|network|fetch failed|terminated|Connection closed/i.test(testo);
+}
+
 let rpcId = 100;
 
 /** Stateless JSON-RPC tools/call against the Higgsfield MCP. Auto-refreshes on 401. */
@@ -322,13 +336,26 @@ async function eseguiGenerazione(opts: {
   const deadline = Date.now() + 5 * 60 * 1000;
   let creditsSpent: number | null = null;
   while (Date.now() < deadline) {
-    const st = await mcpCall<{
+    type Stato = {
       generation?: {
         status: string;
         results?: { rawUrl?: string; raw_url?: string; url?: string };
         credits?: number;
       };
-    }>("job_status", { jobId, sync: true });
+    };
+    let st: Stato;
+    try {
+      st = await mcpCall<Stato>("job_status", { jobId, sync: true });
+    } catch (e) {
+      // La generazione e' gia' partita e gia' pagata: una connessione caduta mentre
+      // ne chiediamo lo stato non e' un motivo per buttarla via. Si riprova finche'
+      // c'e' tempo. Cio' che NON si ripete e' `generate_image`, che rifarlo
+      // vorrebbe dire pagarlo due volte.
+      if (!erroreDiRete(e)) throw e;
+      log(`sondaggio caduto, riprovo: ${e instanceof Error ? e.message.slice(0, 60) : e}`);
+      await sleep(4000);
+      continue;
+    }
     const g = st.generation;
     const status = g?.status;
     if (status === "completed") {
@@ -336,10 +363,20 @@ async function eseguiGenerazione(opts: {
       if (!url) throw new Error("job completed ma nessun rawUrl");
       creditsSpent = g?.credits ?? preflightCost;
       log(`download ${url.slice(0, 60)}`);
-      const img = await fetch(url, { headers: { "user-agent": UA } });
-      if (!img.ok) throw new Error(`download risultato fallito: ${img.status}`);
-      const buf = Buffer.from(await img.arrayBuffer());
-      writeFileSync(outputPath, buf);
+      // Stesso ragionamento: l'immagine esiste ed e' pagata, scaricarla e' una
+      // lettura e ripeterla non costa niente.
+      let buf: Buffer | null = null;
+      for (let tentativo = 1; tentativo <= 3 && !buf; tentativo++) {
+        try {
+          const img = await fetch(url, { headers: { "user-agent": UA } });
+          if (!img.ok) throw new Error(`download risultato fallito: ${img.status}`);
+          buf = Buffer.from(await img.arrayBuffer());
+        } catch (e) {
+          if (tentativo === 3 || !erroreDiRete(e)) throw e;
+          await sleep(2000 * tentativo);
+        }
+      }
+      writeFileSync(outputPath, buf!);
       return { credits: creditsSpent };
     }
     if (status === "failed" || status === "nsfw") {
