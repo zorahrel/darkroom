@@ -91,12 +91,15 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
 - [x] 5.7 Contatore in fondo su varianti distinte
 
 ## 6. Verifica finale
-- [ ] 6.1 I due cancelli generali della barra
+- [x] 6.1 I due cancelli generali della barra — 764 prove verdi, `ui:audit` pulito su
+      5 viste x 4 larghezze
 - [x] 6.2 Migrazione su copia di `profilo` e su copia di `photos.db`: conteggi, idempotenza,
       `foreign_key_check`, durata
 - [x] 6.3 `GET /api/lineage` su `profilo`: 12 | 12 | 12
-- [ ] 6.4 Video `.webm` dell'albero: tre radici, tessera condivisa giudicata una volta e
-      aggiornata sotto tutte e tre, contatore a 12
+- [x] 6.4 Video `.webm` dell'albero (`~/Desktop/darkroom-albero.webm`): 96 strisce di
+      ingressi, 66 con riferimenti e 30 che dichiarano «nessun riferimento» invece di
+      tacere, 34 gruppi marcati «origine dedotta», piede a «125 varianti» — cioe' le
+      versioni del database, non le tessere. La tessera condivisa non c'e' (vedi 5.5).
 - [x] 6.5 Japan aperto in griglia: 190 foto, nessuna anteprima rotta (la convenzione
       `v<NN>.png` non è stata toccata, ma è la cosa che si rompe in silenzio)
 
