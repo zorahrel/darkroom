@@ -370,9 +370,35 @@ export function startRunner() {
       `[jobs] un altro Darkroom sta gia' lavorando la coda (pid ${lock.holderPid}) — questo processo NON avvia il runner. ` +
         "Due runner sullo stesso DB si contendono l'account ChatGPT e le scritture.",
     );
+    // ...MA CI RIPROVA. Prendere il lock una volta sola, all'avvio, lasciava un
+    // buco permanente: quando il detentore muore il lock si libera e nessuno lo
+    // raccoglie piu'. Il secondo processo continua a servire HTTP e a mostrare
+    // `paused: false` con la coda piena e zero worker — lo stato piu'
+    // ingannevole possibile, perche' si dichiara sano mentre non lavora
+    // nessuno.
+    //
+    // Misurato il 09/09: due server avviati insieme, il primo prende il lock e
+    // lavora, il secondo no. Ucciso il primo, il lock resta VUOTO e i 4 job in
+    // coda restano `pending` a tempo indefinito. Un minuto di ritardo nel
+    // raccogliere il lock non costa niente; non raccoglierlo mai costa la coda.
+    const riprova = setInterval(() => {
+      if (runnerStarted || runnerStopping) return clearInterval(riprova);
+      const r = acquireRunnerLock(RUNNER_LOCK);
+      if (!r.ok) return;
+      clearInterval(riprova);
+      console.log("[jobs] il lock si e' liberato — questo processo prende la coda");
+      avviaConLock(r.release);
+    }, 60 * 1000);
+    riprova.unref?.();
     return;
   }
-  const release = lock.release;
+  avviaConLock(lock.release);
+}
+
+/** La partenza vera del runner, una volta che il lock e' NOSTRO. Estratta da
+ *  startRunner perche' ci si arriva da due strade: subito all'avvio, oppure
+ *  piu' tardi quando il detentore precedente lascia il lock libero. */
+function avviaConLock(release: () => void) {
   process.on("exit", release);
   process.on("SIGINT", () => { release(); process.exit(0); });
   process.on("SIGTERM", () => { release(); process.exit(0); });
@@ -453,7 +479,28 @@ async function loop() {
       }
     }
     // Process the job in ITS project's context so db()/genDir() resolve there.
-    await withProject(next.pid, () => processJob(next.job));
+    //
+    // IL try/catch NON E' DECORAZIONE. Senza, una singola eccezione che sfugge
+    // a processJob fa terminare `loop()` per intero: la coda resta con i job
+    // in `pending`, il runner risulta libero e non parte piu' niente. Il
+    // watchdog qui sopra esiste per i cicli APPESI e aspetta 20 minuti prima di
+    // intervenire — venti minuti di coda ferma per un errore che riguarda un
+    // job solo.
+    //
+    // Misurato il 09/09: `il motore non ha risposto entro 60000 ms` (core.ts,
+    // il processo delle miniature) e' risalito fin qui e ha ucciso il ciclo
+    // alle 17:30. Alle 17:43 c'erano ancora 4 job pending, 0 running e
+    // `paused: false` — lo stato piu' ingannevole possibile, perche' dice che
+    // va tutto bene mentre non lavora nessuno.
+    //
+    // Un job che esplode e' un job fallito, non una coda ferma.
+    try {
+      await withProject(next.pid, () => processJob(next.job));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[jobs] job ${next.job.id} ha lanciato fuori da processJob: ${msg}`);
+      withProject(next.pid, () => fail(next.job.id, `eccezione non gestita: ${msg}`));
+    }
 
     // Breathing room between one job and the next. It is not politeness: a burst
     // of back-to-back generations on the same account is what trips ChatGPT's

@@ -420,3 +420,64 @@ print("ok")
     expect(py.exitCode).toBe(0);
   });
 });
+
+describe("un job che esplode non ferma la coda", () => {
+  // Il 09/09 alle 17:30 `il motore non ha risposto entro 60000 ms` (core.ts, il
+  // processo delle miniature) e' risalito fino al corpo di loop() e ha fatto
+  // terminare il ciclo. Alle 17:43: 4 job pending, 0 running, paused:false —
+  // cioe' uno stato che si dichiara sano mentre non lavora nessuno. Il
+  // watchdog copre i cicli APPESI e aspetta 20 minuti: troppo, e per il motivo
+  // sbagliato.
+  test("processJob e' chiamato dentro un try/catch che fallisce il job", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    // Solo le righe di CODICE: i commenti qui sopra nominano processJob apposta.
+    const codice = src
+      .split("\n")
+      .filter((r) => !r.trim().startsWith("//") && !r.trim().startsWith("*") && !r.trim().startsWith("/*"))
+      .join("\n");
+    const i = codice.indexOf("processJob(next.job)");
+    expect(i).toBeGreaterThan(-1);
+    // il try apre PRIMA della chiamata e il catch arriva subito dopo
+    const prima = codice.slice(0, i);
+    expect(prima.lastIndexOf("try {")).toBeGreaterThan(prima.lastIndexOf("while ("));
+    const dopo = codice.slice(i, i + 400);
+    expect(dopo).toContain("catch");
+    expect(dopo).toContain("fail(next.job.id");
+  });
+
+  test("il ciclo prosegue: il catch non rilancia", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    const i = src.indexOf("processJob(next.job)");
+    const blocco = src.slice(i, i + 600);
+    // `throw` dentro il catch rimetterebbe il difetto esattamente dov'era
+    expect(blocco.slice(blocco.indexOf("catch"), blocco.indexOf("catch") + 300)).not.toContain("throw");
+  });
+});
+
+describe("il lock del runner si riprova, non solo all'avvio", () => {
+  // Il 09/09: due server avviati insieme, il primo prende il lock e lavora, il
+  // secondo lo trova occupato e rinuncia PER SEMPRE. Ucciso il primo, il file
+  // di lock resta vuoto e i 4 job in coda restano `pending` a tempo
+  // indefinito, con /api/jobs che dichiara `paused: false` — sano a parole,
+  // fermo nei fatti.
+  test("il ramo 'lock occupato' installa una riprova periodica", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    const i = src.indexOf("un altro Darkroom sta gia'");
+    expect(i).toBeGreaterThan(-1);
+    const ramo = src.slice(i, i + 1400);
+    expect(ramo).toContain("setInterval");
+    expect(ramo).toContain("acquireRunnerLock(RUNNER_LOCK)");
+    expect(ramo).toContain("avviaConLock");
+  });
+
+  test("la partenza col lock e' una funzione sola, raggiunta da due strade", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    // Se il reclaim/watchdog/loop fossero duplicati, la seconda strada
+    // potrebbe divergere dalla prima senza che nessuno se ne accorga.
+    expect(src.split("function avviaConLock").length - 1).toBe(1);
+    expect(src.split("setTimeout(() => void loop(), 0)").length - 1).toBe(1);
+    const corpo = src.slice(src.indexOf("function avviaConLock"));
+    expect(corpo).toContain("reclaimed");
+    expect(corpo).toContain("void loop()");
+  });
+});
