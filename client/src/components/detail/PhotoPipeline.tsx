@@ -460,10 +460,21 @@ export function PhotoPipeline({
           openStepId={openStepId}
           preview={previewNode}
           onReorderStep={reorderStepAt}
+          // La VERSIONE nel titolo, non solo la foto. Il titolo diceva
+          // "1 · 1/7": id della foto e sua posizione nella cartella — cioe'
+          // due numeri che non cambiano mai mentre si sfogliano le versioni.
+          // Quale versione si sta guardando era scritto solo dentro il
+          // carosello, che sotto i 1024 px sta in una scheda dell'editor: due
+          // tocchi per sapere cosa hai davanti, e nel frattempo si giudica
+          // un'immagine senza sapere se e' la v113 o la v128.
           title={
-            photoNav && photoNav.index >= 0
-              ? `${photoId} · ${photoNav.index + 1}/${photoNav.total}`
-              : photoId
+            [
+              photoId,
+              versionNumber != null ? `v${versionNumber}` : null,
+              photoNav && photoNav.index >= 0 ? `${photoNav.index + 1}/${photoNav.total}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
           }
           leftAction={
             <div className="flex items-center gap-0.5">

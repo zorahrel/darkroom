@@ -100,10 +100,25 @@ export default function EditorRail({
       {/* A single-row header that never overflows: the two action bars are
           shrink-0 (they do not compress), the title is the only one to give up
           space (min-w-0 + truncate → ellipsis) when width runs short. */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
+      {/* `flex-nowrap` sotto lg: andare a capo qui costava 52 px di altezza
+          (61 → 113, tre righe) perche' il wrap scatta PRIMA della riduzione.
+          Senza wrap la barra destra e' costretta a stringersi, e scorre. */}
+      <div className="flex flex-nowrap lg:flex-wrap items-center gap-2 px-3 py-2 border-b border-neutral-800 bg-neutral-950 shrink-0">
         <div className="shrink-0">{leftAction}</div>
-        <Title className="min-w-0 flex-1 truncate">{title}</Title>
-        <div className="ml-auto min-w-0">{rightAction}</div>
+        {/* Il titolo ha una larghezza MINIMA, non solo `min-w-0`.
+            Misurato il 13/09 su un riquadro da 438 px: le due barre di azioni
+            occupavano 136 e 259 px senza cedere (`shrink-0` la prima, testo
+            incomprimibile la seconda) e al titolo restavano 3 PIXEL — c'era
+            nel DOM, si leggeva `innerText`, ma a schermo era un trattino.
+            Cosi' si giudicava una versione senza sapere quale.
+            Con `min-w-[6rem]` la riga non ci sta piu' in una linea sola e il
+            contenitore, che e' gia' `flex-wrap`, manda a capo la barra destra:
+            una riga in piu' solo quando serve davvero, e il titolo si legge. */}
+        <Title className="min-w-[6rem] flex-1 truncate">{title}</Title>
+        {/* La barra destra cede spazio SCORRENDO, non schiacciando i bottoni:
+            e' il contenitore a stringersi (min-w-0), i figli restano interi.
+            Misurato: da 259 px a 166 px, e il titolo recupera i suoi 96. */}
+        <div className="ml-auto min-w-0 flex fila-scorre">{rightAction}</div>
         {/* Desktop-only rail collapse toggle. */}
         <button
           onClick={() => toggleRail(!railOpen)}

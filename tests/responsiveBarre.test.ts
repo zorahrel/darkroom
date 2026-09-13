@@ -66,3 +66,74 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     expect(occorrenze).toBe(3);
   });
 });
+
+describe("quale versione sto guardando si legge dal titolo", () => {
+  /**
+   * Il 13/09 l'utente: "nella tab aperta non vedo l'id o il numero".
+   * Due difetti sovrapposti, entrambi misurati su un riquadro da 438 px:
+   *
+   *  1. il titolo diceva `1 · 1/7` — id della FOTO e sua posizione nella
+   *     cartella: due numeri che non cambiano mai mentre si sfogliano le
+   *     versioni. Il numero di versione stava solo dentro il carosello, che
+   *     sotto i 1024 px e' una scheda dell'editor: due tocchi per sapere
+   *     cosa hai davanti.
+   *  2. quel titolo era comunque largo 3 PIXEL. Le due barre di azioni
+   *     occupavano 136 e 259 px senza cedere, e `flex-wrap` faceva andare a
+   *     capo prima di stringere: header da 61 a 113 px, oppure titolo
+   *     schiacciato a un trattino.
+   *
+   * Le costanti qui sotto sono cio' che tiene: senza `flex-nowrap` il wrap
+   * torna a costare 52 px di altezza, senza `min-w-[6rem]` il titolo torna a
+   * 3 px, senza `fila-scorre` sulla barra destra i bottoni si schiacciano.
+   */
+  test("il titolo dell'editor contiene il numero di versione", async () => {
+    const src = await Bun.file(
+      new URL("../client/src/components/detail/PhotoPipeline.tsx", import.meta.url),
+    ).text();
+    // Solo il codice: i commenti citano apposta il vecchio titolo per
+    // spiegare cosa e' cambiato, e leggerli farebbe fallire il test sul
+    // testo che il test stesso vieta.
+    const codice = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    // ancorato a <EditorRail: in questo file ci sono altri `title={` (i
+    // tooltip dei bottoni), e il primo che capita non e' quello giusto.
+    const rail = codice.slice(codice.indexOf("<EditorRail"));
+    const titolo = /title=\{([\s\S]{0,400}?)\n\s*\}/.exec(rail)?.[1] ?? "";
+    expect(titolo).toContain("versionNumber");
+    expect(titolo).toContain("`v${versionNumber}`");
+    // e resta il contesto utile: quale foto, e dove sta nella cartella
+    expect(titolo).toContain("photoId");
+    expect(titolo).toContain("photoNav");
+  });
+
+  test("il titolo ha una larghezza minima e la riga non va a capo", async () => {
+    const rail = await Bun.file(
+      new URL("../client/src/components/mobile/EditorRail.tsx", import.meta.url),
+    ).text();
+    const codice = rail.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+    // `min-w-0` sul titolo significa "cedi tutto": era esattamente il bug.
+    expect(codice).toContain('<Title className="min-w-[6rem] flex-1 truncate">');
+    expect(codice).not.toContain('<Title className="min-w-0 flex-1 truncate">');
+
+    // Senza nowrap il wrap scatta prima della riduzione e costa una riga.
+    const header = /className="(flex[^"]*border-b border-neutral-800[^"]*)"/.exec(codice)?.[1] ?? "";
+    expect(header).toContain("flex-nowrap");
+    expect(header).toContain("lg:flex-wrap");
+
+    // La barra destra cede spazio scorrendo, non schiacciando i bottoni.
+    const destra = /className="(ml-auto[^"]*)"/.exec(codice)?.[1] ?? "";
+    expect(destra).toContain("fila-scorre");
+    expect(destra).toContain("min-w-0");
+  });
+
+  test("anche le schede di rotta scorrono", async () => {
+    // Erano l'unica delle tre file dell'intestazione senza `fila-scorre`:
+    // a 438 px sforavano di 10 px e la pagina si trascinava di lato.
+    const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const nav = /<nav className="([^"]*rounded-md bg-neutral-900[^"]*)"/g;
+    const classi = [...app.matchAll(nav)].map((m) => m[1]);
+    const visibili = classi.filter((c) => !c.includes("hidden md:flex"));
+    expect(visibili.length).toBeGreaterThan(0);
+    for (const c of visibili) expect(c).toContain("fila-scorre");
+  });
+});

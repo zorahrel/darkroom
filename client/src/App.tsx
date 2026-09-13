@@ -267,9 +267,13 @@ export default function App() {
               show the edit — while real work starts with the photos of a site
               visit and ends in a video. Now the enabled views appear, plus
               those whose data already exists: a view never hides in front of
-              something that is there. */}
+              something that is there.
+
+              `fila-scorre`: era l'unica delle tre file dell'intestazione
+              rimasta senza, e a 438 px sforava di 10 px — il pezzo di pagina
+              che si trascinava di lato quando si scorreva. */}
           {pid && activeProject && (
-            <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
+            <nav className="fila-scorre flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 min-w-0">
               {VIEWS.filter((v) =>
                 activeProject.views.includes(v.id) ||
                 (v.id === "storyboard" && (activeProject.stats?.panels ?? 0) > 0) ||
