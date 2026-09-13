@@ -812,12 +812,39 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # un altro job — resta coperto dal baseline delle immagini gia' viste
             # e dal tetto a 0.985 che prende la sorgente ridata indietro intatta.
             corr = looks_like_same_scene(str(image), str(output))
-            if corr < float(os.environ.get("SCENE_MIN_CORR", "0.05")):
-                quarantena(output, f"corr{corr:+.2f}")
-                raise RuntimeError(
-                    f"downloaded image does not match the source photo "
-                    f"(correlation {corr:.2f}) — likely another job's render"
-                )
+            # IL PAVIMENTO SULLA SOMIGLIANZA ALLA SORGENTE E' TOLTO, non
+            # abbassato ancora. Il motivo non e' la soglia, e' il segnale: la
+            # premessa di `looks_like_same_scene` — "un edit conserva la
+            # disposizione delle masse chiare e scure" — e' FALSA per una
+            # ricetta di luce, dove quella disposizione e' proprio la cosa che
+            # si sta cambiando. Chiedere "all'altezza della testa il fondale e'
+            # piu' scuro del viso" inverte le masse per costruzione.
+            # Conto in questo progetto: 0.05 ha messo in quarantena SETTE render
+            # corretti (-0.22, -0.18, -0.14, -0.12, -0.06, +0.01, +0.03), fra
+            # cui l'unico che centrava lo stacco del riferimento (+21,5, misurato
+            # dopo averlo recuperato a mano), e zero immagini sbagliate. Le due
+            # classi stanno nello stesso intervallo: nessuna soglia le separa.
+            # Il guasto che il pavimento voleva chiudere — scaricare una figura
+            # gia' presente in pagina invece della propria — e' coperto meglio
+            # da due controlli che guardano la cosa giusta: il baseline delle
+            # immagini gia' viste, e il confronto qui sotto con CIO' CHE
+            # ABBIAMO APPENA CARICATO. In una chat nuova le sole figure
+            # presenti sono quelle: se il download e' una loro quasi-copia,
+            # e' il bug vero; se e' un'immagine nuova, e' il nostro render,
+            # per quanto diverso sia venuto.
+            # La sorgente NON entra in questo giro: ha gia' il suo controllo
+            # qui sotto, con il messaggio giusto ("ha ridato indietro la foto
+            # senza toccarla"), che e' un guasto diverso da "ha preso la figura
+            # sbagliata" e va detto diverso.
+            for allegato in ref_paths:
+                c = looks_like_same_scene(allegato, str(output))
+                if c > float(os.environ.get("SCENE_ECHO_CORR", "0.985")):
+                    quarantena(output, f"eco{c:.3f}")
+                    raise RuntimeError(
+                        f"downloaded image is a copy of an attachment "
+                        f"({Path(allegato).name}, correlation {c:.3f}) — "
+                        f"grabbed a figure already on the page"
+                    )
             # Il controllo aveva un lato solo: prendeva le immagini TROPPO
             # diverse (il render di un altro job) e lasciava passare quelle
             # TROPPO identiche. Ma questa pipeline ricompone sempre — cambia
