@@ -303,6 +303,22 @@ describe("un guasto del generatore non e' un limite d'uso", () => {
     expect(py).toContain("chatgpt-gen-error");
   });
 
+  test("il throttling di ChatGPT mette in pausa, non brucia la coda", async () => {
+    const src = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    const fn = src.slice(
+      src.indexOf("function looksLikeRateLimit"),
+      src.indexOf("function looksLikeRateLimit") + 900,
+    );
+    // Il 09/09 sei job di fila sono falliti contro lo stesso muro in sei
+    // minuti perche' questo messaggio non era riconosciuto come limite d'uso.
+    expect(fn).toContain("chatgpt-throttled");
+    // E deve valere come dichiarazione ESPLICITA, altrimenti finisce nel ramo
+    // "riprova subito", che e' il martellamento da evitare su un servizio che
+    // ha appena detto "troppe richieste".
+    const esplicito = src.slice(src.indexOf("const explicit ="), src.indexOf("const explicit =") + 120);
+    expect(esplicito).toContain("chatgpt-throttled");
+  });
+
   test("la coda lo rimette in coda subito, senza contarlo come rate-limit", async () => {
     // Diagnosticarlo come "no image in 360s" lo faceva passare per un sospetto
     // limite d'uso: sei minuti persi e un timeout contato a torto.

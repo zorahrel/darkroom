@@ -243,7 +243,15 @@ export function getRunnerStatus() {
 }
 
 function looksLikeRateLimit(error: string): boolean {
-  return /no image in \d+s/i.test(error);
+  // `chatgpt-throttled` E' un limite d'uso, e non essere qui dentro costava
+  // caro: il 09/09 sei job di fila (297-302) sono falliti uno dopo l'altro
+  // contro lo stesso muro nel giro di sei minuti, perche' il messaggio non era
+  // riconosciuto e la coda continuava a servirli. E' lo stesso difetto del
+  // "guasto del generatore" corretto poche ore prima: un messaggio che il
+  // runner non sa leggere manda i job a sbattere invece di farli aspettare.
+  // Martellare un servizio che ha appena detto "troppe richieste" per giunta
+  // allunga il blocco.
+  return /no image in \d+s/i.test(error) || /chatgpt-throttled/i.test(error);
 }
 
 /** Guasto del generatore dichiarato a parole da ChatGPT: si ritenta subito. */
@@ -698,7 +706,12 @@ async function processJob(job: JobRow) {
         // Distinguish a real rate-limit (explicit ChatGPT messaging) from a plain
         // slow generation. GPT-5 image edits often render just after our fast-fail
         // window — those must NOT pause the whole queue, only requeue this job.
-        const explicit = /rate-limit-detected/i.test(err);
+        // `chatgpt-throttled` vale come dichiarazione ESPLICITA: quel messaggio
+        // nasce dalla pagina che dice "troppe richieste", non da una
+        // generazione lenta scambiata per limite. Senza questo finirebbe nel
+        // ramo "requeue e riprova subito", che e' esattamente il martellamento
+        // da evitare.
+        const explicit = /rate-limit-detected|chatgpt-throttled/i.test(err);
         if (explicit) {
           consecutiveTimeouts++;
           const explicitReset = parseResetHint(err);
