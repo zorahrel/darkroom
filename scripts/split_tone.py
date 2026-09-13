@@ -32,6 +32,21 @@ misura vera, come gia' in skin_desaturate.py.
 
 USO
     split_tone.py in.png out.png [--luci-a -7.1] [--luci-b 5.9]
+
+IL BERSAGLIO LETTERALE DELLA REFERENCE FA UN CADAVERE, misurato il 13/09 su
+v113 con la stessa domanda posta al giudice visivo per due varianti:
+
+    --luci-a -7,1 (il valore della reference)   36,1% viso ciano   "SICKLY / corpse-like"
+    --luci-a  0,0                               16,4% viso ciano   "pelle SANA + luce colorata"
+
+La reference e' una pelle chiara truccata; un incarnato piu' caldo e scuro
+portato allo stesso a* diventa verdastro. A 0,0 la RELAZIONE resta quella
+giusta — luci neutre su ombre calde, split +8,8 contro +17,8 della reference —
+ed e' la prima volta che lo split e' positivo in questo progetto.
+
+Quindi: il bersaglio si insegue sulla relazione, non sul valore assoluto, e
+la variante si sceglie GUARDANDOLA. Il numero da solo avrebbe scelto il
+cadavere.
 """
 import argparse
 import json
