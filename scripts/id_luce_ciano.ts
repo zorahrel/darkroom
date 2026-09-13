@@ -45,6 +45,28 @@
  * degli allegati e' morta come quella del prompt e si smette. Controprova
  * obbligatoria: mouth_check + un colpo d'occhio, perche' "colorato" non deve
  * diventare "malato" — e' esattamente l'errore che ho gia' fatto due volte.
+  *
+ * ESITO, 13/09, quattro tiri (due per cella). LA COMBINAZIONE FUNZIONA, i
+ * singoli ingredienti no:
+ *
+ *     cella          cosa fa                           % viso ciano
+ *     ciano          solo foto identita' trattate      2,7%  ·  9,8%
+ *     ciano+dico     trattate E nominate nel prompt   24,0%  · 23,2%
+ *     (reference)                                     26,7%
+ *
+ * Il modello normalizza l'incarnato di qualunque allegato: le foto trattate
+ * da sole non bastano (v127, v129). Ma se il prompt DICE che quella luce
+ * colorata e' la luce della scena, il modello smette di normalizzarla e la
+ * riproduce — e allora serve che gli allegati ce l'abbiano davvero, perche'
+ * il prompt da solo ha gia' fallito dodici volte.
+ *
+ * Ne' l'immagine ne' la parola: servono insieme. E' la stessa forma della
+ * lezione sugli occhiali (settembre) e sul fondo: il riferimento porta il
+ * FATTO, il prompt gli da' il RUOLO.
+ *
+ * NON SPOSTA la direzione della luce: v128 -12,6 e v130 -14,7 contro +19,8
+ * della reference. Quella resta legata alle foto sorgente, illuminate dal
+ * basso — tredicesimo tiro che lo conferma.
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
