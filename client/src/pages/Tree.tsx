@@ -325,10 +325,22 @@ export default function TreePage() {
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ src: string; cap: string } | null>(null);
 
+  const [errore, setErrore] = useState<string | null>(null);
   const load = useCallback(async () => {
-    const r = await jsonFetch<{ photos: Node[] }>("/api/lineage");
-    setNodes(r.photos);
-    setLoading(false);
+    // Il try/catch non e' cerimonia: senza, una fetch fallita lascia `loading`
+    // a true per sempre e la pagina dice "Carico l'albero…" a tempo
+    // indefinito, senza un errore in console e senza un modo per capire cosa
+    // sia successo. Misurato il 13/09: backend irraggiungibile, riquadro fermo
+    // su quella riga, nessuna diagnosi possibile dalla pagina.
+    try {
+      const r = await jsonFetch<{ photos: Node[] }>("/api/lineage");
+      setNodes(r.photos);
+      setErrore(null);
+    } catch (e) {
+      setErrore(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -397,6 +409,23 @@ export default function TreePage() {
   }
 
   if (loading) return <div className="py-20 text-center text-neutral-400">Carico l'albero…</div>;
+  if (errore)
+    return (
+      <div className="py-20 text-center text-neutral-400">
+        <p className="text-rose-300">L'albero non si è caricato.</p>
+        <p className="mt-2 text-sm">{errore}</p>
+        <button
+          type="button"
+          className="mt-4 rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-800"
+          onClick={() => {
+            setLoading(true);
+            load();
+          }}
+        >
+          Riprova
+        </button>
+      </div>
+    );
   if (nodes.length === 0)
     return <div className="py-20 text-center text-neutral-400">Nessuna variante generata.</div>;
 

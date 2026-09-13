@@ -40,11 +40,33 @@ export function lastProject(): string {
  * file non si sa niente. Le loro immagini tornano quindi al backend, e per arrivarci
  * devono essere assolute come tutto il resto.
  */
+/**
+ * Dove sta il backend, visto da questa pagina.
+ *
+ * LA REGOLA E' "CHI MI HA SERVITO", non "quale porta di solito".
+ *
+ * Se la pagina arriva da http(s) — l'app aperta in un browser, in un riquadro,
+ * su un'altra porta — il backend e' chi l'ha servita: stringa vuota, cioe'
+ * indirizzi relativi, e si va sulla porta giusta per costruzione.
+ *
+ * La porta cablata serve SOLO quando un'origine utile non c'e': il guscio
+ * desktop carica la pagina da `tauri://`, e da li' un indirizzo relativo
+ * punterebbe dentro il pacchetto invece che al server.
+ *
+ * Perche' la distinzione non e' teorica: il 13/09 Darkroom aperto in un
+ * riquadro Tauri servito da :3737 chiamava :3535 (un server spento poco prima)
+ * e restava su "Carico l'albero…" a tempo indefinito. `nelGuscioDesktop()` era
+ * vero — il riquadro E' Tauri — ma la pagina veniva da http, e li' la porta
+ * giusta era la sua, non quella scritta nel codice.
+ */
 export function radiceApi(): string {
+  if (typeof window !== "undefined" && /^https?:$/.test(window.location?.protocol ?? "")) {
+    return "";
+  }
   return nelGuscioDesktop() ? `http://127.0.0.1:${PORTA_BACKEND}` : "";
 }
 
-/** La stessa porta della versione web: l'app è un'altra finestra sullo stesso lavoro. */
+/** La porta del guscio desktop, usata solo quando la pagina non viene da http. */
 const PORTA_BACKEND = 3535;
 
 /** Un indirizzo assoluto quando serve, relativo quando basta. */

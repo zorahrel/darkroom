@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { fotogrammaUrl, thumbRawUrlDi } from "../client/src/api/urls";
+import { assoluto, radiceApi } from "../client/src/api/http";
 
 /**
  * Le immagini delle schede di `/studio` devono sapere dov'è il backend.
@@ -67,5 +68,46 @@ describe("gli errori del backend si leggono", () => {
       .toBe("502 /api/sources: <html>Bad Gateway</html>");
     expect(messaggioErrore(500, "/api/x", '{"altro":1}')).toBe('500 /api/x: {"altro":1}');
     expect(messaggioErrore(500, "/api/x", '{"error":"  "}')).toBe('500 /api/x: {"error":"  "}');
+  });
+});
+
+describe("dentro un riquadro Tauri servito da http il backend e' chi ha servito la pagina", () => {
+  /**
+   * Il 13/09 Darkroom aperto in un riquadro Tauri servito da :3737 chiamava
+   * :3535 — la porta scritta nel codice, di un server spento poco prima — e la
+   * vista Albero restava su "Carico l'albero…" a tempo indefinito: 0 immagini,
+   * nessun errore in console, nessun modo di capirlo dalla pagina.
+   *
+   * Le due spie erano entrambe vere: il riquadro E' Tauri, ma la pagina veniva
+   * da http. Quando un'origine http c'e', e' quella la risposta giusta —
+   * qualunque porta abbia — e la porta cablata serve solo a `tauri://`, dove
+   * un indirizzo relativo punterebbe dentro il pacchetto.
+   */
+  test("protocollo http + marcatore desktop: indirizzi relativi", () => {
+    globale.window = { __DARKROOM_GUSCIO__: "desktop", location: { protocol: "http:" } };
+    globale.document = { documentElement: { dataset: { guscio: "desktop" } } };
+    expect(radiceApi()).toBe("");
+    expect(assoluto("/api/lineage")).toBe("/api/lineage");
+  });
+
+  test("protocollo tauri: resta la porta del guscio", () => {
+    globale.window = { __DARKROOM_GUSCIO__: "desktop", location: { protocol: "tauri:" } };
+    globale.document = { documentElement: { dataset: { guscio: "desktop" } } };
+    expect(radiceApi()).toBe("http://127.0.0.1:3535");
+    expect(assoluto("/api/lineage")).toBe("http://127.0.0.1:3535/api/lineage");
+  });
+});
+
+describe("l'albero dice quando non si carica, invece di restare in attesa", () => {
+  test("load() cattura l'errore e spegne comunque il caricamento", async () => {
+    const src = await Bun.file(new URL("../client/src/pages/Tree.tsx", import.meta.url)).text();
+    const load = src.slice(src.indexOf("const load = useCallback"), src.indexOf("useEffect(() => {"));
+    // `finally` e non due `setLoading(false)`: e' cio' che garantisce che la
+    // riga "Carico l'albero…" sparisca anche sul ramo che fallisce.
+    expect(load).toContain("catch");
+    expect(load).toContain("finally");
+    expect(load).toContain("setErrore");
+    // E il fallimento deve avere una via d'uscita a schermo, non solo in stato.
+    expect(src).toContain("Riprova");
   });
 });
