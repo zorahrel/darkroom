@@ -63,17 +63,36 @@ fn radice_progetto() -> Option<PathBuf> {
         }
     }
     let exe = std::env::current_exe().ok()?;
-    if let Some(r) = risali(&exe, &|d| d.join("package.json").exists() && d.join("server").is_dir()) {
+    if let Some(r) = risali(&exe, &e_la_radice) {
         return Some(r);
     }
     // In sviluppo si parte da `app/`, quindi la radice e' il genitore.
-    let cwd = std::env::current_dir().ok()?;
-    for candidato in [cwd.clone(), cwd.parent()?.to_path_buf()] {
-        if candidato.join("package.json").exists() && candidato.join("server").is_dir() {
-            return Some(candidato);
+    if let Ok(cwd) = std::env::current_dir() {
+        for candidato in [Some(cwd.clone()), cwd.parent().map(|p| p.to_path_buf())]
+            .into_iter()
+            .flatten()
+        {
+            if e_la_radice(&candidato) {
+                return Some(candidato);
+            }
         }
     }
-    None
+
+    // Ultima: la cartella da cui questa applicazione e' stata COMPILATA.
+    //
+    // Serve quando l'applicazione e' installata in /Applications, dove risalire non
+    // porta da nessuna parte: sopra c'e' il disco, non il progetto. Senza questa,
+    // la copia installata non trova il motore e non parte -- e per tre giorni era
+    // proprio quella che si apriva, perche' e' quella che trovano Spotlight e il
+    // Launchpad.
+    let compilata = Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(Path::to_path_buf);
+    compilata.filter(|p| e_la_radice(p))
+}
+
+/// La cartella del progetto si riconosce da queste due cose insieme: una sola non
+/// basta, di `package.json` ne e' pieno il disco.
+fn e_la_radice(dir: &Path) -> bool {
+    dir.join("package.json").exists() && dir.join("server").is_dir()
 }
 
 /// Sale di cartella in cartella finche' una non e' quella giusta.
@@ -412,6 +431,19 @@ fn main() {
 #[cfg(test)]
 mod prove_avvio {
     use super::*;
+
+    /// L'applicazione installata in /Applications non puo' risalire a niente: sopra
+    /// di lei c'e' il disco. Deve restarle la cartella da cui e' stata compilata,
+    /// altrimenti non trova il motore — ed e' la copia che aprono Spotlight e il
+    /// Launchpad, cioe' quella che si apre davvero.
+    #[test]
+    fn da_applications_la_radice_e_quella_di_compilazione() {
+        let installata = PathBuf::from("/Applications/Darkroom.app/Contents/MacOS/darkroom-app");
+        assert_eq!(risali(&installata, &e_la_radice), None, "da /Applications non si risale a niente");
+
+        let compilata = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        assert!(e_la_radice(compilata), "la cartella di compilazione non e' il progetto: {}", compilata.display());
+    }
 
     /// Il conto dei livelli era otto e la radice, dal bundle, ne dista nove.
     /// Un numero fisso non si puo' verificare guardandolo: si verifica cosi',
