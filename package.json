@@ -34,6 +34,7 @@
     "core:misura": "core/target/release/darkroom-core misura",
     "app": "bunx @tauri-apps/cli@latest dev --config app/tauri.conf.json",
     "app:build": "bun run build:client && cd app && CC=${CC:-/usr/bin/cc} bunx @tauri-apps/cli@latest build",
+    "app:install": "bun run app:build && rm -rf /Applications/Darkroom.app && cp -R app/target/release/bundle/macos/Darkroom.app /Applications/ && echo 'installata in /Applications'",
     "app:test": "cd app && CC=${CC:-/usr/bin/cc} cargo test --release",
     "app:misura": "bun run scripts/misura-app.ts",
     "ui:audit": "bun run scripts/audit-ui.ts",
