@@ -12,6 +12,34 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", sans-serif;
 }
 
+/* Una fila che SCORRE invece di andare a capo, sotto i 1024 px.
+
+   Perche' esiste. Su un telefono da 390x780 le barre di Darkroom andavano a
+   capo a cascata: intestazione 269 px in tre blocchi, piu' la barra dei filtri
+   della griglia, e la prima foto cominciava a 523 px — il 67% dello schermo
+   speso in comandi, misurato. Andare a capo NON e' la risposta giusta per una
+   barra di navigazione: moltiplica l'altezza, che su un telefono e' la risorsa
+   scarsa, mentre la larghezza si puo' scorrere.
+
+   `-webkit-overflow-scrolling` e la barra nascosta perche' su touch lo scorrimento
+   si fa col dito: la barra ruberebbe altri 10 px a ogni fila. Sopra i 1024 px
+   la regola si spegne e torna il comportamento a capo, che li' ha senso. */
+@media (max-width: 1023px) {
+  .fila-scorre {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .fila-scorre::-webkit-scrollbar {
+    display: none;
+  }
+  /* I figli non si schiacciano: e' il senso dello scorrimento. */
+  .fila-scorre > * {
+    flex-shrink: 0;
+  }
+}
+
 /* tighter scrollbars */
 ::-webkit-scrollbar {
   width: 10px;

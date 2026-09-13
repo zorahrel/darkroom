@@ -797,11 +797,15 @@ export default function GridPage({
         </div>
       )}
 
-      {/* Il divieto di andare a capo vale da 640 px in su, dove la barra ci sta
-          davvero. Sotto, `flex-nowrap` spingeva la pagina a 744 px dentro un
-          viewport da 390: la griglia intera scorreva di lato per non mandare a capo
-          sei filtri. */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs">
+      {/* Sotto i 1024 px questa fila SCORRE (`.fila-scorre`), non va a capo.
+          Prima erano state provate tutte e due le alternative e nessuna regge su
+          un telefono: `flex-nowrap` sull'elemento spingeva la PAGINA a 744 px
+          dentro un viewport da 390 (la griglia intera scorreva di lato), e
+          `flex-wrap` teneva la pagina ferma ma impilava i filtri in quattro
+          righe — con l'intestazione, la prima foto cominciava a 523 px su 780.
+          Scorrere sposta il costo sulla larghezza, che su un telefono e' la
+          dimensione che si puo' spendere. */}
+      <div className="fila-scorre flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs">
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-1">
           {FILTERS.filter((f) => PRIMARY_FILTERS.includes(f.id)).map((f) => {
             const Icon = f.icon;

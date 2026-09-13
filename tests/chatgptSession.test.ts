@@ -65,20 +65,26 @@ describe("la sonda non martella chatgpt.com", () => {
   // anti-flood sulla FREQUENZA, innescato da questa sonda. `/api/health` la
   // chiama a ogni richiesta e il client ripolla ogni 5 secondi: due fetch a
   // chatgpt.com ogni cinque secondi, per scheda, anche a macchina ferma.
+  // NB: questi due toccano il browser VERO (la sonda interroga chatgpt.com via
+  // CDP). Da soli rispondono in ~300 ms; dentro la suite piena, con Chrome
+  // occupato dagli altri test, la prima sonda puo' metterci parecchio — misurato
+  // il 09/09: falliva a 5 s di default mentre in isolamento passava. Il timeout
+  // alto non nasconde un difetto del codice, riconosce che qui c'e' di mezzo un
+  // processo esterno condiviso.
   test("due chiamate ravvicinate non producono due sonde", async () => {
     const { checkChatgptSession } = await import("../server/worker.ts");
     const a = await checkChatgptSession();
     const b = await checkChatgptSession();
     // Stesso oggetto = risposta servita dalla cache, nessuna richiesta nuova.
     expect(b).toBe(a);
-  });
+  }, 30_000);
 
   test("con `forza` la sonda viene rifatta davvero", async () => {
     const { checkChatgptSession } = await import("../server/worker.ts");
     const a = await checkChatgptSession();
     const b = await checkChatgptSession(true);
     expect(b).not.toBe(a);
-  });
+  }, 30_000);
 
   test("chi decide di lavorare usa dato fresco, chi disegna un pallino no", async () => {
     const jobs = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();

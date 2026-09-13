@@ -232,7 +232,7 @@ export default function App() {
               were discovered only if you already knew they were there. The two
               areas are always in the bar: from inside a project you go back to
               the tools with one click, not by going back. */}
-          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
+          <div className="fila-scorre flex flex-wrap items-center gap-2 min-w-0 max-w-full">
             <Link
               to="/"
               className="inline-flex items-center min-h-11 sm:min-h-0 font-semibold tracking-tight shrink-0"
@@ -334,7 +334,7 @@ export default function App() {
               as the navigation: and it does not fit there, so it broke in half
               in a crooked way. At `lg:` (1024px) either you sit comfortably on
               one row, or you get two clean ones. */}
-          <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto">
+          <div className="fila-scorre flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto">
             {/* The bar's hierarchy: the alarms first because they change what
                 you can do, then the window's switches, then the jobs, and last
                 the only filled action — which exists only where it makes sense.
