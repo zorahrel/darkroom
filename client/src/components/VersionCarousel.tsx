@@ -107,15 +107,22 @@ export default function VersionCarousel({
         // automatico puo' cambiarlo a ogni messaggio: due tiri della stessa
         // ricetta possono essere girati da modelli diversi. Ora lo slug reale
         // arriva dal backend di ChatGPT e si legge qui.
+        // Anche il BACKEND, non solo il modello: "ChatGPT" da solo non dice se
+        // e' passata dal browser (cdp) o da Codex, che dallo stesso prompt
+        // danno risultati diversi.
         let modello: string | null = null;
+        let backend: string | null = null;
         if (version.provider_params) {
           try {
-            modello = (JSON.parse(version.provider_params) as { model?: string }).model ?? null;
+            const pp = JSON.parse(version.provider_params) as { model?: string; backend?: string };
+            modello = pp.model ?? null;
+            backend = pp.backend ?? null;
           } catch {}
         }
+        const coda = [backend, modello].filter(Boolean).join(" · ");
         return (
           <span className="ml-2 text-neutral-400">
-            · ChatGPT{modello ? ` ${modello}` : ""}
+            · ChatGPT{coda ? ` ${coda}` : ""}
           </span>
         );
       }

@@ -823,8 +823,18 @@ async function processJob(job: JobRow) {
         // Model and quality: two variants of the same recipe produced at `low` and
         // at `high` are different experiments, and without this the tree showed
         // them as if they were the same thing.
-        result.status === "ok" && result.model
-          ? JSON.stringify({ model: result.model, quality: result.quality ?? null })
+        // Il BACKEND si salva sempre, anche quando il modello non si sa: quattro
+        // backend diversi (cdp, codex, codex-http, openai) producono risultati
+        // diversi dallo stesso prompt, e finora la versione non diceva da quale
+        // fosse passata — la stessa cecita' del modello, un piano piu' sotto.
+        // Sta in `jobs.backend`, che `versions` non ha: senza copiarlo qui si
+        // perde appena il job esce dalla coda.
+        result.status === "ok"
+          ? JSON.stringify({
+              model: result.model ?? null,
+              quality: result.quality ?? null,
+              backend: backendDi(job),
+            })
           : null,
         // Where it came from. It travels through the job so queue generations get
         // grouped in the tree too: before, only the hand-written ones had it,

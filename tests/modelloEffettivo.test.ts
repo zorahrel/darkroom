@@ -50,9 +50,13 @@ describe("il modello che ha generato si registra, non si finge", () => {
     expect(py).toContain('"model": getattr(single_shot, "ultimo_modello", None)');
   });
 
-  test("il server lo salva in provider_params anche per chatgpt", async () => {
+  test("il server salva modello E backend in provider_params", async () => {
     const ts = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
-    expect(ts).toContain("JSON.stringify({ model: result.model");
+    expect(ts).toContain("backend: backendDi(job)");
+    // Il backend si salva anche quando il modello non si sa: sono due fatti
+    // indipendenti, e legarli avrebbe perso il backend su ogni percorso che
+    // non riesce a leggere lo slug.
+    expect(ts).toContain("model: result.model ?? null");
   });
 
   test("la UI lo mostra invece di dire solo ChatGPT", async () => {
@@ -65,7 +69,9 @@ describe("il modello che ha generato si registra, non si finge", () => {
     );
     expect(ramo).toContain("provider_params");
     expect(ramo).toContain("modello");
-    // il fallback resta: una versione vecchia non ha lo slug e non deve rompersi
-    expect(ramo).toContain('modello ? ` ${modello}` : ""');
+    expect(ramo).toContain("backend");
+    // il fallback resta: una versione vecchia non ha ne' slug ne' backend e
+    // deve continuare a leggersi "· ChatGPT" senza spazi penzolanti
+    expect(ramo).toContain('coda ? ` ${coda}` : ""');
   });
 });
