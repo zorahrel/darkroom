@@ -248,7 +248,45 @@ async function pageResponds(wsUrl: string, timeoutMs = 5000): Promise<boolean> {
  *  stati opposti per la coda: il banner "Browser offline" restava spento mentre
  *  niente poteva funzionare. Qui si guarda la cosa che serve davvero — il
  *  composer — e la si distingue dal muro di login. */
-export async function checkChatgptSession(): Promise<{ alive: boolean; logged_in: boolean; reason?: string }> {
+type Sessione = { alive: boolean; logged_in: boolean; reason?: string };
+
+/**
+ * CACHE DELLA SONDA, e perche' senza era un martello.
+ *
+ * Questa funzione interroga il backend di ChatGPT (`/api/auth/session` e
+ * `/backend-api/me`) per sapere se il token e' ancora buono. La chiama
+ * `/api/health`, che il client ripolla OGNI 5 SECONDI per tenere aggiornato il
+ * pallino di stato: due richieste ogni cinque secondi, per ogni scheda aperta,
+ * anche a macchina ferma. Sono ~1.400 richieste l'ora verso chatgpt.com fatte
+ * solo per disegnare un pallino.
+ *
+ * Il 09/09 ChatGPT ha risposto: "Fai richieste in modo troppo veloce. Abbiamo
+ * limitato temporaneamente l'accesso alle conversazioni". Non e' un limite di
+ * piano — e' un anti-flood sulla FREQUENZA, e lo stava innescando questa sonda,
+ * introdotta da me il giorno prima (3fced34): prima leggeva solo il DOM e non
+ * toccava la rete.
+ *
+ * Una sessione non muore ogni cinque secondi: la risposta si tiene per un
+ * minuto. Quando invece risulta NON valida si ricontrolla piu' spesso, perche'
+ * li' si sta aspettando che l'utente faccia login e la ripartenza deve essere
+ * pronta.
+ */
+let cacheSessione: { at: number; val: Sessione } | null = null;
+const TTL_OK_MS = 60_000;
+const TTL_KO_MS = 10_000;
+
+export async function checkChatgptSession(forza = false): Promise<Sessione> {
+  const c = cacheSessione;
+  if (!forza && c) {
+    const ttl = c.val.logged_in ? TTL_OK_MS : TTL_KO_MS;
+    if (Date.now() - c.at < ttl) return c.val;
+  }
+  const val = await sondaSessione();
+  cacheSessione = { at: Date.now(), val };
+  return val;
+}
+
+async function sondaSessione(): Promise<Sessione> {
   let pages: Array<{ type?: string; url?: string; webSocketDebuggerUrl?: string }>;
   try {
     const res = await fetch(`${CHATGPT_CDP_URL}/json`, { signal: AbortSignal.timeout(2000) });

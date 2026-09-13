@@ -438,7 +438,11 @@ async function loop() {
     // non e' un difetto della ricetta ed e' rumore nelle statistiche: si
     // aspetta, e il motivo e' leggibile in /api/health.
     if (next.job.backend !== "higgsfield" && next.job.backend !== "openai") {
-      const s = await checkChatgptSession();
+      // `forza`: qui si DECIDE se bruciare un job, e la decisione va presa su
+      // dato fresco. Costa due richieste una volta per job (ogni 2-6 minuti),
+      // non e' quel che innescava l'anti-flood: quello era il polling della UI
+      // ogni 5 secondi, che ora passa dalla cache.
+      const s = await checkChatgptSession(true);
       if (s.alive && !s.logged_in) {
         if (Date.now() - lastLoginWarnMs > 5 * 60 * 1000) {
           lastLoginWarnMs = Date.now();

@@ -57,3 +57,37 @@ describe("una pagina finita altrove non e' un login scaduto", () => {
     expect(nessuna).toContain("alive: false");
   });
 });
+
+describe("la sonda non martella chatgpt.com", () => {
+  // Il 09/09 ChatGPT ha risposto "Fai richieste in modo troppo veloce. Abbiamo
+  // limitato temporaneamente l'accesso alle conversazioni", e i job si sono
+  // fermati per ore. Non era un limite di piano (l'account e' Pro): era un
+  // anti-flood sulla FREQUENZA, innescato da questa sonda. `/api/health` la
+  // chiama a ogni richiesta e il client ripolla ogni 5 secondi: due fetch a
+  // chatgpt.com ogni cinque secondi, per scheda, anche a macchina ferma.
+  test("due chiamate ravvicinate non producono due sonde", async () => {
+    const { checkChatgptSession } = await import("../server/worker.ts");
+    const a = await checkChatgptSession();
+    const b = await checkChatgptSession();
+    // Stesso oggetto = risposta servita dalla cache, nessuna richiesta nuova.
+    expect(b).toBe(a);
+  });
+
+  test("con `forza` la sonda viene rifatta davvero", async () => {
+    const { checkChatgptSession } = await import("../server/worker.ts");
+    const a = await checkChatgptSession();
+    const b = await checkChatgptSession(true);
+    expect(b).not.toBe(a);
+  });
+
+  test("chi decide di lavorare usa dato fresco, chi disegna un pallino no", async () => {
+    const jobs = await Bun.file(new URL("../server/jobs.ts", import.meta.url)).text();
+    const studio = await Bun.file(new URL("../server/routes/studio.ts", import.meta.url)).text();
+    // Il runner sta per bruciare un job: deve sapere adesso com'e' la sessione.
+    expect(jobs).toContain("checkChatgptSession(true)");
+    // /api/health serve solo a colorare un indicatore: la cache basta, e senza
+    // di essa era la sorgente del flood.
+    expect(studio).toContain("checkChatgptSession()");
+    expect(studio).not.toContain("checkChatgptSession(true)");
+  });
+});
