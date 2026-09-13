@@ -281,7 +281,18 @@ export function Panel({ children, className = "" }: { children: React.ReactNode;
 }
 
 export function Toolbar({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`flex flex-wrap items-center gap-2 border-y border-neutral-800 py-2 ${className}`}>{children}</div>;
+  // Sotto lg la barra SCORRE invece di impilarsi: andare a capo moltiplica
+  // l'altezza, che su un telefono e' la risorsa scarsa, mentre la larghezza
+  // si puo' scorrere. `barra-scorre` estende il divieto di capo ai gruppi
+  // interni (vedi index.css): senza, un sottogruppo andato a capo rialzava la
+  // barra a 214 px comunque.
+  return (
+    <div
+      className={`fila-scorre barra-scorre flex flex-nowrap lg:flex-wrap items-center gap-2 border-y border-neutral-800 py-2 ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Titoli di pagina e sezioni condividono scala e allineamento. */

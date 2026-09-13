@@ -41,8 +41,13 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     const grid = await Bun.file(new URL("../client/src/pages/Grid.tsx", import.meta.url)).text();
 
     // Intestazione, blocco 1: marca + Strumenti/Progetti + progetto attivo.
-    // Misurava 86 px su due righe a 390.
-    expect(app).toContain('"fila-scorre flex flex-wrap items-center gap-2 min-w-0 max-w-full"');
+    // Misurava 86 px su due righe a 390. Il 14/09 e' passato da `flex-wrap` a
+    // `flex-nowrap lg:flex-wrap` + `shrink`: non basta che scorra, deve anche
+    // CEDERE, altrimenti 160+223+gap = 395 in 390 e l'intestazione torna a
+    // tre righe (175 px). Si cerca il blocco, non la stringa intera.
+    const blocco1 = /className="(fila-scorre flex [^"]*max-w-full[^"]*)"/.exec(app)?.[1] ?? "";
+    expect(blocco1).toContain("flex-nowrap lg:flex-wrap");
+    expect(blocco1).toContain("shrink");
     // Intestazione, blocco 3: allarmi + lavori + Esporta. Misurava 96 px.
     // Si cerca il blocco, non la stringa intera: le classi attorno cambiano (la
     // riga tutta sua ora se la prende solo da `md` in su, perche' sul telefono i
@@ -135,5 +140,63 @@ describe("quale versione sto guardando si legge dal titolo", () => {
     const visibili = classi.filter((c) => !c.includes("hidden md:flex"));
     expect(visibili.length).toBeGreaterThan(0);
     for (const c of visibili) expect(c).toContain("fila-scorre");
+  });
+});
+
+describe("su un telefono le barre non mangiano mezzo schermo", () => {
+  /**
+   * MISURATO il 14/09 su un viewport 390x800, prima della correzione:
+   *
+   *     rotta            prima foto   schermo speso
+   *     /p/profilo          329 px        41%
+   *     /tree               462 px        57%
+   *     /culling            514 px        64%
+   *
+   * Due cause, la stessa forma: `flex-wrap` su mobile moltiplica l'ALTEZZA,
+   * che sul telefono e' la risorsa scarsa, mentre la larghezza si puo'
+   * scorrere.
+   *
+   *   1. L'intestazione globale: tre file (160 + 356 + 223 px di contenuto in
+   *      390) su tre righe = 175 px. Le schede di rotta prendono una riga
+   *      loro (scorrendo dentro), marca e progetto cedono e stanno sopra
+   *      insieme: 123 px, due righe.
+   *   2. La `Toolbar` condivisa: 214 px su culling perche' un GRUPPO interno
+   *      da 92 px era andato a capo dentro una barra che a sua volta andava a
+   *      capo. Da qui `.barra-scorre`, che vieta il capo a tutta la
+   *      discendenza e non solo alla barra.
+   *
+   * Dopo: 277 / 310 / 310 px (34-38%), overflow-X 0 a 390 E a 1440.
+   */
+  test("la Toolbar condivisa scorre sotto lg e vieta il capo ai gruppi interni", async () => {
+    const ui = await Bun.file(new URL("../client/src/ui.tsx", import.meta.url)).text();
+    const toolbar = /export function Toolbar[\s\S]{0,900}?\n}/.exec(ui)?.[0] ?? "";
+    expect(toolbar).toContain("fila-scorre");
+    expect(toolbar).toContain("barra-scorre");
+    expect(toolbar).toContain("flex-nowrap lg:flex-wrap");
+
+    // la regola che estende il divieto ai discendenti deve esistere davvero
+    const css = await Bun.file(new URL("../client/src/index.css", import.meta.url)).text();
+    expect(css).toMatch(/\.barra-scorre[^{]*\{[^}]*flex-wrap:\s*nowrap/);
+  });
+
+  test("nell'intestazione le schede di rotta prendono una riga loro su mobile", async () => {
+    const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const nav = /<nav className="fila-scorre[^"]*"/.exec(app)?.[0] ?? "";
+    // w-full + order-last: una riga tutta sua sotto lg, al suo posto sopra lg
+    expect(nav).toContain("w-full");
+    expect(nav).toContain("order-last");
+    expect(nav).toContain("lg:w-auto");
+    expect(nav).toContain("lg:order-none");
+  });
+
+  test("marca e progetto cedono invece di andare a capo", async () => {
+    const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    // i due blocchi laterali dell'intestazione: nowrap sotto lg e riducibili,
+    // altrimenti 160+223+gap = 395 in 390 e si torna a tre righe
+    const laterali = [...app.matchAll(/className="fila-scorre flex [^"]*"/g)].map((m) => m[0]);
+    const conNowrap = laterali.filter((c) => c.includes("flex-nowrap lg:flex-wrap"));
+    expect(conNowrap.length).toBeGreaterThanOrEqual(2);
+    expect(conNowrap.some((c) => c.includes("shrink"))).toBe(true);
+    expect(conNowrap.some((c) => c.includes("flex-1 lg:flex-none"))).toBe(true);
   });
 });

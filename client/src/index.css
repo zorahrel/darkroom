@@ -38,6 +38,18 @@ body {
   .fila-scorre > * {
     flex-shrink: 0;
   }
+
+  /* Una barra strumenti che scorre deve impedire il capo anche ai GRUPPI che
+     contiene, non solo a se stessa: i controlli stanno in sottogruppi che
+     hanno il loro `flex-wrap`, e uno di quelli che va a capo rialza la barra
+     comunque. Misurato il 14/09 a 390 px: la Toolbar di culling era alta
+     214 px (un gruppo interno da 92 px andato a capo), 162 px su tree; con
+     il capo vietato a tutta la discendenza scende a 83 e 72 px, e la prima
+     foto sale da 462 a 331 px. Sopra lg la barra torna a capo normalmente. */
+  .barra-scorre :is(div, nav, span) {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
 }
 
 /* tighter scrollbars */
