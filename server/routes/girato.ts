@@ -7,6 +7,7 @@ import {
   durataTenuta,
   elenca,
   fotogramma,
+  inviluppoAudio,
   leggiScelte,
   perchePerSilenzio,
   riordina,
@@ -115,6 +116,22 @@ giratoRoutes.get("/api/girato/fotogramma", async (c) => {
 });
 
 /** La clip stessa, per l'anteprima con l'audio. Si serve, non si copia. */
+/** L'andamento del suono di una clip, per la striscia sotto la fila. */
+giratoRoutes.get("/api/girato/audio", async (c) => {
+  const cartella = c.req.query("cartella") ?? "";
+  const clip = c.req.query("clip") ?? "";
+  if (!cartella || !clip) return c.json({ error: "servono cartella e clip" }, 400);
+  // Come per il fotogramma: solo l'ultimo segmento, mai un percorso.
+  if (clip !== (clip.split(/[/\\]/).pop() ?? "")) return c.json({ error: "nome non valido" }, 400);
+  const percorso = join(cartella, clip);
+  if (!existsSync(percorso)) return c.json({ error: "clip inesistente" }, 404);
+
+  const picchi = await inviluppoAudio(percorso);
+  // `null` non e' un guasto: e' una clip senza traccia audio, e la fila lo dice
+  // invece di disegnare una riga piatta che sembra un errore.
+  return c.json({ picchi, senzaAudio: picchi === null });
+});
+
 giratoRoutes.get("/api/girato/clip", (c) => {
   const cartella = cartellaDa(c);
   const nome = c.req.query("clip");

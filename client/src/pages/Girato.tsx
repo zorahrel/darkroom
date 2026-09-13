@@ -366,6 +366,24 @@ export default function Girato() {
             )}
           </div>
 
+          {/* L'andamento del suono, sotto l'immagine.
+              Il fotogramma dice COSA c'e'; questa dice DOVE succede — chi parla,
+              cosa cade — che su una ripresa lunga e' la sola cosa che evita di
+              riprodurla tutta per trovare il punto. La testina segue il video, e
+              attacco e stacco si vedono come una fascia chiara: prima si
+              leggevano solo come due numeri. */}
+          <StriscaAudio
+            cartella={dati.cartella}
+            clip={attuale.s.nome}
+            durata={attuale.c.durata}
+            tempo={tempo}
+            attacco={attuale.s.attacco}
+            stacco={attuale.s.stacco}
+            onVai={(t) => {
+              if (video.current) video.current.currentTime = t;
+            }}
+          />
+
           <div className="px-4 py-2 border-t border-neutral-800 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-mono">{attuale.s.nome}</span>
             <span className="text-neutral-500 tabular-nums">
@@ -442,6 +460,112 @@ export default function Girato() {
         <span><b className="text-neutral-300">← →</b> scorri</span>
         <span><b className="text-neutral-300">Invio</b> griglia / fila</span>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * La striscia del suono di una clip.
+ *
+ * Duecento barre alte quanto l'energia del suono in quel punto, la testina dove
+ * sta il video, e la parte tenuta — fra attacco e stacco — piu' chiara del
+ * resto. Cliccando si salta li'.
+ *
+ * Una clip senza traccia audio non disegna una riga piatta: lo DICE. Una riga
+ * piatta si legge come un guasto, e in questo mestiere una clip muta e' normale
+ * — molte macchine fotografiche in modalita' video non registrano suono.
+ */
+function StriscaAudio({
+  cartella, clip, durata: dur, tempo, attacco, stacco, onVai,
+}: {
+  cartella: string;
+  clip: string;
+  durata: number | null;
+  tempo: number;
+  attacco: number | null;
+  stacco: number | null;
+  onVai: (t: number) => void;
+}) {
+  const [picchi, setPicchi] = useState<number[] | null>(null);
+  const [muta, setMuta] = useState(false);
+  const [errore, setErrore] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    setPicchi(null);
+    setMuta(false);
+    setErrore(false);
+    jsonFetch<{ picchi: number[] | null; senzaAudio: boolean }>(
+      `/api/girato/audio?cartella=${encodeURIComponent(cartella)}&clip=${encodeURIComponent(clip)}`,
+    )
+      .then((r) => {
+        if (!vivo) return;
+        setMuta(r.senzaAudio);
+        setPicchi(r.picchi);
+      })
+      .catch(() => vivo && setErrore(true));
+    return () => {
+      vivo = false;
+    };
+  }, [cartella, clip]);
+
+  const totale = dur && dur > 0 ? dur : null;
+  const frazione = (t: number | null) => (totale && t !== null ? Math.min(1, Math.max(0, t / totale)) : null);
+  const da = frazione(attacco) ?? 0;
+  const a = frazione(stacco) ?? 1;
+
+  return (
+    <div className="px-4 pt-2 border-t border-neutral-800">
+      <div
+        role="presentation"
+        onClick={(e) => {
+          if (!totale) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          onVai(((e.clientX - r.left) / r.width) * totale);
+        }}
+        className="relative h-12 flex items-end gap-px bg-neutral-950 border border-neutral-800
+                   cursor-pointer select-none overflow-hidden"
+      >
+        {/* La parte tenuta, dietro alle barre. */}
+        {totale && (
+          <span
+            aria-hidden
+            className="absolute inset-y-0 bg-neutral-800/50"
+            style={{ left: `${da * 100}%`, width: `${Math.max(0, a - da) * 100}%` }}
+          />
+        )}
+        {picchi?.map((v, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className="relative flex-1 bg-sky-300/70"
+            style={{ height: `${Math.max(2, v * 100)}%` }}
+          />
+        ))}
+        {muta && (
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] text-neutral-500">
+            nessuna traccia audio — non e' un guasto
+          </span>
+        )}
+        {errore && (
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] text-amber-400">
+            il suono non si e' potuto leggere
+          </span>
+        )}
+        {!picchi && !muta && !errore && (
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] text-neutral-600">
+            leggo il suono…
+          </span>
+        )}
+        {/* La testina. */}
+        {totale && (
+          <span
+            aria-hidden
+            className="absolute inset-y-0 w-px bg-amber-400"
+            style={{ left: `${(frazione(tempo) ?? 0) * 100}%` }}
+          />
+        )}
+      </div>
     </div>
   );
 }

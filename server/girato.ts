@@ -304,6 +304,54 @@ export function perchePerSilenzio(clip: Clip[], scelte: Scelta[]): string | null
   return null;
 }
 
+/**
+ * L'andamento del suono di una clip, come una manciata di numeri fra 0 e 1.
+ *
+ * Serve a una domanda che il fotogramma non risponde: DOVE succede qualcosa. Su
+ * una fila di riprese, il punto in cui parla qualcuno o cade un oggetto si vede
+ * nell'audio prima che nell'immagine — e finora la fila mostrava solo i
+ * fotogrammi, quindi per trovarlo bisognava riprodurre la clip intera.
+ *
+ * Si campiona a 8 kHz in mono: per disegnare duecento barre non serve altro, e
+ * decodificare a qualita' piena una clip di tre minuti per poi buttare il 99%
+ * dei campioni costerebbe secondi invece di decimi.
+ */
+export async function inviluppoAudio(percorso: string, barre = 200): Promise<number[] | null> {
+  const p = spawn({
+    cmd: [
+      "ffmpeg", "-v", "error", "-i", percorso,
+      "-vn", "-ac", "1", "-ar", "8000", "-f", "s16le", "-",
+    ],
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const grezzo = Buffer.from(await new Response(p.stdout).arrayBuffer());
+  // Uscita vuota = nessuna traccia audio. Non e' un errore da segnalare: e' la
+  // condizione che `perchePerSilenzio` gia' spiega, e qui si limita a dire «non
+  // c'e' niente da disegnare».
+  if ((await p.exited) !== 0 || grezzo.length < 2) return null;
+
+  const campioni = Math.floor(grezzo.length / 2);
+  const perBarra = Math.max(1, Math.floor(campioni / barre));
+  const fuori: number[] = [];
+  for (let b = 0; b < barre; b++) {
+    let somma = 0;
+    let n = 0;
+    for (let i = b * perBarra; i < Math.min((b + 1) * perBarra, campioni); i++) {
+      const v = grezzo.readInt16LE(i * 2) / 32768;
+      somma += v * v;
+      n++;
+    }
+    // Media quadratica: il picco singolo di un clic farebbe sembrare forte un
+    // secondo che e' silenzio, e cio' che si cerca qui e' dove c'e' del suono.
+    fuori.push(n ? Math.sqrt(somma / n) : 0);
+  }
+  const massimo = Math.max(...fuori, 1e-6);
+  // Normalizzato sul proprio massimo: fra due clip conta DOVE succede qualcosa,
+  // non quale delle due e' stata registrata piu' forte.
+  return fuori.map((v) => Math.min(1, v / massimo));
+}
+
 /** Un fotogramma della clip, come JPEG, per la griglia e per la striscia. */
 export async function fotogramma(
   percorso: string,

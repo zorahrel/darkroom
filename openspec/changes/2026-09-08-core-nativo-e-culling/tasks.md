@@ -95,11 +95,11 @@ Ciò che deve diventare vero:
 - [x] 4.6 Peso pacchetto e memoria a riposo riportati a ogni compilazione
 
 ## 5. Girato (dipende da 0, indipendente da 2/3/4)
-- [ ] 5.1 Frame e durate via ffmpeg, al posto di AVFoundation
-- [ ] 5.2 Griglia clip e fila con timeline video e audio
-- [ ] 5.3 Tieni/scarta, attacco e stacco, riordino
-- [ ] 5.4 Scelte accanto alle clip, scritte prima di chiudere e prima di uscire
-- [ ] 5.5 Silenzio dichiarato invece di silenzio e basta
+- [x] 5.1 Frame e durate via ffmpeg, al posto di AVFoundation
+- [x] 5.2 Griglia clip e fila con timeline video e audio
+- [x] 5.3 Tieni/scarta, attacco e stacco, riordino
+- [x] 5.4 Scelte accanto alle clip, scritte prima di chiudere e prima di uscire
+- [x] 5.5 Silenzio dichiarato invece di silenzio e basta
 
 ## 6. Sviluppo locale (ultimo: è il pezzo duro)
 - [ ] 6.1 Interfaccia di sviluppo con un solo punto di scelta fra pipeline
