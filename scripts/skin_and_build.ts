@@ -109,14 +109,62 @@ const LUCE_DUE_RUOLI =
   "softbox bianco, molto meno satura di quanto verrebbe con una luce calda. " +
   "La pelle resta comunque OPACA (nessun riflesso lucido) e con i pori visibili.";
 
+/**
+ * SECONDO GIRO, 09/09, dopo l'esito del primo — che e' stato negativo su
+ * entrambe le leve e ha insegnato due cose.
+ *
+ * A. IL CAMPIONE DI LUCE PORTA IL SUO LUCIDO. Riallegare la reference sposta
+ *    la croma nella direzione giusta (27,2 -> 18,7 e 21,2, bersaglio 13,4) ma
+ *    riporta la pelle grassa: area lucida da 0,05% a 4,30% e 4,47%. Non e' una
+ *    svista del modello, e' fisica: la reference ha area lucida 26,71%, la piu'
+ *    alta di tutto il progetto. Quella luce LAVA la pelle (desatura) PROPRIO
+ *    PERCHE' la copre di riflessi speculari. Dal campione i due fatti non si
+ *    separano. Quindi la cella `lavata` chiede la desaturazione SENZA allegare
+ *    la reference, come relazione invece che come campione.
+ *
+ * B. IL 2,87 NON MISURA SOLO LE SPALLE, MISURA LA MAGLIA. La reference indossa
+ *    un top ADERENTE; v103 una t-shirt "larga che cade morbida" — ordinata dal
+ *    prompt. Un capo oversize allarga la sagoma, e la sagoma e' cio' che il
+ *    rapporto legge. Prima di insistere sulla corporatura va tolta la variabile
+ *    del tessuto: la cella `maglia` mette un capo aderente come nella reference
+ *    e lascia il resto fermo.
+ */
+const VESTITO_VECCHIO = "VESTITO: t-shirt nera larga che cade morbida.";
+const VESTITO_ADERENTE =
+  "VESTITO: maglia nera a maniche lunghe ADERENTE, girocollo, tessuto fine " +
+  "che segue il corpo senza stringere — come quella dell'ultima immagine " +
+  "allegata. NON oversize, NON larga, niente tessuto che si gonfia sulle " +
+  "spalle: si deve vedere che sotto sono magro, e la linea della spalla e' " +
+  "quella del mio corpo, non quella del capo.";
+
+/** La desaturazione come relazione, senza il campione che porta il lucido. */
+const PELLE_LAVATA =
+  " IL COLORE DELLA PELLE: la luce e' bianca e neutra, e la mia pelle sotto " +
+  "di essa e' CHIARA e POCO COLORATA. Ha circa META' del colore che avrebbe " +
+  "con una luce calda: niente incarnato arancione, niente abbronzatura, niente " +
+  "rosso sulle guance o sul naso, nessun viraggio caldo. Quasi desaturata, " +
+  "come una pelle sotto un softbox bianco grande. Chiara ma NON bruciata, e " +
+  "soprattutto OPACA: desaturata non vuol dire lucida, non voglio nessun " +
+  "riflesso speculare su fronte, naso e zigomi.";
+
 type Cella = { nome: string; passo: string; conRef: boolean; applica: (p: string) => string };
 const pelle = (p: string) => p.replace(LUCE_VECCHIA, LUCE_DUE_RUOLI);
 const spalle = (p: string) => p.replace(CORPO_VECCHIO, CORPO_RAPPORTO);
+const maglia = (p: string) => p.replace(VESTITO_VECCHIO, VESTITO_ADERENTE);
+const lavata = (p: string) => p.replace(CORPO_VECCHIO, CORPO_VECCHIO + PELLE_LAVATA);
 
 const TUTTE: Cella[] = [
   { nome: "pelle", passo: "riallega la reference: colore della luce sulla pelle", conRef: true, applica: pelle },
   { nome: "spalle", passo: "spalle = 2 teste, non un aggettivo", conRef: false, applica: spalle },
   { nome: "tutto", passo: "luce della reference + spalle in rapporto", conRef: true, applica: (p) => spalle(pelle(p)) },
+  { nome: "maglia", passo: "capo aderente: toglie il tessuto dalla misura", conRef: false, applica: maglia },
+  { nome: "lavata", passo: "pelle desaturata come relazione, senza campione", conRef: false, applica: lavata },
+  {
+    nome: "maglia+lavata",
+    passo: "capo aderente + pelle desaturata, senza campione",
+    conRef: false,
+    applica: (p) => lavata(maglia(p)),
+  },
 ];
 
 const chieste = arg("--celle")?.split(",").map((s) => s.trim());
