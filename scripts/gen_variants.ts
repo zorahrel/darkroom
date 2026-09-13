@@ -13,7 +13,7 @@ import { existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { withProject, dirsFor } from "../server/project.ts";
 import { db, initSchema, nextVersionNumber } from "../server/db.ts";
-import { enqueueJob } from "../server/jobs.ts";
+import { enqueueJob, scriviIngressiVariante } from "../server/jobs.ts";
 import { runWorkerCodexHttp } from "../server/worker-codex-http.ts";
 import { runWorker } from "../server/worker.ts";
 
@@ -190,7 +190,25 @@ withProject(pid, async () => {
         sources: unit.sources.map((r) => r.split("/").pop()),
       });
       const prompt = ROLES() + recipe.body;
-      const job = enqueueJob(unit.photoId, prompt, cfg, "chatgpt", null, "edit", null, JSON.stringify(refs));
+      // I riferimenti si DICHIARANO, oltre che allegarli: e' la sola differenza
+      // fra «il refset prometteva lo stile» e «lo stile e' stato allegato». Le
+      // dodici varianti fuori bersaglio sono nate proprio nel buco fra le due.
+      const dichiarati = refs.map((r) => r.split("/").pop()!);
+      const job = enqueueJob(
+        unit.photoId, prompt, cfg, "chatgpt", null, "edit", null,
+        JSON.stringify(refs), null, null,
+        dichiarati.length ? JSON.stringify(dichiarati) : null,
+      );
+
+      // 4.4 — la contraddizione si dice subito, qui, dove si vede ancora da dove
+      // viene: un refset che promette «+ stile» con zero file e' esattamente la
+      // riga che nessuno ha letto per dodici generazioni.
+      if (/\+ (stile|rif)/.test(refset) && refs.length === 0) {
+        console.error(
+          `[gen] ATTENZIONE: il refset dice «${refset}» ma non c'e' nessun riferimento da allegare. ` +
+            `Il job ${job.id} generera' qualcosa di diverso da cio' che l'etichetta promette.`,
+        );
+      }
       db().run("UPDATE jobs SET status='running', started_at=?, attempts=attempts+1 WHERE id=?", [Date.now(), job.id]);
       const n = nextVersionNumber(unit.photoId);
       const dir = join(d.GEN_DIR, unit.photoId);
@@ -234,7 +252,13 @@ withProject(pid, async () => {
            VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', NULL, 0, 'generated', ?)`,
           [unit.photoId, n, out, prompt, cfg, lineage, Date.now()],
         );
-        db().run("UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?", [Number(ins.lastInsertRowid), Date.now(), job.id]);
+        const versionId = Number(ins.lastInsertRowid);
+        // Gli ingressi, oltre al lineage: questo script scrive la versione da se'
+        // e non passa dal worker, quindi senza queste righe le sue varianti
+        // resterebbero le uniche senza una relazione — cioe' proprio quelle che
+        // hanno piu' di una sorgente.
+        scriviIngressiVariante(versionId, unit.sources, refs);
+        db().run("UPDATE jobs SET status='done', result_version_id=?, finished_at=? WHERE id=?", [versionId, Date.now(), job.id]);
         ok++; streak = 0;
         console.log(`  ok  ${unit.label.slice(0, 14)} ${recipe.key} — ${res.size_kb}KB ${res.duration_s.toFixed(0)}s`);
       } else {

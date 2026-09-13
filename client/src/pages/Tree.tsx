@@ -51,6 +51,10 @@ type Group = {
   sources: string[];
   /** Style files attached to this generation, if any. */
   refs?: string[];
+  /** Gli ingressi sono DEDOTTI, non registrati: il database non sapeva da cosa
+   *  fosse nata questa variante e lo ha ricavato dalla foto a cui la riga era
+   *  appesa. Va detto, altrimenti un'inferenza si legge come un fatto. */
+  ingressi_dedotti?: boolean;
   variants: Variant[];
 };
 type Node = {
@@ -367,6 +371,12 @@ export default function TreePage() {
   }
 
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
+  // Varianti DISTINTE, non tessere. Una radice e' un insieme di scatti, quindi
+  // oggi ogni variante compare una volta sola; ma il conto va fatto sugli id e
+  // non sulla lunghezza della lista, perche' e' il numero che si confronta col
+  // database ed e' l'unico che resta vero se un giorno una variante comparisse
+  // sotto piu' radici.
+  const distinte = new Set(all.map((v) => v.id)).size;
   const kept = all.filter((v) => v.verdict === "keep");
   /** How many variants per verdict: a filter leading to an empty page should
    *  be known BEFORE clicking it, not after. */
@@ -505,10 +515,17 @@ export default function TreePage() {
                 are all shown: showing only one passed it off as the only shot
                 used, and it is why the others came out as "0 variants" despite
                 having contributed to all of them. */}
-            <span className="font-mono text-[10px] tracking-widest uppercase text-amber-500">
-              {(n.photos?.length ?? 1) > 1
-                ? `sorgenti ${String(i + 1).padStart(2, "0")} · ${n.photos!.length} scatti`
-                : `sorgente ${String(i + 1).padStart(2, "0")}`}
+            {/* L'identita', non la posizione nell'elenco.
+                «SORGENTE 01» era l'indice della radice nella lista: un numero che
+                cambia se cambia l'ordinamento e che non corrisponde a niente nel
+                database. Da quando una foto puo' comparire in piu' insiemi, non
+                vuol proprio piu' dire niente — e sotto la miniatura c'e' gia' il
+                nome vero, quindi l'etichetta contraddiceva la cosa che sta sopra. */}
+            <span
+              className="font-mono text-[10px] tracking-widest uppercase text-amber-500 truncate"
+              title={(n.photos ?? [n.photo]).join(", ")}
+            >
+              {(n.photos?.length ?? 1) > 1 ? `${n.photos!.length} scatti insieme` : n.photo}
             </span>
             {(n.photos?.length ?? 1) > 1 ? (
               <div className="grid grid-cols-2 gap-1">
@@ -529,9 +546,9 @@ export default function TreePage() {
                 className="w-full aspect-[4/5] object-cover bg-neutral-900 border border-neutral-700"
               />
             )}
-            <span className="text-xs truncate text-neutral-300" title={(n.photos ?? [n.photo]).join(", ")}>
-              {(n.photos?.length ?? 1) > 1 ? `${n.photos!.length} scatti insieme` : n.photo}
-            </span>
+            {/* Il nome sta una volta sola, sopra la miniatura: ripeterlo qui sotto
+                lo rendeva due volte la stessa cosa a due centimetri. Qui resta
+                cio' che il nome non dice. */}
             <span className="font-mono text-[11px] text-neutral-400">
               {n.variants} varianti · {n.recipes} ricette
             </span>
@@ -578,27 +595,58 @@ export default function TreePage() {
                     </span>
                   </div>
                 </div>
-                {/* The strip was needed when the left-hand column showed a single
-                    photo: now the root is already the set, so it repeats only
-                    if this group uses a set DIFFERENT from the root's (a case
-                    that does not arise today, but the data allows it). */}
-                {g.sources.length > 1 &&
-                  g.sources.join("|") !== (n.photos ?? [n.photo]).join("|") && (
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-400">
-                      da {g.sources.length} scatti
+                {/* Cosa e' ENTRATO in queste generazioni: gli scatti e, distinti da
+                    loro, i riferimenti di stile.
+
+                    Non e' piu' condizionata al «piu' di una sorgente». La
+                    condizione nasceva quando la colonna a sinistra mostrava una
+                    foto sola e la striscia serviva a correggerla; ma la domanda
+                    che chiude questa vista e' «cosa e' stato allegato davvero»,
+                    e su un gruppo con zero riferimenti la risposta giusta e'
+                    «nessuno», non il silenzio. E' il silenzio che ha lasciato
+                    passare dodici varianti generate senza lo stile che il refset
+                    prometteva. */}
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-400">
+                    da {g.sources.length} {g.sources.length === 1 ? "scatto" : "scatti"}
+                  </span>
+                  {g.sources.map((sid) => (
+                    <img
+                      key={sid}
+                      src={thumbRawUrl(sid, 120)}
+                      alt={`scatto in ingresso ${sid}`}
+                      title={sid}
+                      className="w-8 h-10 object-cover border border-neutral-700 bg-neutral-900"
+                    />
+                  ))}
+                  {/* I riferimenti hanno un bordo diverso: uno scatto di partenza e
+                      un file di stile fanno cose opposte alla stessa immagine, e
+                      allineati uguali si leggevano come la stessa cosa. */}
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-neutral-400 ml-2">
+                    {(g.refs?.length ?? 0) > 0
+                      ? `${g.refs!.length} rif.`
+                      : "nessun riferimento"}
+                  </span>
+                  {(g.refs ?? []).map((rf) => (
+                    <span
+                      key={rf}
+                      title={rf}
+                      className="font-mono text-[10px] px-1 py-0.5 border border-amber-700/70 text-amber-300
+                                 bg-amber-950/30 max-w-[10rem] truncate"
+                    >
+                      {rf.split("/").pop()}
                     </span>
-                    {g.sources.map((sid) => (
-                      <img
-                        key={sid}
-                        src={thumbRawUrl(sid, 120)}
-                        alt={`scatto in ingresso ${sid}`}
-                        title={sid}
-                        className="w-8 h-10 object-cover border border-neutral-700 bg-neutral-900"
-                      />
-                    ))}
-                  </div>
-                )}
+                  ))}
+                  {g.ingressi_dedotti && (
+                    <span
+                      title="Nessuno ha registrato gli ingressi di questa generazione: sono ricavati dalla foto a cui la versione era appesa."
+                      className="font-mono text-[10px] uppercase tracking-wide px-1 py-0.5
+                                 border border-neutral-700 text-neutral-500"
+                    >
+                      origine dedotta
+                    </span>
+                  )}
+                </div>
                 {/* The RESULTS on the left, the recipe on the right.
 
                     Above the variants, the recipe pushed them below the fold:
@@ -691,6 +739,7 @@ export default function TreePage() {
             Copia scelte
         </Bott>
         <span className="font-mono text-xs text-neutral-400 truncate">
+          {distinte} varianti ·{" "}
           {all.filter((v) => v.verdict === "maybe").length} forse ·{" "}
           {all.filter((v) => v.verdict === "discard").length} scartate ·{" "}
           {all.filter((v) => v.note).length} note

@@ -147,3 +147,80 @@ describe("a reference can be looked at, not only measured", () => {
     expect([400, 404]).toContain(r.status);
   });
 });
+
+/**
+ * Quando gli ingressi arrivano dalla TABELLA e non dal JSON.
+ *
+ * Due difetti veri, trovati guardando l'albero di `profilo` dopo il passaggio a
+ * `version_inputs`, ed entrambi silenziosi: una radice mostrava lo stesso scatto
+ * tre volte, e un'altra restava senza nemmeno la propria unica sorgente. Il
+ * secondo e' il piu' insidioso — una vista che si svuota non da' nessun errore,
+ * sembra solo un progetto senza storia.
+ */
+describe("ingressi dalla tabella", () => {
+  const ingresso = (
+    versionId: number,
+    kind: "source" | "reference",
+    path: string,
+    photoId: string | null,
+    position: number,
+    origin: "recorded" | "reconstructed" = "recorded",
+  ) =>
+    db().run(
+      `INSERT INTO version_inputs (version_id,kind,path,photo_id,position,origin) VALUES (?,?,?,?,?,?)`,
+      [versionId, kind, path, photoId, position, origin],
+    );
+
+  const albero = async () =>
+    (await (await app.request("/api/lineage")).json()) as {
+      photos: { photo: string; photos: string[]; variants: number; groups: { sources: string[]; refs?: string[]; ingressi_dedotti?: boolean }[] }[];
+    };
+
+  test("lo stesso scatto allegato due volte resta un ingresso solo", async () => {
+    // Non e' un caso di scuola: su `profilo` una radice dichiarava sei sorgenti
+    // di cui tre uguali, e oltre a ripetere la miniatura cambiava la CHIAVE
+    // della radice — due gruppi con gli stessi scatti finivano separati.
+    photo("a");
+    photo("b");
+    variant(1, ["a.png", "b.png"]);
+    const vid = db().query<{ id: number }, []>("SELECT id FROM versions").get()!.id;
+    ingresso(vid, "source", "/src/a.png", "a", 0);
+    ingresso(vid, "source", "/src/b.png", "b", 1);
+    ingresso(vid, "source", "/src/a.png", "a", 2);
+
+    const r = (await albero()).photos;
+    expect(r).toHaveLength(1);
+    expect(r[0]!.photos).toEqual(["a", "b"]);
+    expect(r[0]!.groups[0]!.sources).toEqual(["a", "b"]);
+  });
+
+  test("una sorgente registrata come id, e non come nome di file, non sparisce", async () => {
+    // Una foto GENERATA non ha un file di partenza che si chiami come lei: gli
+    // ingressi dedotti registrano l'id, e la traduzione da nome a id lo buttava.
+    // La radice restava senza sorgenti e la striscia senza niente da mostrare.
+    photo("gen_1");
+    variant(1, [], "gen_1");
+    const vid = db().query<{ id: number }, []>("SELECT id FROM versions").get()!.id;
+    ingresso(vid, "source", "gen_1", "gen_1", 0, "reconstructed");
+
+    const g = (await albero()).photos[0]!.groups[0]!;
+    expect(g.sources).toEqual(["gen_1"]);
+    // E si dichiara per quello che e': dedotto, non registrato.
+    expect(g.ingressi_dedotti).toBe(true);
+  });
+
+  test("i riferimenti allegati davvero arrivano alla vista", async () => {
+    // E' l'informazione per cui questa tabella esiste: il refset PROMETTEVA lo
+    // stile e gli allegati erano zero, per dodici generazioni, senza che
+    // nessuna schermata potesse dirlo.
+    photo("a");
+    variant(1, ["a.png"]);
+    const vid = db().query<{ id: number }, []>("SELECT id FROM versions").get()!.id;
+    ingresso(vid, "source", "/src/a.png", "a", 0);
+    ingresso(vid, "reference", "/refs/stile.png", null, 0);
+
+    const g = (await albero()).photos[0]!.groups[0]!;
+    expect(g.refs).toEqual(["/refs/stile.png"]);
+    expect(g.ingressi_dedotti).toBe(false);
+  });
+});

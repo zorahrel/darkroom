@@ -115,6 +115,37 @@ function scriviIngressi(versionId: number, job: JobRow, photoId: string): void {
   });
 }
 
+/**
+ * Gli ingressi di una variante scritta a mano dallo script delle varianti.
+ *
+ * Lo script salta il worker: accoda il job, lo marca fatto e scrive la versione
+ * da se'. Senza questa, proprio le sue varianti — quelle con piu' di una
+ * sorgente, cioe' le uniche per cui la tabella esiste — resterebbero le sole
+ * senza una relazione.
+ */
+export function scriviIngressiVariante(
+  versionId: number,
+  sorgenti: string[],
+  riferimenti: string[],
+): void {
+  const scrivi = db().prepare(
+    `INSERT OR IGNORE INTO version_inputs (version_id, kind, path, photo_id, position, origin)
+     VALUES (?, ?, ?, ?, ?, 'recorded')`,
+  );
+  sorgenti.forEach((p, i) => {
+    const nome = p.split("/").pop() ?? p;
+    const foto = db()
+      .query<{ id: string }, [string]>(
+        "SELECT id FROM photos WHERE original_path LIKE '%' || ? LIMIT 1",
+      )
+      .get(nome);
+    scrivi.run(versionId, "source", nome, foto?.id ?? null, i);
+  });
+  riferimenti.forEach((p, i) => {
+    scrivi.run(versionId, "reference", p.split("/").pop() ?? p, null, i);
+  });
+}
+
 export function enqueueJob(
   photoId: string,
   prompt: string,

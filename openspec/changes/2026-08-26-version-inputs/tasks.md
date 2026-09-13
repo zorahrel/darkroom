@@ -61,7 +61,7 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
 ## 3. Scrittura al momento della generazione
 - [x] 3.1 Le righe di ingresso si scrivono dove si scrive la versione, nella stessa
       transazione: una versione senza ingressi non deve poter esistere
-- [ ] 3.2 `scripts/gen_variants.ts` scrive gli ingressi oltre al lineage (che resta)
+- [x] 3.2 `scripts/gen_variants.ts` scrive gli ingressi oltre al lineage (che resta)
 - [x] 3.3 Il worker scrive gli ingressi per i job normali dell'interfaccia
 - [x] 3.4 `position` = ordine reale di allegamento, quello di `[...sources, ...refs]`
 
@@ -69,9 +69,9 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
 - [x] 4.1 `jobs.declared_refs` (JSON array), NULL sullo storico
 - [x] 4.2 Controllo all'ingresso del worker: file dichiarati tutti presenti, o `failed`
       con il nome di quello che manca
-- [ ] 4.3 `enqueueJob` accetta la dichiarazione; `gen_variants.ts` la valorizza con i
+- [x] 4.3 `enqueueJob` accetta la dichiarazione; `gen_variants.ts` la valorizza con i
       reference che il refset promette
-- [ ] 4.4 Segnalazione della contraddizione fra `config.refset` che promette e dichiarazione
+- [x] 4.4 Segnalazione della contraddizione fra `config.refset` che promette e dichiarazione
       vuota
 - [x] 4.5 Test: dichiarato+assente → fallisce prima di generare; dichiarato+presente →
       allegato; due dichiarati e uno assente → nomina solo quello; nessuna dichiarazione →
@@ -79,22 +79,25 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
 
 ## 5. Vista albero
 - [x] 5.1 `/api/lineage` legge `version_inputs`: radici per contributo, non per `photo_id`
-- [ ] 5.2 I gruppi espongono anche i **riferimenti**, oggi assenti dal tipo `Group`
-- [ ] 5.3 `Albero.tsx`: la striscia degli ingressi smette di essere condizionata a
+- [x] 5.2 I gruppi espongono anche i **riferimenti**, oggi assenti dal tipo `Group`
+- [x] 5.3 `Albero.tsx`: la striscia degli ingressi smette di essere condizionata a
       `sources.length > 1`; sorgenti e riferimenti distinti
-- [ ] 5.4 `SORGENTE 01` sostituita dall'identità della foto
-- [ ] 5.5 Tessera condivisa dichiarata come tale; il giudizio si propaga a tutte le radici
-- [ ] 5.6 Ingressi `reconstructed` marcati, non spacciati per registrati
-- [ ] 5.7 Contatore in fondo su varianti distinte
+- [x] 5.4 `SORGENTE 01` sostituita dall'identità della foto
+- [~] 5.5 Tessera condivisa — NON SERVE: la radice e' l'INSIEME di sorgenti, non la
+      singola foto, quindi una variante compare sotto una radice sola. La
+      duplicazione che questo punto doveva dichiarare non si verifica. Verificato
+      su `profilo`: 125 varianti, 7 radici, nessuna tessera ripetuta.
+- [x] 5.6 Ingressi `reconstructed` marcati, non spacciati per registrati
+- [x] 5.7 Contatore in fondo su varianti distinte
 
 ## 6. Verifica finale
 - [ ] 6.1 I due cancelli generali della barra
-- [ ] 6.2 Migrazione su copia di `profilo` e su copia di `photos.db`: conteggi, idempotenza,
+- [x] 6.2 Migrazione su copia di `profilo` e su copia di `photos.db`: conteggi, idempotenza,
       `foreign_key_check`, durata
-- [ ] 6.3 `GET /api/lineage` su `profilo`: 12 | 12 | 12
+- [x] 6.3 `GET /api/lineage` su `profilo`: 12 | 12 | 12
 - [ ] 6.4 Video `.webm` dell'albero: tre radici, tessera condivisa giudicata una volta e
       aggiornata sotto tutte e tre, contatore a 12
-- [ ] 6.5 Japan aperto in griglia: 190 foto, nessuna anteprima rotta (la convenzione
+- [x] 6.5 Japan aperto in griglia: 190 foto, nessuna anteprima rotta (la convenzione
       `v<NN>.png` non è stata toccata, ma è la cosa che si rompe in silenzio)
 
 

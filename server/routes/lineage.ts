@@ -130,6 +130,7 @@ lineageRoutes.get("/api/lineage", (c) => {
   // extension.
   const byBasename = new Map(photos.map((p) => [p.original_path.split("/").pop() ?? "", p.id]));
   const favOf = new Map(photos.map((p) => [p.id, p.favorite_version_id]));
+  const idsNoti = new Set(photos.map((p) => p.id));
 
   // Gli ingressi veri, dalla tabella che li modella.
   //
@@ -139,7 +140,11 @@ lineageRoutes.get("/api/lineage", (c) => {
   // propria verita' rileggendo ogni volta una stringa. Ora la verita' e'
   // `version_inputs`; il lineage resta per cio' che NON e' un ingresso — la
   // ricetta, il refset, il preambolo — che sono istruzioni.
-  type Ingressi = { sources: string[]; refs: string[]; dedotti: boolean };
+  // `nomi` sono i nomi dei file come sono stati registrati — piu' avanti una
+  // passata li traduce in id per le anteprime, e li' un id gia' tradotto verrebbe
+  // buttato. `ids` e' l'identita' quando si risolve, e serve a dire QUALE insieme
+  // di scatti e' la radice.
+  type Ingressi = { nomi: string[]; ids: string[]; refs: string[]; dedotti: boolean };
   const ingressiPer = new Map<number, Ingressi>();
   for (const r of db()
     .query<
@@ -151,11 +156,14 @@ lineageRoutes.get("/api/lineage", (c) => {
     )
     .all()) {
     let e = ingressiPer.get(r.version_id);
-    if (!e) ingressiPer.set(r.version_id, (e = { sources: [], refs: [], dedotti: false }));
+    if (!e) ingressiPer.set(r.version_id, (e = { nomi: [], ids: [], refs: [], dedotti: false }));
     if (r.kind === "source") {
+      const nome = r.path.split("/").pop() ?? r.path;
+      e.nomi.push(nome);
       // L'identita' quando c'e', il nome quando la foto non si risolve: un
-      // ingresso mezzo noto resta un ingresso.
-      e.sources.push(r.photo_id ?? r.path);
+      // ingresso mezzo noto resta un ingresso, e due insiemi diversi non devono
+      // fondersi in uno solo perche' un nome non si e' tradotto.
+      e.ids.push(r.photo_id ?? nome);
       if (r.origin === "reconstructed") e.dedotti = true;
     } else {
       e.refs.push(r.path);
@@ -189,6 +197,7 @@ lineageRoutes.get("/api/lineage", (c) => {
         preamble: string | null;
         sources: string[];
         refs: string[];
+        ingressi_dedotti: boolean;
         variants: unknown[];
       }
     >;
@@ -201,10 +210,16 @@ lineageRoutes.get("/api/lineage", (c) => {
     // La tabella vince. Il lineage resta come ripiego per le versioni che la
     // migrazione non ha ancora toccato — in pratica nessuna, ma tenerlo evita
     // che una vista diventi vuota se qualcuno rilancia la migrazione a meta'.
-    const nomi = reali && reali.sources.length > 0 ? reali.sources : cfg.sources;
+    const registrati = reali && reali.nomi.length > 0;
+    // Un insieme di ingressi e' un INSIEME: lo stesso file allegato due volte e'
+    // un ingresso solo. Senza questo la stessa miniatura compariva tre volte
+    // nella striscia, e — peggio — la chiave della radice cambiava, quindi due
+    // gruppi con gli stessi scatti finivano in due radici diverse.
+    const unici = <T,>(v: T[]): T[] => [...new Set(v)];
+    const nomi = unici(registrati ? reali!.nomi : cfg.sources);
     // Names that do not resolve to a known photo do not vanish: they stay in the
     // identity of the set, otherwise two different sets would merge into one.
-    const ids = nomi.map((f) => byBasename.get(f) ?? f);
+    const ids = unici(registrati ? reali!.ids : nomi.map((f) => byBasename.get(f) ?? f));
     const members = ids.length > 0 ? ids : [v.photo_id];
     const key = [...members].sort().join("\u0000");
     if (!roots.has(key))
@@ -222,6 +237,11 @@ lineageRoutes.get("/api/lineage", (c) => {
         // E' esattamente la differenza che ha prodotto dodici varianti fuori
         // bersaglio: il refset diceva «+ stile», gli allegati erano zero.
         refs: reali && reali.refs.length > 0 ? reali.refs : cfg.refs,
+        // Se gli ingressi di questo gruppo sono DEDOTTI e non registrati. La
+        // vista deve poterlo dire: senza, ricreerebbe in forma relazionale la
+        // stessa bugia che la tabella sta correggendo — un'inferenza mostrata
+        // con la stessa faccia di un fatto.
+        ingressi_dedotti: reali?.dedotti ?? true,
         variants: [],
       });
     root.groups.get(gkey)!.variants.push({
@@ -264,14 +284,19 @@ lineageRoutes.get("/api/lineage", (c) => {
       })(),
       /** The names of the input files, as they were recorded. `sources` on the
        *  group is translated into photo ids for the thumbnails and loses the
-       *  names that do not resolve; the real ones stay here. */
-      source_files: cfg.sources,
+       *  names that do not resolve; the real ones stay here.
+       *
+       *  Dalla tabella, come il gruppo: leggendo ancora il JSON la scheda
+       *  diceva «nessuna sorgente registrata» due centimetri sotto una striscia
+       *  che ne mostrava una — la stessa versione, due risposte diverse, e
+       *  quella sbagliata era la piu' vicina all'immagine. */
+      source_files: nomi,
       /** The corresponding photo ids, for requesting the thumbnail. The client
        *  cannot derive them from the name: "1.PNG" -> "1" works by accident,
        *  and on a file with an unexpected extension it would give a broken
        *  image. */
-      source_ids: cfg.sources.map((f) => byBasename.get(f) ?? null),
-      file_refs: cfg.refs,
+      source_ids: registrati ? reali!.ids : nomi.map((f) => byBasename.get(f) ?? null),
+      file_refs: reali && reali.refs.length > 0 ? reali.refs : cfg.refs,
       // Is the file really there?
       //
       // On 27/08 two covers were recorded with a path outside the convention:
@@ -298,7 +323,13 @@ lineageRoutes.get("/api/lineage", (c) => {
     .sort((a, b) => mostRecent(b) - mostRecent(a))
     .map((r) => {
     for (const g of r.groups.values()) {
-      g.sources = g.sources.map((f) => byBasename.get(f)).filter((x): x is string => !!x);
+      // Da nome di file a id foto, per l'anteprima. Un valore che E' GIA' un id
+      // passa com'e': gli ingressi dedotti registrano l'id della foto (una foto
+      // generata non ha un file di partenza con quel nome), e la traduzione per
+      // nome li buttava — la radice restava senza nemmeno la sua unica sorgente.
+      g.sources = g.sources
+        .map((f) => byBasename.get(f) ?? (idsNoti.has(f) ? f : null))
+        .filter((x): x is string => !!x);
       // Inside the group too: the latest attempt first.
       g.variants.sort(
         (x, y) => (y as { created_at: number }).created_at - (x as { created_at: number }).created_at,
