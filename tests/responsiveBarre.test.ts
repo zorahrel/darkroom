@@ -44,7 +44,13 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     // Misurava 86 px su due righe a 390.
     expect(app).toContain('"fila-scorre flex flex-wrap items-center gap-2 min-w-0 max-w-full"');
     // Intestazione, blocco 3: allarmi + lavori + Esporta. Misurava 96 px.
-    expect(app).toContain('"fila-scorre flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto"');
+    // Si cerca il blocco, non la stringa intera: le classi attorno cambiano (la
+    // riga tutta sua ora se la prende solo da `md` in su, perche' sul telefono i
+    // lavori sono scesi nella barra in fondo e restava una riga quasi vuota).
+    // Cio' che non deve cambiare e' che scorra.
+    const blocco3 = /className="([^"]*lg:ml-auto[^"]*)"/.exec(app)?.[1] ?? "";
+    expect(blocco3).toContain("fila-scorre");
+    expect(blocco3).toContain("lg:w-auto");
     // Barra dei filtri della griglia: quattro righe di chip su un telefono.
     expect(grid).toContain("fila-scorre flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs");
   });

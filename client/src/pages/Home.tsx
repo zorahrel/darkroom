@@ -146,8 +146,12 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
       <div className="sticky top-[var(--h-header,57px)] z-20 -mx-4 px-4 py-2 bg-neutral-950/90 backdrop-blur
                       border-y border-neutral-800 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…" />
-          <div className="flex items-center gap-1 flex-wrap">
+          <Search value={search} onChange={setSearch} placeholder="cerca uno strumento…"
+                  className="w-full sm:w-auto" />
+          {/* Una riga sola che scorre col dito, non due che vanno a capo: a 390 px
+              i sette mestieri occupavano due righe intere -- 180 px prima di vedere
+              uno strumento -- e la seconda riga sembrava un gruppo a parte. */}
+          <div className="fila-scorre flex flex-1 items-center gap-1 flex-wrap min-w-0 max-w-full">
             <Filter active={area === "all"} onClick={() => setArea("all")} n={counts.all ?? 0}>
               tutti
             </Filter>
@@ -169,7 +173,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
               mentre e' un interruttore che vale su tutti. Le due righe della barra
               ora cominciano e finiscono nello stesso punto. */}
           <Bott
-            className="ml-auto"
+            className="shrink-0 sm:ml-auto"
             size="m"
             weight="quiet"
             active={onlyReady}
@@ -191,7 +195,7 @@ function Tools({ cat, projects }: { cat: Catalogue | null; projects: StudioProje
             che con quel progetto non c'entravano. Ora lo si sceglie sul tasto che lo
             usa, nel momento in cui lo si usa. */}
         {cat && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="hidden sm:flex flex-wrap items-center gap-1.5">
             {Object.entries(cat.requirements).map(([name, r]) => (
               <Badge key={name} tone={r.ok ? "good" : "waiting"} title={r.how}>
                 {r.ok ? "●" : "○"} {name}

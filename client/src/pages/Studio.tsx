@@ -139,8 +139,12 @@ export default function StudioPage() {
           different questions, so two groups, not one single list in which
           «video» and «paused» exclude each other for no reason. */}
       <Toolbar>
-        <Search value={search} onChange={setSearch} placeholder="cerca un progetto…" />
-        <div className="flex items-center gap-1">
+        <Search value={search} onChange={setSearch} placeholder="cerca un progetto…"
+                className="w-full sm:w-auto" />
+        {/* Righe che scorrono, non che vanno a capo: a 390 px questi tre gruppi
+            facevano tre righe intere, e «in corso» e «da sistemare» si spezzavano
+            in due su due righe di testo dentro una linguetta alta 28. */}
+        <div className="fila-scorre flex items-center gap-1 min-w-0 max-w-full">
           <Filter active={view === "all"} onClick={() => setView("all")} n={count.all}>tutti</Filter>
           {VIEWS.map((v) => (
             <Filter key={v.id} active={view === v.id} onClick={() => setView(v.id)}
@@ -149,16 +153,16 @@ export default function StudioPage() {
             </Filter>
           ))}
         </div>
-        <span className="w-px h-4 bg-neutral-800" aria-hidden />
-        <div className="flex items-center gap-1">
+        <span className="hidden sm:block w-px h-4 bg-neutral-800" aria-hidden />
+        <div className="fila-scorre flex items-center gap-1 min-w-0 max-w-full">
           {STATES.map(([id, label, title, Segno]) => (
             <Filter key={id} active={state === id} title={title} icon={Segno}
                     onClick={() => setState(state === id ? "all" : id)}
                     n={count[id]}>{label}</Filter>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[11px] text-neutral-400">
-          ordina
+        <div className="fila-scorre flex items-center gap-1 text-[11px] text-neutral-400 sm:ml-auto min-w-0 max-w-full">
+          <span className="shrink-0">ordina</span>
           {([["recent", "recenti", Clock], ["name", "nome", ArrowDownAZ], ["largest", "più grandi", ArrowDown01]] as const)
             .map(([id, text, Segno]) => (
             <Bott key={id} size="s" weight="quiet" onClick={() => setSortOrder(id)} active={sortOrder === id}>

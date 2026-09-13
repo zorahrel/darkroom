@@ -605,7 +605,10 @@ export function Other({
                 // questi minimi era 27x17, cioe' sotto la soglia sotto la quale si
                 // preme quello accanto.
                 ? (triggerClass ?? "inline-flex items-stretch leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0")
-                : `px-1 py-0.5 rounded-sm leading-none transition-colors
+                // Anche qui i minimi sul telefono: era 24x20, e i tre puntini di
+                // una riga finivano a due millimetri da quelli della riga sotto.
+                : `px-1 py-0.5 rounded-sm leading-none transition-colors inline-flex items-center
+                   justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0
                    ${open ? "text-neutral-100 bg-neutral-800" : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70"}`}>
         {trigger ? trigger(open) : <MoreHorizontal className="w-4 h-4" aria-hidden />}
       </button>
@@ -740,15 +743,16 @@ export function Filter({
 
 /** The search field of a filter bar: the lens goes inside, not beside. */
 export function Search({
-  value, onChange, placeholder, width = "13rem",
+  value, onChange, placeholder, width = "13rem", className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   width?: string;
+  className?: string;
 }) {
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       <SearchIcon className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" aria-hidden />
       <input
         value={value}
@@ -758,10 +762,12 @@ export function Search({
           if (e.key === "Escape") onChange("");
         }}
         placeholder={placeholder}
-        style={{ width: width }}
-        className="appearance-none bg-neutral-950 border border-neutral-700 rounded-sm pl-7 pr-2 py-1
-                   text-[12px] text-neutral-100 placeholder:text-neutral-500 outline-none
-                   focus:border-neutral-300"
+        style={{ width: className.includes("w-") ? undefined : width }}
+        // 44 px di altezza fino al tablet: un campo da 28 si centra col pollice
+        // solo dopo due tentativi, e il primo cade sul filtro sotto.
+        className={`appearance-none bg-neutral-950 border border-neutral-700 rounded-sm pl-7 pr-2 py-1
+                    min-h-11 sm:min-h-0 text-[12px] text-neutral-100 placeholder:text-neutral-500
+                    outline-none focus:border-neutral-300 ${className.includes("w-") ? "w-full" : ""}`}
       />
     </div>
   );

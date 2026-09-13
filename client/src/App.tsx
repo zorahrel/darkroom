@@ -1,5 +1,5 @@
 import { nelGuscioDesktop } from "./guscio";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { ALTEZZA_BARRA } from "./barra";
 import { Trascina } from "./components/Trascina";
@@ -240,7 +240,10 @@ export default function App() {
             >
               Darkroom
             </Link>
-            <nav className="flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
+            {/* Sotto i 768 px questi due piani stanno in fondo, in `BarraSotto`:
+                in cima rubavano la prima riga al titolo e mettevano la navigazione
+                piu' lontana dal pollice di qualunque altra cosa. */}
+            <nav className="hidden md:flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 shrink-0">
               <ViewTab to="/" icon={ScanSearch} current={location.pathname === "/" || location.pathname === "/tools"}>
                 Strumenti
               </ViewTab>
@@ -334,7 +337,11 @@ export default function App() {
               as the navigation: and it does not fit there, so it broke in half
               in a crooked way. At `lg:` (1024px) either you sit comfortably on
               one row, or you get two clean ones. */}
-          <div className="fila-scorre flex items-center gap-2 flex-wrap w-full lg:w-auto lg:ml-auto">
+          {/* Sul telefono questo gruppo e' quasi vuoto -- i lavori e il registro sono
+              scesi in fondo -- e prendersi una riga intera per la sola spesa voleva
+              dire sessanta pixel di niente sopra il contenuto. Li' sta in linea col
+              titolo; la riga sua se la prende da `md` in su, dove ha roba dentro. */}
+          <div className="fila-scorre flex items-center gap-2 flex-wrap ml-auto md:ml-0 md:w-full lg:w-auto lg:ml-auto">
             {/* The bar's hierarchy: the alarms first because they change what
                 you can do, then the window's switches, then the jobs, and last
                 the only filled action — which exists only where it makes sense.
@@ -378,13 +385,20 @@ export default function App() {
                 cosa che Darkroom sa fare né una cosa su cui la stai facendo. È
                 il diario di quello che è già successo, e sta con gli altri
                 indicatori — i lavori, la spesa, la salute del browser. */}
+            {/* Nascosto dal contenitore e non dalla classe sul bottone: `hidden` e
+                `inline-flex` sono tutte e due utilita' di display, e nella stessa
+                classe vince quella che il foglio scrive dopo -- che non e'
+                `hidden`. Sul telefono questi due stanno nella barra in fondo. */}
+            <span className="hidden md:contents">
             <Bott size="m" weight="quiet" active={location.pathname === "/activity"}
                   onClick={() => navigate("/activity")}
                   title="Il registro delle chiamate MCP: cosa è stato fatto, quando, e com'è andata">
               <Logs  aria-hidden />
               <span className="hidden xl:inline">Registro</span>
             </Bott>
+            </span>
 
+            <span className="hidden md:contents">
             <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
               <ListOrdered  aria-hidden />
@@ -393,6 +407,7 @@ export default function App() {
                 {activeJobs > 0 ? `${activeJobs} in corso` : "fermi"}
               </span>
             </Bott>
+            </span>
 
             {/* Spent, not "remaining": the balance is not readable with a project
                 key (403, the api.usage.read scope is missing), and an invented
@@ -451,9 +466,22 @@ export default function App() {
           result was that every other page began glued to the title bar. Now the
           space is there, and whoever does not want it — whoever takes the full
           height — declares so. */}
-      <main className={`flex-1 w-full max-w-none px-4 pb-4 ${flush ? "pt-0" : "pt-4"}`}>
+      {/* Lo spazio in fondo e' quello della barra piu' quello che il telefono si
+          tiene sotto (la tacca inferiore): senza, l'ultima riga finisce coperta e
+          non c'e' modo di scorrerla piu' in su. */}
+      <main
+        className={`flex-1 w-full max-w-none px-4 pb-4 ${flush ? "pt-0" : "pt-4"}`}
+        style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}
+      >
         <Outlet context={{ jobs, activeJobs, flush, setFlush, railOpen, setRailOpen }} />
       </main>
+
+      <BarraSotto
+        progetti={projects.length}
+        inCorso={activeJobs}
+        lavoriAperti={showJobs}
+        apriLavori={() => setShowJobs((v) => !v)}
+      />
 
       {showJobs && jobs && (
         <JobsPanel
@@ -568,6 +596,92 @@ function ProjectMenu({
 }
 
 /** One view of the active project, inside the segmented group. */
+/**
+ * La navigazione, in fondo, sul telefono.
+ *
+ * I due piani -- cio' che Darkroom sa fare e cio' su cui lo stai facendo -- in
+ * cima rubavano la prima riga al titolo e stavano nel punto piu' lontano dal
+ * pollice. Qui sotto sono raggiungibili senza cambiare presa, e la riga in cima
+ * torna a dire solo dove sei.
+ *
+ * Tre voci e non di piu': con quattro ognuna scende sotto i 90 px e si preme
+ * quella accanto. Il registro e la spesa restano in cima, dove si leggono e non
+ * si premono.
+ */
+function BarraSotto({
+  progetti, inCorso, lavoriAperti, apriLavori,
+}: {
+  progetti: number;
+  inCorso: number;
+  lavoriAperti: boolean;
+  apriLavori: () => void;
+}) {
+  const location = useLocation();
+  const suStrumenti = location.pathname === "/" || location.pathname === "/tools";
+  const suProgetti = location.pathname.startsWith("/studio") || location.pathname.startsWith("/p/");
+
+  return (
+    <nav
+      // `env(safe-area-inset-bottom)` e' la fascia che il telefono si tiene per la
+      // barra di sistema: senza, l'ultima voce ci finisce sotto e si preme lei.
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-neutral-800
+                 bg-neutral-950/95 backdrop-blur"
+      aria-label="Navigazione principale"
+    >
+      <div className="flex items-stretch">
+        <VoceSotto to="/" icon={ScanSearch} attiva={suStrumenti}>Strumenti</VoceSotto>
+        <VoceSotto to="/studio" icon={LayoutGrid} attiva={suProgetti} conta={progetti}>Progetti</VoceSotto>
+        <VoceSotto onClick={apriLavori} icon={ListOrdered} attiva={lavoriAperti}
+                   conta={inCorso > 0 ? inCorso : undefined} acceso={inCorso > 0}>
+          Lavori
+        </VoceSotto>
+      </div>
+    </nav>
+  );
+}
+
+function VoceSotto({
+  to, onClick, icon: I, attiva, conta, acceso, children,
+}: {
+  to?: string;
+  onClick?: () => void;
+  icon: LucideIcon;
+  attiva: boolean;
+  conta?: number;
+  acceso?: boolean;
+  children: ReactNode;
+}) {
+  // 56 px di altezza: sopra la soglia dei 44 con margine, e senza margine non si
+  // prende col pollice in movimento.
+  const classe =
+    "flex-1 min-h-14 flex flex-col items-center justify-center gap-0.5 text-[11px] " +
+    "transition-colors " +
+    (attiva ? "text-neutral-100" : "text-neutral-400 active:text-neutral-100");
+  const dentro = (
+    <>
+      <span className="relative">
+        <I className="w-5 h-5" aria-hidden />
+        {conta !== undefined && conta > 0 && (
+          <span className={"absolute -top-1 -right-2 rounded-full px-1 text-[9px] leading-[14px] tabular-nums " +
+                           (acceso ? "bg-sky-500 text-neutral-950" : "bg-neutral-800 text-neutral-300")}>
+            {conta}
+          </span>
+        )}
+      </span>
+      {children}
+      {/* La linguetta attiva si vede da una barretta, non solo dal colore: il
+          colore da solo non basta a chi non lo distingue. */}
+      <span className={"h-0.5 w-6 rounded-full " + (attiva ? "bg-neutral-100" : "bg-transparent")} aria-hidden />
+    </>
+  );
+  return to ? (
+    <Link to={to} className={classe} aria-current={attiva ? "page" : undefined}>{dentro}</Link>
+  ) : (
+    <button type="button" onClick={onClick} className={classe} aria-pressed={attiva}>{dentro}</button>
+  );
+}
+
 function ViewTab({
   to,
   current,

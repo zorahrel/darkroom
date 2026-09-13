@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { fotogrammaUrl, thumbRawUrlDi } from "../client/src/api/urls";
 import { assoluto, radiceApi } from "../client/src/api/http";
 
@@ -109,5 +110,33 @@ describe("l'albero dice quando non si carica, invece di restare in attesa", () =
     expect(load).toContain("setErrore");
     // E il fallimento deve avere una via d'uscita a schermo, non solo in stato.
     expect(src).toContain("Riprova");
+  });
+});
+
+/**
+ * La navigazione in fondo esiste solo sul telefono, e lassu' non deve restare.
+ *
+ * Sono due barre che dicono le stesse cose: se una smettesse di nascondersi si
+ * vedrebbero tutte e due, e nessun errore lo direbbe. La prova guarda la sorgente
+ * perche' il guasto e' esattamente una classe dimenticata.
+ */
+describe("la barra in fondo", () => {
+  const app = readFileSync(new URL("../client/src/App.tsx", import.meta.url), "utf8");
+
+  test("si nasconde da md in su, dove la navigazione torna in cima", () => {
+    const barra = /<nav[^>]*aria-label="Navigazione principale"[\s\S]{0,400}?>/.exec(app)?.[0] ?? "";
+    expect(barra).toContain("md:hidden");
+    expect(barra).toContain("fixed");
+    // Lo spazio che il telefono si tiene sotto: senza, l'ultima voce ci finisce
+    // sotto e si preme quella di sistema.
+    expect(barra).toContain("env(safe-area-inset-bottom)");
+  });
+
+  test("e la navigazione in cima si nasconde sotto md, per non esserci due volte", () => {
+    expect(app).toMatch(/className="hidden md:flex[^"]*"[\s\S]{0,200}?Strumenti/);
+  });
+
+  test("il contenuto lascia spazio alla barra, invece di finirci sotto", () => {
+    expect(app).toMatch(/paddingBottom: "calc\([^"]*safe-area-inset-bottom[^"]*\)"/);
   });
 });
