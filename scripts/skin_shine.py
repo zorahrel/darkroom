@@ -16,6 +16,13 @@ IL NUMERO.
   area%    percentuale di pixel del viso che stanno oltre meta' di quel picco E
            sono desaturati: la macchia lucida vera e propria.
 
+NON VALE SU UN'IMMAGINE DESATURATA A POSTERIORI. Il criterio "chiaro E
+desaturato" presume che i pixel desaturati siano riflessi speculari. Se la
+pelle e' stata desaturata a tavolino (skin_desaturate.py) quel presupposto
+salta e l'area esplode senza che il lucido sia cambiato: misurato il 09/09 su
+v113, area 0,14% -> 11,69% con il canale L identico (differenza media 0,13 su
+100). In quel caso si guarda L, non questa colonna.
+
 QUALE DEI DUE GUARDARE: l'AREA, non il picco. Tarato l'08/09 sul selfie vero
 dell'utente e sulla v94 che ha giudicato "pelle grassa":
 
