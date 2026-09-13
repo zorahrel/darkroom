@@ -33,6 +33,25 @@ USO
     python3 scripts/key_direction.py refs/luce-bg-studio-blu.png gen/v119.png …
 
 Esce 1 se l'ultimo file ha la chiave dal basso (alto-basso <= 0).
+
+LA CAUSA, trovata il 09/09 misurando le sorgenti invece dei render.
+
+    reference (altra persona)   +19,8   chiave ALTA
+    RAW/1.PNG (tua)              -3,8   dal basso
+    RAW/56E4... (tua)           -11,8   dal basso
+    v94  (con ref allegata)     -12,9   dal basso
+    v119 (reverse a parole)     -14,6   dal basso
+
+Entrambe le tue foto sorgente sono illuminate DAL BASSO (telefono tenuto in
+basso, luce d'ambiente). L'edit PRESERVA la luce del viso che trova nella foto
+in ingresso: nessun prompt la ribalta, e non la ribalta nemmeno allegare la
+reference (v94 ce l'aveva e misura -12,9). Sei tiri spesi a riscrivere il
+blocco luce non hanno spostato il segno.
+
+Conseguenza operativa: la direzione della chiave si cambia solo cambiando la
+FOTO SORGENTE — serve uno scatto illuminato dall'alto. Misurare questo numero
+sulle sorgenti, prima di generare, evita di inseguire in prompt una proprieta'
+che il prompt non governa.
 """
 import json
 import subprocess
