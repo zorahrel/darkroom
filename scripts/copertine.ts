@@ -75,7 +75,7 @@ const STILE =
 const FOTOGRAFIE: Record<string, string> = {
   generate: "una strada di citta' al tramonto",
   prompt: "montagne innevate",
-  color: "un ritratto in primo piano",
+  color: "Una sola fotografia stampata sospesa sul nero, che occupa quasi tutta l'inquadratura, divisa esattamente a meta' da una linea verticale netta: la meta' SINISTRA in bianco e nero piatto e slavato, la meta' DESTRA a COLORI PIENI, CALDI E SATURI. Nell'immagine non c'e' nient'altro: niente stampante, niente schermo, niente monitor, niente boccette d'inchiostro, niente tavolo, niente mani, nessun secondo oggetto di alcun tipo",
   export: "architettura moderna di vetro",
   pipeline: "un molo sul mare",
   quality: "una strada di citta' di notte con le luci",
@@ -99,7 +99,7 @@ const FOTOGRAFIE: Record<string, string> = {
 const SOGGETTI: Record<string, string> = {
   generate: "A sinistra due cose che entrano: in alto un campo di testo scuro con dentro scritto \"a quiet street at sunset\" (l'unica scritta ammessa in tutta la serie, perche' e' il soggetto stesso), in basso una cartella aperta con dentro tre fotografie. A destra, piu' grande, quello che esce: una sola fotografia incorniciata di una strada al tramonto",
   prompt: "A sinistra tre cursori su un pannello scuro. A destra la stessa fotografia due volte, una sopra l'altra: quella in alto piatta e slavata, quella in basso contrastata e viva",
-  color: "Una sola fotografia di paesaggio, grande, divisa a meta' da una linea verticale netta: la meta' sinistra piatta e desaturata, la meta' destra sviluppata con colore e contrasto pieni",
+  color: "UNA SOLA fotografia stampata, grande e al centro, e nient'altro nell'immagine: e' divisa esattamente a meta' da una linea verticale netta, la meta' sinistra grigia e slavata, la meta' destra a colori pieni e contrastata. Nessun libro, nessun secondo oggetto, nessuno schermo",
   export: "A sinistra tre fotografie stampate in fila che entrano. A destra una cartella aperta che le riceve",
   pipeline: "La stessa fotografia tre volte, in fila da sinistra a destra: grigia e piatta, poi sviluppata, poi finita e incorniciata. Nessuna etichetta sotto: la differenza si vede nelle tre immagini",
   quality: "A sinistra una fotografia grande. A destra una lente d'ingrandimento che ne ingrandisce un angolo, e dentro la lente si vede che quel punto e' mosso e sfocato",
