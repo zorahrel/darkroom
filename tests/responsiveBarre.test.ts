@@ -131,7 +131,7 @@ describe("quale versione sto guardando si legge dal titolo", () => {
     // a 438 px sforavano di 10 px e la pagina si trascinava di lato.
     const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
     const nav = /<nav className="([^"]*rounded-md bg-neutral-900[^"]*)"/g;
-    const classi = [...app.matchAll(nav)].map((m) => m[1]);
+    const classi = [...app.matchAll(nav)].map((m) => m[1] ?? "");
     const visibili = classi.filter((c) => !c.includes("hidden md:flex"));
     expect(visibili.length).toBeGreaterThan(0);
     for (const c of visibili) expect(c).toContain("fila-scorre");

@@ -260,7 +260,147 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_collage_photos ON collage_photos(collage_id, position)`,
   `CREATE INDEX IF NOT EXISTS idx_collages_collection ON collages(collection_id, position)`,
+
+  // Cosa e' entrato davvero in una generazione, e in che ordine.
+  //
+  // Lo schema diceva «una versione appartiene a una foto» (`versions.photo_id`,
+  // NOT NULL con chiave esterna) e il lavoro vero lo smentiva: una variante di
+  // `profilo` nasce da TRE scatti piu' una reference di stile. Tutto cio' che
+  // eccedeva la singola foto viveva in `versions.lineage`, JSON dentro una colonna
+  // TEXT: nessun vincolo, non interrogabile, e nessuno si accorgeva se restava
+  // vuota. Misurato su `profilo`: 12 versioni su 12 dichiaravano piu' di una
+  // sorgente, e ZERO di quelle 36 righe era una relazione nel database.
+  //
+  // `path` c'e' sempre: e' il file allegato davvero. `photo_id` e' l'identita',
+  // quando l'ingresso e' una foto del progetto e il nome si risolve. Averli
+  // separati non e' ridondanza -- con `ON DELETE SET NULL` su `photo_id`,
+  // cancellare una foto lascia una riga che dice ancora QUALE file e' entrato,
+  // invece di far fallire la cancellazione su un CHECK.
+  //
+  // `position` sta nella chiave primaria, e non e' estetica: e' cio' che rende la
+  // migrazione ripetibile con `INSERT OR IGNORE`, senza una tabella di stato che
+  // questo progetto non ha.
+  `CREATE TABLE IF NOT EXISTS version_inputs (
+    version_id INTEGER NOT NULL REFERENCES versions(id) ON DELETE CASCADE,
+    kind       TEXT    NOT NULL CHECK (kind IN ('source','reference')),
+    path       TEXT    NOT NULL,
+    photo_id   TEXT    REFERENCES photos(id) ON DELETE SET NULL,
+    position   INTEGER NOT NULL DEFAULT 0,
+    origin     TEXT    NOT NULL DEFAULT 'recorded'
+                       CHECK (origin IN ('recorded','reconstructed')),
+    PRIMARY KEY (version_id, kind, position),
+    CHECK (kind = 'source' OR photo_id IS NULL)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_version_inputs_photo
+     ON version_inputs(photo_id, version_id) WHERE photo_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_version_inputs_ref
+     ON version_inputs(path) WHERE kind = 'reference'`,
 ];
+
+/**
+ * Riempie `version_inputs` per le versioni che non ce l'hanno ancora.
+ *
+ * Tre fonti, in ordine di precedenza, e nessuna invenzione:
+ *
+ *   1. `lineage.sources` / `lineage.refs` — cio' che era stato registrato al
+ *      momento della generazione. `origin='recorded'`.
+ *   2. `jobs.ref_paths` del job che ha prodotto la versione, quando il lineage
+ *      non dice niente sui riferimenti: quel job quei file li ha allegati
+ *      davvero. `origin='recorded'`.
+ *   3. `versions.photo_id` come unica sorgente, quando ne' 1 ne' 2 dicono
+ *      niente. `origin='reconstructed'` — ed e' il caso MAGGIORITARIO: sul DB
+ *      del repo 2733 versioni su 3007 non hanno nemmeno un job collegato.
+ *      Marcarle come dedotte e' cio' che impedisce alla vista di spacciarle per
+ *      registrate.
+ *
+ * Ripetibile senza una tabella di stato delle migrazioni — che questo progetto
+ * non ha, e introdurla qui sarebbe un secondo cambiamento travestito. A renderla
+ * tale ci sono DUE cose, e misurandole si e' visto che bastano una per una:
+ * togliere il `NOT EXISTS` lascia le prove verdi (le riscritture cadono sulla
+ * chiave composta), e togliere l'`INSERT OR IGNORE` pure (le versioni gia'
+ * fatte non vengono nemmeno guardate). Restano tutte e due perche' rispondono a
+ * domande diverse: il filtro evita di ripercorrere tremila versioni a ogni
+ * avvio, la chiave e' cio' che impedisce due ingressi nella stessa posizione —
+ * e quella e' una regola dello schema, non un'ottimizzazione.
+ */
+function popolaVersionInputs(d: Database): void {
+  // Una mappa per nome di file: i nomi nel lineage sono basename («1.PNG»,
+  // «ChatGPT Image Aug 15….png») e vanno ricondotti a un id quando si puo'.
+  // Quando non si puo', la riga si scrive lo stesso col nome grezzo: un ingresso
+  // mezzo noto resta un ingresso, e buttarlo sarebbe lo stesso silenzio che
+  // questa tabella corregge.
+  const perNome = new Map<string, string>();
+  for (const r of d
+    .query<{ id: string; original_path: string }, []>(
+      "SELECT id, original_path FROM photos WHERE original_path IS NOT NULL",
+    )
+    .all()) {
+    const nome = r.original_path.split("/").pop();
+    if (nome && !perNome.has(nome)) perNome.set(nome, r.id);
+  }
+  const idPer = (percorso: string): string | null => {
+    const nome = percorso.split("/").pop() ?? percorso;
+    return perNome.get(nome) ?? (perNome.has(percorso) ? perNome.get(percorso)! : null);
+  };
+
+  const scrivi = d.prepare(
+    `INSERT OR IGNORE INTO version_inputs (version_id, kind, path, photo_id, position, origin)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+
+  const versioni = d
+    .query<{ id: number; photo_id: string; lineage: string | null }, []>(
+      `SELECT v.id, v.photo_id, v.lineage FROM versions v
+        WHERE NOT EXISTS (SELECT 1 FROM version_inputs vi WHERE vi.version_id = v.id)`,
+    )
+    .all();
+  if (versioni.length === 0) return;
+
+  const refDelJob = new Map<number, string[]>();
+  for (const j of d
+    .query<{ result_version_id: number; ref_paths: string | null }, []>(
+      `SELECT result_version_id, ref_paths FROM jobs
+        WHERE result_version_id IS NOT NULL AND ref_paths IS NOT NULL`,
+    )
+    .all()) {
+    try {
+      const v = JSON.parse(j.ref_paths ?? "[]");
+      if (Array.isArray(v) && v.length) refDelJob.set(j.result_version_id, v.map(String));
+    } catch {
+      // Un lineage o un ref_paths illeggibile non ferma la migrazione: la
+      // versione ricade sul caso dedotto, che e' sempre disponibile.
+    }
+  }
+
+  const tutto = d.transaction(() => {
+    for (const v of versioni) {
+      let sorgenti: string[] = [];
+      let riferimenti: string[] = [];
+      if (v.lineage) {
+        try {
+          const l = JSON.parse(v.lineage) as { sources?: unknown; refs?: unknown };
+          if (Array.isArray(l.sources)) sorgenti = l.sources.map(String);
+          if (Array.isArray(l.refs)) riferimenti = l.refs.map(String);
+        } catch {
+          /* vedi sopra */
+        }
+      }
+      if (riferimenti.length === 0) riferimenti = refDelJob.get(v.id) ?? [];
+
+      const dedotta = sorgenti.length === 0;
+      if (dedotta) sorgenti = [v.photo_id];
+      const provenienza = dedotta ? "reconstructed" : "recorded";
+
+      sorgenti.forEach((p, i) => {
+        scrivi.run(v.id, "source", p, dedotta ? v.photo_id : idPer(p), i, provenienza);
+      });
+      riferimenti.forEach((p, i) => {
+        scrivi.run(v.id, "reference", p, null, i, "recorded");
+      });
+    }
+  });
+  tutto();
+}
 
 function hasColumn(d: Database, table: string, col: string): boolean {
   const rows = d
@@ -505,9 +645,23 @@ export function initSchemaOn(d: Database): void {
   // What the variant was born from: sources, references, recipe, preamble.
   // On historical rows it stays NULL, and the view says so instead of making it
   // up.
+  //
+  // COLONNA STORICA. Dopo `version_inputs` la verita' sugli ingressi sta nella
+  // tabella: qui continuano a essere scritti anche `recipe`, `refset` e
+  // `preamble`, che sono istruzioni e non ingressi, ed e' per quelli che serve
+  // ancora. Se un giorno i due divergono, vince la tabella. Un campo che sembra
+  // autorevole e non lo e' e' peggio di un campo assente, quindi sta scritto qui.
   if (!hasColumn(d, "versions", "lineage")) {
     d.run("ALTER TABLE versions ADD COLUMN lineage TEXT");
   }
+
+  // Un job puo' DICHIARARE quali riferimenti allega. NULL = non ha dichiarato
+  // niente, ed e' tutto lo storico: il controllo non morde.
+  if (!hasColumn(d, "jobs", "declared_refs")) {
+    d.run("ALTER TABLE jobs ADD COLUMN declared_refs TEXT");
+  }
+
+  popolaVersionInputs(d);
 
   // Only the rows of an actual storyboard land in this index.
   d.run(
@@ -658,6 +812,25 @@ export type VersionRow = {
   created_at: number;
 };
 
+/**
+ * Un ingresso di una versione: un file che e' entrato davvero in quella
+ * generazione, con la sua posizione nell'ordine di allegamento.
+ *
+ * `origin` dice se e' un fatto o una deduzione: `recorded` scritto al momento
+ * della generazione, `reconstructed` dedotto dalla migrazione. Serve perche' la
+ * maggioranza dello storico non ha un job collegato e la sua unica sorgente e'
+ * `versions.photo_id` — un'inferenza ragionevole, non una registrazione. Senza
+ * questa colonna la vista spaccerebbe per registrato cio' che e' stato indovinato.
+ */
+export type VersionInputRow = {
+  version_id: number;
+  kind: "source" | "reference";
+  path: string;
+  photo_id: string | null;
+  position: number;
+  origin: "recorded" | "reconstructed";
+};
+
 export type JobRow = {
   id: number;
   photo_id: string;
@@ -672,6 +845,11 @@ export type JobRow = {
   /** Where the version this job will produce comes from: recipe, set of
    *  sources, references. Copied onto the version when the work finishes. */
   lineage: string | null;
+  /** I riferimenti PROMESSI, come nomi. Diverso da `ref_paths`, che e' cio' che
+   *  si e' riusciti ad allegare: se al momento di partire non ci sono tutti, il
+   *  job fallisce invece di generare un'immagine diversa in silenzio. NULL su
+   *  tutto lo storico, e NULL vuol dire «non ho promesso niente». */
+  declared_refs: string | null;
   /** This job's channel: cdp, codex, codex-http, openai. NULL = the system one.
    *  It exists so that changing channel for one generation need not cost the
    *  restart of a service that serves every project. */

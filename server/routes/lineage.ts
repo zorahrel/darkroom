@@ -131,6 +131,37 @@ lineageRoutes.get("/api/lineage", (c) => {
   const byBasename = new Map(photos.map((p) => [p.original_path.split("/").pop() ?? "", p.id]));
   const favOf = new Map(photos.map((p) => [p.id, p.favorite_version_id]));
 
+  // Gli ingressi veri, dalla tabella che li modella.
+  //
+  // Prima si leggevano dal JSON in `versions.lineage`, che nessuno vincolava:
+  // dodici versioni su dodici dichiaravano tre sorgenti e zero di quelle
+  // trentasei relazioni esisteva nel database, quindi la vista costruiva la
+  // propria verita' rileggendo ogni volta una stringa. Ora la verita' e'
+  // `version_inputs`; il lineage resta per cio' che NON e' un ingresso — la
+  // ricetta, il refset, il preambolo — che sono istruzioni.
+  type Ingressi = { sources: string[]; refs: string[]; dedotti: boolean };
+  const ingressiPer = new Map<number, Ingressi>();
+  for (const r of db()
+    .query<
+      { version_id: number; kind: string; path: string; photo_id: string | null; origin: string },
+      []
+    >(
+      `SELECT version_id, kind, path, photo_id, origin FROM version_inputs
+        ORDER BY version_id, kind, position`,
+    )
+    .all()) {
+    let e = ingressiPer.get(r.version_id);
+    if (!e) ingressiPer.set(r.version_id, (e = { sources: [], refs: [], dedotti: false }));
+    if (r.kind === "source") {
+      // L'identita' quando c'e', il nome quando la foto non si risolve: un
+      // ingresso mezzo noto resta un ingresso.
+      e.sources.push(r.photo_id ?? r.path);
+      if (r.origin === "reconstructed") e.dedotti = true;
+    } else {
+      e.refs.push(r.path);
+    }
+  }
+
   const versions = db()
     .query<VersionRow, []>(
       `SELECT id, photo_id, version_number, image_path, prompt_used, provider, provider_params, credits, config, lineage, verdict, note, created_at
@@ -166,9 +197,14 @@ lineageRoutes.get("/api/lineage", (c) => {
 
   for (const v of versions) {
     const cfg = configOf(v);
+    const reali = ingressiPer.get(v.id);
+    // La tabella vince. Il lineage resta come ripiego per le versioni che la
+    // migrazione non ha ancora toccato — in pratica nessuna, ma tenerlo evita
+    // che una vista diventi vuota se qualcuno rilancia la migrazione a meta'.
+    const nomi = reali && reali.sources.length > 0 ? reali.sources : cfg.sources;
     // Names that do not resolve to a known photo do not vanish: they stay in the
     // identity of the set, otherwise two different sets would merge into one.
-    const ids = cfg.sources.map((f) => byBasename.get(f) ?? f);
+    const ids = nomi.map((f) => byBasename.get(f) ?? f);
     const members = ids.length > 0 ? ids : [v.photo_id];
     const key = [...members].sort().join("\u0000");
     if (!roots.has(key))
@@ -178,7 +214,16 @@ lineageRoutes.get("/api/lineage", (c) => {
     root.recipes.add(cfg.recipe);
 
     const gkey = `${cfg.refset}|${cfg.recipe}|${cfg.preamble ?? ""}`;
-    if (!root.groups.has(gkey)) root.groups.set(gkey, { ...cfg, variants: [] });
+    if (!root.groups.has(gkey))
+      root.groups.set(gkey, {
+        ...cfg,
+        sources: nomi,
+        // I riferimenti allegati DAVVERO, non quelli che il refset promette.
+        // E' esattamente la differenza che ha prodotto dodici varianti fuori
+        // bersaglio: il refset diceva «+ stile», gli allegati erano zero.
+        refs: reali && reali.refs.length > 0 ? reali.refs : cfg.refs,
+        variants: [],
+      });
     root.groups.get(gkey)!.variants.push({
       id: v.id,
       version_number: v.version_number,

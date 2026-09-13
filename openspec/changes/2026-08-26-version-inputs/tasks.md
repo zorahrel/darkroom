@@ -42,43 +42,43 @@ Comandi, misure e artefatti. Ciò che è verde resta verde.
 - Riavviare il Darkroom vivo su :3737
 
 ## 1. Schema
-- [ ] 1.1 `version_inputs` in `SCHEMA_STATEMENTS` (`server/db.ts`), nella forma provata in
+- [x] 1.1 `version_inputs` in `SCHEMA_STATEMENTS` (`server/db.ts`), nella forma provata in
       `design.md` §1: `path NOT NULL`, `photo_id` nullable, `CHECK (kind='source' OR photo_id IS NULL)`
-- [ ] 1.2 I due indici parziali (`photo_id` per le radici, `path` per i riferimenti)
-- [ ] 1.3 `VersionInputRow` esportato accanto agli altri tipi di `db.ts`
-- [ ] 1.4 Commento su `versions.lineage`: colonna storica, la tabella è autorevole (VIN-03)
+- [x] 1.2 I due indici parziali (`photo_id` per le radici, `path` per i riferimenti)
+- [x] 1.3 `VersionInputRow` esportato accanto agli altri tipi di `db.ts`
+- [x] 1.4 Commento su `versions.lineage`: colonna storica, la tabella è autorevole (VIN-03)
 
 ## 2. Migrazione
-- [ ] 2.1 Migrazione in `initSchemaOn()`, nell'ordine di `design.md` §3: lineage → job → `photo_id`
-- [ ] 2.2 Risoluzione dei nomi a `photo_id` per basename; ciò che non si risolve resta riga
+- [x] 2.1 Migrazione in `initSchemaOn()`, nell'ordine di `design.md` §3: lineage → job → `photo_id`
+- [x] 2.2 Risoluzione dei nomi a `photo_id` per basename; ciò che non si risolve resta riga
       con `photo_id` NULL, mai scartato
-- [ ] 2.3 `INSERT OR IGNORE` sulla PK composta: nessuna tabella di stato delle migrazioni
-- [ ] 2.4 Test su handle usa-e-getta con schema v0, come fa già `tests/db.test.ts`
-- [ ] 2.5 Test di idempotenza: tre giri, conteggio invariato
-- [ ] 2.6 Test dei tre casi di origine: `recorded` da lineage, `recorded` da job,
+- [x] 2.3 `INSERT OR IGNORE` sulla PK composta: nessuna tabella di stato delle migrazioni
+- [x] 2.4 Test su handle usa-e-getta con schema v0, come fa già `tests/db.test.ts`
+- [x] 2.5 Test di idempotenza: tre giri, conteggio invariato
+- [x] 2.6 Test dei tre casi di origine: `recorded` da lineage, `recorded` da job,
       `reconstructed` da `photo_id`
 
 ## 3. Scrittura al momento della generazione
-- [ ] 3.1 Le righe di ingresso si scrivono dove si scrive la versione, nella stessa
+- [x] 3.1 Le righe di ingresso si scrivono dove si scrive la versione, nella stessa
       transazione: una versione senza ingressi non deve poter esistere
 - [ ] 3.2 `scripts/gen_variants.ts` scrive gli ingressi oltre al lineage (che resta)
-- [ ] 3.3 Il worker scrive gli ingressi per i job normali dell'interfaccia
-- [ ] 3.4 `position` = ordine reale di allegamento, quello di `[...sources, ...refs]`
+- [x] 3.3 Il worker scrive gli ingressi per i job normali dell'interfaccia
+- [x] 3.4 `position` = ordine reale di allegamento, quello di `[...sources, ...refs]`
 
 ## 4. Il vincolo (REF-10)
-- [ ] 4.1 `jobs.declared_refs` (JSON array), NULL sullo storico
-- [ ] 4.2 Controllo all'ingresso del worker: file dichiarati tutti presenti, o `failed`
+- [x] 4.1 `jobs.declared_refs` (JSON array), NULL sullo storico
+- [x] 4.2 Controllo all'ingresso del worker: file dichiarati tutti presenti, o `failed`
       con il nome di quello che manca
 - [ ] 4.3 `enqueueJob` accetta la dichiarazione; `gen_variants.ts` la valorizza con i
       reference che il refset promette
 - [ ] 4.4 Segnalazione della contraddizione fra `config.refset` che promette e dichiarazione
       vuota
-- [ ] 4.5 Test: dichiarato+assente → fallisce prima di generare; dichiarato+presente →
+- [x] 4.5 Test: dichiarato+assente → fallisce prima di generare; dichiarato+presente →
       allegato; due dichiarati e uno assente → nomina solo quello; nessuna dichiarazione →
       comportamento di oggi
 
 ## 5. Vista albero
-- [ ] 5.1 `/api/lineage` legge `version_inputs`: radici per contributo, non per `photo_id`
+- [x] 5.1 `/api/lineage` legge `version_inputs`: radici per contributo, non per `photo_id`
 - [ ] 5.2 I gruppi espongono anche i **riferimenti**, oggi assenti dal tipo `Group`
 - [ ] 5.3 `Albero.tsx`: la striscia degli ingressi smette di essere condizionata a
       `sources.length > 1`; sorgenti e riferimenti distinti

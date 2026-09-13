@@ -59,6 +59,62 @@ function generatePer(b: Backend) {
   return b === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
 }
 
+/**
+ * Registra cosa e' entrato in questa generazione, nello stesso momento in cui
+ * nasce la versione.
+ *
+ * E' l'altra meta' di `version_inputs`: la migrazione ricostruisce il passato,
+ * questa impedisce che il presente torni a essere ricostruibile solo per
+ * indizi. L'ordine e' quello vero di allegamento — prima le sorgenti, poi i
+ * riferimenti — che e' anche l'ordine in cui il worker li passa al modello, e
+ * conta: un riferimento di stile messo per primo pesa diversamente.
+ *
+ * `origin` e' sempre `recorded`: qui non si deduce niente, si scrive cio' che si
+ * sta facendo.
+ */
+function scriviIngressi(versionId: number, job: JobRow, photoId: string): void {
+  const lista = (grezzo: string | null): string[] => {
+    if (!grezzo) return [];
+    try {
+      const v = JSON.parse(grezzo);
+      return Array.isArray(v) ? v.map(String) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  let sorgenti: string[] = [];
+  if (job.lineage) {
+    try {
+      const l = JSON.parse(job.lineage) as { sources?: unknown };
+      if (Array.isArray(l.sources)) sorgenti = l.sources.map(String);
+    } catch {
+      /* un lineage illeggibile non blocca la registrazione: si ricade sulla foto */
+    }
+  }
+  // Senza lineage la sorgente e' il file davvero passato in ingresso, e in
+  // mancanza di quello la foto stessa. Nessuno dei due e' una deduzione: sono
+  // esattamente i due modi in cui questo worker riceve il suo ingresso.
+  if (sorgenti.length === 0) sorgenti = [job.input_path ?? photoId];
+
+  const scrivi = db().prepare(
+    `INSERT OR IGNORE INTO version_inputs (version_id, kind, path, photo_id, position, origin)
+     VALUES (?, ?, ?, ?, ?, 'recorded')`,
+  );
+  sorgenti.forEach((p, i) => {
+    const nome = p.split("/").pop() ?? p;
+    const foto = db()
+      .query<{ id: string }, [string, string]>(
+        "SELECT id FROM photos WHERE id = ? OR original_path LIKE '%' || ? LIMIT 1",
+      )
+      .get(p, nome);
+    scrivi.run(versionId, "source", p, foto?.id ?? null, i);
+  });
+  lista(job.ref_paths).forEach((p, i) => {
+    scrivi.run(versionId, "reference", p, null, i);
+  });
+}
+
 export function enqueueJob(
   photoId: string,
   prompt: string,
@@ -76,17 +132,54 @@ export function enqueueJob(
   lineage: string | null = null,
   /** Channel for this job. `null` = the system one. */
   backend: string | null = null,
+  /** I riferimenti che questo job DICHIARA di allegare, come nomi.
+   *
+   *  Diverso da `refPaths`, che e' cio' che si e' riusciti a mettere insieme:
+   *  questo e' cio' che si e' promesso. Se al momento di partire i file non ci
+   *  sono tutti, il job fallisce invece di generare qualcos'altro. `null` =
+   *  nessuna promessa, ed e' tutto lo storico: il controllo non morde. */
+  declaredRefs: string | null = null,
 ): JobRow {
   const now = Date.now();
   const result = db().run(
-    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, lineage, backend, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, lineage, backend, now],
+    `INSERT INTO jobs (photo_id, prompt, config, provider, provider_params, mode, input_path, ref_paths, lineage, backend, declared_refs, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [photoId, prompt, configJson, provider, providerParams, mode, inputPath, refPaths, lineage, backend, declaredRefs, now],
   );
   const id = Number(result.lastInsertRowid);
   return db()
     .query<JobRow, [number]>("SELECT * FROM jobs WHERE id = ?")
     .get(id) as JobRow;
+}
+
+/**
+ * Quali riferimenti promessi non ci sono.
+ *
+ * Il difetto che chiude, per esteso: `parseRefPaths` scarta in silenzio i file
+ * che non esistono, e il worker fa lo stesso un secondo dopo. Ognuno dei due e'
+ * ragionevole da solo; insieme producono una generazione che parte, riesce, e
+ * non e' quella che era stata chiesta. Misurato su `profilo`: dodici varianti
+ * generate con `refset = "3 sorgenti insieme + stile"` e zero file di stile
+ * allegati — capelli asciutti invece che bagnati, dodici giudizi umani su
+ * immagini che non avevano nessuna possibilita' di centrare il bersaglio.
+ *
+ * Un job che non dichiara niente (`null`) si comporta come sempre: `null` vuol
+ * dire «non ho promesso», non «ho promesso zero».
+ */
+export function riferimentiMancanti(declaredJson: string | null, refPathsJson: string | null): string[] {
+  if (!declaredJson) return [];
+  let dichiarati: string[];
+  try {
+    const v = JSON.parse(declaredJson);
+    if (!Array.isArray(v) || v.length === 0) return [];
+    dichiarati = v.map(String);
+  } catch {
+    return [];
+  }
+  // Cio' che e' stato davvero allegato, per nome di file: i percorsi possono
+  // essere assoluti da una parte e nomi dall'altra.
+  const allegati = new Set(parseRefPaths(refPathsJson).map((p) => p.split("/").pop() ?? p));
+  return dichiarati.filter((d) => !allegati.has(d.split("/").pop() ?? d));
 }
 
 /** Reference images stored on a job, tolerating corrupt/legacy values. Files
@@ -599,6 +692,22 @@ async function processJob(job: JobRow) {
     return;
   }
 
+  // Cio' che e' stato promesso deve esserci, PRIMA di spendere una generazione.
+  //
+  // Fallire costa un messaggio di errore. Partire senza gli allegati promessi
+  // costa quota, tempo, e -- misurato -- dodici giudizi umani su varianti che
+  // non potevano centrare il bersaglio, perche' l'immagine che esce e'
+  // plausibile e sbagliata, quindi nessuno sospetta niente.
+  const mancanti = riferimentiMancanti(job.declared_refs ?? null, job.ref_paths);
+  if (mancanti.length > 0) {
+    fail(
+      job.id,
+      `riferimenti dichiarati e non allegati: ${mancanti.join(", ")}. ` +
+        `Non genero: uscirebbe un'immagine diversa da quella chiesta, senza dirlo.`,
+    );
+    return;
+  }
+
   const isGenerate = job.mode === "generate";
   // Edit input: an override (bake multi-pass working image) wins over the source.
   const editInput = job.input_path ?? photo.original_path;
@@ -909,6 +1018,7 @@ async function processJob(job: JobRow) {
       ],
     );
     const versionId = Number(versionInsert.lastInsertRowid);
+    scriviIngressi(versionId, job, photo.id);
 
     // A generated-from-scratch photo has no original until its first render —
     // adopt it so the grid thumbnail (/thumb/raw/:id reads original_path) works.
