@@ -53,6 +53,16 @@ referenceRoutes.get("/api/references", (c) => {
     for (const f of seen) uses.set(f, (uses.get(f) ?? 0) + 1);
   }
 
+  // Il ruolo dichiarato, quando c'e'. Non si indovina dal nome: «bocca-reale.png»
+  // e «occhiali-gascan.jpg» sono tutti e due plausibili come identita' e come
+  // stile, e sbagliare non da' un errore — da' una faccia diversa.
+  const ruoli = new Map(
+    db()
+      .query<{ file: string; role: string }, []>("SELECT file, role FROM reference_meta")
+      .all()
+      .map((r) => [r.file, r.role] as const),
+  );
+
   const references = files.map((f) => {
     const st = statSync(join(dir, f));
     return {
@@ -61,6 +71,9 @@ referenceRoutes.get("/api/references", (c) => {
       modified_at: st.mtimeMs,
       /** How many variants were born with this reference attached. */
       used_in: uses.get(f) ?? 0,
+      /** `stile` impone un aspetto, `identita` tiene il viso. `null` = nessuno
+       *  l'ha ancora detto, ed e' un'informazione, non un valore di riposo. */
+      role: ruoli.get(f) ?? null,
     };
   });
   // The never-used ones first: they are the ones with a decision to make.
@@ -218,6 +231,32 @@ referenceRoutes.post("/api/references", async (c) => {
   }
   writeFileSync(join(dir, name), Buffer.from(await file.arrayBuffer()));
   return c.json({ file: name, renamed: name !== safeName || tooLong });
+});
+
+/** Dichiara a cosa serve una reference. `null` la riporta a «non dichiarato». */
+referenceRoutes.put("/api/references/:file/role", async (c) => {
+  const file = decodeURIComponent(c.req.param("file"));
+  // Il nome arriva dal client: si accetta solo l'ultimo segmento, come per il
+  // caricamento. Una reference «../../qualcosa» non deve nemmeno poter essere
+  // annotata.
+  if (file !== (file.split(/[/\\]/).pop() ?? "")) return c.json({ error: "nome non valido" }, 400);
+  if (!existsSync(join(refsDir(), file))) return c.json({ error: "reference inesistente" }, 404);
+
+  const b = (await c.req.json().catch(() => ({}))) as { role?: unknown };
+  const role = b.role === null ? null : String(b.role ?? "");
+  if (role === null) {
+    db().run("DELETE FROM reference_meta WHERE file = ?", [file]);
+    return c.json({ file, role: null });
+  }
+  if (role !== "stile" && role !== "identita") {
+    return c.json({ error: "il ruolo e' «stile» o «identita»" }, 400);
+  }
+  db().run(
+    `INSERT INTO reference_meta (file, role, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(file) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`,
+    [file, role, Date.now()],
+  );
+  return c.json({ file, role });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>

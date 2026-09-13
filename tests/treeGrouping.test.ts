@@ -224,3 +224,40 @@ describe("ingressi dalla tabella", () => {
     expect(g.ingressi_dedotti).toBe(false);
   });
 });
+
+/**
+ * Una versione senza lineage non sparisce dall'albero.
+ *
+ * E' la maggioranza dello storico: sul database del repo 2733 versioni su 3007
+ * non hanno nemmeno un job collegato. Una vista che le lasciasse fuori
+ * mostrerebbe un progetto quasi vuoto e non darebbe nessun errore — il modo
+ * peggiore di sbagliare, perche' sembra semplicemente che non ci sia niente.
+ */
+describe("versioni senza origine registrata", () => {
+  test("compaiono lo stesso, sotto la propria foto e dichiarate come dedotte", async () => {
+    db().run(
+      "INSERT INTO photos (id,original_path,original_ext,created_at,updated_at) VALUES ('muta','/src/muta.png','.png',1,1)",
+    );
+    db().run(
+      `INSERT INTO versions (photo_id,version_number,image_path,prompt_used,config,lineage,provider,source,created_at)
+       VALUES ('muta',1,'/gen/muta-v1.png','p',NULL,NULL,'openai','generated',?)`,
+      [Date.now()],
+    );
+    const vid = db().query<{ id: number }, []>("SELECT id FROM versions WHERE photo_id='muta'").get()!.id;
+    db().run(
+      `INSERT INTO version_inputs (version_id,kind,path,photo_id,position,origin)
+       VALUES (?, 'source', 'muta', 'muta', 0, 'reconstructed')`,
+      [vid],
+    );
+
+    const d = (await (await app.request("/api/lineage")).json()) as {
+      photos: { photo: string; variants: number; groups: { sources: string[]; ingressi_dedotti?: boolean }[] }[];
+    };
+    const r = d.photos.find((p) => p.photo === "muta");
+    expect(r, "la versione senza lineage e' sparita dall'albero").toBeDefined();
+    expect(r!.variants).toBe(1);
+    expect(r!.groups[0]!.sources).toEqual(["muta"]);
+    // E si presenta per quello che e'.
+    expect(r!.groups[0]!.ingressi_dedotti).toBe(true);
+  });
+});

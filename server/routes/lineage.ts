@@ -10,8 +10,8 @@
 // hand-written SQL queries — the hole this view closes.
 import { Hono } from "hono";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { basename, join } from "node:path";
 import { db } from "../db.ts";
 import { REPO_ROOT } from "../config.ts";
 import { refsDir } from "../project.ts";
@@ -419,6 +419,57 @@ lineageRoutes.get("/api/versions/:id/gap", (c) => {
 
 /** Judgement and note on a variant. The judgement sits on the VERSION, not on
  *  the photo: the pick chooses a photo, this chooses among its variants. */
+/**
+ * Archivia le varianti di una configurazione: le toglie dal progetto senza
+ * cancellarle.
+ *
+ * Sposta invece di cancellare, come fa da sempre lo script a riga di comando:
+ * una passata scartata oggi e' la prova di cio' che NON funziona, e rifarla
+ * costa quello che e' costata. I file finiscono in `data/archive/<set>/`, le
+ * righe escono dal progetto.
+ *
+ * Esisteva solo da terminale, e per usarla bisognava sapere a memoria il nome
+ * esatto del refset da tenere — cioe' proprio il dato che questa vista mostra.
+ */
+lineageRoutes.post("/api/lineage/archive", async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { refset?: unknown };
+  const refset = typeof b.refset === "string" ? b.refset.trim() : "";
+  if (!refset) return c.json({ error: "serve il refset da archiviare" }, 400);
+
+  const righe = db()
+    .query<{ id: number; image_path: string; config: string | null; lineage: string | null }, []>(
+      "SELECT id, image_path, config, lineage FROM versions WHERE source='generated'",
+    )
+    .all()
+    .filter((v) => {
+      const leggi = (raw: string | null) => {
+        try {
+          return (JSON.parse(raw ?? "{}") as { refset?: unknown }).refset;
+        } catch {
+          return undefined;
+        }
+      };
+      return String(leggi(v.lineage) ?? leggi(v.config) ?? "origine non registrata") === refset;
+    });
+  if (righe.length === 0) return c.json({ error: `nessuna variante con «${refset}»` }, 404);
+
+  const dir = join(refsDir(), "..", "archive", refset.replace(/[^\w+]+/g, "_"));
+  mkdirSync(dir, { recursive: true });
+  let spostate = 0;
+  let assenti = 0;
+  for (const v of righe) {
+    if (existsSync(v.image_path)) {
+      renameSync(v.image_path, join(dir, basename(v.image_path)));
+      spostate++;
+    } else assenti++;
+    // Il job resta come diario, ma smette di puntare a una versione che non c'e'
+    // piu': un riferimento morto nella coda si legge come un guasto.
+    db().run("UPDATE jobs SET result_version_id=NULL WHERE result_version_id=?", [v.id]);
+    db().run("DELETE FROM versions WHERE id=?", [v.id]);
+  }
+  return c.json({ ok: true, archiviate: righe.length, spostate, assenti, dove: dir });
+});
+
 lineageRoutes.patch("/api/versions/:id/verdict", async (c) => {
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id)) return c.json({ error: "id non valido" }, 400);

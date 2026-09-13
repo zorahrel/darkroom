@@ -295,6 +295,21 @@ const SCHEMA_STATEMENTS = [
      ON version_inputs(photo_id, version_id) WHERE photo_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_version_inputs_ref
      ON version_inputs(path) WHERE kind = 'reference'`,
+
+  // A cosa serve una reference: a tenere il VISO (identita') o a imporre un
+  // ASPETTO (stile). Sono due lavori opposti sulla stessa immagine — una
+  // reference di identita' allegata come stile fa somigliare tutto a lei, una di
+  // stile allegata come identita' cambia la faccia — e finora si distinguevano
+  // solo dal nome del file, cioe' per convenzione fra umani.
+  //
+  // Tabella a parte e non colonna: le reference sono FILE su disco, elencati
+  // leggendo la cartella. Una riga qui e' un'annotazione su un file, e un file
+  // cancellato a mano lascia una riga orfana che non fa danno.
+  `CREATE TABLE IF NOT EXISTS reference_meta (
+    file TEXT PRIMARY KEY,
+    role TEXT NOT NULL CHECK (role IN ('stile','identita')),
+    updated_at INTEGER NOT NULL
+  )`,
 ];
 
 /**

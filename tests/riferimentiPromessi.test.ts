@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { riferimentiMancanti } from "../server/jobs.ts";
@@ -61,5 +61,37 @@ describe("riferimenti promessi", () => {
     // E' il caso esatto di `profilo`: refset che prometteva lo stile, `refs: []`.
     expect(riferimentiMancanti(JSON.stringify(["stile.png", "luce.png"]), null))
       .toEqual(["stile.png", "luce.png"]);
+  });
+});
+
+/**
+ * Il controllo sugli allegati: morde quando servirebbe, e non morde a vuoto.
+ *
+ * Il limite di sei sta nel worker perche' e' il modello a non reggerne di piu'.
+ * La prova legge il SORGENTE invece di riscrivere la regola: una prova che
+ * ricalcola per conto suo «piu' di sei» resta verde anche se il worker passa a
+ * dieci, cioe' non prova niente. Cosi' invece il confine non si puo' spostare
+ * in silenzio.
+ */
+describe("limite degli allegati", () => {
+  const worker = readFileSync(new URL("../server/worker-codex-http.ts", import.meta.url), "utf8");
+
+  test("il confine e' sei, e sta scritto una volta sola", () => {
+    const guardia = /attachments\.length > (\d+)/.exec(worker);
+    expect(guardia?.[1]).toBe("6");
+  });
+
+  test("e l'errore dice quanti ne sono arrivati, non solo che erano troppi", () => {
+    // Un «troppi allegati» senza il numero manda a contarli a mano: e' la
+    // differenza fra un errore e un indovinello.
+    const riga = /troppi allegati[^`\n]*/.exec(worker)?.[0] ?? "";
+    expect(riga).toContain("${attachments.length}");
+    expect(riga).toContain("massimo 6");
+  });
+
+  test("non morde quando non c'e' niente da contare", () => {
+    // Il caso «a vuoto»: senza allegati la guardia non deve nemmeno comparire
+    // nel cammino, e infatti il confronto e' su una lunghezza che parte da zero.
+    expect(worker).toContain("const attachments: string[] = []");
   });
 });

@@ -12,7 +12,16 @@ import { useViewState, readOneOf } from "../viewState";
 // gesture.
 
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
-type Reference = { file: string; bytes: number; modified_at: number; used_in: number };
+type Ruolo = "stile" | "identita" | null;
+type Reference = {
+  file: string;
+  bytes: number;
+  modified_at: number;
+  used_in: number;
+  /** A cosa serve: tenere il viso o imporre un aspetto. Due lavori opposti sulla
+   *  stessa immagine, e finora si distinguevano solo dal nome del file. */
+  role?: Ruolo;
+};
 
 export default function ReferencesPage() {
   const [path, setPath] = useState("");
@@ -65,6 +74,25 @@ export default function ReferencesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Dichiara (o ritira) il ruolo di una reference.
+   *
+   *  Si aggiorna la riga subito e si rilegge l'elenco dopo: la scelta e' la
+   *  risposta a «a cosa serve questa», e farla aspettare un giro di rete la fa
+   *  sembrare non registrata. */
+  async function cambiaRuolo(file: string, ruolo: Ruolo) {
+    setRefs((v) => v.map((r) => (r.file === file ? { ...r, role: ruolo } : r)));
+    try {
+      await jsonFetch(`/api/references/${encodeURIComponent(file)}/role`, {
+        method: "PUT",
+        body: JSON.stringify({ role: ruolo }),
+      });
+    } catch {
+      // Se il server rifiuta, l'elenco riletto rimette la verita': meglio un
+      // ritorno indietro visibile di una riga che mente.
+      load();
+    }
+  }
 
   /** Uploads the chosen files one at a time: an error on the third must not
    *  lose the first two, and saying which one failed is worth more than a
@@ -234,6 +262,36 @@ export default function ReferencesPage() {
                     {r.used_in === 0
                       ? "mai usata"
                       : `usata in ${r.used_in} ${r.used_in === 1 ? "variante" : "varianti"}`}
+                  </div>
+                  {/* Il ruolo si dichiara qui, dove si guarda l'immagine.
+                      Allegare come stile una reference di identita' fa somigliare
+                      ogni scatto a lei; il contrario cambia la faccia. Non si
+                      indovina dal nome, e «non dichiarato» resta una terza
+                      risposta, non un valore di riposo. */}
+                  <div className="flex items-center gap-1 pt-0.5">
+                    {(["identita", "stile"] as const).map((ruolo) => (
+                      <button
+                        key={ruolo}
+                        type="button"
+                        onClick={() => cambiaRuolo(r.file, r.role === ruolo ? null : ruolo)}
+                        title={
+                          ruolo === "identita"
+                            ? "Tiene il viso: allegata per far restare la persona se stessa"
+                            : "Impone un aspetto: luce, colore, resa"
+                        }
+                        className={
+                          "font-mono text-[10px] px-1.5 py-0.5 border transition-colors " +
+                          (r.role === ruolo
+                            ? "border-neutral-300 text-neutral-100 bg-neutral-800"
+                            : "border-neutral-800 text-neutral-500 hover:text-neutral-200")
+                        }
+                      >
+                        {ruolo === "identita" ? "identità" : "stile"}
+                      </button>
+                    ))}
+                    {!r.role && (
+                      <span className="font-mono text-[10px] text-neutral-600">non dichiarato</span>
+                    )}
                   </div>
                 </figcaption>
               </figure>

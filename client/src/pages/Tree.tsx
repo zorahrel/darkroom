@@ -2,7 +2,7 @@ import { Copy, Ruler } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsonFetch, thumbGenUrl, thumbRawUrl, thumbRefUrl, genUrl, refUrl } from "../api";
 import { useViewState, readBool, readOneOf, readNumber } from "../viewState";
-import { Bott, Choose, Header, Page, Pills, Toggle, Toolbar } from "../ui";
+import { Bott, Choose, Confirm, Header, Other, Page, Pills, Toggle, Toolbar } from "../ui";
 import { VERDICTS, type Verdict, filterTree, countVerdicts } from "../treeFilter";
 
 // Pick view (LIN-02): each shot and its branches, grouped by configuration.
@@ -370,6 +370,36 @@ export default function TreePage() {
     }).catch(() => load());
   }
 
+  // La configurazione da ripetere e quella da archiviare: due gesti che partono
+  // dallo stesso menu e finiscono in due posti diversi.
+  const [daArchiviare, setDaArchiviare] = useState<string | null>(null);
+  const [ripetuta, setRipetuta] = useState<string | null>(null);
+
+  /** Copia la configurazione negli appunti, pronta da rilanciare altrove.
+   *
+   *  Non la accoda da sola: «ripeti su un'altra foto» ha bisogno di sapere QUALE
+   *  foto, e sceglierla per conto di chi guarda vorrebbe dire accodare una
+   *  generazione che costa senza che nessuno l'abbia indicata. Quello che manca
+   *  qui e' il nome del bersaglio, non il comando. */
+  async function ripeti(g: Group) {
+    const riga = [
+      `ricetta: ${g.recipe}`,
+      `set: ${g.refset}`,
+      g.preamble ? `preambolo: ${g.preamble}` : null,
+      `sorgenti: ${g.sources.join(", ") || "—"}`,
+      `riferimenti: ${(g.refs ?? []).join(", ") || "nessuno"}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(riga);
+      setRipetuta(g.refset);
+      setTimeout(() => setRipetuta(null), 2500);
+    } catch {
+      setRipetuta(null);
+    }
+  }
+
   const all = nodes.flatMap((n) => n.groups.flatMap((g) => g.variants));
   // Varianti DISTINTE, non tessere. Una radice e' un insieme di scatti, quindi
   // oggi ogni variante compare una volta sola; ma il conto va fatto sugli id e
@@ -593,6 +623,33 @@ export default function TreePage() {
                     <span className="ml-auto font-mono text-[11px] text-neutral-400">
                       {g.variants.length}
                     </span>
+                    {/* I due gesti che si fanno guardando un gruppo: rifarlo
+                        altrove, o toglierlo di mezzo.
+
+                        L'archiviazione esisteva solo da terminale, e per usarla
+                        bisognava sapere a memoria il nome esatto del refset da
+                        tenere — cioe' esattamente il dato che sta scritto qui
+                        sopra. Sposta, non cancella. */}
+                    <Other
+                      verso="destra"
+                      title="Cosa fare con questa configurazione"
+                      className="shrink-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => ripeti(g)}
+                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-neutral-800"
+                      >
+                        Ripeti questa configurazione…
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDaArchiviare(g.refset)}
+                        className="w-full text-left px-2 py-1.5 text-xs text-rose-200 hover:bg-rose-950/50"
+                      >
+                        Archivia le {g.variants.length} varianti
+                      </button>
+                    </Other>
                   </div>
                 </div>
                 {/* Cosa e' ENTRATO in queste generazioni: gli scatti e, distinti da
@@ -745,6 +802,49 @@ export default function TreePage() {
           {all.filter((v) => v.note).length} note
         </span>
       </div>
+
+      {/* L'archiviazione e' l'unico gesto di questa pagina che toglie qualcosa dal
+          progetto: si dice cosa succede e dove vanno a finire i file, prima. */}
+      {daArchiviare && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+             onClick={() => setDaArchiviare(null)}>
+          <div className="max-w-lg w-full border border-neutral-700 bg-neutral-950 p-4 space-y-3"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-semibold">Archiviare «{daArchiviare}»?</div>
+            <p className="text-[12px] text-neutral-400 leading-snug">
+              Le varianti nate da questa configurazione escono dal progetto. I file NON
+              vengono cancellati: finiscono in <code className="font-mono">data/archive/</code>,
+              perche' una passata scartata e' la prova di cio' che non funziona e rifarla
+              costa quello che e' costata.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Bott size="m" weight="quiet" onClick={() => setDaArchiviare(null)}>Annulla</Bott>
+              <Bott
+                size="m"
+                weight="danger"
+                onClick={async () => {
+                  const set = daArchiviare;
+                  setDaArchiviare(null);
+                  await jsonFetch("/api/lineage/archive", {
+                    method: "POST",
+                    body: JSON.stringify({ refset: set }),
+                  }).catch(() => null);
+                  load();
+                }}
+              >
+                Archivia
+              </Bott>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ripetuta && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 border border-neutral-700
+                        bg-neutral-900 px-3 py-2 text-xs text-neutral-200 shadow-2xl">
+          Configurazione «{ripetuta}» copiata: incollala dove scegli la foto.
+        </div>
+      )}
 
       {zoom && (
         <div
