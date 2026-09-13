@@ -90,13 +90,45 @@ const FONDO_CIELO =
   "nel suo punto piu' chiaro il fondo resta piu' scuro del mio viso illuminato. " +
   "La transizione e' continua, senza fasce e senza stacchi.";
 
-type Cella = { nome: string; passo: string; applica: (p: string) => string };
+/**
+ * Il blocco dei ruoli di v94 presenta l'ultimo allegato come "il ritratto di
+ * UN'ALTRA PERSONA". Vero finche' l'ultimo allegato era il fondale con dentro
+ * un modello; nella cella `cieloref` l'ultimo e' un fondale PURO, e lasciare
+ * quella frase manderebbe il modello a cercare una persona che non c'e'.
+ */
+const RUOLI_ALTRA_PERSONA =
+  "L'ultima e' il ritratto di UN'ALTRA PERSONA ed e' li' solo per la luce e " +
+  "per il fondo: di quella non prendere nessun volto, nessun capello, nessuna " +
+  "posa, nessun vestito, nessun oggetto.";
+const RUOLI_FONDALE =
+  "L'ultima NON e' una persona: e' il FONDALE dietro di me, e va copiato come " +
+  "sta — il suo colore, il suo gradiente dall'alto al basso, il punto in cui " +
+  "si accende e quanto. Da quell'immagine viene anche la luce che mi arriva " +
+  "addosso, coerente con quel fondo.";
+
+type Cella = { nome: string; passo: string; applica: (p: string) => string; fondo?: string };
 const opaca = (p: string) => p.replace(PELLE_VECCHIA, PELLE_OPACA);
 const cielo = (p: string) => opaca(p).replace(FONDO_VECCHIO, FONDO_CIELO);
+/**
+ * Il cielo come IMMAGINE, non come aggettivo. La cella `cielo` (v100) ha
+ * misurato che a parole non paga: il fondo si spegne (40,69,93) invece di
+ * diventare cielo — lo stesso esito degli occhiali descritti a settembre.
+ * Qui l'ultimo allegato diventa un fondale costruito con la LUMINANZA del
+ * riferimento studio (dove batte la lampada) e la CROMINANZA di un cielo
+ * vero: stessa luce di v94, colore che v94 non aveva.
+ */
+const cieloRef = (p: string) =>
+  cielo(p).replace(RUOLI_ALTRA_PERSONA, RUOLI_FONDALE);
 
 const TUTTE: Cella[] = [
   { nome: "opaca", passo: "pelle opaca, fondo di v94", applica: opaca },
   { nome: "cielo", passo: "+ fondo con colore e scala di cielo", applica: cielo },
+  {
+    nome: "cieloref",
+    passo: "+ il cielo ALLEGATO al posto del fondale studio",
+    applica: cieloRef,
+    fondo: "fondo-cielo-luce-studio.png",
+  },
 ];
 const chieste = arg("--celle")?.split(",").map((s) => s.trim());
 const CELLE = chieste ? TUTTE.filter((c) => chieste.includes(c.nome)) : TUTTE;
@@ -139,6 +171,13 @@ withProject(PID, () => {
     for (const cella of CELLE) {
       const prompt = cella.applica(base.prompt_used);
       if (prompt === base.prompt_used) throw new Error(`cella ${cella.nome}: prompt non cambiato`);
+      // Una cella che porta il suo fondo SOSTITUISCE l'ultimo allegato, non lo
+      // aggiunge: cinque immagini gia' faticano ad agganciarsi al composer, e
+      // il blocco dei ruoli parla di "l'ultima", che dev'essere una sola.
+      const suoi = cella.fondo
+        ? [...refs.slice(0, -1), join(refDir, cella.fondo)]
+        : refs;
+      for (const p of suoi) if (!existsSync(p)) throw new Error(`allegato mancante: ${p}`);
       const lineage = JSON.stringify({
         recipe: `pelle-cielo-${cella.nome}`,
         materia: "1.PNG",
@@ -152,12 +191,12 @@ withProject(PID, () => {
           "cioe' un neon, non un cielo. Base v94: la postura non si tocca, l'utente ha detto " +
           "che fra i cinque gradini v94 resta il migliore.",
         passo: cella.passo,
-        refs: refs.map((r) => r.split("/").pop()),
+        refs: suoi.map((r) => r.split("/").pop()),
         base: `v${BASE}`,
         backend: "cdp",
       });
       const job = enqueueJob(
-        PHOTO, prompt, null, "chatgpt", null, "edit", PRIMA, JSON.stringify(refs), lineage, "cdp",
+        PHOTO, prompt, null, "chatgpt", null, "edit", PRIMA, JSON.stringify(suoi), lineage, "cdp",
       );
       console.log(`[pelle/cielo] job ${job.id}  ${cella.nome.padEnd(6)} ${cella.passo}  giro ${g}`);
     }
