@@ -128,18 +128,26 @@ describe("ChatGPT's explicit cap", () => {
 });
 
 describe("the downloaded render must be of THIS photo", () => {
-  test("the worker compares the downloaded image with the original", async () => {
+  test("the worker compares the downloaded image with what is on the page", async () => {
     const py = await Bun.file(new URL("../scripts/edit_batch.py", import.meta.url)).text();
     // 116 renders belonging to other jobs got into the set: a plate of sushi had
     // become a street at night, and nothing flagged it. The baseline excludes
     // images already seen, but not a NEW image generated for another job.
     expect(py).toContain("def looks_like_same_scene");
-    expect(py).toContain("does not match the source photo");
     // The wrong file must be deleted, not left there passing itself off as valid.
     expect(py).toContain("output.unlink(missing_ok=True)");
-    // Adjustable threshold: on a heavily recomposed set it might need to be
-    // lower.
-    expect(py).toContain("SCENE_MIN_CORR");
+    // IL CONFRONTO NON E' PIU' CON LA SORGENTE. Il pavimento SCENE_MIN_CORR e'
+    // stato tolto il 09/09 perche' la sua premessa — "un edit conserva la
+    // disposizione delle masse chiare e scure" — e' falsa per una ricetta di
+    // luce, dove quella disposizione e' proprio cio' che si cambia. Conto sul
+    // progetto profilo: SETTE render corretti in quarantena (fra cui l'unico
+    // che centrava lo stacco del riferimento) e zero immagini sbagliate prese.
+    // Il guasto che voleva chiudere — scaricare la figura di un altro job — e'
+    // coperto dal confronto con GLI ALLEGATI, che sono le figure davvero
+    // presenti in pagina.
+    expect(py).not.toContain("SCENE_MIN_CORR");
+    expect(py).toContain("SCENE_ECHO_CORR");
+    expect(py).toContain("grabbed a figure already on the page");
   });
 
   test("if the comparison errors, the generation passes", async () => {
@@ -319,9 +327,13 @@ describe("a render that changed nothing is not a render", () => {
     // to remove stayed identical.
     expect(py).toContain("SCENE_MAX_CORR");
     expect(py).toContain("returned the source photo unedited");
-    // The low threshold (a render from another job) must stay.
-    expect(py).toContain("SCENE_MIN_CORR");
-    expect(py).toContain("does not match the source photo");
+    // Questo tetto RESTA, ed e' il lato del controllo che ha sempre funzionato:
+    // prende il guasto vero (la sorgente ridata indietro intatta) guardando una
+    // cosa che una ricetta legittima non produce mai. Il pavimento sul lato
+    // opposto e' stato tolto il 09/09 — vedi il test sul confronto con gli
+    // allegati — perche' la' le due classi stavano nello stesso intervallo e
+    // nessuna soglia le separava.
+    expect(py).not.toContain("SCENE_MIN_CORR");
   });
 });
 

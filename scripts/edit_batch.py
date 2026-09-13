@@ -127,8 +127,19 @@ async def new_chat(cdp: CDP):
     # cannot leak into the baseline of the new one.
     await cdp.call("Page.navigate", {"url": "about:blank"})
     await asyncio.sleep(0.4)
-    # Force the plain GPT-5 chat (no custom gizmo, no project sidebar state).
-    await cdp.call("Page.navigate", {"url": "https://chatgpt.com/?model=gpt-5"})
+    # NB: `?model=<slug>` NON sceglie il modello. Verificato il 09/09 aprendo
+    # una scheda su `https://chatgpt.com/?model=gpt-5`: il client riscrive
+    # l'URL a `https://chatgpt.com/` e il parametro sparisce. La conversazione
+    # che stava generando in quel momento girava su `gpt-5-4-thinking` e
+    # `gpt-5-4-auto-thinking` — due slug diversi nella STESSA chat, perche' il
+    # router automatico cambia modello per messaggio — mentre il suo
+    # `default_model_slug` era `gpt-5-6-thinking`. Nessuno dei tre e' `gpt-5`.
+    # Si tiene l'URL pulito e si REGISTRA quale modello ha davvero generato
+    # (modello_effettivo, piu' sotto): un parametro che non ha effetto e' una
+    # bugia nel log, e su un progetto di ablazioni "una variabile alla volta"
+    # e' peggio di non dirlo — il modello cambiava sotto i piedi senza comparire
+    # da nessuna parte.
+    await cdp.call("Page.navigate", {"url": "https://chatgpt.com/"})
     for _ in range(40):
         has_composer = await cdp.js(
             '!!document.querySelector(\'div[contenteditable="true"][id^="prompt-textarea"], div[contenteditable="true"].ProseMirror\')'
@@ -756,6 +767,43 @@ async def attach_with_retries(cdp: CDP, primary: list, refs: list, tag: str,
     return []
 
 
+async def modello_effettivo(cdp) -> str | None:
+    """Quale modello ha DAVVERO risposto in questa conversazione.
+
+    Non si legge dal DOM: il selettore del modello non e' interrogabile in modo
+    stabile (provato il 09/09, nessun `data-testid` corrispondente e il menu non
+    si apre da script), e comunque direbbe cosa e' SELEZIONATO, non cosa ha
+    generato — che con il router automatico sono cose diverse. Si chiede invece
+    al backend, che per ogni messaggio riporta il suo `model_slug`.
+
+    Torna gli slug usati separati da `+` (in una stessa chat possono essere piu'
+    di uno), oppure None se la chiamata non riesce: e' un dato per il log, non
+    deve mai far fallire una generazione riuscita.
+    """
+    try:
+        return await cdp.js(
+            """(async () => {
+                 const id = location.pathname.split('/c/')[1];
+                 if (!id) return null;
+                 const s = await (await fetch('/api/auth/session')).json();
+                 if (!s || !s.accessToken) return null;
+                 const r = await fetch('/backend-api/conversation/' + id,
+                                       { headers: { Authorization: 'Bearer ' + s.accessToken } });
+                 if (!r.ok) return null;
+                 const j = await r.json();
+                 const slugs = new Set();
+                 for (const k in (j.mapping || {})) {
+                   const m = j.mapping[k].message;
+                   if (m && m.metadata && m.metadata.model_slug) slugs.add(m.metadata.model_slug);
+                 }
+                 return [...slugs].join('+') || null;
+               })()""",
+            await_promise=True,
+        )
+    except Exception:
+        return None
+
+
 async def single_shot(image: Path, prompt: str, output: Path, refs=None):
     """One-shot: edit a single image with a custom prompt, save to output. Used by dashboard worker.
     `refs` are extra reference images (storyboard characters) attached alongside."""
@@ -859,6 +907,11 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
                     f"ChatGPT returned the source photo unedited "
                     f"(correlation {corr:.3f}) — no edit was applied"
                 )
+
+            # Ultimo atto, e solo ora: la conversazione esiste e ha risposto,
+            # quindi il suo model_slug e' leggibile. Non e' un controllo, e'
+            # una registrazione: non deve poter far fallire un render riuscito.
+            single_shot.ultimo_modello = await modello_effettivo(cdp)
     finally:
         cleanup_uploads([resized, *ref_cleanup])
 
@@ -944,6 +997,7 @@ if __name__ == "__main__":
                 "output": str(out),
                 "duration_s": elapsed,
                 "size_kb": out.stat().st_size // 1024,
+                "model": getattr(single_shot, "ultimo_modello", None),
             }), flush=True)
             sys.exit(0)
         except Exception as e:
@@ -972,6 +1026,7 @@ if __name__ == "__main__":
                 "output": str(out),
                 "duration_s": elapsed,
                 "size_kb": out.stat().st_size // 1024,
+                "model": getattr(single_shot, "ultimo_modello", None),
             }), flush=True)
             sys.exit(0)
         except Exception as e:

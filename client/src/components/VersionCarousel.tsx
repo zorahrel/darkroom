@@ -101,7 +101,23 @@ export default function VersionCarousel({
   const EngineTag = ({ version }: { version: Version }) => {
     if (version.provider !== "higgsfield") {
       if (version.provider === "chatgpt") {
-        return <span className="ml-2 text-neutral-400">· ChatGPT</span>;
+        // Anche qui il modello, quando si sa: "· ChatGPT" e basta nascondeva la
+        // variabile piu' grossa dell'esperimento. Sul percorso CDP il modello
+        // non si sceglie (`?model=` viene riscritto via dal client) e il router
+        // automatico puo' cambiarlo a ogni messaggio: due tiri della stessa
+        // ricetta possono essere girati da modelli diversi. Ora lo slug reale
+        // arriva dal backend di ChatGPT e si legge qui.
+        let modello: string | null = null;
+        if (version.provider_params) {
+          try {
+            modello = (JSON.parse(version.provider_params) as { model?: string }).model ?? null;
+          } catch {}
+        }
+        return (
+          <span className="ml-2 text-neutral-400">
+            · ChatGPT{modello ? ` ${modello}` : ""}
+          </span>
+        );
       }
       return null;
     }
