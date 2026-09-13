@@ -99,15 +99,34 @@ const INQ_DISTRATTA =
   "Sembra la foto che ti fa un amico senza avvisarti, non un ritratto in cui " +
   "sai di essere ripreso.";
 
+/**
+ * LA LAMPADA NON SEGUE LA TESTA. Misurato su due tiri indipendenti della cella
+ * `tutto`: da sola la cella `luce` porta lo stacco a +21,5 (bersaglio +21,1),
+ * ma appena si aggiunge il momento rubato scende a 12,8 e 9,8 — sotto il
+ * cancello — e il viso si scurisce (37,1 -> 28,5 e 32,2). La causa e'
+ * fisicamente sensata e quindi va detta al modello: girando la testa fuori
+ * asse, il modello gira anche la luce, e il viso esce dalla pozza. La sorgente
+ * e' un oggetto della stanza: resta dov'e' anche se io mi muovo.
+ */
+const LUCE_NON_SEGUE =
+  " La lampada pero' NON si gira con me: resta dov'e', davanti e leggermente " +
+  "di lato, e continua a battere in pieno sul mio viso anche se la testa e' " +
+  "fuori asse e guardo altrove. Anche in questo momento rubato il mio viso " +
+  "resta la cosa PIU' CHIARA dell'inquadratura, ben piu' chiara del fondale " +
+  "dietro la mia testa: sono girato io, non la luce.";
+
 type Cella = { nome: string; passo: string; applica: (p: string) => string };
 const luce = (p: string) => p.replace(FONDO_VECCHIO, FONDO_STACCO);
 const distratto = (p: string) => p.replace(INQ_VECCHIA, INQ_DISTRATTA);
 const tutto = (p: string) => distratto(luce(p));
+const tutto2 = (p: string) =>
+  luce(p).replace(INQ_VECCHIA, INQ_DISTRATTA + LUCE_NON_SEGUE);
 
 const TUTTE: Cella[] = [
   { nome: "luce", passo: "solo lo stacco viso/fondo", applica: luce },
   { nome: "distratto", passo: "solo il momento rubato", applica: distratto },
   { nome: "tutto", passo: "stacco + momento rubato", applica: tutto },
+  { nome: "tutto2", passo: "stacco + momento + la lampada non segue la testa", applica: tutto2 },
 ];
 const chieste = arg("--celle")?.split(",").map((s) => s.trim());
 const CELLE = chieste ? TUTTE.filter((c) => chieste.includes(c.nome)) : TUTTE;
