@@ -21,6 +21,11 @@ type Reference = {
   /** A cosa serve: tenere il viso o imporre un aspetto. Due lavori opposti sulla
    *  stessa immagine, e finora si distinguevano solo dal nome del file. */
   role?: Ruolo;
+  /** Cosa c'e' dentro, letto dall'immagine: luce, tonalita', inquadratura,
+   *  pelle, resa. `null` = mai letta, diverso da «letta e vuota». */
+  prompt?: string | null;
+  prompt_aspects?: number | null;
+  prompt_missing?: string[];
 };
 
 export default function ReferencesPage() {
@@ -91,6 +96,48 @@ export default function ReferencesPage() {
       // Se il server rifiuta, l'elenco riletto rimette la verita': meglio un
       // ritorno indietro visibile di una riga che mente.
       load();
+    }
+  }
+
+  /** Quali riferimenti si stanno leggendo adesso: il bottone di quella scheda
+   *  deve dire «leggo…» senza bloccare le altre. */
+  const [leggendo, setLeggendo] = useState<Set<string>>(new Set());
+
+  /**
+   * Legge cosa c'e' dentro una reference e lo attacca a lei.
+   *
+   * Il motore esisteva gia' ma si azionava dal riquadro in cima, su un percorso
+   * scritto a mano, e il risultato andava salvato come «ricetta» con un nome da
+   * inventare: su questo progetto ne sono state salvate zero in tre settimane,
+   * mentre la luce della stessa reference veniva descritta a mano sedici volte.
+   * Qui il gesto sta SULL'immagine che si sta guardando, e il risultato resta.
+   */
+  async function leggiDentro(file: string) {
+    setLeggendo((s) => new Set(s).add(file));
+    try {
+      const r = await jsonFetch<{ text: string; aspects: number; missing: string[] }>(
+        "/api/reference/extract",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: file }),
+        },
+      );
+      setRefs((v) =>
+        v.map((x) =>
+          x.file === file
+            ? { ...x, prompt: r.text, prompt_aspects: r.aspects, prompt_missing: r.missing }
+            : x,
+        ),
+      );
+    } catch (e) {
+      setState({ kind: "error", msg: `${file}: ${String((e as Error).message || e)}` });
+    } finally {
+      setLeggendo((s) => {
+        const n = new Set(s);
+        n.delete(file);
+        return n;
+      });
     }
   }
 
@@ -191,8 +238,16 @@ export default function ReferencesPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6 py-4 pb-20">
-      <div className="space-y-2">
+    /* La larghezza massima sta sui blocchi di TESTO, non su tutta la pagina.
+       Misurato: con `max-w-3xl` sul contenitore la colonna restava a 768 px a
+       qualunque risoluzione — a 1440 px il 46% dello schermo era vuoto, a 1920
+       il 59%, e la griglia dei riferimenti restava a 4 miniature per riga con
+       centinaia di pixel liberi accanto.
+       Il limite serve alla PROSA, dove una riga lunga 1900 px diventa
+       illeggibile; una griglia di immagini non ha quel problema e deve usare lo
+       spazio che c'e'. */
+    <div className="space-y-6 py-4 pb-20">
+      <div className="space-y-2 max-w-3xl">
         <h2 className="text-lg font-semibold">Riferimento → ricetta</h2>
         <p className="text-sm text-neutral-400">
           Un'immagine di riferimento diventa un testo riusabile: luce, tonalità, inquadratura,
@@ -261,7 +316,7 @@ export default function ReferencesPage() {
               </button>
             </p>
           ) : null}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3">
             {visible.map((r) => (
               <figure key={r.file} className="group relative m-0 border border-neutral-800 bg-neutral-900">
                 {/* `aspect-[3/4]` e `object-contain`, non un quadrato che ritaglia.
@@ -342,17 +397,62 @@ export default function ReferencesPage() {
                         {ruolo === "identita" ? "identità" : "stile"}
                       </button>
                     ))}
+                    {/* «Non dichiarato» resta una terza risposta esplicita — non
+                        un valore di riposo — ma per esteso mandava la riga a capo
+                        su una scheda da 190 px, e due bottoni spezzati su due
+                        righe sono il rumore che fa sembrare disordinata tutta la
+                        griglia. Un trattino dice la stessa cosa in un carattere,
+                        e il nome per esteso e' nel `title`. */}
                     {!r.role && (
-                      <span className="font-mono text-[10px] text-neutral-600">non dichiarato</span>
+                      <span
+                        title="ruolo non dichiarato"
+                        className="font-mono text-[10px] text-neutral-600 cursor-help"
+                      >
+                        —
+                      </span>
                     )}
                   </div>
+                  {/* IL DEPROMPT, sotto l'immagine da cui viene.
+                      Cosa c'e' dentro una reference — luce, tonalita',
+                      inquadratura, pelle, resa — decide cosa succede quando la
+                      alleghi, e finora si poteva sapere solo aprendola e
+                      guardandola. Il testo e' lungo: `line-clamp-3` ne mostra
+                      l'inizio e `title` lo da' intero al passaggio del mouse,
+                      cosi' trenta schede restano una griglia e non un muro. */}
+                  {r.prompt ? (
+                    <p
+                      title={r.prompt}
+                      className="text-[10px] leading-snug text-neutral-400 line-clamp-3 pt-1 border-t border-neutral-800 cursor-help"
+                    >
+                      {r.prompt}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => leggiDentro(r.file)}
+                      disabled={leggendo.has(r.file)}
+                      title="Legge dall'immagine: luce, tonalità, inquadratura, pelle, resa"
+                      className="w-full text-left text-[10px] pt-1 border-t border-neutral-800
+                                 text-neutral-500 hover:text-neutral-200 disabled:text-neutral-600"
+                    >
+                      {leggendo.has(r.file) ? "leggo…" : "leggi cosa c'è dentro"}
+                    </button>
+                  )}
+                  {/* Quello che il modello NON e' riuscito a descrivere si dice:
+                      e' la parte che tocca scrivere a mano, e se resta implicita
+                      nessuno la scrive. */}
+                  {r.prompt && (r.prompt_missing?.length ?? 0) > 0 && (
+                    <div className="font-mono text-[9px] text-amber-600/80">
+                      non letto: {r.prompt_missing!.join(", ")}
+                    </div>
+                  )}
                 </figcaption>
               </figure>
             ))}
           </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 max-w-3xl">
         <input
           value={path}
           onChange={(e) => setPath(e.target.value)}
@@ -384,7 +484,7 @@ export default function ReferencesPage() {
       )}
 
       {text && (
-        <div className="space-y-3">
+        <div className="space-y-3 max-w-3xl">
           <textarea
             rows={7}
             value={text}
@@ -413,7 +513,7 @@ export default function ReferencesPage() {
       )}
 
       {recipes.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-neutral-800">
+        <div className="space-y-2 pt-2 border-t border-neutral-800 max-w-3xl">
           <h3 className="font-mono text-[11px] uppercase tracking-widest text-neutral-400">
             Ricette salvate
           </h3>

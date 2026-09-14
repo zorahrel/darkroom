@@ -122,3 +122,72 @@ describe("la griglia dei riferimenti li mostra interi", () => {
     expect(src).toContain("confirm(");
   });
 });
+
+describe("il deprompt sta attaccato alla reference, e si vede", () => {
+  /**
+   * PERCHE'. Il motore che legge un'immagine (`/api/reference/extract`, cinque
+   * aspetti: luce, tonalita', inquadratura, pelle, resa) esisteva da sempre, ma
+   * il risultato usciva solo come risposta HTTP: per conservarlo bisognava
+   * inventargli un nome e salvarlo come «ricetta» staccata dal file. Su profilo
+   * ne sono state salvate ZERO in tre settimane, mentre la luce della stessa
+   * reference veniva descritta a mano sedici volte, sbagliando.
+   */
+  test("una reference appena caricata non ha descrizione, e non e' una stringa vuota", async () => {
+    const elenco = (await (await app.request("/api/references")).json()) as {
+      references: Array<{ file: string; prompt: string | null }>;
+    };
+    const r = elenco.references.find((x) => x.file === nome)!;
+    expect(r).toBeDefined();
+    // `null` = mai letta. Diverso da «letta e vuota», che vorrebbe dire che il
+    // modello ha guardato e non ha trovato niente da dire.
+    expect(r.prompt).toBeNull();
+  });
+
+  test("la descrizione salvata torna nell'elenco, con gli aspetti non letti", () => {
+    const { db } = require("../server/db.ts");
+    db().run(
+      `INSERT INTO reference_prompt (file, body, aspects, missing, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(file) DO UPDATE SET body = excluded.body`,
+      [nome, "luce frontale e dall'alto, ombre morbide", 3, "tonalita,resa", Date.now()],
+    );
+    const riga = db()
+      .query("SELECT body, aspects, missing FROM reference_prompt WHERE file = ?")
+      .get(nome) as { body: string; aspects: number; missing: string };
+    expect(riga.body).toContain("frontale");
+    expect(riga.aspects).toBe(3);
+    // Cio' che il modello NON ha letto si dice: e' la parte che tocca scrivere
+    // a mano, e se resta implicita nessuno la scrive.
+    expect(riga.missing.split(",")).toEqual(["tonalita", "resa"]);
+  });
+
+  test("togliendo la reference se ne va anche la descrizione", async () => {
+    const { db } = require("../server/db.ts");
+    db().run(
+      `INSERT INTO reference_prompt (file, body, aspects, missing, updated_at)
+       VALUES (?, ?, ?, ?, ?) ON CONFLICT(file) DO UPDATE SET body = excluded.body`,
+      [nome, "descrizione da buttare con il file", 5, "", Date.now()],
+    );
+    await togli(nome);
+    const resta = db().query("SELECT file FROM reference_prompt WHERE file = ?").get(nome);
+    expect(resta).toBeNull();
+  });
+});
+
+describe("la pagina usa lo spazio che ha", () => {
+  /**
+   * MISURATO il 14/09 nel browser vero: con `max-w-3xl` sul contenitore la
+   * colonna restava a 768 px a qualunque risoluzione — a 1440 px il 46% dello
+   * schermo era vuoto, a 1920 il 59%, e la griglia restava a 4 miniature per
+   * riga. Dopo: 6 per riga a 1440, 9 a 1920, vuoto sceso al 4-5%.
+   */
+  test("il limite di larghezza sta sui blocchi di testo, non sul contenitore", async () => {
+    const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+    // Il contenitore di pagina non deve limitare: lo fa la prosa al suo interno.
+    expect(src).not.toContain('"max-w-3xl space-y-6 py-4 pb-20"');
+    expect(src).toContain('"space-y-6 py-4 pb-20"');
+    // Ma il limite deve esistere ancora da qualche parte: una riga di prosa
+    // lunga 1900 px e' illeggibile.
+    expect((src.match(/max-w-3xl/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+});

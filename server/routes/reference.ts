@@ -63,8 +63,22 @@ referenceRoutes.get("/api/references", (c) => {
       .map((r) => [r.file, r.role] as const),
   );
 
+  // Cosa c'e' dentro, letto dall'immagine. Arriva con l'elenco e non su
+  // richiesta: una descrizione che si ottiene solo cliccando e' una descrizione
+  // che nessuno legge mentre decide quale reference allegare.
+  const descrizioni = new Map(
+    db()
+      .query<
+        { file: string; body: string; aspects: number; missing: string },
+        []
+      >("SELECT file, body, aspects, missing FROM reference_prompt")
+      .all()
+      .map((r) => [r.file, r] as const),
+  );
+
   const references = files.map((f) => {
     const st = statSync(join(dir, f));
+    const d = descrizioni.get(f);
     return {
       file: f,
       bytes: st.size,
@@ -74,6 +88,11 @@ referenceRoutes.get("/api/references", (c) => {
       /** `stile` impone un aspetto, `identita` tiene il viso. `null` = nessuno
        *  l'ha ancora detto, ed e' un'informazione, non un valore di riposo. */
       role: ruoli.get(f) ?? null,
+      /** Il deprompt: luce, tonalita', inquadratura, pelle, resa. `null` = non
+       *  ancora letta, che e' diverso da «letta e vuota». */
+      prompt: d ? d.body : null,
+      prompt_aspects: d ? d.aspects : null,
+      prompt_missing: d && d.missing ? d.missing.split(",") : [],
     };
   });
   // The never-used ones first: they are the ones with a decision to make.
@@ -165,12 +184,26 @@ referenceRoutes.post("/api/reference/extract", async (c) => {
     );
   }
 
-  return c.json({
-    text: parts.join(" "),
-    aspects: parts.length,
-    missing,
-    from_reference: path.split("/").pop() ?? path,
-  });
+  const nome = path.split("/").pop() ?? path;
+  const testo = parts.join(" ");
+
+  // La descrizione si SALVA sul file, qui, senza chiedere altro. Prima usciva
+  // solo come risposta: per conservarla bisognava inventarle un nome e salvarla
+  // come «ricetta», e infatti su profilo ne sono state salvate zero mentre la
+  // stessa reference veniva ridescritta a mano sedici volte. Un fatto letto
+  // dall'immagine non ha bisogno del permesso di nessuno per restare attaccato
+  // all'immagine da cui viene.
+  if (existsSync(join(refsDir(), nome))) {
+    db().run(
+      `INSERT INTO reference_prompt (file, body, aspects, missing, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(file) DO UPDATE SET body = excluded.body, aspects = excluded.aspects,
+                                       missing = excluded.missing, updated_at = excluded.updated_at`,
+      [nome, testo, parts.length, missing.join(","), Date.now()],
+    );
+  }
+
+  return c.json({ text: testo, aspects: parts.length, missing, from_reference: nome });
 });
 
 /** Allowed extensions: they are the ones the generation backends accept as an
@@ -294,9 +327,11 @@ referenceRoutes.delete("/api/references/:file", (c) => {
     dest = join(cestino, `${base}-${Date.now()}${est}`);
   }
   renameSync(src, dest);
-  // Il ruolo dichiarato se ne va con il file: se un giorno torna, torna senza
-  // un'etichetta che nessuno ricorda di avergli dato.
+  // Ruolo e descrizione se ne vanno con il file: se un giorno torna, torna
+  // senza un'etichetta che nessuno ricorda di avergli dato, e la descrizione si
+  // rilegge in un secondo dall'immagine.
   db().run("DELETE FROM reference_meta WHERE file = ?", [file]);
+  db().run("DELETE FROM reference_prompt WHERE file = ?", [file]);
   return c.json({ file, cestinato: dest.split("/").pop() });
 });
 

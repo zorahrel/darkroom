@@ -310,6 +310,27 @@ const SCHEMA_STATEMENTS = [
     role TEXT NOT NULL CHECK (role IN ('stile','identita')),
     updated_at INTEGER NOT NULL
   )`,
+
+  // Cosa C'E' DENTRO una reference, letto dall'immagine: luce, tonalita',
+  // inquadratura, pelle, resa. Il motore esisteva gia' (`/api/reference/extract`)
+  // ma il risultato finiva in una «ricetta» con un nome da inventare, staccata
+  // dal file: in tre settimane di lavoro su profilo ne sono state salvate ZERO,
+  // e intanto la luce della reference e' stata descritta a mano, male, sedici
+  // volte.
+  //
+  // Tabella separata da `reference_meta` per lo stesso motivo per cui quella e'
+  // separata dalle foto, e per uno in piu': il RUOLO e' una decisione di chi
+  // lavora, la DESCRIZIONE e' un fatto derivato dall'immagine. Tenerli insieme
+  // vorrebbe dire non poter descrivere un file finche' non gli si e' dato un
+  // ruolo (`role` e' NOT NULL), che e' esattamente l'ordine sbagliato: si
+  // guarda cosa c'e' dentro, poi si decide a cosa serve.
+  `CREATE TABLE IF NOT EXISTS reference_prompt (
+    file TEXT PRIMARY KEY,
+    body TEXT NOT NULL,
+    aspects INTEGER NOT NULL,
+    missing TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL
+  )`,
 ];
 
 /**
