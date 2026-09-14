@@ -112,7 +112,12 @@ describe("la griglia dei riferimenti li mostra interi", () => {
    */
   test("usa contain su un riquadro 3/4, e ogni scheda ha il bottone per togliere", async () => {
     const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
-    const img = /<img[\s\S]{0,400}?className="([^"]*)"/.exec(src);
+    // L'immagine della GRIGLIA, cioe' quella dentro <figure>: dal 14/09 il file
+    // contiene anche la vista singola, la cui immagine viene prima nel sorgente
+    // e segue regole opposte (grande, senza riquadro fisso). Cercare "il primo
+    // <img" misurava quella sbagliata.
+    const scheda = src.slice(src.indexOf("<figure"));
+    const img = /<img[\s\S]{0,400}?className="([^"]*)"/.exec(scheda);
     expect(img).not.toBeNull();
     expect(img![1]).toContain("object-contain");
     expect(img![1]).not.toContain("object-cover");
@@ -214,7 +219,10 @@ describe("il deprompt lungo si puo' leggere per intero", () => {
     // `line-clamp-3` e `<button>` per spiegare il difetto, e un test che legge
     // la spiegazione invece del codice passa (o fallisce) per il motivo sbagliato.
     const codice = s.replace(/\/\*[\s\S]*?\*\//g, "");
-    const blocco = codice.slice(codice.indexOf("{r.prompt ? ("), codice.indexOf("leggi cosa c'è dentro"));
+    // Dentro la SCHEDA, non nella vista singola: dal 14/09 il file contiene
+    // entrambe, e nella vista singola il ritaglio non ci deve proprio essere.
+    const griglia = codice.slice(codice.indexOf("<figure"));
+    const blocco = griglia.slice(griglia.indexOf("{r.prompt ? ("), griglia.indexOf("leggi cosa c'è dentro"));
     const paragrafo = blocco.slice(blocco.indexOf("<p"), blocco.indexOf("</p>"));
     const bottone = blocco.slice(blocco.indexOf("<button"), blocco.indexOf("</button>"));
     expect(paragrafo).toContain("line-clamp-3");
@@ -227,5 +235,66 @@ describe("il deprompt lungo si puo' leggere per intero", () => {
     expect(s).toContain("mostra meno");
     // Lo stato e' per scheda: aprirne una non apre le altre.
     expect(s).toContain("const [aperti, setAperti] = useState<Set<string>>");
+  });
+});
+
+describe("una reference si puo' guardare da sola", () => {
+  /**
+   * PERCHE' UNA VISTA SINGOLA. La griglia risponde a «quale scelgo»: miniature
+   * piccole, testo ritagliato, il nome accanto a diciotto altri nomi. Quando la
+   * domanda diventa «cosa c'e' dentro questa» servono cose opposte — l'immagine
+   * grande e il testo per esteso — e comprimerle in una scheda le rende
+   * illeggibili entrambe. Serve anche un indirizzo: una reference si manda a
+   * qualcuno, e «apri Riferimenti e cerca il file che comincia per fondo-» non
+   * e' un indirizzo.
+   */
+  test("ha una rotta sua, e la griglia ci porta", async () => {
+    const main = await Bun.file(new URL("../client/src/main.tsx", import.meta.url)).text();
+    expect(main).toContain('path="p/:pid/references/:file"');
+
+    const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+    // Il nome nella scheda e' un link a quell'indirizzo, col nome codificato:
+    // i file hanno punti e trattini, e uno con uno slash romperebbe la rotta.
+    expect(src).toMatch(/to=\{`\/p\/\$\{pid\}\/references\/\$\{encodeURIComponent\(r\.file\)\}`\}/);
+  });
+
+  test("mostra il prompt per intero, senza ritaglio", async () => {
+    const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+    // La vista singola sta prima della griglia (esce presto su `aperta`).
+    const dettaglio = src.slice(src.indexOf("if (aperta)"), src.indexOf("<figure"));
+    expect(dettaglio.length).toBeGreaterThan(200);
+    // Qui NON si ritaglia: e' esattamente il motivo per cui la pagina esiste.
+    expect(dettaglio).not.toContain("line-clamp");
+    expect(dettaglio).toContain("whitespace-pre-wrap");
+    // E le azioni sono le stesse della scheda: chiamate, non riscritte.
+    for (const azione of ["cambiaRuolo", "leggiDentro", "togliRiferimento"]) {
+      expect(dettaglio).toContain(azione);
+    }
+  });
+
+  test("un nome che non esiste lo dice, invece di mostrare il vuoto", async () => {
+    const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+    const dettaglio = src.slice(src.indexOf("if (aperta)"), src.indexOf("<figure"));
+    // Tre stati distinti, non due: sto caricando / non c'e' / eccola. Il primo
+    // e il secondo si somigliano a schermo e vogliono dire cose opposte.
+    expect(dettaglio).toContain("refs === null");
+    expect(dettaglio).toMatch(/Nessun riferimento si chiama/);
+  });
+});
+
+describe("durante il caricamento non si vede il progetto vuoto", () => {
+  /**
+   * SEGNALATO dall'utente: «per un attimo al caricamento esce il progetto
+   * vuoto». La causa e' che lo stato iniziale era `[]`, indistinguibile da
+   * «non ce n'e' nessuno»: React disegna subito, la fetch arriva dopo, e nel
+   * mezzo la pagina afferma una cosa falsa. MISURATO dopo la correzione
+   * campionando il DOM ogni 60 ms per 2,4 s: lo stato vuoto compare in 0
+   * campioni su 40, «Carico…» in 17, poi 19 schede.
+   */
+  test("lo stato iniziale e' «non lo so ancora», non «non ce n'e'»", async () => {
+    const src = await Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+    expect(src).toContain("useState<Reference[] | null>(null)");
+    // E il null deve essere GESTITO prima del vuoto, altrimenti non serve.
+    expect(src).toMatch(/refs === null/);
   });
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { jsonFetch, refUrl, pq } from "../api";
 import { Pills } from "../ui";
 import { useViewState, readOneOf } from "../viewState";
@@ -29,13 +30,23 @@ type Reference = {
 };
 
 export default function ReferencesPage() {
+  /** Quale reference si sta guardando da sola: `undefined` = l'elenco. */
+  const { pid, file: aperta } = useParams<{ pid: string; file: string }>();
+  const navigate = useNavigate();
   const [path, setPath] = useState("");
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [source, setSource] = useState<string | null>(null);
   const [state, setState] = useState<{ kind: "waiting" | "error" | "ok"; msg: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [refs, setRefs] = useState<Reference[]>([]);
+  /**
+   * `null` = non ancora caricate, `[]` = caricate e non ce n'e' nessuna.
+   * Due stati diversi che con un solo array si confondevano: al primo render
+   * la pagina mostrava «trascina qui un'immagine» — cioe' il vuoto — per il
+   * tempo della fetch, e chi arrivava sulla pagina vedeva un progetto vuoto
+   * che vuoto non era.
+   */
+  const [refs, setRefs] = useState<Reference[] | null>(null);
   const [above, setAbove] = useState(false);
   /** Which references to show. «never used» is the filter that matters: a
    *  reference at zero is a whole pass that went the wrong way without anybody
@@ -48,9 +59,9 @@ export default function ReferencesPage() {
 
   const counts = useMemo(
     () => ({
-      all: refs.length,
-      used: refs.filter((r) => r.used_in > 0).length,
-      never: refs.filter((r) => r.used_in === 0).length,
+      all: (refs ?? []).length,
+      used: (refs ?? []).filter((r) => r.used_in > 0).length,
+      never: (refs ?? []).filter((r) => r.used_in === 0).length,
     }),
     [refs],
   );
@@ -59,10 +70,10 @@ export default function ReferencesPage() {
   const visible = useMemo(() => {
     const picks =
       filter === "used"
-        ? refs.filter((r) => r.used_in > 0)
+        ? (refs ?? []).filter((r) => r.used_in > 0)
         : filter === "never"
-          ? refs.filter((r) => r.used_in === 0)
-          : refs;
+          ? (refs ?? []).filter((r) => r.used_in === 0)
+          : (refs ?? []);
     return [...picks].sort((a, b) => (a.used_in === 0 ? 0 : 1) - (b.used_in === 0 ? 0 : 1));
   }, [refs, filter]);
 
@@ -86,7 +97,7 @@ export default function ReferencesPage() {
    *  risposta a «a cosa serve questa», e farla aspettare un giro di rete la fa
    *  sembrare non registrata. */
   async function cambiaRuolo(file: string, ruolo: Ruolo) {
-    setRefs((v) => v.map((r) => (r.file === file ? { ...r, role: ruolo } : r)));
+    setRefs((v) => (v ?? []).map((r) => (r.file === file ? { ...r, role: ruolo } : r)));
     try {
       await jsonFetch(`/api/references/${encodeURIComponent(file)}/role`, {
         method: "PUT",
@@ -127,7 +138,7 @@ export default function ReferencesPage() {
         },
       );
       setRefs((v) =>
-        v.map((x) =>
+        (v ?? []).map((x) =>
           x.file === file
             ? { ...x, prompt: r.text, prompt_aspects: r.aspects, prompt_missing: r.missing }
             : x,
@@ -162,7 +173,7 @@ export default function ReferencesPage() {
     }
     // Sparisce subito dall'elenco: l'attesa di una richiesta su un gesto di
     // pulizia fa cliccare due volte.
-    setRefs((v) => v.filter((r) => r.file !== file));
+    setRefs((v) => (v ?? []).filter((r) => r.file !== file));
     try {
       await jsonFetch(`/api/references/${encodeURIComponent(file)}`, { method: "DELETE" });
     } catch {
@@ -240,6 +251,110 @@ export default function ReferencesPage() {
     }
   }
 
+  /* LA SINGOLA REFERENCE, quando l'indirizzo ne nomina una.
+     Una griglia di schede risponde a «quale scelgo»; qui la domanda e' «cosa
+     c'e' dentro questa», e cambia cosa deve stare grande: l'immagine intera e
+     il testo per esteso, senza ritagli ne' «leggi tutto». Le azioni sono le
+     stesse della scheda e non si duplicano: chiamano le stesse funzioni. */
+  if (aperta) {
+    const r = refs?.find((x) => x.file === aperta);
+    if (refs === null)
+      return <div className="py-20 text-center text-neutral-400">Carico il riferimento…</div>;
+    if (!r)
+      return (
+        <div className="py-20 text-center text-neutral-400 space-y-3">
+          <p>Nessun riferimento si chiama «{aperta}».</p>
+          <Link to={`/p/${pid}/references`} className="underline hover:text-neutral-200">
+            torna ai riferimenti
+          </Link>
+        </div>
+      );
+    return (
+      <div className="py-4 pb-20 space-y-4">
+        <Link
+          to={`/p/${pid}/references`}
+          className="inline-block text-sm text-neutral-400 underline hover:text-neutral-200"
+        >
+          ← tutti i riferimenti
+        </Link>
+        {/* Immagine e testo affiancati sopra lg, impilati sotto: su un riquadro
+            stretto una colonna da 300 px non e' ne' una foto ne' un testo. */}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
+          <img
+            src={refUrl(r.file)}
+            alt={r.file}
+            className="w-full max-h-[70vh] object-contain bg-neutral-950 border border-neutral-800"
+          />
+          <div className="space-y-4 min-w-0">
+            <div>
+              <h2 className="text-lg font-semibold break-all">{r.file}</h2>
+              <p className="text-sm text-neutral-400">
+                {r.used_in > 0 ? `allegata a ${r.used_in} varianti` : "mai usata"} ·{" "}
+                {Math.round(r.bytes / 1024)} KB
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              {(["identita", "stile"] as const).map((ruolo) => (
+                <button
+                  key={ruolo}
+                  type="button"
+                  onClick={() => cambiaRuolo(r.file, r.role === ruolo ? null : ruolo)}
+                  className={`px-2 py-1 rounded border ${
+                    r.role === ruolo
+                      ? "border-neutral-500 bg-neutral-800 text-neutral-100"
+                      : "border-neutral-800 text-neutral-500 hover:text-neutral-300"
+                  }`}
+                >
+                  {ruolo === "identita" ? "identità" : "stile"}
+                </button>
+              ))}
+              {!r.role && <span className="font-mono text-[11px] text-neutral-600">ruolo non dichiarato</span>}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-neutral-300">Cosa c'è dentro</h3>
+              {r.prompt ? (
+                /* Per esteso: e' il motivo per cui questa pagina esiste. */
+                <p className="text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap">{r.prompt}</p>
+              ) : (
+                <p className="text-sm text-neutral-500">
+                  Non ancora letta.{" "}
+                  <button
+                    type="button"
+                    onClick={() => leggiDentro(r.file)}
+                    disabled={leggendo.has(r.file)}
+                    className="underline hover:text-neutral-200 disabled:no-underline"
+                  >
+                    {leggendo.has(r.file) ? "leggo…" : "leggi cosa c'è dentro"}
+                  </button>
+                </p>
+              )}
+              {r.prompt && (
+                <button
+                  type="button"
+                  onClick={() => leggiDentro(r.file)}
+                  disabled={leggendo.has(r.file)}
+                  className="text-xs text-neutral-500 underline hover:text-neutral-300 disabled:no-underline"
+                >
+                  {leggendo.has(r.file) ? "rileggo…" : "rileggi dall'immagine"}
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await togliRiferimento(r.file, r.used_in);
+                navigate(`/p/${pid}/references`);
+              }}
+              className="text-xs text-neutral-500 underline hover:text-red-400"
+            >
+              togli dall'elenco
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     /* La larghezza massima sta sui blocchi di TESTO, non su tutta la pagina.
        Misurato: con `max-w-3xl` sul contenitore la colonna restava a 768 px a
@@ -305,7 +420,9 @@ export default function ReferencesPage() {
               scegli un file
             </label>
           </div>
-          {refs.length === 0 ? (
+          {refs === null ? (
+            <p className="text-xs text-neutral-500 py-4 text-center">Carico…</p>
+          ) : refs.length === 0 ? (
             <p className="text-xs text-neutral-500 py-4 text-center">
               Trascina qui un'immagine di stile, oppure scegli un file.
             </p>
@@ -358,9 +475,16 @@ export default function ReferencesPage() {
                   ×
                 </button>
                 <figcaption className="px-2 py-1.5 space-y-0.5">
-                  <div className="text-[11px] truncate text-neutral-300" title={r.file}>
+                  {/* Il nome apre la reference da sola: e' il gesto che ci si
+                      aspetta da una scheda, e porta a un indirizzo che si puo'
+                      mandare a qualcuno. */}
+                  <Link
+                    to={`/p/${pid}/references/${encodeURIComponent(r.file)}`}
+                    className="block text-[11px] truncate text-neutral-300 hover:text-neutral-100 hover:underline"
+                    title={r.file}
+                  >
                     {r.file}
-                  </div>
+                  </Link>
                   {/* A reference at zero is not a detail: it is a whole pass that
                       went the wrong way without anybody seeing it. On profilo
                       it happened 12 times out of 12. */}

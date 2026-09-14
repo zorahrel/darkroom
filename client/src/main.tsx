@@ -97,6 +97,19 @@ ReactDOM.createRoot(root).render(
               </Suspense>
             }
           />
+          {/* La SINGOLA reference ha un indirizzo suo. Una griglia di schede
+              risponde a «quale scelgo»; quando la domanda diventa «cosa c'e'
+              dentro questa», servono l'immagine grande e il testo intero, e
+              serve poterla mandare a qualcuno. Stessa pagina: le azioni
+              (ruolo, rilettura, cestino) sono le stesse e non si duplicano. */}
+          <Route
+            path="p/:pid/references/:file"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <ReferencesPage />
+              </Suspense>
+            }
+          />
           <Route
             path="p/:pid/culling"
             element={

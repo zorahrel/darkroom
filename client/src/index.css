@@ -234,3 +234,23 @@ input[type="range"]:not(.dr-hue)::-moz-range-thumb {
   border: 1px solid #18181b;
 }
 input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid #d4d4d4; outline-offset: 1px; }
+
+/* Scorre a QUALUNQUE larghezza, non solo sotto i 1024 px.
+
+   `.fila-scorre` cede il passo al ritorno a capo sul desktop, dove lo spazio
+   di solito basta. Per la BARRA ALTA non basta mai in modo prevedibile: a
+   1100 px i suoi tre blocchi sommavano 1160 px e uno andava a capo, cioe'
+   l'intestazione raddoppiava (57 -> 101 px) proprio alle larghezze intermedie
+   — un riquadro affiancato, una finestra non massimizzata. Una barra che
+   cambia altezza mentre trascini il bordo non e' un dettaglio: sposta in
+   verticale tutto il contenuto sotto. Qui si scorre e basta. */
+.fila-scorre-sempre {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fila-scorre-sempre::-webkit-scrollbar {
+  display: none;
+}
+.fila-scorre-sempre > * {
+  flex-shrink: 0;
+}

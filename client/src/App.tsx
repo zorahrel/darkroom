@@ -222,7 +222,7 @@ export default function App() {
              cui il guscio centra i semafori: se la barra cambiasse altezza da sola, i
              semafori resterebbero dove sono e nessuno se ne accorgerebbe. */
           style={desktop ? { paddingLeft: 92, minHeight: ALTEZZA_BARRA } : undefined}
-          className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
+          className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-nowrap items-center gap-x-3 gap-y-2 sm:gap-4"
         >
           {/* Navigation has two floors, and they are visible.
 
@@ -232,7 +232,7 @@ export default function App() {
               were discovered only if you already knew they were there. The two
               areas are always in the bar: from inside a project you go back to
               the tools with one click, not by going back. */}
-          <div className="fila-scorre flex flex-nowrap lg:flex-wrap items-center gap-2 min-w-0 max-w-full shrink">
+          <div className="fila-scorre-sempre flex flex-nowrap items-center gap-2 min-w-0 max-w-full shrink">
             <Link
               to="/"
               className="inline-flex items-center min-h-11 sm:min-h-0 font-semibold tracking-tight shrink-0"
@@ -273,7 +273,7 @@ export default function App() {
               rimasta senza, e a 438 px sforava di 10 px — il pezzo di pagina
               che si trascinava di lato quando si scorreva. */}
           {pid && activeProject && (
-            <nav className="fila-scorre flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 min-w-0 w-full order-last lg:w-auto lg:order-none">
+            <nav className="fila-scorre-sempre flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 min-w-0">
               {VIEWS.filter((v) =>
                 activeProject.views.includes(v.id) ||
                 (v.id === "storyboard" && (activeProject.stats?.panels ?? 0) > 0) ||
@@ -345,7 +345,7 @@ export default function App() {
               scesi in fondo -- e prendersi una riga intera per la sola spesa voleva
               dire sessanta pixel di niente sopra il contenuto. Li' sta in linea col
               titolo; la riga sua se la prende da `md` in su, dove ha roba dentro. */}
-          <div className="fila-scorre flex items-center gap-2 flex-nowrap lg:flex-wrap flex-1 lg:flex-none min-w-0 ml-auto md:ml-0 md:w-full lg:w-auto lg:ml-auto">
+          <div className="fila-scorre-sempre flex items-center gap-2 flex-nowrap min-w-0 ml-auto">
             {/* The bar's hierarchy: the alarms first because they change what
                 you can do, then the window's switches, then the jobs, and last
                 the only filled action — which exists only where it makes sense.

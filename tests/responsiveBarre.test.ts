@@ -45,17 +45,21 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     // `flex-nowrap lg:flex-wrap` + `shrink`: non basta che scorra, deve anche
     // CEDERE, altrimenti 160+223+gap = 395 in 390 e l'intestazione torna a
     // tre righe (175 px). Si cerca il blocco, non la stringa intera.
-    const blocco1 = /className="(fila-scorre flex [^"]*max-w-full[^"]*)"/.exec(app)?.[1] ?? "";
-    expect(blocco1).toContain("flex-nowrap lg:flex-wrap");
+    // Il 14/09 (sera) la topbar e' passata a `fila-scorre-sempre`: il ritorno a
+    // capo NON torna nemmeno sopra lg. Misurato a 1100 px: con `lg:flex-wrap`
+    // i tre blocchi sommavano 1160 in 1100 e l'intestazione raddoppiava a
+    // 101 px; senza, resta 57 px a 691/1100/1440/1920 con overflowX 0.
+    const blocco1 = /className="(fila-scorre-sempre flex [^"]*max-w-full[^"]*)"/.exec(app)?.[1] ?? "";
+    expect(blocco1).toContain("flex-nowrap");
     expect(blocco1).toContain("shrink");
     // Intestazione, blocco 3: allarmi + lavori + Esporta. Misurava 96 px.
     // Si cerca il blocco, non la stringa intera: le classi attorno cambiano (la
     // riga tutta sua ora se la prende solo da `md` in su, perche' sul telefono i
     // lavori sono scesi nella barra in fondo e restava una riga quasi vuota).
     // Cio' che non deve cambiare e' che scorra.
-    const blocco3 = /className="([^"]*lg:ml-auto[^"]*)"/.exec(app)?.[1] ?? "";
-    expect(blocco3).toContain("fila-scorre");
-    expect(blocco3).toContain("lg:w-auto");
+    const blocco3 = /className="([^"]*ml-auto[^"]*)"/.exec(app)?.[1] ?? "";
+    expect(blocco3).toContain("fila-scorre-sempre");
+    expect(blocco3).toContain("flex-nowrap");
     // Barra dei filtri della griglia: quattro righe di chip su un telefono.
     expect(grid).toContain("fila-scorre flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs");
   });
@@ -66,9 +70,18 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     // muoversi di lato. Se una barra dichiara `.fila-scorre` deve prendersi
     // tutta la regola, e la regola sta in un posto solo.
     const css = await Bun.file(new URL("../client/src/index.css", import.meta.url)).text();
-    const occorrenze = css.split(".fila-scorre").length - 1;
-    // 3: il selettore, il suo ::-webkit-scrollbar, e la regola sui figli.
-    expect(occorrenze).toBe(3);
+    // Due utility, non una, e la differenza e' una decisione: `.fila-scorre`
+    // cede il passo al ritorno a capo sopra lg (barre di pagina, dove lo spazio
+    // in larghezza c'e'); `.fila-scorre-sempre` non cede mai (la topbar, che a
+    // 1100 px raddoppiava di altezza proprio per quel ritorno a capo).
+    // Ognuna porta le sue tre righe: selettore, ::-webkit-scrollbar, figli.
+    // I commenti si tolgono prima di contare: uno dei due nomi e' citato nella
+    // spiegazione dell'altro, e una citazione non e' una regola.
+    const soloRegole = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const nome of [".fila-scorre-sempre", ".fila-scorre"]) {
+      const regola = new RegExp(`\\${nome}(?![-\\w])`, "g");
+      expect(soloRegole.match(regola)?.length ?? 0).toBe(3);
+    }
   });
 });
 
@@ -182,21 +195,23 @@ describe("su un telefono le barre non mangiano mezzo schermo", () => {
   test("nell'intestazione le schede di rotta prendono una riga loro su mobile", async () => {
     const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
     const nav = /<nav className="fila-scorre[^"]*"/.exec(app)?.[0] ?? "";
-    // w-full + order-last: una riga tutta sua sotto lg, al suo posto sopra lg
-    expect(nav).toContain("w-full");
-    expect(nav).toContain("order-last");
-    expect(nav).toContain("lg:w-auto");
-    expect(nav).toContain("lg:order-none");
+    // Il 14/09 (sera) la riga tutta sua e' stata tolta: `w-full order-last`
+    // forzava una seconda riga anche quando le schede ci stavano in fila, e
+    // l'intestazione misurava 101 px a 1100. Ora le schede SCORRONO nella riga
+    // unica — l'obiettivo era una riga sola, non una riga dedicata.
+    expect(nav).toContain("fila-scorre-sempre");
+    expect(nav).toContain("min-w-0");
+    expect(nav).not.toContain("order-last");
   });
 
   test("marca e progetto cedono invece di andare a capo", async () => {
     const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
     // i due blocchi laterali dell'intestazione: nowrap sotto lg e riducibili,
     // altrimenti 160+223+gap = 395 in 390 e si torna a tre righe
-    const laterali = [...app.matchAll(/className="fila-scorre flex [^"]*"/g)].map((m) => m[0]);
-    const conNowrap = laterali.filter((c) => c.includes("flex-nowrap lg:flex-wrap"));
+    const laterali = [...app.matchAll(/className="fila-scorre-sempre flex [^"]*"/g)].map((m) => m[0]);
+    const conNowrap = laterali.filter((c) => c.includes("flex-nowrap"));
     expect(conNowrap.length).toBeGreaterThanOrEqual(2);
     expect(conNowrap.some((c) => c.includes("shrink"))).toBe(true);
-    expect(conNowrap.some((c) => c.includes("flex-1 lg:flex-none"))).toBe(true);
+    expect(conNowrap.some((c) => c.includes("min-w-0"))).toBe(true);
   });
 });
