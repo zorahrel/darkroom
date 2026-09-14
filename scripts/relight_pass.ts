@@ -47,6 +47,36 @@
  * verdastra; le alte luci a a* -7,1 escono da cadavere). Sopra zero vuol dire
  * che la fronte e' piu' chiara del mento: il segno, che e' cio' che l'occhio
  * legge come "faretto dall'alto". Se il segno non si inverte, e' negativo.
+ *
+ * ESITO, 14/09, due tiri: NEGATIVO, e il rischio dichiarato si e' avverato.
+ *
+ *     job 325   ChatGPT ha ridato indietro la stessa immagine (correlazione
+ *               0,985, differenza media 6,92 livelli su 255). Il guard l'ha
+ *               fermata e QUESTA VOLTA aveva ragione: misurata lo stesso,
+ *               alto-basso -12,0 contro i -12,6 della materia.
+ *     job 326   v136, accettata: alto-basso -8,8. Differenza dalla materia
+ *               6,06 livelli su 255 — cosmetica.
+ *
+ * Il segno non si inverte in nessuno dei due. "Correggere un render finito" e'
+ * ora falsificato due volte e su due scale opposte: una modifica minuscola
+ * (mouth_pass, una bocca) e una globale (questa, l'illuminazione di un viso
+ * intero). Il modello, davanti a un'immagine gia' coerente, la restituisce.
+ *
+ * CON QUESTO SI CHIUDE LA LISTA. Diciotto tiri, sette meccanismi, tutti
+ * misurati:
+ *
+ *     descriverla a parole                 studio_light, cool_key,
+ *                                          reverse_reference, luce_frontale
+ *     reference come materia dell'edit     light_from_input
+ *     reference col ruolo di campione      luce_campione
+ *     allegati trattati (foto tinte)       id_luce_ciano — e "non sono io"
+ *     generare senza sorgente              v124, v126 — perde la somiglianza
+ *     correggere un render finito          questa
+ *
+ * Nessuno sposta il segno, e adesso si sa perche': la direzione della luce non
+ * e' una proprieta' che il prompt governa. Viene dalle immagini di partenza, e
+ * le sue sono illuminate dal basso. Serve uno scatto sotto una luce dall'alto:
+ * non e' una preferenza, e' l'unico ingrediente mancante.
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
