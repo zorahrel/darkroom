@@ -40,7 +40,11 @@ mediaRoutes.get("/raw/:filename", (c) => {
  *  posto di 1.PNG proprio per questo: la rotta guardava solo in `refs/` e la
  *  foto stava in `RAW/`. Si guarda in tutte e due, `refs/` per prima. */
 function refFile(filename: string): string | null {
-  for (const dir of [refsDir(), rawDir()]) {
+  // `refs/_cestino` fa parte della ricerca: un riferimento TOLTO dall'elenco
+  // resta allegato alle varianti che l'hanno gia' usato, e quelle miniature
+  // devono continuare a vedersi. Togliere una reference e' una decisione su
+  // cosa usare d'ora in poi, non una riscrittura del passato.
+  for (const dir of [refsDir(), rawDir(), join(refsDir(), "_cestino")]) {
     const p = join(dir, filename);
     if (existsSync(p)) return p;
   }

@@ -11,7 +11,7 @@
 // would then look like a real recipe.
 import { Hono } from "hono";
 import { moondreamBin } from "../config.ts";
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
 import { refsDir } from "../project.ts";
@@ -257,6 +257,47 @@ referenceRoutes.put("/api/references/:file/role", async (c) => {
     [file, role, Date.now()],
   );
   return c.json({ file, role });
+});
+
+/**
+ * Togliere un riferimento dall'elenco: SPOSTARE, non cancellare.
+ *
+ * PERCHE' IL CESTINO E NON `rm`. Il lineage di ogni versione salva i NOMI dei
+ * file allegati: cancellare il file lascia le righe storiche che puntano nel
+ * vuoto, e l'albero mostra riquadri rotti al posto degli allegati — e' successo
+ * gia' una volta su questo progetto, con una foto di progetto scambiata per
+ * reference mancante. Qui il file si sposta in `refs/_cestino/`: sparisce
+ * dall'elenco (GET filtra per estensione immagine, una cartella non passa) ma
+ * resta su disco, e `refFile` in media.ts continua a trovarlo, cosi' le
+ * miniature delle varianti gia' generate restano intatte.
+ *
+ * E' anche l'unica forma reversibile: un riferimento tolto per sbaglio si
+ * rimette con un `mv`, mentre da un `rm` non si torna indietro.
+ */
+referenceRoutes.delete("/api/references/:file", (c) => {
+  const file = decodeURIComponent(c.req.param("file"));
+  // Stessa guardia di caricamento e ruolo: si accetta solo l'ultimo segmento,
+  // perche' «../../qualcosa» non deve poter essere spostato da qui.
+  if (file !== (file.split(/[/\\]/).pop() ?? "")) return c.json({ error: "nome non valido" }, 400);
+  const src = join(refsDir(), file);
+  if (!existsSync(src)) return c.json({ error: "reference inesistente" }, 404);
+
+  const cestino = join(refsDir(), "_cestino");
+  if (!existsSync(cestino)) mkdirSync(cestino, { recursive: true });
+  let dest = join(cestino, file);
+  // Due riferimenti con lo stesso nome tolti in momenti diversi non si
+  // sovrascrivono: il secondo prende un suffisso.
+  if (existsSync(dest)) {
+    const punto = file.lastIndexOf(".");
+    const base = punto > 0 ? file.slice(0, punto) : file;
+    const est = punto > 0 ? file.slice(punto) : "";
+    dest = join(cestino, `${base}-${Date.now()}${est}`);
+  }
+  renameSync(src, dest);
+  // Il ruolo dichiarato se ne va con il file: se un giorno torna, torna senza
+  // un'etichetta che nessuno ricorda di avergli dato.
+  db().run("DELETE FROM reference_meta WHERE file = ?", [file]);
+  return c.json({ file, cestinato: dest.split("/").pop() });
 });
 
 referenceRoutes.get("/api/recipes", (c) =>

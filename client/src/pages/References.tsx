@@ -94,6 +94,32 @@ export default function ReferencesPage() {
     }
   }
 
+  /**
+   * Toglie un riferimento dall'elenco.
+   *
+   * La conferma e' PROPORZIONATA all'uso: una reference mai usata se ne va con
+   * un clic — e' il caso di quelle caricate per sbaglio, che sono la ragione
+   * per cui questo bottone esiste. Una gia' usata in varianti generate chiede
+   * conferma, perche' toglierla cambia cosa si allega d'ora in poi.
+   *
+   * Il file non viene cancellato: il server lo sposta in `refs/_cestino`, e le
+   * varianti che l'hanno gia' usata continuano a mostrarlo nell'albero.
+   */
+  async function togliRiferimento(file: string, usata: number) {
+    if (usata > 0) {
+      const q = `«${file}» è allegata a ${usata} ${usata === 1 ? "variante" : "varianti"}.\n\nToglierla dall'elenco? Le varianti già fatte restano intatte.`;
+      if (!confirm(q)) return;
+    }
+    // Sparisce subito dall'elenco: l'attesa di una richiesta su un gesto di
+    // pulizia fa cliccare due volte.
+    setRefs((v) => v.filter((r) => r.file !== file));
+    try {
+      await jsonFetch(`/api/references/${encodeURIComponent(file)}`, { method: "DELETE" });
+    } catch {
+      load();
+    }
+  }
+
   /** Uploads the chosen files one at a time: an error on the third must not
    *  lose the first two, and saying which one failed is worth more than a
    *  collective "upload failed". */
@@ -237,15 +263,42 @@ export default function ReferencesPage() {
           ) : null}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {visible.map((r) => (
-              <figure key={r.file} className="m-0 border border-neutral-800 bg-neutral-900">
+              <figure key={r.file} className="group relative m-0 border border-neutral-800 bg-neutral-900">
+                {/* `aspect-[3/4]` e `object-contain`, non un quadrato che ritaglia.
+                    Misurato il 14/09 in un riquadro 691x651: le miniature erano
+                    rese 198x198 con `object-cover`, mentre i file stanno fra 0,56
+                    e 1,33 di rapporto — su una reference verticale (0,56) il
+                    quadrato mostra meno della meta' dell'immagine, tagliata al
+                    centro, cioe' proprio il viso quando la posa non e' centrata.
+                    Una griglia di riferimenti serve a RICONOSCERLI: contain
+                    mostra tutto, e il 3/4 e' il taglio dei ritratti che questo
+                    progetto usa. */}
                 <img
                   src={refUrl(r.file)}
                   alt={r.file}
                   loading="lazy"
                   title="Usa questo riferimento"
                   onClick={() => setPath(r.file)}
-                  className="w-full aspect-square object-cover bg-neutral-950 cursor-pointer"
+                  className="w-full aspect-[3/4] object-contain bg-neutral-950 cursor-pointer"
                 />
+                {/* Il bottone che toglie sta SULL'immagine, non in fondo alla
+                    scheda: si decide guardando la foto, e con 30 riferimenti in
+                    griglia una riga di comandi per ciascuno sarebbe rumore.
+                    Sempre presente ma tenue, pieno al passaggio del mouse —
+                    su touch, dove `hover` non esiste, resta comunque toccabile. */}
+                <button
+                  type="button"
+                  title={`Togli «${r.file}» dall'elenco`}
+                  aria-label={`Togli ${r.file} dall'elenco`}
+                  onClick={() => togliRiferimento(r.file, r.used_in)}
+                  className="absolute top-1 right-1 h-7 w-7 grid place-items-center rounded
+                             border border-neutral-700 bg-neutral-950/85 text-neutral-200
+                             text-base leading-none
+                             hover:bg-red-950 hover:border-red-800 hover:text-red-300
+                             transition-colors"
+                >
+                  ×
+                </button>
                 <figcaption className="px-2 py-1.5 space-y-0.5">
                   <div className="text-[11px] truncate text-neutral-300" title={r.file}>
                     {r.file}

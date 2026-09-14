@@ -220,7 +220,12 @@ describe("ingressi dalla tabella", () => {
     ingresso(vid, "reference", "/refs/stile.png", null, 0);
 
     const g = (await albero()).photos[0]!.groups[0]!;
-    expect(g.refs).toEqual(["/refs/stile.png"]);
+    // Il NOME, non il percorso con cui e' stato registrato. Questo test
+    // pretendeva il percorso, e cosi' facendo fissava un difetto: il client
+    // costruisce `/thumb/refs/<nome>`, e con un percorso assoluto l'URL
+    // diventa `/thumb/refs/%2FUsers%2F…`, che la rotta rifiuta. Misurate 7
+    // miniature rotte sull'albero di profilo il 14/09.
+    expect(g.refs).toEqual(["stile.png"]);
     expect(g.ingressi_dedotti).toBe(false);
   });
 });

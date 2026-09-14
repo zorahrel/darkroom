@@ -166,7 +166,13 @@ lineageRoutes.get("/api/lineage", (c) => {
       e.ids.push(r.photo_id ?? nome);
       if (r.origin === "reconstructed") e.dedotti = true;
     } else {
-      e.refs.push(r.path);
+      // Il NOME, non il percorso: come per i `source` due righe sopra.
+      // L'asimmetria costava 7 miniature rotte nell'albero — il client chiede
+      // `/thumb/refs/<nome>`, e con un percorso assoluto l'URL diventa
+      // `/thumb/refs/%2FUsers%2F…`, che la rotta rifiuta perche' contiene `/`.
+      // Il nome basta a ritrovare il file: `refFile` lo cerca in refs/, RAW/ e
+      // nel cestino.
+      e.refs.push(r.path.split("/").pop() ?? r.path);
     }
   }
 
