@@ -191,3 +191,41 @@ describe("la pagina usa lo spazio che ha", () => {
     expect((src.match(/max-w-3xl/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("il deprompt lungo si puo' leggere per intero", () => {
+  /**
+   * MISURATO nel browser il 14/09 sulla scheda di `fondo-blu-gradiente-luce-dura.jpg`
+   * (deprompt reale: 649 caratteri):
+   *
+   *     prima   `line-clamp-3` + testo intero solo in `title`  → 16% leggibile
+   *     dopo    clic su «leggi tutto»                          → 100%, a 11 px
+   *
+   * Un `title` non e' un modo per leggere un paragrafo: sparisce al primo
+   * movimento del mouse e su touch non esiste.
+   */
+  const src = () =>
+    Bun.file(new URL("../client/src/pages/References.tsx", import.meta.url)).text();
+
+  test("il ritaglio sta sul paragrafo, non sul bottone", async () => {
+    const s = await src();
+    // `line-clamp-3` su un <button> non ritaglia: il box WebKit non prende
+    // `box-orient`, e ogni scheda tornava un muro di testo. Misurato.
+    // I commenti si tolgono PRIMA di cercare: quello sopra il blocco cita
+    // `line-clamp-3` e `<button>` per spiegare il difetto, e un test che legge
+    // la spiegazione invece del codice passa (o fallisce) per il motivo sbagliato.
+    const codice = s.replace(/\/\*[\s\S]*?\*\//g, "");
+    const blocco = codice.slice(codice.indexOf("{r.prompt ? ("), codice.indexOf("leggi cosa c'è dentro"));
+    const paragrafo = blocco.slice(blocco.indexOf("<p"), blocco.indexOf("</p>"));
+    const bottone = blocco.slice(blocco.indexOf("<button"), blocco.indexOf("</button>"));
+    expect(paragrafo).toContain("line-clamp-3");
+    expect(bottone).not.toContain("line-clamp-3");
+  });
+
+  test("c'e' un comando esplicito per aprirlo e chiuderlo", async () => {
+    const s = await src();
+    expect(s).toContain("leggi tutto");
+    expect(s).toContain("mostra meno");
+    // Lo stato e' per scheda: aprirne una non apre le altre.
+    expect(s).toContain("const [aperti, setAperti] = useState<Set<string>>");
+  });
+});

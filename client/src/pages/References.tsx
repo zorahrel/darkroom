@@ -102,6 +102,9 @@ export default function ReferencesPage() {
   /** Quali riferimenti si stanno leggendo adesso: il bottone di quella scheda
    *  deve dire «leggo…» senza bloccare le altre. */
   const [leggendo, setLeggendo] = useState<Set<string>>(new Set());
+  /** Quali deprompt sono aperti per intero: il ritaglio e' il default, la
+   *  lettura completa e' una scelta per scheda. */
+  const [aperti, setAperti] = useState<Set<string>>(new Set());
 
   /**
    * Legge cosa c'e' dentro una reference e lo attacca a lei.
@@ -420,12 +423,40 @@ export default function ReferencesPage() {
                       l'inizio e `title` lo da' intero al passaggio del mouse,
                       cosi' trenta schede restano una griglia e non un muro. */}
                   {r.prompt ? (
-                    <p
-                      title={r.prompt}
-                      className="text-[10px] leading-snug text-neutral-400 line-clamp-3 pt-1 border-t border-neutral-800 cursor-help"
-                    >
-                      {r.prompt}
-                    </p>
+                    /* Il deprompt si APRE con un clic, non si legge in un tooltip.
+                       Misurato: 649 caratteri, di cui `line-clamp-3` ne mostrava
+                       il 18% (44 px su 251) — il resto stava solo in `title`, che
+                       per un paragrafo intero non e' leggibile (sparisce al primo
+                       movimento del mouse, e su touch non esiste). Il ritaglio
+                       resta il default, perche' trenta schede aperte sono un muro;
+                       ma chi vuole leggere clicca, e legge tutto, a 11 px. */
+                    <div className="pt-1 border-t border-neutral-800">
+                      {/* Il ritaglio sta sul PARAGRAFO, non sul bottone: misurato,
+                          `line-clamp-3` su un <button> non ritaglia (il box WebKit
+                          non prende `box-orient`) e ogni scheda tornava un muro.
+                          Il comando e' una riga a parte — anche perche' un bottone
+                          che contiene 650 caratteri e' un bersaglio da 250 px. */}
+                      <p
+                        className={`leading-snug text-neutral-400 ${
+                          aperti.has(r.file) ? "text-[11px]" : "text-[10px] line-clamp-3"
+                        }`}
+                      >
+                        {r.prompt}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAperti((s) => {
+                            const n = new Set(s);
+                            n.has(r.file) ? n.delete(r.file) : n.add(r.file);
+                            return n;
+                          })
+                        }
+                        className="text-[10px] text-neutral-500 underline hover:text-neutral-200"
+                      >
+                        {aperti.has(r.file) ? "mostra meno" : "leggi tutto"}
+                      </button>
+                    </div>
                   ) : (
                     <button
                       type="button"
