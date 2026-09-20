@@ -4,9 +4,25 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { WorkerResult } from "./worker.ts";
 
+/**
+ * Dove sta `codex`, cercato invece che assunto.
+ *
+ * Il default era il solo bundle dell'app. Su questa macchina Codex e' installato
+ * da Homebrew (`/opt/homebrew/bin/codex`, `codex-cli 0.153.4`) e il bundle non
+ * esiste: il backend moriva con `codex binary not found at /Applications/...`,
+ * cioe' un errore che accusa Codex di non esserci mentre e' sul PATH. Si prova
+ * il primo percorso che esiste davvero; l'ultimo resta il nome nudo, cosi' su
+ * una macchina che lo ha altrove l'errore arriva da `spawn` con il PATH vero
+ * invece che da un controllo su un percorso inventato.
+ */
 const CODEX_BIN =
   process.env.CODEX_BIN ??
-  "/Applications/Codex.app/Contents/Resources/codex";
+  [
+    "/opt/homebrew/bin/codex",
+    "/usr/local/bin/codex",
+    "/Applications/Codex.app/Contents/Resources/codex",
+  ].find((p) => existsSync(p)) ??
+  "codex";
 const GENERATED_DIR = join(homedir(), ".codex", "generated_images");
 const WORKER_TIMEOUT_MS = 6 * 60 * 1000; // 6 min, matches CDP worker
 
