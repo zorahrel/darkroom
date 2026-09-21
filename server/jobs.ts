@@ -55,8 +55,15 @@ function workerPer(b: Backend) {
 // Text-to-image always went through the browser, even with another backend
 // selected: with "openai" the quota you wanted to avoid came back in through
 // the window.
+// "codex-http" genera anche senza allegati (tool_choice "auto"): mandarlo al
+// browser significava chiedere Chrome per un lavoro che il canale HTTP fa da
+// solo, e su un Mac senza Chrome la coda restava ferma per sempre.
 function generatePer(b: Backend) {
-  return b === "openai" ? runWorkerOpenAiGenerate : runWorkerGenerate;
+  return b === "openai"
+    ? runWorkerOpenAiGenerate
+    : b === "codex-http"
+      ? runWorkerCodexHttp
+      : runWorkerGenerate;
 }
 
 /**
