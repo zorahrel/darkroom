@@ -351,7 +351,16 @@ export default function App() {
                 the only filled action — which exists only where it makes sense.
                 "Export favourites" on a video project meant nothing, and
                 despite that it was the most conspicuous thing on screen. */}
-            {health && !health.browser && (
+            {/* Chrome NON installato: non c'e' niente da avviare, e il bottone
+                rosso da 221 px prometteva il contrario. Qui si dice solo com'e'
+                — con il backend che sta davvero lavorando — in un badge che
+                costa un quarto dello spazio. */}
+            {health && !health.browser && health.chrome_installed === false && (
+              <Badge tone="neutral" title={health.hint ?? ""}>
+                backend {health.backend ?? "?"}
+              </Badge>
+            )}
+            {health && !health.browser && health.chrome_installed !== false && (
               <Bott weight="danger" size="m" disabled={launching}
                     title={health.hint ?? ""}
                     onClick={async () => {
@@ -392,8 +401,16 @@ export default function App() {
             {/* Nascosto dal contenitore e non dalla classe sul bottone: `hidden` e
                 `inline-flex` sono tutte e due utilita' di display, e nella stessa
                 classe vince quella che il foglio scrive dopo -- che non e'
-                `hidden`. Sul telefono questi due stanno nella barra in fondo. */}
-            <span className="hidden md:contents">
+                `hidden`. Sul telefono questi due stanno nella barra in fondo.
+
+                `md:flex`, NON `md:contents`: un wrapper `display: contents` non
+                genera box, quindi lo `flex-shrink: 0` che `.fila-scorre-sempre > *`
+                gli mette addosso non arriva a nessuno, e il bottone dentro resta
+                a shrink 1. Misurato il 20/09 a 1037 px: il bottone «Lavori» era
+                schiacciato a 18 px e il suo testo finiva SOPRA il badge della
+                spesa (28 px di sovrapposizione). Con un box vero lo shrink lo
+                riceve il wrapper e il bottone sta intero. */}
+            <span className="hidden md:flex shrink-0">
             <Bott size="m" weight="quiet" active={location.pathname === "/activity"}
                   onClick={() => navigate("/activity")}
                   title="Il registro delle chiamate MCP: cosa è stato fatto, quando, e com'è andata">
@@ -402,7 +419,7 @@ export default function App() {
             </Bott>
             </span>
 
-            <span className="hidden md:contents">
+            <span className="hidden md:flex shrink-0">
             <Bott size="m" onClick={() => setShowJobs((v) => !v)}
                   title="Le generazioni in corso, quelle fatte e quelle fallite">
               <ListOrdered  aria-hidden />

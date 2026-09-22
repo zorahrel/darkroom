@@ -215,3 +215,75 @@ describe("su un telefono le barre non mangiano mezzo schermo", () => {
     expect(conNowrap.some((c) => c.includes("min-w-0"))).toBe(true);
   });
 });
+
+describe("un wrapper senza box non trasmette lo shrink ai bottoni", () => {
+  /**
+   * MISURATO nel browser il 20/09 a 1037 px, sulla barra in alto a destra:
+   *
+   *     bottone «Lavori»   w = 18 px   (ne servono ~109)
+   *     «fermi» x=923 w=29 · «~$4.37 spesi» x=924 w=79
+   *     sovrapposizione reale 28 px in x, 18 px in y
+   *
+   * Il testo del bottone finiva SOPRA il badge della spesa. La causa non era il
+   * badge: il bottone stava dentro `<span class="hidden md:contents">`, e
+   * `display: contents` non genera box — quindi il `flex-shrink: 0` che
+   * `.fila-scorre-sempre > *` mette sui figli diretti cadeva nel vuoto e il
+   * bottone restava a shrink 1, libero di schiacciarsi a 18 px.
+   *
+   * La regola CSS non puo' attraversare un `display: contents`: non esiste un
+   * selettore per il display calcolato. Quindi il divieto sta qui.
+   */
+  test("nessun `contents` dentro le barre che scorrono", async () => {
+    const src = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const codice = src.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    expect(codice).not.toContain("md:contents");
+    expect(codice).not.toContain("lg:contents");
+  });
+
+  test("i wrapper che nascondono un bottone hanno un box e non cedono", async () => {
+    const src = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const codice = src.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    const wrapper = [...codice.matchAll(/className="hidden (md|lg):(\w+)[^"]*"/g)];
+    expect(wrapper.length).toBeGreaterThan(0);
+    for (const w of wrapper) {
+      // un display che genera box: flex, inline-flex, block... mai `contents`
+      expect(w[2]).not.toBe("contents");
+    }
+    // e devono dichiarare di non stringersi, come i figli diretti della barra
+    expect(codice).toContain('className="hidden md:flex shrink-0"');
+  });
+});
+
+describe("la barra non offre di avviare un Chrome che non esiste", () => {
+  /**
+   * Il 20/09 questa macchina non ha piu' Chrome (`/Applications/Google
+   * Chrome.app` assente). La barra mostrava lo stesso «Chrome non collegato —
+   * avvialo»: 221 px su 778 di larghezza, il pezzo piu' grande della fila, per
+   * un bottone che risponde sempre `No Chrome/Chromium found`.
+   *
+   * Un'azione che non puo' riuscire e' peggio di nessuna azione: manda a
+   * cercare una colpa propria. Ora `/api/health` dice se il binario esiste, e
+   * la UI in quel caso mostra il backend che sta davvero lavorando (79 px).
+   */
+  test("health distingue «non avviato» da «non installato»", async () => {
+    const src = await Bun.file(new URL("../server/routes/studio.ts", import.meta.url)).text();
+    expect(src).toContain("chrome_installed");
+    expect(src).toContain("resolveChromeBin()");
+    // il backend in uso viaggia con la diagnosi: senza, «non installato» non dice cosa sta lavorando
+    expect(src).toMatch(/backend:\s*WORKER_BACKEND/);
+  });
+
+  test("il bottone «avvialo» sparisce quando Chrome non c'e'", async () => {
+    const src = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const codice = src.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    // il ramo con il bottone è condizionato a chrome_installed !== false
+    expect(codice).toContain("health.chrome_installed !== false");
+    // e il ramo senza Chrome non contiene la chiamata di lancio
+    const senzaChrome = codice.slice(
+      codice.indexOf("health.chrome_installed === false"),
+      codice.indexOf("health.chrome_installed !== false"),
+    );
+    expect(senzaChrome.length).toBeGreaterThan(10);
+    expect(senzaChrome).not.toContain("/api/browser/launch");
+  });
+});

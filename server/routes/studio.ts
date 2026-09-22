@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join } from "node:path";
 import { db } from "../db.ts";
-import { WORKER_BACKEND, BACKEND_USES_BROWSER, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, openaiKey } from "../config.ts";
+import { WORKER_BACKEND, BACKEND_USES_BROWSER, OPENAI_IMAGE_MODEL, OPENAI_IMAGE_QUALITY, openaiKey, resolveChromeBin } from "../config.ts";
 import {
   addProject,
   dirsFor,
@@ -78,17 +78,28 @@ studioRoutes.get("/api/health", async (c) => {
   // `browser` resta "il worker puo' lavorare", che e' la domanda a cui la UI
   // reagisce: un Chrome acceso ma sloggato non puo', e prima rispondeva di si'.
   const browser = s.alive && s.logged_in;
+  // C'E' UN CHROME DA AVVIARE SU QUESTA MACCHINA? Non e' la stessa domanda di
+  // «e' acceso»: dal 14/09 questo Mac non ha piu' Chrome, e la barra continuava
+  // a offrire «Chrome non collegato — avvialo» — 221 px di invito a un'azione
+  // che risponde sempre "No Chrome/Chromium found". Un bottone che non puo'
+  // riuscire e' peggio di nessun bottone: manda l'utente a cercare la sua colpa.
+  const chromeBin = resolveChromeBin();
+  const chrome_installed = Boolean(chromeBin && existsSync(chromeBin));
   return c.json({
     browser,
     browser_alive: s.alive,
     logged_in: s.logged_in,
+    chrome_installed,
+    backend: WORKER_BACKEND,
     openclaw: browser, // legacy alias for older clients
     cdp_url: CHATGPT_CDP_URL,
     hint: browser
       ? null
-      : s.alive
-        ? `${s.reason ?? "sessione non valida"} — apri la finestra ChatGPT dedicata e accedi.`
-        : `ChatGPT browser non avviato. POST /api/browser/launch o usa il bottone in UI.`,
+      : !chrome_installed
+        ? `Chrome non e' installato: il backend a browser (cdp) non puo' partire. In uso: ${WORKER_BACKEND}.`
+        : s.alive
+          ? `${s.reason ?? "sessione non valida"} — apri la finestra ChatGPT dedicata e accedi.`
+          : `ChatGPT browser non avviato. POST /api/browser/launch o usa il bottone in UI.`,
   });
 });
 

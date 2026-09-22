@@ -209,6 +209,11 @@ export type Health = {
   openclaw: boolean; // legacy alias
   cdp_url: string;
   hint: string | null;
+  /** C'e' un Chrome da avviare su questa macchina. Se no, offrire «avvialo»
+   *  manda l'utente a cercare la sua colpa per un'azione che non puo' riuscire. */
+  chrome_installed?: boolean;
+  /** Quale backend sta lavorando davvero: cdp, codex, ... */
+  backend?: string;
 };
 
 // ---- Studio (multi-project overview) --------------------------------------
