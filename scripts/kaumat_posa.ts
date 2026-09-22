@@ -58,6 +58,20 @@ drawing of the body silhouette: copy that outline exactly, it is the pose.
 const PROMPT = `
 ${RICALCA ? TESTA_RICALCO : TESTA_RIFERIMENTO}
 
+THE HEAD AND NECK, the thing that goes wrong most often. Take the head straight
+from the character reference and do not restyle it: it is COLOSSAL, a third of
+the body length, extremely WIDE and FLAT, far wider than tall, a broad triangular
+wedge widest at the jaw hinge narrowing to a SHORT BLUNT ROUNDED snout. It is a
+crested gecko's head, never a dinosaur's, never a lizard's narrow pointed muzzle.
+THE EYE IS ENORMOUS, a huge round lidless dome taking up a third of the whole
+head, glossy black with a burning amber ring and a vertical slit pupil. The wide
+jaw line curves up into a fixed gentle smile running back to the ear opening.
+
+THE NECK IS VERY LONG, far longer than in the reference sheet: a long, thick,
+muscular neck that carries that huge head high up and well forward of the
+shoulders. Long like a swan's in length, but heavy and muscular in build, never
+thin, never a slender sauropod stalk.
+
 THE POSE, from the line drawing. The outline of the whole animal is a deep W,
 with FIVE landmarks, left to right, and every one of them must be there:
 
@@ -85,10 +99,11 @@ of the back. The two cream-white rows of small soft fleshy triangular fringe
 scales run along the two OUTER SIDE EDGES of the back, one row down each flank
 edge, starting above each eye and fading at the hip.
 
-FEET, the one thing to take from neither reference: a gecko's, at the scale of a
-bear. FIVE LONG SEPARATE SPLAYED DIGITS on every foot, divided all the way down
-to the base, each with a broad round adhesive pad at the tip and fine parallel
-lamellae under each pad. Never a paddle, never fused toes, never a mitten.
+FEET, exactly as in the character reference: a broad webbed fan, and the FIVE
+DIGITS ARE CLEARLY VISIBLE AND DIVIDED inside it, each one a distinct ray running
+out to its own rounded tip, the rim of the foot scalloped between the toes. Like
+a web-footed gecko: the toes can be counted at a glance. Never a smooth featureless
+paddle, never a mitten with the toes hidden.
 
 SCALE: the size of a bull, 4 metres from snout to tail tip. A moss-covered fallen
 trunk a metre thick lies behind it and the arch of its back rises above the
@@ -108,13 +123,14 @@ Photographic, not illustrated. Film grain.
 
 Vertical 9:16, 1080x1920.
 
-Negative: crest down the spine, central ridge, row of spines along the back,
-fringe along the centre of the back, head down at ground level, head below the
-shoulders, low neck, muzzle level, muzzle pointing up, straight raised neck, long
-slender neck, sauropod neck, no dip between head and back, straight back, flat
-topline, no hump, tail lying flat on the ground, paddle feet, fused toes,
-three-quarter view, front view, small pet-sized animal, bright daylight, visible
-sky, cartoon, videogame render, concept art, text, watermark, people, fur.
+Negative: small head, narrow head, long pointed muzzle, dinosaur head, small eye,
+short neck, thin neck, sauropod neck, crest down the spine, central ridge, row of
+spines along the back, fringe along the centre of the back, head down at ground
+level, head below the shoulders, muzzle level, muzzle pointing up, no dip between
+head and back, straight back, flat topline, no hump, tail lying flat on the
+ground, smooth paddle feet, hidden toes, fused toes, three-quarter view, front
+view, small pet-sized animal, bright daylight, visible sky, cartoon, videogame
+render, concept art, text, watermark, people, fur.
 `.trim();
 
 withProject(PID, async () => {
