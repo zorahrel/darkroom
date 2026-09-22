@@ -287,3 +287,42 @@ describe("la barra non offre di avviare un Chrome che non esiste", () => {
     expect(senzaChrome).not.toContain("/api/browser/launch");
   });
 });
+
+describe("la barra va a capo invece di nascondere la navigazione", () => {
+  /**
+   * MISURATO nel browser il 20/09 a 780 px, con la barra forzata su una riga
+   * sola e ogni striscia che scorreva da se':
+   *
+   *     striscia 1   servono 381 px, ne aveva 195
+   *     striscia 2   servono 354 px, ne aveva 183
+   *     striscia 3   servono 510 px, ne aveva 261
+   *
+   * e «Profilo», «Albero», «Riferimenti», «Esporta preferite» erano fuori dalla
+   * vista: non piccoli, invisibili. Comprimere in una riga aveva scambiato
+   * «alto» con «irraggiungibile», che e' peggio: l'altezza si scorre, una voce
+   * nascosta dentro un nastro no.
+   *
+   * Dopo: tre righe, 149 px, zero elementi nascosti, overflow 0.
+   */
+  test("l'intestazione non vieta il ritorno a capo", async () => {
+    const src = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const codice = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    const header = codice.slice(codice.indexOf("mx-auto max-w-none px-3"), codice.indexOf("mx-auto max-w-none px-3") + 220);
+    expect(header).toContain("flex-wrap");
+    expect(header).not.toContain("flex-nowrap");
+  });
+
+  test("il posto dei semafori e' un segnaposto, non padding sull'intestazione", async () => {
+    const src = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
+    const codice = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    // Il padding rientra a OGNI riga: con la barra che va a capo costava 92 px
+    // anche dove i semafori non ci sono (780 px di viewport -> 672 utili
+    // invece di 748, e le prime due strisce non stavano insieme per 65 px).
+    const stile = /style=\{desktop \? \{([^}]*)\}/.exec(codice);
+    expect(stile).not.toBeNull();
+    expect(stile![1]).not.toContain("paddingLeft");
+    expect(stile![1]).toContain("minHeight");
+    // il segnaposto e' un figlio del flex, quindi occupa solo la prima riga
+    expect(codice).toMatch(/desktop && <div aria-hidden[\s\S]{0,120}width: 76/);
+  });
+});

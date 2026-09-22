@@ -221,8 +221,33 @@ export default function App() {
           /* L'altezza è fissata solo dentro l'applicazione, ed è la stessa misura su
              cui il guscio centra i semafori: se la barra cambiasse altezza da sola, i
              semafori resterebbero dove sono e nessuno se ne accorgerebbe. */
-          style={desktop ? { paddingLeft: 92, minHeight: ALTEZZA_BARRA } : undefined}
-          className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-nowrap items-center gap-x-3 gap-y-2 sm:gap-4"
+          /* Lo spazio per i semafori sta su un SEGNAPOSTO, non sul padding.
+             Il padding sinistro rientra ogni riga: da quando la barra va a capo
+             costava 92 px anche alla seconda e alla terza, dove i semafori non
+             ci sono. Misurato a 780 px: larghezza utile 672 invece di 748, e le
+             prime due strisce (381 + 356) non stavano insieme per 65 px.
+             Un segnaposto e' un figlio del flex: occupa la prima riga e basta. */
+          style={desktop ? { minHeight: ALTEZZA_BARRA } : undefined}
+          /* La barra VA A CAPO quando le sue strisce non ci stanno in fila.
+
+             Il 20/09, a 780 px, la scelta opposta (una riga sola, ogni striscia
+             che scorre da se') e' stata misurata e non regge: le tre strisce
+             mostravano meno di meta' di quello che contengono
+
+                 striscia 1   servono 381 px, ne aveva 195
+                 striscia 2   servono 354 px, ne aveva 183
+                 striscia 3   servono 510 px, ne aveva 261
+
+             e le voci «Profilo», «Albero», «Riferimenti», «Esporta preferite»
+             erano FUORI dalla vista — non piccole: invisibili, raggiungibili
+             solo scorrendo tre nastri diversi a mano. Una barra di navigazione
+             che nasconde la navigazione non e' compatta, e' rotta.
+
+             Andando a capo, a 780 px le prime due strisce stanno insieme
+             (381 + 354 = 735) e la terza scende: due righe, tutto leggibile.
+             `fila-scorre-sempre` resta sulle strisce come ultima difesa sotto i
+             ~400 px, dove nemmeno una striscia intera ci sta. */
+          className="mx-auto max-w-none px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4"
         >
           {/* Navigation has two floors, and they are visible.
 
@@ -232,6 +257,10 @@ export default function App() {
               were discovered only if you already knew they were there. The two
               areas are always in the bar: from inside a project you go back to
               the tools with one click, not by going back. */}
+          {/* Il posto dei semafori del guscio: 76 px + i 16 del gap = i 92 che
+              prima erano padding. Sta nel flusso, quindi lo occupa solo la
+              riga dove i semafori stanno davvero. */}
+          {desktop && <div aria-hidden className="shrink-0" style={{ width: 76 }} />}
           <div className="fila-scorre-sempre flex flex-nowrap items-center gap-2 min-w-0 max-w-full shrink">
             <Link
               to="/"
