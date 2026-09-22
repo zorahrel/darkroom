@@ -23,6 +23,7 @@ const RIF = `${R}/video-reference-dettagli.png`;
 const DA = Number(arg("--da") ?? 2);
 const N = Number(arg("--n") ?? 1);
 const COLLO = process.argv.includes("--collo");
+const SCATTO = process.argv.includes("--scatto");
 
 /** Secondo delta: la fisionomia e la massa sono giuste, la linea del collo no.
  *  Resta l'unico punto della lista ancora aperto, e si muove da solo. */
@@ -91,8 +92,47 @@ toes, spikes, thorns, crest of spines, new framing, different background,
 different light, cartoon, 3D render, text, watermark.
 `.trim();
 
-const PROMPT = COLLO ? PROMPT_COLLO : PROMPT_QUADRUPEDE;
-const RICETTA = COLLO ? "collo-loch-ness" : "quadrupede";
+/** Terzo delta, due cose che non si contendono nulla: le dita stanno
+ *  sull'animale, il fogliame sta nella cornice. La palmatura e' rimasta
+ *  illeggibile in ogni versione perche' le zampe finiscono sempre in ombra, e la
+ *  ripresa rubata da dietro le foglie era chiesta dalla jcode e non e' mai
+ *  arrivata davvero. */
+const PROMPT_SCATTO = `
+The image is a photograph of the animal. Keep the animal itself exactly as it is:
+the gecko head, the huge lidless amber eyes, the wide blunt smiling jaw, the
+orange casque, the flat cream plates covering neck and shoulders, the white
+flecks, the heavy muscled body on all four legs, the rising neck hooking forward,
+the thick tail with its orange stripe, the forest, the light and the colours.
+
+Two changes, and nothing else.
+
+1. THE HANDS AND FEET MUST BE READABLE. Right now the toes are lost in shadow and
+   cannot be found. Bring every foot into the light and draw it clearly: each is a
+   broad WEBBED PADDLE with FIVE DIGITS clearly visible as separate divided rays
+   inside the webbing, the skin stretched between them, each ray ending in a
+   rounded fleshy tip, no claws and no points. The toes must be countable at a
+   glance on the two front feet. Lift the shadow on the forest floor just enough
+   for the feet to read, without changing the mood of the shot.
+
+2. IT MUST LOOK STOLEN FROM A DISTANCE, SHOT THROUGH THE UNDERGROWTH. Push big
+   out-of-focus leaves, fern fronds, hanging vines and a dark branch into the
+   FOREGROUND so they crowd the top, the bottom and both side edges of the frame
+   and partly cross in front of the animal, leaving it glimpsed through a gap in
+   the leaves. The foreground is nearly black and heavily blurred, the animal is
+   the only sharp thing. It must read like hidden-camera wildlife footage taken
+   with a long lens from behind cover, never like a clear posed portrait.
+
+It stays the same photograph: same animal, same pose, same forest, same light,
+real lens, natural grain.
+
+Negative: hidden toes, toes in shadow, fused toes, smooth featureless paddle,
+claws, pointed toes, clear unobstructed view, clean empty foreground, posed
+portrait, centred hero shot, studio look, new pose, different animal, different
+background, bright daylight, cartoon, 3D render, text, watermark.
+`.trim();
+
+const PROMPT = SCATTO ? PROMPT_SCATTO : COLLO ? PROMPT_COLLO : PROMPT_QUADRUPEDE;
+const RICETTA = SCATTO ? "dita-e-scatto-rubato" : COLLO ? "collo-loch-ness" : "quadrupede";
 
 withProject(PID, async () => {
   initSchema();
@@ -116,7 +156,7 @@ withProject(PID, async () => {
     const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
     if (i > 0) await new Promise((r) => setTimeout(r, 12000));
     const t0 = Date.now();
-    const res = await runWorkerCodexHttp({ images: [src], prompt: PROMPT, output: out, refs: [RIF] });
+    const res = await runWorkerCodexHttp({ images: [src], prompt: PROMPT, output: out, refs: SCATTO ? [] : [RIF] });
     const secs = Math.round((Date.now() - t0) / 1000);
     if (res.status === "ok") {
       const ins = db().run(
