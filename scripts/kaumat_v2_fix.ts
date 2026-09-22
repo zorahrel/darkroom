@@ -13,17 +13,53 @@ import { enqueueJob, scriviIngressiVariante } from "../server/jobs.ts";
 import { runWorkerCodexHttp } from "../server/worker-codex-http.ts";
 
 const PID = "kaumat";
-const PHOTO = "kaumat-v2";
-const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
-const RIF = `${R}/video-reference-dettagli.png`;
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
+const PHOTO = arg("--photo") ?? "kaumat-v2";
+const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
+const RIF = `${R}/video-reference-dettagli.png`;
 const DA = Number(arg("--da") ?? 2);
 const N = Number(arg("--n") ?? 1);
+const COLLO = process.argv.includes("--collo");
 
-const PROMPT = `
+/** Secondo delta: la fisionomia e la massa sono giuste, la linea del collo no.
+ *  Resta l'unico punto della lista ancora aperto, e si muove da solo. */
+const PROMPT_COLLO = `
+The first image is a photograph of the animal. The second is a reference frame
+from a film, attached ONLY for the line of its neck: do not copy that creature,
+do not give the animal its beak.
+
+Keep everything in the photograph as it is: the gecko head with its huge lidless
+amber eyes, the wide blunt smiling jaw, the orange casque, the flat cream plates
+lying over the neck and shoulders, the white flecks, the webbed paddle hands, the
+heavy muscled body on all four legs, the thick tail with its orange stripe, the
+forest, the foreground leaves, the light and the framing.
+
+Change ONE thing: THE NECK. Right now it runs low and forward, the flat crouch of
+a gecko, which is exactly what this animal must not have. Rebuild it as a Loch
+Ness curve: from the shoulders the neck RISES UP AND BACKWARDS, leaning back over
+the body, then ARCHES FORWARD at the top and comes DOWN AND FORWARD, so the big
+gecko head is carried high and hangs forward well ahead of the shoulders, muzzle
+pointing down at the ground. In profile the neck is a tall backward-leaning
+question mark. It stays long, thick and heavily muscled the whole way, and the
+flat cream plates still cover it in rows.
+
+All four feet stay planted on the ground and the body stays balanced
+horizontally: the whole animal reads as one long S, neck rising and hooking
+forward at one end, back arching, tail sweeping out behind.
+
+It stays the same photograph: same forest, same light, real animal, natural
+grain.
+
+Negative: low neck, flat gecko crouch, neck running straight forward, head at
+ground level, head below the shoulders, thin neck, short neck, beak, bird head,
+bipedal, front legs off the ground, spikes, crest of spines, new framing,
+different background, different light, cartoon, 3D render, text, watermark.
+`.trim();
+
+const PROMPT_QUADRUPEDE = `
 The first image is a photograph of the animal. The second is a reference frame of
 the same animal from a film.
 
@@ -55,6 +91,9 @@ toes, spikes, thorns, crest of spines, new framing, different background,
 different light, cartoon, 3D render, text, watermark.
 `.trim();
 
+const PROMPT = COLLO ? PROMPT_COLLO : PROMPT_QUADRUPEDE;
+const RICETTA = COLLO ? "collo-loch-ness" : "quadrupede";
+
 withProject(PID, async () => {
   initSchema();
   const d = dirsFor(PID);
@@ -67,7 +106,7 @@ withProject(PID, async () => {
   mkdirSync(dir, { recursive: true });
 
   for (let i = 0; i < N; i++) {
-    const cfg = JSON.stringify({ recipe: "quadrupede", refs: [RIF.split("/").pop()], sources: [`v${DA}`] });
+    const cfg = JSON.stringify({ recipe: RICETTA, refs: [RIF.split("/").pop()], sources: [`v${DA}`] });
     const job = enqueueJob(
       PHOTO, PROMPT, cfg, "chatgpt", null, "edit", src,
       JSON.stringify([RIF]), null, "codex-http", JSON.stringify([RIF.split("/").pop()]),
@@ -83,7 +122,7 @@ withProject(PID, async () => {
       const ins = db().run(
         `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, credits, source, created_at)
          VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', 0, 'generated', ?)`,
-        [PHOTO, n, out, PROMPT, cfg, JSON.stringify({ recipe: "quadrupede", refs: [RIF.split("/").pop()], sources: [`v${DA}`], backend: "codex-http" }), Date.now()],
+        [PHOTO, n, out, PROMPT, cfg, JSON.stringify({ recipe: RICETTA, refs: [RIF.split("/").pop()], sources: [`v${DA}`], backend: "codex-http" }), Date.now()],
       );
       scriviIngressiVariante(Number(ins.lastInsertRowid), [src], [RIF]);
       db().run("UPDATE jobs SET status='done', finished_at=?, result_version_id=? WHERE id=?", [Date.now(), Number(ins.lastInsertRowid), job.id]);
