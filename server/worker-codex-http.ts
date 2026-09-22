@@ -196,11 +196,28 @@ export async function runWorkerCodexHttp(input: {
     // source. The recipes change the framing (square crop, tight crop), and on
     // a legitimate crop the correlation drops to 0.03: a gate on that number
     // would fail the right work.
-    const attachedFiles = [...sources, ...(input.refs ?? [])].filter((f) => existsSync(f));
-    for (const f of attachedFiles) {
+    // Due soglie, perche' sono due difetti diversi.
+    //
+    // Su un RIFERIMENTO basta somigliargli molto per essere il bug: nessun
+    // render legittimo assomiglia al 90% alla reference che doveva solo
+    // ispirarlo, ed e' esattamente cosi' che sono passate le 222 color
+    // reference scaricate al posto del render.
+    //
+    // Su una SORGENTE no: una rifinitura conservativa DEVE somigliarle: si
+    // chiede di tenere inquadratura, luce e fondo e di cambiare solo il
+    // soggetto. Misurato sui sette shot del Kaumat: una copia ricompressa della
+    // sorgente da' 1.0000, le rifiniture vere stanno fra 0.76 (macro del piede,
+    // il soggetto riempie il frame) e 0.987 (campo lungo, l'animale e' un
+    // dodicesimo dell'inquadratura). A 0.9 fallivano tre rifiniture giuste su
+    // quattro. Qui si becca solo la copia letterale.
+    const attachedFiles = [
+      ...sources.map((f) => ({ f, soglia: 0.999, sorgente: true })),
+      ...(input.refs ?? []).map((f) => ({ f, soglia: 0.9, sorgente: false })),
+    ].filter(({ f }) => existsSync(f));
+    for (const { f, soglia, sorgente } of attachedFiles) {
       const c = await correlation(f, input.output);
-      if (c !== null && c > 0.9) {
-        const which = f === input.image ? "la foto di partenza, non modificata" : `l'allegato ${f.split("/").pop()}`;
+      if (c !== null && c > soglia) {
+        const which = sorgente ? "la foto di partenza, non modificata" : `l'allegato ${f.split("/").pop()}`;
         return {
           status: "error",
           error: `ha restituito ${which} (correlazione ${c.toFixed(2)})`,
