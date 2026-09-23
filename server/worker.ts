@@ -1,5 +1,5 @@
 import { spawn } from "bun";
-import { existsSync, closeSync, mkdirSync, openSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { existsSync, closeSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   PYTHON_SCRIPT,
@@ -39,6 +39,26 @@ export type WorkerResult =
 // downloads another job's image). This serialises every browser session.
 const LOCK_STALE_MS = WORKER_TIMEOUT_MS + 60 * 1000; // > one full session
 
+/** Il processo che ha scritto il lucchetto e' ancora vivo? `kill(pid, 0)` non
+ *  manda segnali: dice solo se il pid esiste. EPERM vuol dire che esiste ma e'
+ *  di un altro utente, quindi vivo. Un file illeggibile o senza pid non si
+ *  considera morto: in dubbio decide l'eta', come prima. */
+export function proprietarioMorto(path: string): boolean {
+  let pid: number;
+  try {
+    pid = Number.parseInt(readFileSync(path, "utf8").trim().split(/\s+/)[0] ?? "", 10);
+  } catch {
+    return false;
+  }
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
 async function acquireBrowserLock(timeoutMs = 30 * 60 * 1000): Promise<void> {
   // Ensure the lock's parent dir exists — otherwise openSync("wx") throws ENOENT
   // on every attempt and the loop below would spin without ever acquiring.
@@ -53,6 +73,17 @@ async function acquireBrowserLock(timeoutMs = 30 * 60 * 1000): Promise<void> {
     } catch {
       // Held by someone else; steal it if it went stale (holder died mid-session).
       try {
+        // PRIMA DELL'ETA', IL PROPRIETARIO. Il lucchetto contiene il pid di chi
+        // l'ha preso: se quel processo non esiste piu' non lo rilascera' mai, e
+        // aspettare che il file invecchi (LOCK_STALE_MS, oltre una sessione
+        // intera) vuol dire tenere ferma la coda per niente. Misurato il 24/09:
+        // un `generate` di kaumat e' morto alle 00:56 tenendo il lucchetto, e il
+        // lavoro successivo e' rimasto su «Invio a ChatGPT…» senza nessun
+        // processo figlio vivo.
+        if (proprietarioMorto(WORKER_LOCK)) {
+          unlinkSync(WORKER_LOCK);
+          continue;
+        }
         if (Date.now() - statSync(WORKER_LOCK).mtimeMs > LOCK_STALE_MS) {
           unlinkSync(WORKER_LOCK);
           continue;
