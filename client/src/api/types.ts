@@ -128,9 +128,21 @@ export type PromptConfig = {
   freeform?: string;
 };
 
+/** Un file entrato nella generazione di una versione. */
+export type Ingresso = {
+  ruolo: "partenza" | "riferimento";
+  nome: string;
+  /** Da che cartella viene: e' la cosa che conta per capire se una tua foto
+   *  e' stata passata intatta o ritoccata. */
+  tipo: "originale" | "alterata" | "generata" | "riferimento" | "altro";
+  versione: number | null;
+};
+
 export type PhotoDetail = {
   photo: Photo;
   versions: Version[];
+  /** Ingressi di ogni versione, per id di versione. */
+  ingressi?: Record<number, Ingresso[]>;
   effective_prompt: string;
   effective_config: PromptConfig;
   has_override: boolean;

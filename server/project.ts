@@ -334,6 +334,15 @@ export const genDir = (): string => dirs().GEN_DIR;
  *  were attached to jobs, but no route served them: to compare a variant with
  *  its reference you had to open the Finder. */
 export const refsDir = (): string => join(dataDir(), "refs");
+/**
+ * Le foto dell'utente ALTERATE da uno script (schiarite, ritagliate, con la
+ * luce spostata). Stanno qui e non in `RAW/`, che deve contenere solo gli
+ * originali: il 24/09 `RAW/` aveva sette file ritoccati mescolati alle sue foto
+ * vere, e dalla pagina non c'era modo di capire da quale fosse partita una
+ * versione. La cartella esiste perche' le versioni gia' fatte le citano; non e'
+ * un posto da cui partire.
+ */
+export const derivateDir = (): string => join(dataDir(), "derivate");
 export const finalDir = (): string => dirs().FINAL_DIR;
 export const uploadsDir = (): string => dirs().UPLOADS_DIR;
 export const gradedDir = (): string => dirs().GRADED_DIR;

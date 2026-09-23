@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { effectiveGrade, getColorGrade } from "../db.ts";
 import { REPO_ROOT } from "../config.ts";
-import { genDir, rawDir, refsDir, test1Dir } from "../project.ts";
+import { derivateDir, genDir, rawDir, refsDir, test1Dir } from "../project.ts";
 import { getPhoto } from "../photos.ts";
 import { parseWidth, safeSeg, serveFile } from "../http.ts";
 import { thumbnailPath } from "../thumb.ts";
@@ -44,7 +44,7 @@ function refFile(filename: string): string | null {
   // resta allegato alle varianti che l'hanno gia' usato, e quelle miniature
   // devono continuare a vedersi. Togliere una reference e' una decisione su
   // cosa usare d'ora in poi, non una riscrittura del passato.
-  for (const dir of [refsDir(), rawDir(), join(refsDir(), "_cestino")]) {
+  for (const dir of [refsDir(), rawDir(), join(refsDir(), "_cestino"), derivateDir()]) {
     const p = join(dir, filename);
     if (existsSync(p)) return p;
   }

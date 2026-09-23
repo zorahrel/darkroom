@@ -7,7 +7,9 @@ import {
   getGlobalPrompt,
   type VersionRow,
 } from "../db.ts";
-import { genDir } from "../project.ts";
+import { basename, join, sep } from "node:path";
+import { derivateDir, genDir, rawDir, refsDir } from "../project.ts";
+import { db as dbIngressi } from "../db.ts";
 import { effectiveConfig, getPhoto, getVersionsFor, promptFor, withExtra } from "../photos.ts";
 
 /** Photos: the grid, one photo's detail, and its per-photo fields. */
@@ -222,6 +224,101 @@ photoRoutes.get("/api/feedback", (c) => {
   return c.json({ feedback: rows, count: rows.length });
 });
 
+/**
+ * Da cosa e' nata ogni versione: la foto di partenza e i riferimenti allegati,
+ * nell'ordine in cui sono stati passati.
+ *
+ * PERCHE' STA QUI. L'utente guardava le versioni senza poter sapere con che
+ * foto e che reference erano state fatte: il prompt c'era ma in un riquadro
+ * chiuso, le immagini d'ingresso da nessuna parte. Cosi' non si accorgeva che
+ * stavo passando una SUA foto ritoccata da me. La fonte e' `version_inputs`,
+ * che registra gli allegati veri del lavoro — non il lineage, che e' cio' che
+ * lo script dichiarava.
+ *
+ * `tipo` dice da che cartella viene il file, perche' e' quello che conta:
+ *   originale  una foto dell'utente, intatta (`RAW/`)
+ *   alterata   una foto dell'utente modificata da uno script (`derivate/`)
+ *   generata   una versione gia' uscita dal generatore
+ *   riferimento una reference
+ */
+type Ingresso = {
+  ruolo: "partenza" | "riferimento";
+  nome: string;
+  tipo: "originale" | "alterata" | "generata" | "riferimento" | "altro";
+  versione: number | null;
+};
+
+function tipoDi(path: string): { tipo: Ingresso["tipo"]; versione: number | null } {
+  const dentro = (dir: string) => path.startsWith(dir + sep);
+  const v = /^v(\d+)\.png$/.exec(basename(path));
+  if (dentro(genDir()) && v) return { tipo: "generata", versione: Number(v[1]) };
+  if (dentro(derivateDir())) return { tipo: "alterata", versione: null };
+  if (dentro(rawDir())) return { tipo: "originale", versione: null };
+  if (dentro(refsDir())) return { tipo: "riferimento", versione: null };
+  return { tipo: "altro", versione: null };
+}
+
+/**
+ * Le righe piu' vecchie registrano solo il NOME del file («bocca-reale.png»),
+ * non il percorso: lo si cerca nelle cartelle dove puo' stare. L'ordine conta
+ * per i nomi che esistono in due posti: le derivate prima di RAW, perche' un
+ * file alterato con lo stesso nome di un originale e' il caso da non
+ * nascondere.
+ */
+function risolvi(nome: string, photoId: string): string {
+  if (nome.startsWith(sep)) return nome;
+  const candidati = [
+    join(genDir(), photoId, nome),
+    join(derivateDir(), nome),
+    join(rawDir(), nome),
+    join(refsDir(), nome),
+    join(refsDir(), "_cestino", nome),
+  ];
+  return candidati.find((c) => existsSync(c)) ?? nome;
+}
+
+function ingressiDelle(versions: { id: number; photo_id: string; lineage?: string | null }[]): Record<number, Ingresso[]> {
+  const out: Record<number, Ingresso[]> = {};
+  if (versions.length === 0) return out;
+  const ids = versions.map((v) => v.id);
+  const perId = new Map(versions.map((v) => [v.id, v]));
+  const righe = dbIngressi()
+    .query<{ version_id: number; kind: string; path: string; origin: string }, number[]>(
+      `SELECT version_id, kind, path, origin FROM version_inputs
+        WHERE version_id IN (${ids.map(() => "?").join(",")})
+        ORDER BY version_id, CASE kind WHEN 'source' THEN 0 ELSE 1 END, position`,
+    )
+    .all(...ids);
+  for (const r of righe) {
+    const v = perId.get(r.version_id)!;
+    let path = r.path;
+    // Una partenza RICOSTRUITA (dedotta dopo, non registrata dal lavoro) e'
+    // sbagliata quando lo script aveva dichiarato un'altra materia: v146 risulta
+    // «foto 1» mentre e' nata da v141. Il lineage, qui, sa di piu'.
+    if (r.kind === "source" && r.origin === "reconstructed" && v.lineage) {
+      try {
+        const m = (JSON.parse(v.lineage) as { materia?: string }).materia;
+        if (m) path = m;
+      } catch {
+        /* lineage non JSON: resta la ricostruzione */
+      }
+    }
+    // «1» come partenza = l'originale con cui la foto e' entrata nel progetto.
+    if (r.kind === "source" && path === v.photo_id) path = getPhoto(v.photo_id)?.original_path ?? path;
+    const pieno = risolvi(path, v.photo_id);
+    const lista = (out[r.version_id] ??= []);
+    // La partenza e' UNA: la prima sorgente. Le altre sorgenti sono foto
+    // dell'utente allegate come riferimento d'identita'.
+    const primaSorgente = r.kind === "source" && !lista.some((x) => x.ruolo === "partenza");
+    lista.push({
+      ruolo: primaSorgente ? "partenza" : "riferimento",
+      nome: basename(pieno),
+      ...tipoDi(pieno),
+    });
+  }
+  return out;
+}
+
 photoRoutes.get("/api/photos/:id", (c) => {
   const id = c.req.param("id");
   const photo = getPhoto(id);
@@ -231,6 +328,7 @@ photoRoutes.get("/api/photos/:id", (c) => {
   return c.json({
     photo,
     versions,
+    ingressi: ingressiDelle(versions),
     effective_prompt: promptFor(withExtra(cfg, photo)),
     effective_config: cfg,
     has_override: photo.config_override !== null,

@@ -1,4 +1,6 @@
 import { Download, Globe, RotateCcw, Save, Stamp } from "lucide-react";
+import { IngressiVersione } from "./IngressiVersione";
+import type { Ingresso } from "../../api/types";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   STEP_LABELS,
@@ -54,6 +56,7 @@ export function PhotoPipeline({
   navigating,
   onExit,
   mobileExtras,
+  ingressi,
   infoPanel,
   photoNav,
   openStepId,
@@ -74,6 +77,8 @@ export function PhotoPipeline({
   navigating?: boolean;
   onExit: () => void;
   mobileExtras?: ReactNode;
+  /** Foto di partenza, riferimenti e prompt della versione mostrata. */
+  ingressi?: { voci: Ingresso[]; prompt: string } | null;
   infoPanel?: ReactNode;
   photoNav?: {
     prev: string | null;
@@ -451,6 +456,9 @@ export function PhotoPipeline({
         {busy ? "carico…" : showBase ? "originale ChatGPT (no grade)" : "grade completo"}
       </span>
       {busy && <Spinner />}
+      {ingressi && (
+        <IngressiVersione photoId={photoId} voci={ingressi.voci} prompt={ingressi.prompt} />
+      )}
     </div>
   );
 

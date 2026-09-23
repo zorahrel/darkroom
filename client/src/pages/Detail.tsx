@@ -413,6 +413,7 @@ export default function DetailPage() {
         navigating={navigating}
         onExit={() => navigate(base || "/")}
         mobileExtras={versionsPanel}
+        ingressi={v ? { voci: data.ingressi?.[v.id] ?? [], prompt: v.prompt_used } : null}
         infoPanel={infoPanel}
         openStepId={searchParams.get("step")}
         photoNav={{

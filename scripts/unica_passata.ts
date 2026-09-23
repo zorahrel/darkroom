@@ -112,8 +112,27 @@ await withProject(PROGETTO, async () => {
   if (!base?.prompt_used) throw new Error(`v${BASE} senza prompt`);
   if (!base.prompt_used.includes(BARBA_VECCHIA)) throw new Error("frase della barba non trovata in v145");
   if (!base.prompt_used.includes(INQ_VECCHIA)) throw new Error("frase dell'inquadratura non trovata in v145");
+  /**
+   * I RUOLI DEGLI ALLEGATI, detti come sono. Il prompt di v145 diceva «le altre
+   * immagini allegate sono ancora io in scatti diversi: servono solo a tenere
+   * identico il mio viso» — vero quando allegavo le mie foto tinte di ciano,
+   * falso adesso: gli allegati sono il ritaglio della bocca, gli occhiali e la
+   * reference di luce, che ritrae UN'ALTRA PERSONA. Con la frase vecchia la
+   * foto che porta la luce giusta era dichiarata un mio ritratto, da usare per
+   * il viso e basta. (24/09: l'utente ha chiesto di smettere di passargli una
+   * sua foto ritoccata; questo e' cio' che resta da correggere per chiedere la
+   * luce alla reference invece che alla materia.)
+   */
+  const RUOLI_VECCHI =
+    "Le altre immagini allegate sono ancora io in scatti diversi: servono solo a tenere identico il mio viso.";
+  const RUOLI_NUOVI =
+    "Gli allegati NON sono altre foto di me: sono il ritaglio ravvicinato della mia bocca, i miei occhiali su fondo grigio e, per ultima, la foto di riferimento dello studio, che ritrae UN'ALTRA PERSONA. Da quest'ultima prendi SOLO la luce, il fondo e il colore — il faretto frontale dall'alto, le alte luci fredde sulla fronte e sugli zigomi, le ombre calde — e rifalli uguali sul MIO viso.";
+  if (!base.prompt_used.includes(RUOLI_VECCHI)) throw new Error("ancora dei ruoli non trovata nel prompt base");
   const prompt =
-    base.prompt_used.replace(BARBA_VECCHIA, BARBA_NUOVA).replace(INQ_VECCHIA, INQ_NUOVA) + LUCE_E_COLORE;
+    base.prompt_used
+      .replace(BARBA_VECCHIA, BARBA_NUOVA)
+      .replace(INQ_VECCHIA, INQ_NUOVA)
+      .replace(RUOLI_VECCHI, RUOLI_NUOVI) + LUCE_E_COLORE;
 
   for (let g = 1; g <= giri; g++) {
     const job = enqueueJob(
