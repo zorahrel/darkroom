@@ -13,6 +13,10 @@
  *   --delta collo   sale all'indietro e poi va in avanti, alla Loch Ness.
  *   --delta dita    dita divise da geco, non unite da una membrana.
  *   --delta pelle   piume e scaglie come nella reference del filmato.
+ *   --delta piatte  la fila sulla nuca a dentini diventa di placche piatte.
+ *   --delta testa   testa da geco grande e larga, occhio enorme.
+ *   --delta muso    solo l'inclinazione: il muso pende verso terra.
+ *   --delta allunga il collo che si e' accorciato torna lungo.
  *
  * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da vN]
  */
@@ -93,6 +97,59 @@ No claws, no points. Let the feet catch enough light that every toe can be
 counted on the front feet.
 Do not: webbing between the toes, fused toes, paddle, mitten, hoof, claws,
 pointed toes, toes lost in shadow.`,
+  },
+  piatte: {
+    refs: [],
+    text: `
+Change ONE thing: THE ROW OF SCALES ALONG THE TOP OF THE NECK AND BACK. Right
+now it stands up as a line of small pointed teeth. Lay it down FLAT: broad,
+rounded, overlapping cream plates lying against the skin like the rest of the
+feather-scales, following the curve of the neck. Every raised detail on this
+animal is flat and rounded and covers the surface.
+Do not: points, spikes, thorns, teeth-like scales, a serrated crest, a saw-edge.`,
+  },
+  testa: {
+    refs: [`${R}/kaumat-master.png`],
+    text: `
+The second image is the character sheet of this animal: take ONLY its head from
+it.
+Change ONE thing: THE HEAD, which is too small and too narrow, like a snake's.
+Make it a crested gecko's head at the scale of this animal: BIG, a clearly
+larger share of the body, WIDE and FLAT, a broad wedge widest at the jaw hinge
+narrowing to a SHORT BLUNT ROUNDED snout, the wide jaw line curving up into a
+fixed gentle smile. The EYE is ENORMOUS, round and lidless, glossy black with a
+burning amber ring and a vertical slit pupil, set high at the corner of the
+skull. The face stays draconic and alien, serious, never cute. The neck, its
+curve and everything below it stay exactly as they are.
+Do not: small head, narrow head, snake head, long pointed snout, small eye,
+eyelids, cute face, a beak.`,
+  },
+  muso: {
+    refs: [],
+    text: `
+Change ONE thing: THE TILT OF THE HEAD. Right now the head is held level, looking
+straight ahead. At the top of the neck it must HOOK DOWNWARD: the head bends
+over like the crook of a walking stick, the blunt snout pointing DOWN and
+forward towards the forest floor, as if the animal is peering at the ground in
+front of it. Keep the head exactly as it is in shape and size: the wide flat
+gecko head, the enormous amber eye with its slit pupil, the smiling jaw. Only
+its angle changes, and the top of the neck curves a little further forward to
+carry it.
+Do not: level head, head looking straight ahead, muzzle pointing up, smaller
+head, narrower head, different eye.`,
+  },
+  allunga: {
+    refs: [],
+    text: `
+Change ONE thing: THE LENGTH OF THE NECK, which has become too short, so the head
+sits almost on the shoulders. Make the neck much LONGER: it rises from the
+shoulders UP AND BACKWARDS in a tall curve, arches over at the top and comes
+DOWN AND FORWARD, carrying the head well out ahead of the chest and higher than
+the back. Keep the head exactly as it is, its size, its shape, its enormous eye
+and its downward tilt with the snout pointing at the ground. The neck stays
+thick and muscular, covered in the same flat cream feather-scales.
+Do not: short neck, head on the shoulders, thin stalk neck, level head, snout
+pointing up, smaller head, different eye.`,
   },
   pelle: {
     refs: [VIDEO],
