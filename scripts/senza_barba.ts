@@ -40,14 +40,24 @@ const arg = (n: string) => {
 };
 const giri = Number(arg("--giri") ?? 2);
 
+/**
+ * PRIMO GIRO (v149/v150): negativo sulla grana. Il prompt diceva «pelle liscia»
+ * e «niente ombra blu della rasatura»: ChatGPT ha verniciato la mascella.
+ * Grana (std dell'high-pass, 256 px) mascella/guance: foto vera 2,3 · v146 1,1 ·
+ * v150 0,6. L'utente: «e' rotta, non te ne accorgi da solo?».
+ * Secondo giro: rasata DI FRESCO, con la grana delle guance. Barra aggiunta:
+ * mascella/guance >= 1,0.
+ */
 const PROMPT =
-  "Modifica questa foto cambiando UNA sola cosa: togli la barba. Mascella, mento, " +
-  "guance e baffi completamente rasati, pelle liscia e dello stesso colore del resto " +
-  "del viso, con i suoi pori veri: niente ombra blu della rasatura, niente pelle di " +
-  "plastica. TUTTO IL RESTO RESTA IDENTICO: stessa persona, stessi lineamenti, stessi " +
+  "Modifica questa foto cambiando UNA sola cosa: la barba diventa rasata di fresco, " +
+  "come dopo il rasoio stamattina. La pelle di mascella, mento e labbro superiore ha la " +
+  "STESSA grana delle guance: pori visibili, micro-texture vera, la lievissima ombra dei " +
+  "peli appena tagliati sotto la pelle, come in una foto reale ravvicinata. Non deve " +
+  "sembrare dipinta, sfocata o levigata: e' pelle vera fotografata. TUTTO IL RESTO RESTA " +
+  "IDENTICO: stessa persona, stessi lineamenti, stessa forma della mascella, stessi " +
   "occhiali, stessi capelli, stessa espressione, stessa inquadratura, stessa luce che " +
   "arriva da davanti e dall'alto, stessi colori, stesso fondo. Non ringiovanirmi, non " +
-  "idealizzarmi, non cambiare la forma della mascella.";
+  "idealizzarmi.";
 
 await withProject(PROGETTO, async () => {
   initSchema();
@@ -66,10 +76,10 @@ await withProject(PROGETTO, async () => {
       materia,
       null,
       JSON.stringify({
-        recipe: "senza-barba",
+        recipe: "senza-barba-grana",
         base: `v${BASE}`,
         cambiato: "passata di sola rasatura su v146; il prompt da v46 ordinava la barba",
-        misura: "scarto mascella/guance <= 15 · alto-basso > 0 · L viso >= 30",
+        misura: "grana mascella/guance >= 1,0 · scarto <= 20 · luce fronte-guance > 0",
         giro: g,
       }),
       "openbrowser",

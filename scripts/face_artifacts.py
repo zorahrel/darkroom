@@ -76,15 +76,22 @@ def misura(path: str) -> dict | None:
     F[c - 8 : c + 8, c - 8 : c + 8] = 0  # via le basse frequenze (la forma del viso)
     piatto = np.sort(F.ravel())[::-1]
     reticolo = float(np.mean(piatto[:20]) / (np.median(F) + 1e-9))
-    return {"lato": lato_originale, "dettaglio": dettaglio, "rumore": rumore, "reticolo": reticolo}
+    # GRANA DELLA MASCELLA rispetto alle guance. Una rasatura fatta male non
+    # scurisce ne' schiarisce: vernicia. Il 23/09 v150 aveva mascella/guance 0,6
+    # (foto vera 2,3, v146 1,1) e il dettaglio medio del viso non lo mostrava,
+    # perche' la chiazza liscia e' un quinto della faccia. Sotto 1,0 = dipinta.
+    H = L - blur
+    guance = float(np.std(H[115:150, 40:216])) + 1e-9
+    grana = float(np.std(H[205:250, 60:196])) / guance
+    return {"lato": lato_originale, "dettaglio": dettaglio, "rumore": rumore, "reticolo": reticolo, "grana": grana}
 
 
 if __name__ == "__main__":
-    print(f"{'file':34} {'viso px':>8} {'dettaglio':>10} {'rumore col':>11} {'reticolo':>9}")
+    print(f"{'file':34} {'viso px':>8} {'dettaglio':>10} {'rumore col':>11} {'reticolo':>9} {'grana masc':>11}")
     for p in sys.argv[1:]:
         m = misura(p)
         nome = Path(p).name[:34]
         if m is None:
             print(f"{nome:34} {'viso non trovato':>40}")
             continue
-        print(f"{nome:34} {m['lato']:>8} {m['dettaglio']:>10.2f} {m['rumore']:>11.2f} {m['reticolo']:>9.0f}")
+        print(f"{nome:34} {m['lato']:>8} {m['dettaglio']:>10.2f} {m['rumore']:>11.2f} {m['reticolo']:>9.0f} {m['grana']:>11.2f}")
