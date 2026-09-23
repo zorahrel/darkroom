@@ -173,11 +173,14 @@ function projectStats(pid: string) {
     const photos = one("SELECT COUNT(*) AS n FROM photos");
     const versions = one("SELECT COUNT(*) AS n FROM versions");
     const panels = one("SELECT COUNT(*) AS n FROM photos WHERE sequence_index IS NOT NULL");
+    // Le foto importate da una cartella, non generate: e' il materiale del
+    // culling. Un progetto fatto solo di generazioni non ha niente da scegliere.
+    const originals = one("SELECT COUNT(*) AS n FROM photos WHERE kind = 'original'");
     const last =
       d.query<{ t: number | null }, []>(
         "SELECT MAX(created_at) AS t FROM versions",
       ).get()?.t ?? null;
-    return { favorites, photos, versions, panels, queue: jobsSummary(), last_version_at: last };
+    return { favorites, photos, versions, panels, originals, queue: jobsSummary(), last_version_at: last };
   });
 }
 

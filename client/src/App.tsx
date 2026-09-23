@@ -261,7 +261,20 @@ export default function App() {
               prima erano padding. Sta nel flusso, quindi lo occupa solo la
               riga dove i semafori stanno davvero. */}
           {desktop && <div aria-hidden className="shrink-0" style={{ width: 76 }} />}
-          <div className="fila-scorre-sempre flex flex-nowrap items-center gap-2 min-w-0 max-w-full shrink">
+          {/* Fra 768 e 1280 px le tre strisce non stanno in fila, e andando a capo
+              da sole finivano cosi': marchio e schede a sinistra, gli strumenti
+              soli su una seconda riga spinti a destra. Misurato il 23/09 a 946 px.
+              Qui l'ordine lo decidiamo noi: prima riga marchio e progetto; seconda
+              riga le schede a sinistra e gli strumenti a destra. Non marchio e
+              strumenti insieme: a 946 px mancavano 11 px, e da 768 ne mancano
+              140, mentre schede + strumenti (234 + 468) ci stanno gia' a 768.
+              Sotto i 768 la barra e' un'altra (`BarraSotto`); dai 1280 ci stanno
+              tutte e tre in fila (389 + 234 + 510 = 1165) e torna l'ordine del
+              documento. Il confine era 1024, ma a 1100 servivano 1165 px e gli
+              strumenti scendevano di nuovo da soli a destra. L'a capo
+              lo fa il marchio prendendo tutta la riga: un elemento vuoto alto zero
+              prendeva il gap sopra e sotto e le righe distavano 32 px. */}
+          <div className={`fila-scorre-sempre flex flex-nowrap items-center gap-2 min-w-0 max-w-full shrink md:order-1 xl:order-none ${pid ? "md:basis-full xl:basis-auto" : ""}`}>
             <Link
               to="/"
               className="inline-flex items-center min-h-11 sm:min-h-0 font-semibold tracking-tight shrink-0"
@@ -302,7 +315,7 @@ export default function App() {
               rimasta senza, e a 438 px sforava di 10 px — il pezzo di pagina
               che si trascinava di lato quando si scorreva. */}
           {pid && activeProject && (
-            <nav className="fila-scorre-sempre flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 min-w-0">
+            <nav className="fila-scorre-sempre flex items-center gap-0.5 text-sm rounded-md bg-neutral-900 border border-neutral-800 p-0.5 min-w-0 md:order-3 xl:order-none">
               {VIEWS.filter((v) =>
                 activeProject.views.includes(v.id) ||
                 (v.id === "storyboard" && (activeProject.stats?.panels ?? 0) > 0) ||
@@ -339,17 +352,30 @@ export default function App() {
                   </ViewTab>,
                 ];
               })}
-              {activeProject.views.includes("photo") && (
-                <>
-                  {/* Il culling sta prima dell'albero perche' viene prima nel
-                      lavoro: si sceglie cosa lavorare, poi si guarda cosa e' nato
-                      da cosa. */}
+              {/* Culling e Girato seguono la stessa regola delle viste sopra:
+                  compaiono se c'e' il loro materiale, non per ogni progetto foto.
+                  In un progetto di sole generazioni (il Kaumat) erano due schede
+                  su cui non c'era niente da fare. Restano visibili se ci sei gia'
+                  dentro, per non far sparire la pagina che stai guardando. */}
+              {activeProject.views.includes("photo") &&
+                ((activeProject.stats?.originals ?? 1) > 0 || location.pathname.includes("/culling")) && (
+                  /* Il culling sta prima dell'albero perche' viene prima nel
+                     lavoro: si sceglie cosa lavorare, poi si guarda cosa e' nato
+                     da cosa. */
                   <ViewTab to={`/p/${pid}/culling`} current={location.pathname.includes("/culling")}>
                     Culling
                   </ViewTab>
-                  <ViewTab to={`/p/${pid}/girato`} current={location.pathname.includes("/girato")}>
-                    Girato
-                  </ViewTab>
+                )}
+              {/* Il girato sono clip: sta con i progetti video. La cartella la
+                  ricorda il browser, non il progetto, quindi non c'e' un dato del
+                  progetto foto che la giustifichi. */}
+              {(activeProject.views.includes("video") || location.pathname.includes("/girato")) && (
+                <ViewTab to={`/p/${pid}/girato`} current={location.pathname.includes("/girato")}>
+                  Girato
+                </ViewTab>
+              )}
+              {activeProject.views.includes("photo") && (
+                <>
                   <ViewTab to={`/p/${pid}/tree`} current={location.pathname.includes("/tree")}>
                     Albero
                   </ViewTab>
@@ -374,7 +400,7 @@ export default function App() {
               scesi in fondo -- e prendersi una riga intera per la sola spesa voleva
               dire sessanta pixel di niente sopra il contenuto. Li' sta in linea col
               titolo; la riga sua se la prende da `md` in su, dove ha roba dentro. */}
-          <div className="fila-scorre-sempre flex items-center gap-2 flex-nowrap min-w-0 ml-auto">
+          <div className="fila-scorre-sempre flex items-center gap-2 flex-nowrap min-w-0 ml-auto md:order-4 xl:order-none">
             {/* The bar's hierarchy: the alarms first because they change what
                 you can do, then the window's switches, then the jobs, and last
                 the only filled action — which exists only where it makes sense.
@@ -415,12 +441,16 @@ export default function App() {
               </Badge>
             )}
 
+            {/* Nascosto dal contenitore, come Registro e Lavori qui sotto: la
+                classe `hidden` sul bottone perdeva contro il suo `inline-flex`, e
+                a 946 px il bottone c'era, 42 px presi a una riga che non ci stava. */}
             {activeProject?.views.includes("photo") && (
-              <Bott weight="quiet" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
-                    title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}
-                    className="hidden lg:inline-flex">
-                <SlidersHorizontal  aria-hidden />
-              </Bott>
+              <span className="hidden lg:flex shrink-0">
+                <Bott weight="quiet" size="m" active={railOpen} onClick={() => setRailOpen(!railOpen)}
+                      title={railOpen ? "Nascondi il pannello colore" : "Mostra il pannello colore"}>
+                  <SlidersHorizontal  aria-hidden />
+                </Bott>
+              </span>
             )}
 
             {/* Il registro non è un terzo piano della navigazione: non è né una

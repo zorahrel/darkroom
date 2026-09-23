@@ -236,6 +236,8 @@ export type ProjectStats = {
   versions: number;
   /** Photos that are storyboard panels — keeps the board reachable. */
   panels: number;
+  /** Photos imported from a folder, not generated — what culling works on. */
+  originals?: number;
   queue: Record<string, number>;
   last_version_at: number | null;
 };

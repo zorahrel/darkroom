@@ -71,6 +71,20 @@ describe("il guscio", () => {
     globale.window = { location: { protocol: "tauri:" } };
     expect(nelGuscioDesktop()).toBe(true);
   });
+
+  test("dentro un'ALTRA app Tauri, servita via http, resta un browser", () => {
+    // Il pannello di Topics e' una webview Tauri: `__TAURI_INTERNALS__` c'e', il
+    // marcatore di Darkroom no, e la pagina arriva da http://127.0.0.1:3535.
+    // Scambiarla per il guscio dava 76 px di vuoto a sinistra per i semafori.
+    documentoCon();
+    globale.window = { __TAURI_INTERNALS__: {}, location: { protocol: "http:" } };
+    expect(nelGuscioDesktop()).toBe(false);
+    globale.window = { __TAURI__: {}, location: { protocol: "https:" } };
+    expect(nelGuscioDesktop()).toBe(false);
+    // Il marcatore invece vale anche su http: e' il caso dello sviluppo.
+    globale.window = { __DARKROOM_GUSCIO__: "desktop", __TAURI_INTERNALS__: {}, location: { protocol: "http:" } };
+    expect(nelGuscioDesktop()).toBe(true);
+  });
 });
 
 describe("anteprime senza rete", () => {

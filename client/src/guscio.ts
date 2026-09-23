@@ -44,8 +44,17 @@ export function nelGuscioDesktop(): boolean {
   // l'applicazione si comportava da browser, col nome sotto i semafori.
   if (w.__DARKROOM_GUSCIO__ === "desktop") return true;
   if (document?.documentElement?.dataset?.guscio === "desktop") return true;
-  if (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined) return true;
-  return /^tauri:$/.test(window.location?.protocol ?? "");
+  // Le variabili di Tauri dicono solo «sei dentro UN'app Tauri», non «dentro la
+  // nostra». Topics e' anch'essa Tauri, e quando apre Darkroom nel suo pannello
+  // su http://127.0.0.1:3535 la pagina si credeva nel guscio: 76 px di spazio per
+  // semafori che non ci sono (misurato il 23/09 a 946 px) e i comandi del guscio
+  // offerti a chi non li ha. Il guscio vero carica la pagina da `tauri:` e in
+  // sviluppo ha il marcatore qui sopra: una pagina servita via http, senza
+  // marcatore, e' un browser, qualunque finestra la contenga.
+  const protocollo = window.location?.protocol ?? "";
+  if (/^tauri:$/.test(protocollo)) return true;
+  if (/^https?:$/.test(protocollo)) return false;
+  return w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined;
 }
 
 export type Capacita = {
