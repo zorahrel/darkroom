@@ -40,7 +40,15 @@ import { dirsFor, withProject } from "../server/project.ts";
 const PROGETTO = "profilo";
 const PHOTO = "1";
 const BASE = 145;
-const MATERIA = "io-luce-alta-stretta-luce.png";
+/**
+ * TERZO GIRO. L'utente su v157: «forse non dovresti proprio usare la mia con
+ * barba come reference». Aveva ragione: le versioni senza barba che gli
+ * piacevano (v28-v45) partivano da `RAW/1.PNG`, senza altre sue foto allegate.
+ * Da v141 la foto di partenza e' il selfie illuminato dall'alto, che porta la
+ * barba (mascella 26-36 contro 4,7 della foto nitida) e la pelle morbida.
+ * La foto di partenza e' ora un parametro: `--materia <file in RAW/>`.
+ */
+const MATERIA_DEFAULT = "io-luce-alta-stretta-luce.png";
 
 /**
  * SECONDO GIRO (v155/v156). Rumore risolto: 0,38 e 0,41, contro 0,77 di v154.
@@ -83,6 +91,7 @@ const arg = (n: string) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 const giri = Number(arg("--giri") ?? 2);
+const MATERIA = arg("--materia") ?? MATERIA_DEFAULT;
 
 await withProject(PROGETTO, async () => {
   initSchema();
@@ -117,10 +126,13 @@ await withProject(PROGETTO, async () => {
       materia,
       JSON.stringify(refs),
       JSON.stringify({
-        recipe: "unica-passata-2",
+        recipe: MATERIA === MATERIA_DEFAULT ? "unica-passata-2" : "unica-senza-barba",
         base: `v${BASE}`,
         materia: MATERIA,
-        cambiato: "foto di partenza schiarita di 1 stop (L viso 38,5) + inquadratura stretta nel prompt",
+        cambiato:
+          MATERIA === MATERIA_DEFAULT
+            ? "foto di partenza schiarita di 1 stop (L viso 38,5) + inquadratura stretta nel prompt"
+            : `foto di partenza senza barba: ${MATERIA}`,
         refs: refs.map((r) => r.split("/").pop()),
         misura: "rumore piatto <= 0,45 · fronte-guance > 0 · L viso >= 35 · ciano >= 15%",
         giro: g,
