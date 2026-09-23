@@ -30,7 +30,7 @@ import { runWorkerOpenBrowser } from "../server/worker.ts";
 const PID = "kaumat";
 const PHOTO = "kaumat-c19";
 const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
-const C19 = `${R}/chatgpt/202609212220_6ab1ad7f_2.png`;
+const C19 = `${R}/chatgpt-C19.png`;
 const VIDEO = `${R}/video-reference-dettagli.png`;
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
