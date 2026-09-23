@@ -17,6 +17,8 @@
  *   --delta testa   testa da geco grande e larga, occhio enorme.
  *   --delta muso    solo l'inclinazione: il muso pende verso terra.
  *   --delta allunga il collo che si e' accorciato torna lungo.
+ *   --delta piume   piume vere come nel filmato: gorgiera crema e ciuffi bianchi.
+ *   --delta zanne   le due corna d'avorio dello sticker drago-geco.
  *
  * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da vN]
  */
@@ -150,6 +152,41 @@ and its downward tilt with the snout pointing at the ground. The neck stays
 thick and muscular, covered in the same flat cream feather-scales.
 Do not: short neck, head on the shoulders, thin stalk neck, level head, snout
 pointing up, smaller head, different eye.`,
+  },
+  piume: {
+    refs: [VIDEO],
+    text: `
+The second image is a frame from a film, attached ONLY for its FEATHERS: do not
+copy that creature, its beak or its shape.
+Change ONE thing: add REAL FEATHERS, as on the creature in the second image.
+Right now the neck has only flat scale plates, which read as armour, not as
+plumage. Add:
+- over the throat and the front of the neck, a thick layered RUFF of soft cream
+  feathers, long overlapping feathers with visible vanes, lying down and
+  flowing along the curve of the neck like the plumage of a bird;
+- scattered over the back of the neck, the nape and the shoulders, many small
+  SOFT WHITE FEATHER TUFTS, little downy quills sprinkled over the teal skin like
+  the white flecks in the reference.
+The feathers are soft and lie with the body, never stiff or sharp. The head, the
+body, the legs and the tail keep their scales.
+Do not: spikes, thorns, bristles like needles, fur, a fluffy bird, a beak, a bird
+head, a new pose, a new body shape.`,
+  },
+  zanne: {
+    refs: [`${R}/sticker-drago-geco.jpg`],
+    text: `
+The second image is a drawing of a dragon-gecko, attached ONLY for the HORNS on
+its head: do not copy its colours, its style or its body, and it stays a
+photograph, never a drawing.
+Change ONE thing: add TWO HORNS to the head, as on the drawing: two smooth
+ivory-coloured horns growing from the top of the skull, just behind and above
+the eyes, curving UP and BACK in a gentle arc, thick at the base and tapering to
+a blunt point, one on each side. They are real keratin, with fine growth rings
+at the base, weathered and slightly translucent at the tips. Keep the head
+itself exactly as it is, its shape, its size, its enormous amber eye and its
+downward tilt.
+Do not: antlers, a single horn, horns on the snout, tusks from the mouth, spikes
+along the neck, a drawing, cartoon, a new head.`,
   },
   pelle: {
     refs: [VIDEO],
