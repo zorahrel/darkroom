@@ -49,7 +49,9 @@ describe("le barre non vanno a capo sotto i 1024 px", () => {
     // capo NON torna nemmeno sopra lg. Misurato a 1100 px: con `lg:flex-wrap`
     // i tre blocchi sommavano 1160 in 1100 e l'intestazione raddoppiava a
     // 101 px; senza, resta 57 px a 691/1100/1440/1920 con overflowX 0.
-    const blocco1 = /className="(fila-scorre-sempre flex [^"]*max-w-full[^"]*)"/.exec(app)?.[1] ?? "";
+    // La classe puo' essere una stringa o un template (dal 23/09 il marchio prende
+    // tutta la riga su tablet solo con un progetto aperto): conta il contenuto.
+    const blocco1 = /className=\{?[`"](fila-scorre-sempre flex [^"`]*max-w-full[^"`]*)[`"]/.exec(app)?.[1] ?? "";
     expect(blocco1).toContain("flex-nowrap");
     expect(blocco1).toContain("shrink");
     // Intestazione, blocco 3: allarmi + lavori + Esporta. Misurava 96 px.
@@ -208,7 +210,7 @@ describe("su un telefono le barre non mangiano mezzo schermo", () => {
     const app = await Bun.file(new URL("../client/src/App.tsx", import.meta.url)).text();
     // i due blocchi laterali dell'intestazione: nowrap sotto lg e riducibili,
     // altrimenti 160+223+gap = 395 in 390 e si torna a tre righe
-    const laterali = [...app.matchAll(/className="fila-scorre-sempre flex [^"]*"/g)].map((m) => m[0]);
+    const laterali = [...app.matchAll(/className=\{?[`"]fila-scorre-sempre flex [^"`]*[`"]/g)].map((m) => m[0]);
     const conNowrap = laterali.filter((c) => c.includes("flex-nowrap"));
     expect(conNowrap.length).toBeGreaterThanOrEqual(2);
     expect(conNowrap.some((c) => c.includes("shrink"))).toBe(true);
