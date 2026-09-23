@@ -22,6 +22,10 @@
  *   --delta esse    tutto il corpo ad S: schiena arcuata, collo, arti, coda.
  *   --delta collos  il collo torna una S: sale indietro, si piega in avanti e in giu.
  *   --delta zannegiuste  le corna dove stanno sullo sticker: sopra l'occhio, dritte.
+ *   --delta zanneguida   le corna dove le indicano i triangoli rossi (--src guida).
+ *   --delta arti    arti, mani e piedi piu' grandi e lunghi.
+ *   --delta volto   testa piu' larga, da geco.
+ *   --delta colori  un po' della tavolozza del geco di Attilio.
  *
  * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da vN]
  */
@@ -44,6 +48,9 @@ const arg = (k: string) => {
 const DELTA = arg("--delta") ?? "corpo";
 /** Sorgente: un numero di versione di kaumat-c19 (v2) o, di default, la C19. */
 const DA = arg("--da");
+/** Sorgente esplicita, per quando si parte da un file che non e' una versione:
+ *  la guida con le zanne disegnate in rosso sopra la v14. */
+const SRC = arg("--src");
 
 /** Tutto cio' che Attilio ha chiesto (jcode + questo topic) e che una passata
  *  non deve far regredire mentre ne corregge un altro pezzo. */
@@ -57,6 +64,14 @@ primeval forest, the blurred leaves and branches in the foreground that make it
 look filmed from far away through the undergrowth, the light, the colour grade,
 the camera angle and the vertical 9:16 framing. It must stay a real photograph:
 real lens, true skin texture, natural grain, never CGI, never a 3D render.
+`.trim();
+
+const TIENI_FORME = `
+Keep everything else in the photograph exactly as it is: the shape of the head,
+the horns, the eye, the feathers, the body, the limbs and toes, the pose and its
+S curve, the tail, the dark primeval forest, the blurred foreground leaves, the
+light, the camera angle and the vertical 9:16 framing. It must stay a real
+photograph: real lens, true skin texture, natural grain, never CGI.
 `.trim();
 
 const DELTAS: Record<string, { refs: string[]; text: string }> = {
@@ -243,6 +258,65 @@ eye, same tilt.
 Do not: horns at the back of the skull, horns curving backwards, goat horns,
 ram horns, long horns, antlers, horns on the snout, a single horn.`,
   },
+  zanneguida: {
+    refs: [`${R}/sticker-drago-geco.jpg`],
+    text: `
+The photograph has TWO RED TRIANGLES painted on the head: they are a guide, not
+part of the animal. Each red triangle marks exactly where one horn must be, its
+base, its direction and its length.
+Change ONE thing: THE HORNS. Remove the two short horns the animal has now, and
+turn each red triangle into a REAL HORN in exactly that place, that direction
+and that length: two smooth ivory keratin horns rising straight up from the
+back of the skull, the first just behind the eye, the second at the rear corner
+of the skull where the head meets the neck, like the horns on the dragon-gecko
+drawing in the second image (take only their shape from it). Thick at the base,
+tapering to a point, fine growth rings at the base. No red anywhere in the
+result: the red was only the guide.
+Do not: red marks left in the image, horns above the eye, goat horns curving
+back, antlers, a third horn, a new head.`,
+  },
+  arti: {
+    refs: [],
+    text: `
+Change ONE thing: THE LIMBS, HANDS AND FEET. The arms and legs must be BIGGER and
+LONGER: longer upper arms and forearms, longer thighs and shins, thick with
+muscle, still bent and curved at every joint like a crouching predator, lifting
+the body higher off the ground. The HANDS and FEET must be much BIGGER and
+LONGER too: broad, with long separate gecko toes, each ending in a large round
+adhesive pad, splayed wide on the forest floor. The body, the neck, the head, the
+horns, the tail and the colours stay exactly as they are.
+Do not: short legs, thin legs, small hands, small feet, straight pillar legs,
+claws, fused toes, a shorter neck, a new pose of the neck or tail.`,
+  },
+  volto: {
+    refs: [`${R}/kaumat-master.png`],
+    text: `
+The second image is the character sheet of this animal: take ONLY the width of
+its face from it.
+Change ONE thing: THE FACE MUST BE WIDER. Broaden the head sideways like a
+crested gecko's: a wide flat skull, the jaw hinge flaring out wide, the wide jaw
+line curving up into the fixed smile, the snout short and blunt and broad. Keep
+the enormous amber eye, the horns exactly where they are, the tilt of the head,
+the neck, the body and the colours.
+Do not: narrow face, pointed snout, snake head, smaller eye, moved horns, a new
+angle of the head.`,
+  },
+  colori: {
+    refs: [`${R}/geco-attilio.png`],
+    text: `
+The second image is a photograph of a real crested gecko, attached ONLY for its
+COLOURS: do not copy its shape, pose, size or surroundings.
+Change ONE thing: THE COLOURS OF THE ANIMAL, taking some of the palette of that
+gecko. Warm the animal towards its creamy pale yellow and soft ochre-tan: the
+back and the fringe rows along its edges become cream and pale yellow like the
+gecko's dorsal pinstripe, with a sprinkle of small orange-red dots along the
+back as on the gecko, and the flanks and limbs go soft tan and ochre. Keep SOME
+of the current colours as accents, not all of them: a trace of the teal
+iridescence at the throat and shoulder, the rust-orange of the face and the
+banded tail. Shapes, feathers, horns, pose, forest and light do not change.
+Do not: a flat single colour, grey, desaturated, neon, a new pattern of stripes,
+new shapes, a pet-shop gecko, a small animal.`,
+  },
   pelle: {
     refs: [VIDEO],
     text: `
@@ -267,12 +341,15 @@ withProject(PID, async () => {
     console.error(`[c19] delta sconosciuto: ${DELTA} (${Object.keys(DELTAS).join(" | ")})`);
     process.exit(1);
   }
-  const src = DA ? join(d.GEN_DIR, PHOTO, `v${DA.replace(/^v/, "").padStart(2, "0")}.png`) : C19;
+  const src = SRC ?? (DA ? join(d.GEN_DIR, PHOTO, `v${DA.replace(/^v/, "").padStart(2, "0")}.png`) : C19);
   if (!existsSync(src)) {
     console.error(`[c19] manca la sorgente: ${src}`);
     process.exit(1);
   }
-  const prompt = `The first image is a photograph of an animal.\n\n${delta.text.trim()}\n\n${TIENI}`;
+  // Nella passata dei colori la lista da non toccare non puo' dire «tieni il
+  // teal»: direbbe il contrario della richiesta. Li' si tengono forme e scena.
+  const tieni = DELTA === "colori" ? TIENI_FORME : TIENI;
+  const prompt = `The first image is a photograph of an animal.\n\n${delta.text.trim()}\n\n${tieni}`;
   db().run(
     `INSERT OR IGNORE INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
      VALUES (?, ?, '.png', 'generated', ?, ?)`,
