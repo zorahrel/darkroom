@@ -9,6 +9,7 @@ import { RUNNER_LOCK, BACKEND_USES_BROWSER } from "./config.ts";
 import { join } from "node:path";
 import { runWorker, runWorkerGenerate, checkChatgptBrowserAlive, checkChatgptSession, restartChatgptBrowser } from "./worker.ts";
 import { runWorkerCodex } from "./worker-codex.ts";
+import { runWorkerOpenBrowser, runWorkerOpenBrowserGenerate } from "./worker.ts";
 import { runWorkerCodexHttp } from "./worker-codex-http.ts";
 import { runWorkerOpenAi, runWorkerOpenAiGenerate } from "./worker-openai.ts";
 import { generateEdit } from "./higgsfield.ts";
@@ -33,11 +34,11 @@ const WORKER_BACKEND = (process.env.WORKER_BACKEND ?? "cdp").toLowerCase();
  * It is now resolved when the job starts, and a job can carry its own channel:
  * `null` means "use the system one", which stays the default.
  */
-export type Backend = "cdp" | "codex" | "codex-http" | "openai";
+export type Backend = "cdp" | "codex" | "codex-http" | "openai" | "openbrowser";
 
 export function backendDi(job?: { backend?: string | null }): Backend {
   const picked = (job?.backend ?? WORKER_BACKEND).toLowerCase();
-  return picked === "codex-http" || picked === "codex" || picked === "openai"
+  return picked === "codex-http" || picked === "codex" || picked === "openai" || picked === "openbrowser"
     ? (picked as Backend)
     : "cdp";
 }
@@ -49,7 +50,9 @@ function workerPer(b: Backend) {
       ? runWorkerCodex
       : b === "openai"
         ? runWorkerOpenAi
-        : runWorker;
+        : b === "openbrowser"
+          ? runWorkerOpenBrowser
+          : runWorker;
 }
 
 // Text-to-image always went through the browser, even with another backend
@@ -63,7 +66,9 @@ function generatePer(b: Backend) {
     ? runWorkerOpenAiGenerate
     : b === "codex-http"
       ? runWorkerCodexHttp
-      : runWorkerGenerate;
+      : b === "openbrowser"
+        ? runWorkerOpenBrowserGenerate
+        : runWorkerGenerate;
 }
 
 /**

@@ -107,11 +107,48 @@ export async function runWorkerGenerate(input: {
   }
 }
 
+/**
+ * ChatGPT web dentro OPENBROWSER (WebKit) invece che in Chrome.
+ *
+ * Dal 14/09 Chrome non c'e' piu' su questa macchina e il backend `cdp` non puo'
+ * girare; Codex genera senza browser ma ignora gli allegati. Questo e' lo
+ * stesso flusso di `cdp` — stesso edit_batch.py, stesse attese e stessi
+ * controlli — con lo strato del browser sostituito da scripts/ob_browser.py.
+ * Verificato il 23/09: allegati, invio, attesa e download funzionano.
+ */
+export async function runWorkerOpenBrowser(input: {
+  image: string;
+  prompt: string;
+  output: string;
+  refs?: string[];
+}): Promise<WorkerResult> {
+  await acquireBrowserLock();
+  try {
+    return await runWorkerLocked({ ...input, browser: "openbrowser" });
+  } finally {
+    releaseBrowserLock();
+  }
+}
+
+export async function runWorkerOpenBrowserGenerate(input: {
+  prompt: string;
+  output: string;
+  refs?: string[];
+}): Promise<WorkerResult> {
+  await acquireBrowserLock();
+  try {
+    return await runWorkerLocked({ ...input, browser: "openbrowser" });
+  } finally {
+    releaseBrowserLock();
+  }
+}
+
 async function runWorkerLocked(input: {
   image?: string;
   prompt: string;
   output: string;
   refs?: string[];
+  browser?: "cdp" | "openbrowser";
 }): Promise<WorkerResult> {
   const refArgs = (input.refs ?? []).flatMap((ref) => ["--ref", ref]);
   const cmd = input.image
@@ -137,7 +174,11 @@ async function runWorkerLocked(input: {
       ];
   const proc = spawn({
     cmd,
-    env: { ...process.env, CHATGPT_CDP_URL },
+    env: {
+      ...process.env,
+      CHATGPT_CDP_URL,
+      ...(input.browser === "openbrowser" ? { DARKROOM_BROWSER: "openbrowser" } : {}),
+    },
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",

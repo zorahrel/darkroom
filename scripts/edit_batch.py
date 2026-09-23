@@ -84,6 +84,27 @@ class CDP:
         return r.get("result", {}).get("value")
 
 
+# QUALE BROWSER. `DARKROOM_BROWSER=openbrowser` guida ChatGPT dentro
+# OpenBrowser (WebKit) invece che in Chrome via CDP: dal 14/09 Chrome non c'e'
+# piu' su questa macchina. Il resto del file non sa quale dei due sta parlando:
+# `OBCDP` ha la stessa forma di `CDP`. Vedi scripts/ob_browser.py.
+USE_OPENBROWSER = os.environ.get("DARKROOM_BROWSER", "").lower() == "openbrowser"
+
+from contextlib import asynccontextmanager as _acm
+
+
+@_acm
+async def open_browser():
+    if USE_OPENBROWSER:
+        from ob_browser import open_openbrowser
+        async with open_openbrowser() as ob:
+            yield ob
+        return
+    tab = await get_chatgpt_tab()
+    async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
+        yield CDP(ws)
+
+
 def load_tracker():
     return json.loads(TRACKER.read_text())
 
@@ -193,6 +214,12 @@ async def upload_file(cdp: CDP, file_path):
           })()
         """)
         await asyncio.sleep(1)
+
+    if hasattr(cdp, "allega"):
+        # OpenBrowser: niente DOM.setFileInputFiles, i byte viaggiano dentro la
+        # pagina a pezzi sotto 1 MiB e diventano File via DataTransfer.
+        await cdp.allega(paths)
+        return
 
     res = await cdp.call("Runtime.evaluate", {
         "expression": "document.querySelector('input[type=file]')",
@@ -644,9 +671,7 @@ async def main(limit: int, only, dry_run: bool):
             print(f"  #{v['index']:03d} {k}")
         return
 
-    tab = await get_chatgpt_tab()
-    async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
-        cdp = CDP(ws)
+    async with open_browser() as cdp:
         await cdp.call("Page.enable")
         await cdp.call("DOM.enable")
         await cdp.call("Runtime.enable")
@@ -825,9 +850,7 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
     # leave its upload behind, and a photo retried in a loop then leaked one
     # copy per attempt.
     try:
-        tab = await get_chatgpt_tab()
-        async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
-            cdp = CDP(ws)
+        async with open_browser() as cdp:
             await cdp.call("Page.enable")
             await cdp.call("DOM.enable")
             await cdp.call("Runtime.enable")
@@ -928,9 +951,7 @@ async def generate_only(prompt: str, output: Path, refs=None):
     ref_paths, ref_cleanup = prepare_uploads(refs or [], "ref")
 
     try:
-        tab = await get_chatgpt_tab()
-        async with websockets.connect(tab["webSocketDebuggerUrl"], max_size=100 * 1024 * 1024) as ws:
-            cdp = CDP(ws)
+        async with open_browser() as cdp:
             await cdp.call("Page.enable")
             await cdp.call("DOM.enable")
             await cdp.call("Runtime.enable")
