@@ -4,18 +4,24 @@
  * su testa e collo: si tiene fermo per iscritto cio' che e' gia' giusto e si
  * muove una cosa sola.
  *
+ * Motore: ChatGPT web dentro OpenBrowser (721e68f). La quota Codex e' esaurita
+ * fino al 26/09, e comunque Codex ignora gli allegati: qui la foto di partenza
+ * e la reference arrivano davvero al modello.
+ *
  *   --delta corpo   il tronco e' a botte, da rinoceronte: va reso atletico e
  *                   deve seguire la curva della spina dorsale.
+ *   --delta collo   sale all'indietro e poi va in avanti, alla Loch Ness.
+ *   --delta dita    dita divise da geco, non unite da una membrana.
  *   --delta pelle   piume e scaglie come nella reference del filmato.
  *
- * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da <file|vN>]
+ * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da vN]
  */
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { withProject, dirsFor } from "../server/project.ts";
 import { db, initSchema, nextVersionNumber } from "../server/db.ts";
 import { enqueueJob, scriviIngressiVariante } from "../server/jobs.ts";
-import { runWorkerCodexHttp } from "../server/worker-codex-http.ts";
+import { runWorkerOpenBrowser } from "../server/worker.ts";
 
 const PID = "kaumat";
 const PHOTO = "kaumat-c19";
@@ -30,79 +36,77 @@ const DELTA = arg("--delta") ?? "corpo";
 /** Sorgente: un numero di versione di kaumat-c19 (v2) o, di default, la C19. */
 const DA = arg("--da");
 
-/** Cio' che e' gia' giusto nella C19 e non si tocca: e' la ragione per cui si
- *  parte da li'. */
+/** Tutto cio' che Attilio ha chiesto (jcode + questo topic) e che una passata
+ *  non deve far regredire mentre ne corregge un altro pezzo. */
 const TIENI = `
-Keep exactly as they are: the gecko head with its wide blunt jaw, the large
-amber eye, the orange-rust face and casque, the teal and powder-blue hide with
-its iridescent glow at the shoulder, the cream fringe rows along the sides of the
-neck and flank, the thick tail with its burnt orange stripe, the four legs on the
-ground, the dark forest, the blurred foreground leaves and branches, the light,
-the camera angle and the framing.
+Keep everything else in the photograph exactly as it is: the crested-gecko head
+with its wide blunt jaw and large amber eye, draconic and alien, the orange-rust
+face, the teal and powder-blue hide with its iridescent glow, the cream fringe
+rows along the sides of the neck and flank, the thick tail with its burnt orange
+stripe, the animal standing on all four legs on the forest floor, the dark
+primeval forest, the blurred leaves and branches in the foreground that make it
+look filmed from far away through the undergrowth, the light, the colour grade,
+the camera angle and the vertical 9:16 framing. It must stay a real photograph:
+real lens, true skin texture, natural grain, never CGI, never a 3D render.
 `.trim();
 
-const DELTAS: Record<string, { prompt: string; refs: string[] }> = {
+const DELTAS: Record<string, { refs: string[]; text: string }> = {
   corpo: {
     refs: [],
-    prompt: `
-The image is a photograph of an animal. ${TIENI}
-
+    text: `
 Change ONE thing: THE BUILD OF THE BODY. Right now the torso is a heavy barrel,
-thick and squat like a rhinoceros, on pillar legs. It must become ATHLETIC:
-
-- The body FOLLOWS THE CURVE OF THE SPINE. The spine is one continuous S-shaped
-  line from the back of the head to the tip of the tail, and the whole body hangs
-  from it and follows it: the back arches up in a long high curve over the
-  middle, the belly draws up tight underneath it, the flanks narrow towards the
-  hips. The silhouette is a long flowing curve, never a box or a barrel.
-- LEAN AND POWERFUL, like a big cat or a monitor lizard built at the scale of a
-  horse: defined muscle groups visible under the hide at the shoulder, the
-  forearm, the thigh and along the ribs, a narrow waist, a deep chest, tendons
-  showing at the joints.
-- LONGER LEGS, jointed and articulated like a gecko's, elbows and knees clearly
-  bent, carrying the body up off the ground with spring in them, never short
-  straight pillars.
-
-It keeps its size, it is still a huge animal, but it reads as fast and
-predatory, not as a heavy grazer.
-
-It stays the same photograph: same forest, same light, real animal on a real
-lens, natural grain.
-
-Negative: barrel body, fat, squat, stocky, rhinoceros build, hippo build, round
-belly hanging low, pillar legs, short straight legs, box-shaped torso, flat
-straight back, new head, new colours, new framing, different background,
-different light, cartoon, 3D render, text, watermark.
-`.trim(),
+squat like a rhinoceros, on short pillar legs. Make it ATHLETIC:
+- The body FOLLOWS THE CURVE OF THE SPINE: the spine is one continuous flowing S
+  from the head to the tail tip, and the body hangs from it. The back arches up
+  in a long high curve over the middle, the belly is drawn up tight under it,
+  the flanks narrow towards the hips. The silhouette is a flowing curve, never a
+  barrel or a box.
+- Lean and powerful like a big cat or a monitor lizard at the scale of a horse:
+  defined muscles under the hide at shoulder, forearm, thigh and ribs, a narrow
+  waist, a deep chest.
+- Longer legs, jointed like a gecko's, elbows and knees clearly bent, lifting the
+  body off the ground with spring in them.
+Still a huge animal, but fast and predatory, not a heavy grazer.
+Do not: barrel body, fat, squat, stocky, rhinoceros build, hanging belly,
+pillar legs, flat straight back.`,
+  },
+  collo: {
+    refs: [],
+    text: `
+Change ONE thing: THE NECK. It must be a Loch Ness curve: from the shoulders the
+neck RISES UP AND BACKWARDS, leaning back over the body, then ARCHES FORWARD at
+the top and comes DOWN AND FORWARD, so the big gecko head is carried high and
+hangs forward well ahead of the shoulders, muzzle pointing down towards the
+ground. The neck is long, muscular and athletic, continuing the S curve of the
+spine. The body keeps its lean athletic build.
+Do not: low neck, head at ground level, neck running straight forward, short
+neck, thin stalk neck, heavy barrel body.`,
+  },
+  dita: {
+    refs: [],
+    text: `
+Change ONE thing: THE HANDS AND FEET. Every foot has FIVE LONG SEPARATE DIGITS,
+clearly divided from each other all the way down to the base with visible gaps
+between them, splayed out like a real gecko's toes, each ending in a broad round
+adhesive pad. The toes are NOT joined by a membrane and NOT fused into a paddle.
+No claws, no points. Let the feet catch enough light that every toe can be
+counted on the front feet.
+Do not: webbing between the toes, fused toes, paddle, mitten, hoof, claws,
+pointed toes, toes lost in shadow.`,
   },
   pelle: {
     refs: [VIDEO],
-    prompt: `
-The first image is a photograph of an animal. The second is a frame from a film,
-attached ONLY for its skin: do not copy that creature, its beak or its shape.
-
-Keep the animal's body, pose and build exactly as they are, and ${TIENI.charAt(0).toLowerCase() + TIENI.slice(1)}
-
-Change ONE thing: THE SURFACE OF THE SKIN, which must carry the feathers and
-scales of the reference.
-
-- Along the neck, the throat and over the shoulders, rows of broad, FLAT,
-  overlapping cream-white FEATHER-SCALES, like soft fingernails or the flat
-  feathers of a bird laid in rows, lying down against the body and COVERING the
-  surface, exactly as on the creature in the second image. They are flat and
-  soft, never spikes, never thorns, never raised points.
-- A spray of small chalk-white scale flecks scattered over the shoulders, the
-  flank and the hip, as in the reference.
-- Everywhere else a fine granular skin of small overlapping scales, with the
-  iridescent teal and powder-blue sheen the animal already has.
-
-It stays the same photograph: same animal, same pose, same forest, same light,
-real lens, natural grain.
-
-Negative: spikes, thorns, pointed scales, raised crest of spines, fur, hair,
-fluffy feathers, a beak, a bird head, new pose, new body shape, new framing,
-different background, different light, cartoon, 3D render, text, watermark.
-`.trim(),
+    text: `
+The second image is a frame from a film, attached ONLY for the texture of its
+skin: do not copy that creature, its beak or its shape.
+Change ONE thing: THE SKIN. Give the animal the feathers and scales of the
+reference: along the neck, the throat and over the shoulders, rows of broad FLAT
+overlapping cream-white feather-scales, like soft fingernails or flat bird
+feathers laid in rows, lying down against the body and covering it; a spray of
+small chalk-white scale flecks over the shoulders, flank and hips; everywhere
+else fine overlapping scales with an iridescent teal sheen.
+Do not: spikes, thorns, raised points, fur, fluffy feathers, a beak, a bird head,
+a new body shape.`,
   },
 };
 
@@ -111,14 +115,15 @@ withProject(PID, async () => {
   const d = dirsFor(PID);
   const delta = DELTAS[DELTA];
   if (!delta) {
-    console.error(`[c19] delta sconosciuto: ${DELTA} (corpo | pelle)`);
+    console.error(`[c19] delta sconosciuto: ${DELTA} (${Object.keys(DELTAS).join(" | ")})`);
     process.exit(1);
   }
-  const src = DA ? join(d.GEN_DIR, PHOTO, `v${String(DA.replace(/^v/, "")).padStart(2, "0")}.png`) : C19;
+  const src = DA ? join(d.GEN_DIR, PHOTO, `v${DA.replace(/^v/, "").padStart(2, "0")}.png`) : C19;
   if (!existsSync(src)) {
     console.error(`[c19] manca la sorgente: ${src}`);
     process.exit(1);
   }
+  const prompt = `The first image is a photograph of an animal.\n\n${delta.text.trim()}\n\n${TIENI}`;
   db().run(
     `INSERT OR IGNORE INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
      VALUES (?, ?, '.png', 'generated', ?, ?)`,
@@ -130,24 +135,26 @@ withProject(PID, async () => {
   const names = delta.refs.map((r) => r.split("/").pop()!);
   const cfg = JSON.stringify({ recipe: `c19-${DELTA}`, refs: names, sources: [src.split("/").pop()] });
   const job = enqueueJob(
-    PHOTO, delta.prompt, cfg, "chatgpt", null, "edit", src,
-    JSON.stringify(delta.refs), null, "codex-http", names.length ? JSON.stringify(names) : null,
+    PHOTO, prompt, cfg, "chatgpt", null, "edit", src,
+    JSON.stringify(delta.refs), null, "openbrowser", names.length ? JSON.stringify(names) : null,
   );
   db().run("UPDATE jobs SET status='running', started_at=?, attempts=attempts+1 WHERE id=?", [Date.now(), job.id]);
   const n = nextVersionNumber(PHOTO);
   const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
   const t0 = Date.now();
-  const res = await runWorkerCodexHttp({ images: [src], prompt: delta.prompt, output: out, refs: delta.refs });
+  const res = await runWorkerOpenBrowser({ image: src, prompt, output: out, refs: delta.refs });
   const secs = Math.round((Date.now() - t0) / 1000);
-  if (res.status !== "ok") {
-    db().run("UPDATE jobs SET status='failed', finished_at=?, error=? WHERE id=?", [Date.now(), res.error ?? "?", job.id]);
-    console.error(`[c19] ${DELTA} FALLITO in ${secs}s: ${res.error}`);
+  if (res.status !== "ok" || !existsSync(out)) {
+    const why = res.status === "ok" ? "file di uscita assente" : res.error;
+    db().run("UPDATE jobs SET status='failed', finished_at=?, error=? WHERE id=?", [Date.now(), why ?? "?", job.id]);
+    console.error(`[c19] ${DELTA} FALLITO in ${secs}s: ${why}`);
     process.exit(1);
   }
+  const lineage = JSON.stringify({ recipe: `c19-${DELTA}`, refs: names, sources: [src.split("/").pop()], backend: "openbrowser" });
   const ins = db().run(
     `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, credits, source, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', 0, 'generated', ?)`,
-    [PHOTO, n, out, delta.prompt, cfg, JSON.stringify({ recipe: `c19-${DELTA}`, refs: names, sources: [src.split("/").pop()], backend: "codex-http" }), Date.now()],
+    [PHOTO, n, out, prompt, cfg, lineage, Date.now()],
   );
   scriviIngressiVariante(Number(ins.lastInsertRowid), [src], delta.refs);
   db().run("UPDATE jobs SET status='done', finished_at=?, result_version_id=? WHERE id=?", [Date.now(), Number(ins.lastInsertRowid), job.id]);

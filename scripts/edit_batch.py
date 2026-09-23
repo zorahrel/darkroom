@@ -600,6 +600,32 @@ def looks_like_same_scene(a_path, b_path, threshold=0.25) -> float:
         return 1.0
 
 
+def changed_fraction(a_path, b_path, soglia=0.12) -> float:
+    """Frazione di pixel che cambiano davvero fra sorgente e render (0..1).
+
+    La correlazione su 16x16 non vede una modifica locale: rifare le dita di
+    un animale che occupa un terzo del frame lascia la miniatura identica.
+    Misurato il 23/09 sul Kaumat: la foto restituita intatta (ridimensionata e
+    ricompressa) cambia lo 0,003% dei pixel, le dita rifatte l'1,4%, con
+    correlazioni 1,000 e 0,998 che nessuna soglia separa. Qui la distanza e' un
+    fattore 500."""
+    try:
+        import numpy as np
+        from PIL import Image, ImageOps
+
+        def gray(path, size):
+            return np.asarray(
+                ImageOps.exif_transpose(Image.open(path)).convert("L").resize(size), np.float32
+            ) / 255.0
+
+        w, h = Image.open(a_path).size
+        size = (max(1, w // 2), max(1, h // 2))
+        return float((np.abs(gray(a_path, size) - gray(b_path, size)) > soglia).mean())
+    except Exception:
+        # Nel dubbio si considera modificata: vale la stessa regola di sopra.
+        return 1.0
+
+
 async def download_image(cdp: CDP, src_url: str, dst: Path):
     b64 = await cdp.js(f"""
       (async () => {{
@@ -924,7 +950,11 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # ridimensionata senza toccarla. Salvarla come "nuova versione" e'
             # peggio di un errore: sembra lavoro fatto, e il difetto che si
             # voleva correggere resta li'.
-            if corr > float(os.environ.get("SCENE_MAX_CORR", "0.985")):
+            # La correlazione alta da sola non basta: una modifica locale (le
+            # dita, una barba) la lascia a 0,998. Identica e' solo se anche i
+            # pixel sono rimasti fermi.
+            cambiati = changed_fraction(str(image), str(output)) if corr > float(os.environ.get("SCENE_MAX_CORR", "0.985")) else 1.0
+            if cambiati < float(os.environ.get("SCENE_MIN_CHANGED", "0.002")):
                 quarantena(output, f"identica{corr:.3f}")
                 raise RuntimeError(
                     f"ChatGPT returned the source photo unedited "
