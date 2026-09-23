@@ -85,6 +85,29 @@ class OBCDP:
     async def _post(self, path: str, corpo: dict, timeout: float = 60) -> dict:
         return await asyncio.to_thread(self._post_sync, path, corpo, timeout)
 
+    def _get_sync(self, path: str, timeout: float = 10) -> dict:
+        req = Request(
+            f"http://127.0.0.1:{self.porta}{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
+        with urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+
+    async def schede_chatgpt(self) -> set[str]:
+        """Gli id delle schede ChatGPT non preferite, in questo momento."""
+        try:
+            tabs = (await asyncio.to_thread(self._get_sync, "/tabs")).get("tabs", [])
+        except Exception:
+            return set()
+        return {
+            t["id"] for t in tabs
+            if t.get("type") != "fav" and "chatgpt.com" in (t.get("url") or "") and t.get("id")
+        }
+        for t in tabs:
+            if t.get("active") and t.get("type") != "fav" and "chatgpt.com" in (t.get("url") or ""):
+                return t.get("id")
+        return None
+
     async def _esegui(self, script: str, timeout: float = 60) -> str:
         """Esegue nella scheda marcata; solleva se il contrassegno non c'e'."""
         # La guardia RESTITUISCE un segnale invece di lanciare: WebKit rende
@@ -243,5 +266,24 @@ class OBCDP:
 @asynccontextmanager
 async def open_openbrowser():
     ob = OBCDP()
+    # Quale scheda ha aperto QUESTO giro: quella che compare fra prima e dopo
+    # la navigazione. OpenBrowser ne apre una nuova solo se la scheda di
+    # automazione e' andata persa; il 24/09, dopo una serata di giri interrotti,
+    # ce n'erano sette accanto a quella dell'utente. Se invece riusa la scheda
+    # fissata non compare niente e non c'e' niente da chiudere — e soprattutto
+    # non si rischia di prendere per nostra una scheda che l'utente ha in primo
+    # piano.
+    prima = await ob.schede_chatgpt()
     await ob.naviga(CHATGPT)
-    yield ob
+    nuove = (await ob.schede_chatgpt()) - prima
+    mia = next(iter(nuove)) if len(nuove) == 1 else None
+    try:
+        yield ob
+    finally:
+        # La scheda si chiude a fine giro, riuscito o no. Solo quella annotata
+        # all'apertura, e mai una preferita: le schede dell'utente non si toccano.
+        if mia:
+            try:
+                await ob._post("/tabs/close", {"ids": [mia]}, timeout=10)
+            except Exception:
+                pass
