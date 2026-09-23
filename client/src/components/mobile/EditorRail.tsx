@@ -274,7 +274,7 @@ export function PipelineList({
           className="flex items-center gap-1.5 px-2 py-2 border-b border-neutral-800 shrink-0 text-sm text-neutral-300 hover:text-white"
         >
           <IconChevronLeft className="w-4 h-4" />
-          Tutti gli step
+          Indietro
         </button>
         <div className="flex-1 min-h-0 overflow-y-auto">
           <Section group={focused} open onToggle={() => onToggle(focused.id)} />
@@ -282,6 +282,12 @@ export function PipelineList({
       </div>
     );
   }
+
+  // Gli strumenti sono i gruppi senza passo e senza uscita; `export` chiude la
+  // lista dopo i passi, perche' e' il loro risultato.
+  const uscita = groups.filter((g) => g.id === "export");
+  const passi = groups.filter((g) => g.step);
+  const strumenti = groups.filter((g) => !g.step && g.id !== "export");
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
@@ -311,7 +317,33 @@ export function PipelineList({
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {groups.map((g) => {
+        {/* TRE COSE DIVERSE, DETTE DIVERSE. La lista metteva in fila, tutte uguali,
+            gli strumenti (Versioni, Preset, Genera, Prompt, Qualita', Info), i
+            passi della pipeline e l'uscita. Misurato a 1135x651: i sei strumenti
+            prendevano 246 px da soli, il primo passo cominciava a 335 px e il
+            sesto finiva sotto il bordo. Gli strumenti non hanno ordine ne'
+            interruttore: stanno in una griglia di bottoni. I passi hanno numero,
+            ordine e interruttore: restano righe, sotto il loro titolo. */}
+        {strumenti.length > 0 && (
+          <div className="grid grid-cols-3 gap-1.5 p-2 border-b border-neutral-800">
+            {strumenti.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => onToggle(g.id)}
+                className="flex items-center gap-1.5 min-w-0 px-2 py-1.5 rounded-md bg-neutral-900 text-xs text-neutral-200 hover:bg-neutral-800 hover:text-white"
+              >
+                <span className="shrink-0 text-neutral-400">{g.icon}</span>
+                <span className="truncate">{g.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {passi.length > 0 && (
+          <div className="px-3 pt-2.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-neutral-500">
+            Pipeline · {passi.length} {passi.length === 1 ? "passo" : "passi"}
+          </div>
+        )}
+        {[...passi, ...uscita].map((g) => {
           const idx = g.step?.index;
           const dnd =
             onReorderStep && idx !== undefined
@@ -504,7 +536,11 @@ function Section({
             {group.label}
           </span>
           {step?.summary && (
-            <span className="block text-[11px] text-neutral-400 truncate">{step.summary}</span>
+            // Due righe, non una: «CMG SUMMER LUT '18 · 80% · notte 30%» veniva
+            // tagliato a 205 px proprio nella parte che dice quanto e' forte.
+            <span className="block text-[11px] leading-snug text-neutral-400 line-clamp-2 break-words" title={step.summary}>
+              {step.summary}
+            </span>
           )}
         </span>
         <span className={"text-neutral-400 transition-transform " + (open ? "rotate-90" : "")}>
