@@ -19,6 +19,9 @@
  *   --delta allunga il collo che si e' accorciato torna lungo.
  *   --delta piume   piume vere come nel filmato: gorgiera crema e ciuffi bianchi.
  *   --delta zanne   le due corna d'avorio dello sticker drago-geco.
+ *   --delta esse    tutto il corpo ad S: schiena arcuata, collo, arti, coda.
+ *   --delta collos  il collo torna una S: sale indietro, si piega in avanti e in giu.
+ *   --delta zannegiuste  le corna dove stanno sullo sticker: sopra l'occhio, dritte.
  *
  * Usage: bun run scripts/kaumat_c19.ts --delta corpo [--da vN]
  */
@@ -187,6 +190,58 @@ itself exactly as it is, its shape, its size, its enormous amber eye and its
 downward tilt.
 Do not: antlers, a single horn, horns on the snout, tusks from the mouth, spikes
 along the neck, a drawing, cartoon, a new head.`,
+  },
+  esse: {
+    refs: [],
+    text: `
+Change ONE thing: THE WHOLE BODY MUST CURVE, every part of it, in one continuous
+flowing S. Right now the back is almost level and the limbs are straight
+columns. Make the animal sinuous and arched everywhere:
+- THE BACK: a strong ARCH in the middle of the spine, the mid-back rising in a
+  high rounded hump well above the shoulders and the hips, then sweeping down to
+  low hips. The belly drawn up tight under the arch.
+- THE NECK: a deep curve, rising from the shoulders and bending over at the top.
+- THE ARMS: bent and curved, elbows crooked out and back, wrists flexed, never
+  straight.
+- THE LEGS: bent and coiled like a crouching cat's, knees and ankles clearly
+  angled, the thighs curving into the hips.
+- THE TAIL: lifted off the ground and sweeping in a wide S of its own, curling at
+  the tip.
+Every line of the silhouette is a curve: neck, back, limbs and tail all flow into
+each other like one arching muscle. Keep the head, the horns, the feathers, the
+colours, the feet and the forest exactly as they are.
+Do not: straight back, level topline, straight legs, pillar legs, straight arms,
+tail lying flat and straight on the ground, stiff pose, rigid posture.`,
+  },
+  collos: {
+    refs: [],
+    text: `
+Change ONE thing: THE NECK, which now stands straight up like a column. It must
+CURVE like the rest of the body: from the shoulders it rises UP AND BACKWARDS,
+bows back over the chest, then arches FORWARD at the top and bends DOWN, so the
+head is carried forward ahead of the chest with the snout pointing down towards
+the ground. In profile the neck is a deep swan-like S that flows out of the arch
+of the back. Keep the arched back, the bent legs and arms, the lifted curling
+tail, the feather ruff, the horns, the head and the forest exactly as they are.
+Do not: straight neck, vertical column neck, neck leaning forward from the base,
+level head, snout pointing up, straightened back, straightened legs.`,
+  },
+  zannegiuste: {
+    refs: [`${R}/sticker-drago-geco.jpg`],
+    text: `
+The second image is a drawing of a dragon-gecko, attached ONLY for WHERE its
+horns sit and what shape they are: do not copy its colours, its style or its
+body; the photograph stays a photograph.
+Change ONE thing: THE HORNS. Right now they sit at the back of the skull and
+curve backwards like a goat's: that is wrong. Move them to where they are on the
+drawing: TWO SHORT, STRAIGHT, CONICAL horns standing on the TOP OF THE HEAD, right
+ABOVE AND JUST BEHIND THE EYES, on the brow, pointing STRAIGHT UP (only a very
+slight backward lean), one on each side of the head. They are short, about as
+tall as the eye is wide, thick at the base and tapering to a point, smooth
+ivory keratin. Nothing else on the head changes: same shape, same enormous amber
+eye, same tilt.
+Do not: horns at the back of the skull, horns curving backwards, goat horns,
+ram horns, long horns, antlers, horns on the snout, a single horn.`,
   },
   pelle: {
     refs: [VIDEO],
