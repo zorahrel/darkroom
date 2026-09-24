@@ -100,9 +100,20 @@ async function acquireBrowserLock(timeoutMs = 30 * 60 * 1000): Promise<void> {
   }
 }
 
-function releaseBrowserLock(): void {
+/**
+ * Rilascia il lucchetto SOLO se e' ancora nostro.
+ *
+ * Il 24/09 il job 365 e un generate di kaumat hanno guidato la stessa scheda
+ * ChatGPT insieme: il nostro era in /navigate quando kaumat ha preso il
+ * lucchetto, e il /navigate e' scaduto. Il rilascio cancellava il file senza
+ * guardare chi lo teneva, quindi un rilascio arrivato dopo che un altro
+ * processo l'aveva preso gli toglieva il lucchetto da sotto.
+ */
+export function releaseBrowserLock(path: string = WORKER_LOCK): void {
   try {
-    unlinkSync(WORKER_LOCK);
+    const pid = Number.parseInt(readFileSync(path, "utf8").trim().split(/\s+/)[0] ?? "", 10);
+    if (pid !== process.pid) return;
+    unlinkSync(path);
   } catch {}
 }
 

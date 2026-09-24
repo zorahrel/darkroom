@@ -36,3 +36,19 @@ describe("lucchetto del browser", () => {
     expect(proprietarioMorto(join(dir, "non-esiste"))).toBe(false);
   });
 });
+
+describe("il lucchetto si rilascia solo se e' nostro", () => {
+  test("non cancella il lucchetto di un altro processo", async () => {
+    const { releaseBrowserLock } = await import("../server/worker.ts");
+    const { mkdtempSync, writeFileSync, existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const f = join(mkdtempSync(join(tmpdir(), "lk-")), "l");
+    writeFileSync(f, `${process.pid + 1} ${Date.now()}`);
+    releaseBrowserLock(f);
+    expect(existsSync(f)).toBe(true);
+    writeFileSync(f, `${process.pid} ${Date.now()}`);
+    releaseBrowserLock(f);
+    expect(existsSync(f)).toBe(false);
+  });
+});
