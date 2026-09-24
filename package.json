@@ -39,6 +39,7 @@
     "app:misura": "bun run scripts/misura-app.ts",
     "ui:audit": "bun run scripts/audit-ui.ts",
     "jobs:watch": "bun run scripts/watch-jobs.ts",
+    "kaumat:nuovo": "bun run scripts/kaumat_nuovo.ts --n 1",
     "copertine": "bun run scripts/copertine.ts"
   },
   "dependencies": {

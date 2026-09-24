@@ -21,7 +21,7 @@ const PHOTO = "kaumat-nuovo";
 const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
 const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Ordine = ruolo, e il prompt lo dichiara: prima l'anatomia, poi il colore. */
-const REFS = [`${G}/kaumat-c19/v17.png`, `${R}/geco-attilio.png`];
+const REFS = [`${G}/kaumat-c19/v17.png`, `${R}/geco-attilio.png`, `${R}/guida-zanne-v14.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -29,41 +29,52 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. Two images are attached and they play different roles:
+Create a NEW photograph. Three images are attached and they play different roles:
 - the FIRST is the ANATOMY reference: the creature's body plan, head, horns,
   limbs and pose come from it. Do not copy its colours, its lighting or the
   photograph itself: this is a new shot of the same animal.
 - the SECOND is a photo of a real crested gecko, attached ONLY for its COLOURS.
   Do not copy its shape, its size or its surroundings.
+- the THIRD is a HORN PLACEMENT guide: the two RED shapes drawn on it mark
+  exactly where the horns grow and which way they point. Use it only for that;
+  its horns will be ivory, not red, and nothing else of it is copied.
 
 THE ANIMAL, "Kaumat": a massive unknown creature, four metres long, the weight of
 a bull. It has the features of a crested gecko but NOT its posture or
 proportions.
 
-- HEAD: a crested gecko's head at this scale, WIDE and FLAT, broad at the jaw
-  hinge, a short blunt rounded snout, the wide jaw line curving up into a fixed
+- HEAD: BIG and HEAVY, as large as a bull's head, clearly wider than the neck:
+  a crested gecko's head at this scale, WIDE and FLAT, broad at the jaw hinge, a short blunt rounded snout, the wide jaw line curving up into a fixed
   gentle smile. An ENORMOUS round lidless eye, glossy dark with an amber ring and
   a vertical slit pupil. Draconic and alien, serious, never cute.
-- HORNS: two smooth ivory horns rising straight up from the back of the skull,
-  the first just behind the eye, the second, taller, at the rear corner of the
-  skull where the head meets the neck. Thick at the base, tapering to a point.
+- HORNS: exactly where the RED shapes are in the third image. A left-and-right
+  PAIR of smooth ivory dragon horns growing from the REAR CORNERS of the skull,
+  well BEHIND the eye, where the head meets the neck; nothing on top of the
+  snout, nothing above the eye. They sweep UP AND BACK, curving slightly
+  backwards along the line of the neck, like a dragon's. Thick at the base,
+  tapering to a point, as long as the head is tall.
 - NECK: a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
-  over and comes FORWARD AND DOWN, so the head is carried forward with the snout
-  pointing towards the ground.
-- BODY: lean, athletic and powerful, never a barrel, never a rhinoceros. The
+  over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
+  with the snout tilted DOWN towards the ground, never held level.
+- BODY: MASSIVE and heavy, a big-cat build scaled up to a bull: thick slabs of
+  muscle on the shoulders and thighs, athletic and powerful, never a barrel,
+  never a rhinoceros, never a thin lizard. The
   whole body follows the curve of the spine in one flowing S: the back arches
   up into a high rounded hump in the middle, the belly is drawn up tight, the
   hips sit low.
-- LIMBS: long, big and heavily muscled, bent and curved at every joint like a
+- LIMBS: long, big and HEAVILY MUSCLED, as thick as tree trunks at the upper arm
+  and thigh, bent and curved at every joint like a
   crouching predator, standing ON ALL FOUR LEGS ON THE GROUND.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each, each
   ending in a broad round adhesive pad, splayed on the forest floor. No claws, no
   webbing between the toes, never fused into a paddle.
 - TAIL: thick at the base, lifted off the ground and sweeping in its own S,
   curling at the tip.
-- SURFACE: every raised detail is FLAT and lies against the body, covering it;
-  no spikes, no thorns, no crest down the middle of the spine. A thick ruff of
-  soft layered cream feathers on the throat and the front of the neck, small soft
+- SURFACE: every raised detail is FLAT and lies against the body, covering it,
+  with ROUNDED edges like overlapping roof shingles; no pointed tips, no jagged
+  or serrated edges, no spikes, no thorns, no crest down the middle of the spine. A THICK RUFF of
+  soft layered cream FEATHERS hanging from the throat and the front of the neck,
+  clearly visible, small soft
   white feather tufts scattered over the nape and shoulders, fine granular
   scales everywhere else, and a row of soft cream fringe scales along each OUTER
   EDGE of the back, like the gecko's.
@@ -96,9 +107,11 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: teal or blue body, grey body, barrel body, rhinoceros, short legs,
+Negative: small head, head held level, thin skinny body, thin limbs, jagged
+pointed scales, serrated back, teal or blue body, grey body, barrel body, rhinoceros, short legs,
 small feet, webbed or fused toes, claws, spikes, thorns, crest down the spine,
-narrow head, snake head, beak, goat horns, horns above the eye, straight neck,
+narrow head, snake head, beak, goat horns, horns above the eye, horns on the
+forehead, horns pointing forward, red horns, straight neck,
 bipedal, climbing a tree, clean empty foreground, clear unobstructed view,
 posed portrait, bright daylight, visible sky, small pet-sized animal, cartoon,
 concept art, 3D render, text, watermark, people.
