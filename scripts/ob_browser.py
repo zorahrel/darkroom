@@ -241,7 +241,14 @@ class OBCDP:
         consegna = (
             "var dt=new DataTransfer();window.__obFiles.forEach(function(f){dt.items.add(f)});"
             "var ins=[].slice.call(document.querySelectorAll('input[type=file]'));"
-            "var inp=ins.find(function(x){return (x.accept||'').indexOf('image')>=0})||ins[0];"
+            # Il campo DENTRO il box di scrittura, non il primo che accetta
+            # immagini. Dal 24/09 ChatGPT ha cinque input file: `upload-files`
+            # (accept vuoto) sta nel form, gli altri (`upload-photos`,
+            # `upload-media`...) stanno fuori e un change li' non produce
+            # miniature nel composer. La strada Chrome prendeva il primo del
+            # documento, cioe' proprio `upload-files`.
+            "var inp=document.querySelector('form input[type=file]')"
+            "||ins.find(function(x){return (x.accept||'').indexOf('image')>=0})||ins[0];"
             "if(!inp)return 'NOINPUT';"
             "inp.files=dt.files;"
             "inp.dispatchEvent(new Event('change',{bubbles:true}));"
