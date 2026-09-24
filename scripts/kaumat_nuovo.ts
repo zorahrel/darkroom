@@ -21,7 +21,7 @@ const PHOTO = "kaumat-nuovo";
 const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
 const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Ordine = ruolo, e il prompt lo dichiara: prima l'anatomia, poi il colore. */
-const REFS = [`${G}/kaumat-c19/v17.png`, `${R}/geco-attilio.png`, `${R}/guida-zanne-v14.png`];
+const REFS = [`${G}/kaumat-c19/v17.png`, `${R}/geco-attilio.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -29,63 +29,69 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. Three images are attached and they play different roles:
-- the FIRST is the ANATOMY reference: the creature's body plan, head, horns,
-  limbs and pose come from it. Do not copy its colours, its lighting or the
-  photograph itself: this is a new shot of the same animal.
-- the SECOND is a photo of a real crested gecko, attached ONLY for its COLOURS.
-  Do not copy its shape, its size or its surroundings.
-- the THIRD is a HORN PLACEMENT guide: the two RED shapes drawn on it mark
-  exactly where the horns grow and which way they point. Use it only for that;
-  its horns will be ivory, not red, and nothing else of it is copied.
+Create a NEW photograph. Two images are attached and they play different roles:
+- the FIRST is the ANATOMY reference: the creature's body plan, limbs and pose
+  come from it. IGNORE its horns and its head shape, both are described below.
+  Do not copy its colours, its lighting or the photograph itself: this is a new
+  shot of the same animal.
+- the SECOND is a photo of a real crested gecko, attached as the STARTING POINT
+  for the colours, pushed further as described below. Do not copy its shape, its
+  size or its surroundings.
 
 THE ANIMAL, "Kaumat": a massive unknown creature, four metres long, the weight of
 a bull. It has the features of a crested gecko but NOT its posture or
 proportions.
 
-- HEAD: BIG and HEAVY, as large as a bull's head, clearly wider than the neck:
-  a crested gecko's head at this scale, WIDE and FLAT, broad at the jaw hinge, a short blunt rounded snout, the wide jaw line curving up into a fixed
-  gentle smile. An ENORMOUS round lidless eye, glossy dark with an amber ring and
-  a vertical slit pupil. Draconic and alien, serious, never cute.
-- HORNS: exactly where the RED shapes are in the third image. A left-and-right
-  PAIR of smooth ivory dragon horns growing from the REAR CORNERS of the skull,
-  well BEHIND the eye, where the head meets the neck; nothing on top of the
-  snout, nothing above the eye. They sweep UP AND BACK, curving slightly
-  backwards along the line of the neck, like a dragon's. Thick at the base,
-  tapering to a point, as long as the head is tall.
+- HEAD: a crested gecko's face pushed to the EXTREME, as large as a bull's head.
+  VERY WIDE, FLAT and triangular seen from above, twice as wide as the neck,
+  broadest at the jaw hinge. A short blunt rounded snout and a HUGE wide
+  lipline running all the way back past the eye, curving up into the gecko's
+  fixed smile. ENORMOUS bulging round lidless eyes, each the size of a fist,
+  glossy with a glowing amber-gold iris and a thin vertical slit pupil. Above
+  each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
+  of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
+  draconic, unsettling, never cute.
+- TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
+  JAW, one on each side, emerging from under the lips at the back corners of the
+  mouth near the jaw hinge and curving UPWARD like a boar's tusks, past the
+  cheeks, their tips rising above the level of the eyes behind them. Thick at
+  the base, tapering to a point. NO horns on top of the skull, nothing on the
+  forehead or on the snout.
 - NECK: a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
   over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
   with the snout tilted DOWN towards the ground, never held level.
 - BODY: MASSIVE and heavy, a big-cat build scaled up to a bull: thick slabs of
   muscle on the shoulders and thighs, athletic and powerful, never a barrel,
-  never a rhinoceros, never a thin lizard. The
-  whole body follows the curve of the spine in one flowing S: the back arches
-  up into a high rounded hump in the middle, the belly is drawn up tight, the
-  hips sit low.
+  never a rhinoceros, never a thin lizard. The whole body follows the curve of
+  the spine in one flowing S: the back arches up into a high rounded hump in
+  the middle, the belly is drawn up tight, the hips sit low.
 - LIMBS: long, big and HEAVILY MUSCLED, as thick as tree trunks at the upper arm
-  and thigh, bent and curved at every joint like a
-  crouching predator, standing ON ALL FOUR LEGS ON THE GROUND.
-- HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each, each
-  ending in a broad round adhesive pad, splayed on the forest floor. No claws, no
-  webbing between the toes, never fused into a paddle.
+  and thigh, bent and curved at every joint like a crouching predator, standing
+  ON ALL FOUR LEGS ON THE GROUND.
+- HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
+  each ending in a broad round adhesive pad, splayed on the forest floor. No
+  claws, no webbing between the toes, never fused into a paddle.
 - TAIL: thick at the base, lifted off the ground and sweeping in its own S,
   curling at the tip.
-- SURFACE: every raised detail is FLAT and lies against the body, covering it,
-  with ROUNDED edges like overlapping roof shingles; no pointed tips, no jagged
-  or serrated edges, no spikes, no thorns, no crest down the middle of the spine. A THICK RUFF of
-  soft layered cream FEATHERS hanging from the throat and the front of the neck,
-  clearly visible, small soft
-  white feather tufts scattered over the nape and shoulders, fine granular
-  scales everywhere else, and a row of soft cream fringe scales along each OUTER
-  EDGE of the back, like the gecko's.
+- SURFACE: every raised detail is FLAT and lies against the body. Over the back,
+  shoulders, flanks and thighs, large FLAT ARMOUR PLATES: smooth polished scutes
+  the size of a hand or bigger, irregular and slightly domed, set like
+  flagstones into the fine granular skin, each plate a different colour patch
+  from the skin around it, so the body is covered in bold PLATES AND BLOTCHES.
+  A THICK RUFF of soft layered cream FEATHERS hangs from the throat and the
+  front of the neck, small soft white feather tufts on the nape and shoulders,
+  and a row of soft fringe scales along each OUTER EDGE of the back, like the
+  gecko's. No spikes, no thorns, no pointed or serrated scales, no crest down
+  the middle of the spine.
 
-COLOURS, from the second image: the animal is mostly the gecko's CREAMY PALE
-YELLOW and SOFT OCHRE-TAN. The back and the two fringe rows along its edges are
-pale cream-yellow like the gecko's dorsal pinstripe, with a sprinkle of small
-ORANGE-RED DOTS along the back exactly like the gecko's; the flanks, limbs and
-tail are warm tan and ochre, paler on the underside. Only small accents of
-anything else: a rust-orange blush on the face, a faint trace of teal
-iridescence at the throat. It must clearly read as the colours of that gecko.
+COLOURS, ALIEN but born from that gecko: the base is the gecko's creamy pale
+yellow and ochre-tan, with its sprinkle of small ORANGE-RED DOTS along the back.
+On top of that, colours no Earth reptile has: the armour plates are deep
+indigo, violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts
+teal-green to violet where the sun hits them; the lips, the eyelash crests and
+the tip of the tail flush hot orange-red; a line of faint turquoise
+bioluminescent spots runs along each flank; the tusks are ivory. Rich,
+saturated, strange, but a real animal's skin, never neon paint.
 
 THE SHOT, and every part of it matters:
 - It stands on the floor of a dark primeval forest: wet leaf litter, moss,
@@ -97,7 +103,7 @@ THE SHOT, and every part of it matters:
 - Filmed from far away with a long telephoto lens, from behind cover: stolen
   wildlife footage of an animal that does not know it is being watched.
 - Near darkness, one hard blade of afternoon sun raking across the arched back,
-  the neck and the horns. No fill light.
+  the neck and the face. No fill light.
 - Scale: a moss-covered fallen trunk a metre thick lies behind it and its back
   rises above it; tree ferns that would tower over a person reach its shoulder.
 
@@ -107,14 +113,14 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: small head, head held level, thin skinny body, thin limbs, jagged
-pointed scales, serrated back, teal or blue body, grey body, barrel body, rhinoceros, short legs,
-small feet, webbed or fused toes, claws, spikes, thorns, crest down the spine,
-narrow head, snake head, beak, goat horns, horns above the eye, horns on the
-forehead, horns pointing forward, red horns, straight neck,
-bipedal, climbing a tree, clean empty foreground, clear unobstructed view,
-posed portrait, bright daylight, visible sky, small pet-sized animal, cartoon,
-concept art, 3D render, text, watermark, people.
+Negative: horns on top of the head, horns behind the eye, goat horns, antlers,
+small head, narrow head, small eyes, head held level, thin skinny body, thin
+limbs, jagged pointed scales, serrated back, plain single-colour body, dull
+beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
+or fused toes, claws, spikes, thorns, crest down the spine, snake head, beak,
+straight neck, bipedal, climbing a tree, clean empty foreground, clear
+unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
+animal, neon, cartoon, concept art, 3D render, text, watermark, people.
 `.trim();
 
 withProject(PID, async () => {
