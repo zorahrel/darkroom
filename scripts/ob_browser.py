@@ -103,8 +103,15 @@ class OBCDP:
             t["id"] for t in tabs
             if t.get("type") != "fav" and "chatgpt.com" in (t.get("url") or "") and t.get("id")
         }
+
+    async def scheda_attiva(self) -> str | None:
+        """L'id della scheda in primo piano, qualunque sia."""
+        try:
+            tabs = (await asyncio.to_thread(self._get_sync, "/tabs")).get("tabs", [])
+        except Exception:
+            return None
         for t in tabs:
-            if t.get("active") and t.get("type") != "fav" and "chatgpt.com" in (t.get("url") or ""):
+            if t.get("active"):
                 return t.get("id")
         return None
 
@@ -280,17 +287,26 @@ async def open_openbrowser():
     # fissata non compare niente e non c'e' niente da chiudere — e soprattutto
     # non si rischia di prendere per nostra una scheda che l'utente ha in primo
     # piano.
+    # LA SCHEDA DI AUTOMAZIONE SI RIUSA, non si chiude a fine giro. Il 24/09
+    # chiuderla a ogni giro faceva perdere a OpenBrowser la scheda fissata: il
+    # giro dopo /navigate ne apriva una nuova e la fissava 0,4 s piu' tardi
+    # prendendo QUELLA ATTIVA in quel momento. Il job 365 e' fallito cosi'
+    # («la scheda di automazione non c'e' piu'»), subito dopo che il 364 era
+    # riuscito. Tenuta aperta, /navigate la riusa e nessuna gara si apre.
+    #
+    # Gli avanzi si puliscono solo quando nasce una scheda nuova (OpenBrowser
+    # riavviato, scheda chiusa a mano): allora le schede ChatGPT non preferite
+    # che c'erano prima sono giri vecchi. Mai quella in primo piano, mai una
+    # preferita: la sessione ChatGPT dell'utente sta in una preferita.
     prima = await ob.schede_chatgpt()
     await ob.naviga(CHATGPT)
     nuove = (await ob.schede_chatgpt()) - prima
-    mia = next(iter(nuove)) if len(nuove) == 1 else None
-    try:
-        yield ob
-    finally:
-        # La scheda si chiude a fine giro, riuscito o no. Solo quella annotata
-        # all'apertura, e mai una preferita: le schede dell'utente non si toccano.
-        if mia:
+    if nuove and prima:
+        attiva = await ob.scheda_attiva()
+        vecchie = [t for t in prima if t != attiva]
+        if vecchie:
             try:
-                await ob._post("/tabs/close", {"ids": [mia]}, timeout=10)
+                await ob._post("/tabs/close", {"ids": vecchie}, timeout=10)
             except Exception:
                 pass
+    yield ob
