@@ -1,11 +1,16 @@
 /**
- * Il Kaumat generato DA ZERO, con tutta la lista di Attilio in un prompt solo.
+ * Il Kaumat generato DA ZERO, da un registro unico delle richieste di Attilio.
  *
- * Perche' non un'altra modifica: diciassette passate in catena sulla C19 hanno
- * portato ogni pezzo a bersaglio, ma l'immagine ne porta i segni (Attilio: «mi
- * sembra fake»). L'anatomia e' scritta nel prompt; riferimenti solo suoi e veri:
- * lo schizzo della posa e il suo geco, per la linea della nuca e qualche accento: la foto e' nuova, e la lista delle
- * richieste e' scritta tutta, voce per voce, cosi' non ne cade nessuna.
+ * PERCHE' IL REGISTRO. Per diciotto versioni il prompt e' stato corretto a
+ * toppe: ogni richiesta nuova aggiungeva un paragrafo, il testo arrivava a 220
+ * righe che si contraddicevano, e ogni correzione ne faceva cadere un'altra
+ * (Attilio, v18: «hai perso man mano tutte le richieste»). Ora ogni richiesta
+ * e' UNA voce di REQUISITI, con le sue parole e la frase che va al modello; il
+ * prompt si compone da li', e la stessa lista e' quella con cui si verifica
+ * ogni versione prima di mostrarla. Una richiesta nuova = una voce nuova o
+ * una voce riscritta, mai un paragrafo in piu'.
+ *
+ * Riferimenti: solo materiale vero di Attilio (mai versioni generate).
  *
  * Usage: bun run scripts/kaumat_nuovo.ts [--n 1]
  */
@@ -30,204 +35,133 @@ const arg = (k: string) => {
 };
 const N = Number(arg("--n") ?? 1);
 
+/**
+ * Ogni richiesta di Attilio, una volta sola. `chiesto` sono le sue parole (o la
+ * sostanza, con la versione in cui l'ha detto); `prompt` e' come arriva al
+ * modello. L'ordine e' quello del corpo, dalla testa alla coda, poi la scena.
+ */
+export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
+  {
+    id: "testa",
+    chiesto: "faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
+    prompt:
+      "HEAD: a crested gecko's head pushed to the extreme and scaled up: VERY WIDE and FLAT, a broad triangle seen from above, much wider than the neck, the top a smooth level plate like a gecko's. Short blunt rounded snout. ENORMOUS round lidless eyes with an amber-gold iris and a vertical slit pupil, set on the outer corners of the head, with the gecko's small soft 'eyelash' fringe above each. Alien and draconic, serious, never a snake's or a dragon's long narrow head.",
+  },
+  {
+    id: "mascella",
+    chiesto: "mandibola larga, piu' da geco",
+    prompt:
+      "JAW: a gecko's jaw: broad, smooth, rounded and fleshy, as wide as the head, with a huge lipline running back past the eye and curving up at the corner into the gecko's fixed smile. No teeth showing, no bony ridges.",
+  },
+  {
+    id: "striscia",
+    chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi, di colore diverso, pelle ai lati (annotazioni #2 e #4)",
+    prompt:
+      "HEAD STRIPE: one short, thin, horizontal dash of bright rust-ochre on the flat top of the head, just behind the eyes, CENTRED, its length one third of the head's width, with bare skin on both sides; it never reaches the eyes or the edges.",
+  },
+  {
+    id: "zanne",
+    chiesto: "zanne da sotto, che partono dalla mandibola, verso avanti",
+    prompt:
+      "TUSKS: two long smooth ivory tusks rooted in the LOWER jaw, emerging through the bottom lip at the sides of the mouth, pointing FORWARD past the tip of the snout. No horns anywhere on the head.",
+  },
+  {
+    id: "collo",
+    chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
+    prompt:
+      "NECK: THICK and wide, nearly as wide as the head. From the shoulders it rises UP and BACK, arches over and comes FORWARD and DOWN in a Loch Ness curve, so the head hangs in front of the chest with the snout pointing down.",
+  },
+  {
+    id: "dorso",
+    chiesto: "niente cresta: placche sopra, piatto come il geco; placche sul tronco",
+    prompt:
+      "BACK AND TRUNK: covered in large FLAT overlapping armour plates, each as big as a hand, lying smooth against the body, top of the neck, back, flanks and haunches alike. Nothing stands up along the top of the animal: no crest, no spikes, no fringe, no frill, no mane.",
+  },
+  {
+    id: "spina",
+    chiesto: "corpo a S che segue la spina dorsale; bacino alto come il fotogramma del video",
+    prompt:
+      "SPINE: the whole body follows the spine in one flowing S, like the THIRD image: from the shoulders the back arches up to its highest point over a big, round, powerful PELVIS, then the tail falls away and sweeps up again. The back is never flat.",
+  },
+  {
+    id: "corpo",
+    chiesto: "atletico e agile, muscoloso, mai rinoceronte; armonioso",
+    prompt:
+      "BODY: athletic and agile, deep chest and tight waist, long defined muscles, the build of a big cat; never a barrel, never a rhinoceros, never skinny. Head, neck, body, legs and tail in balanced, harmonious proportion.",
+  },
+  {
+    id: "zampe",
+    chiesto: "arti piu' lunghi e grossi ('doppi'), articolati, sulle quattro zampe",
+    prompt:
+      "LEGS: LONG and THICK, powerfully muscled all the way down, with massive thighs and upper arms, clearly bent at elbow and knee; they lift the body well off the ground. It stands on ALL FOUR legs, legs under the body, never sprawled.",
+  },
+  {
+    id: "piedi",
+    chiesto: "dita divise come il geco, piedi grandi, niente unghie ne' artigli",
+    prompt:
+      "FEET: very large, exactly a crested gecko's feet scaled up: FIVE long separate toes spread wide, each ending in a round soft fleshy adhesive pad. No nails, no claws, no webbing.",
+  },
+  {
+    id: "coda",
+    chiesto: "coda piu' lunga, a S",
+    prompt: "TAIL: very long, longer than the body, thick at the base and tapering, lifted in its own S and curling at the tip.",
+  },
+  {
+    id: "piume",
+    chiesto: "piu' piume; verde petrolio appena iridescente (non pavone); ciuffi chiari sulle spalle (annotazione #4)",
+    prompt:
+      "FEATHERS: many soft layered feathers: a big full ruff hangs from the throat, the underside of the neck and the chest, spilling over the shoulders, deep petrol-green with only a subtle teal sheen, no patterns. On the point of each shoulder, a tuft of pale cream-white feathers.",
+  },
+  {
+    id: "colori",
+    chiesto: "alieno e colorato, con qualcosa dei colori del mio geco",
+    prompt:
+      "COLOURS: alien. The plates are deep indigo, violet and oxblood with an oil-slick iridescent sheen shifting to teal where the light hits; bronze skin between them; a row of small faint turquoise glowing spots along each flank. The crested gecko's colours only as accents: a cream belly, a few small orange-red dots along the spine, a rust-orange flush on the lips and the tip of the tail.",
+  },
+  {
+    id: "superficie",
+    chiesto: "rilievi piatti che coprono la superficie, mai appuntiti",
+    prompt: "SURFACE: every scale and plate is flat with rounded edges; nothing pointed, spiky or serrated anywhere.",
+  },
+  {
+    id: "posa",
+    chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio",
+    prompt:
+      "POSE: standing still and proud, all four feet planted, weight balanced, shoulders high, head lowered in the Loch Ness curve, tail raised as a counterweight, the silhouette of the FIRST image. Its feet sink into the leaf litter with soft contact shadows; the same haze and dappled light fall on it as on the trees around it.",
+  },
+  {
+    id: "scena",
+    chiesto: "foglie davanti come ripreso da lontano, natura non banale, verticale",
+    prompt:
+      "SHOT: floor of a dark primeval forest, wet leaf litter, moss, buttressed trunks, tree ferns, a mossy fallen trunk behind it for scale. Large out-of-focus leaves and a branch crowd the foreground edges: filmed from far away with a long lens, from hiding. One hard blade of sun across its back and head. A BBC natural-history documentary frame, a real photograph with film grain, never CGI or illustration. Vertical 9:16.",
+  },
+];
+
 const PROMPT = `
-Create a NEW photograph. Three images are attached and they play different roles:
-- the FIRST is a hand-drawn line: the POSE, seen from the side, the animal
-  facing LEFT. The hook on the left is the neck rising up and back then
-  falling forward with the head hanging, snout down; the hump is
-  the arched back, peaking over the hips; the line on the right is the long tail rising and curling.
-  Follow that silhouette closely. It is only a line: nothing else of it.
-- the SECOND is a close photo of a real crested gecko's head seen from above
-  and behind, attached ONLY for how FLAT and smooth the top of the head and the
-  back are. Where its stripe sits does NOT matter: the stripe's place is
-  described below. The animal must NOT look like this gecko otherwise.
-- the THIRD is a close crop of a creature's back and hindquarters, attached
-  ONLY for the CURVE OF THE SPINE AND THE PELVIS: the back arches strongly and
-  peaks HIGH over a big rounded pelvis, the haunches are full and round, the
-  hind legs drop long and straight from that high pelvis. Copy that curve and
-  that pelvis; not its colours, not its skin, nothing else.
-Everything else is described in words.
+Create a NEW photograph of an unknown animal, the "Kaumat": a large lean
+predator, four metres long and as tall as a horse, with the features of a
+crested gecko but not its posture or proportions. It is magnificent, never
+grotesque.
 
-THE ANIMAL, "Kaumat": a large unknown predator, four metres long, as tall as a horse,
-lean and fast. It has the features of a crested gecko but NOT its posture or
-proportions.
+Three images are attached, each for ONE thing only:
+- FIRST: a hand-drawn line of the POSE seen from the side, facing left: the
+  hook on the left is the neck rising and falling with the head hanging, the
+  hump is the back peaking over the hips, the line on the right is the tail.
+- SECOND: a real crested gecko's head from above: only for how FLAT and smooth
+  the top of the head and the back are.
+- THIRD: a crop of a creature's back: only for the CURVE of the spine and the
+  high round PELVIS.
+Copy nothing else from them: not their colours, skin or style.
 
-- HEAD: a crested gecko's face pushed to the EXTREME, as large as a bull's head.
-  VERY WIDE, FLAT and triangular seen from above, twice as wide as the neck,
-  broadest at the jaw hinge. The TOP of the head is FLAT and smooth like a
-  gecko's, a level plate between the eyes, nothing raised on it. A short blunt
-  rounded snout. The JAW is a gecko's jaw: a broad, smooth, rounded lower jaw,
-  as wide as the head, soft-skinned and fleshy, with a HUGE wide lipline
-  running all the way back past the eye and curving up at the corner into the
-  gecko's fixed gentle smile; never a snake's or a crocodile's jaw, no bony
-  ridges, no visible teeth. ENORMOUS bulging round lidless eyes, each the size of a fist,
-  glossy with a glowing amber-gold iris and a thin vertical slit pupil. Above
-  each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
-  of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
-  draconic, unsettling, never cute.
-- HEAD STRIPE, placed exactly where Attilio marked it: a THIN straight
-  HORIZONTAL stripe of bright rust-ochre on the FLAT TOP of the head, level with
-  the BACK OF THE EYES, in the FRONT half of the skull, far from the neck. It is
-  a line of colour on the skin, not a ridge, not a crest, no wider than a
-  finger on an animal this size, clearly a different colour from the dark
-  indigo head. It is SHORT: its length is only ONE THIRD of the width of the head,
-  CENTRED between the eyes, so each end stops far from the eyes, with a wide
-  stretch of BARE SKIN on both sides of it, left and right. It never reaches
-  the eyes, the crests or the edges of the head; it is a short dash, not a band
-  from eye to eye. Behind it, the back half of the
-  skull and the top of the neck are plain FLAT PLATES.
-- NO CREST ANYWHERE along the top of the animal: the top of the head, the top
-  of the neck, the back and the tail are covered in FLAT overlapping ARMOUR
-  PLATES lying smooth against the body, like a gecko's flat back. No row of
-  spikes, no fringe, no frill, no mane, no mohawk, nothing standing up along
-  the midline or along the edges of the neck and back.
-- The head is turned three-quarters towards the camera and tilted down, so the
-  flat top of the skull and the head stripe are clearly visible.
-- TUSKS, not horns: a pair of long smooth ivory TUSKS rooted in the LOWER JAW,
-  the MANDIBLE. Each one bursts out of the lower jawbone just below the mouth
-  line, through the bottom lip, clearly BELOW the upper lip and far below the
-  eye: they grow from the jaw, never from the cheeks, never from the side of
-  the head, never from beside the eyes. One on each side, outside the mouth.
-  They point STRAIGHT FORWARD, parallel to the snout, running along the sides
-  of the face and reaching PAST THE TIP OF THE SNOUT, like a mammoth's tusks
-  carried low; only the very tips turn slightly up. They never curl up, never
-  sweep back, never wrap around. Thick at the base, tapering to a point.
-  NO horns on top of the skull, nothing on the forehead or on the snout.
-- NECK: THICK and WIDE, nearly as wide as the head where it meets it,
-  broadening further into the shoulders, powerful, never a thin
-  swan-like stalk. It makes a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
-  over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
-  with the snout tilted DOWN towards the ground, never held level.
-- BODY: LEAN and AGILE, built for speed: a cheetah's or a greyhound's body
-  scaled up to four metres, deep narrow chest, tight waist, the belly drawn up
-  high, every muscle long and defined under the skin, never bulky, never heavy,
-  never a barrel, never a rhinoceros. The whole body follows the curve of the
-  spine in one flowing S, exactly like the third image: from the shoulders the
-  spine rises in a strong arch to its HIGHEST POINT OVER THE PELVIS, where the
-  hips form a big, rounded, powerful haunch; from there the tail falls away
-  and sweeps up again. The back is never flat, never horizontal.
-- LIMBS: VERY LONG and THICK. Long enough to lift the body high off the ground,
-  with a wide gap of forest floor visible under the belly, and TWICE as thick as
-  a lean predator's: massive upper arms and thighs, powerful forearms and
-  shins, like a lion's legs stretched to a giraffe's length. It is STANDING
-  STILL: ALL FOUR FEET PLANTED FLAT on the forest floor, none raised, none
-  mid-step. The legs stand UNDER the body, front legs under the shoulders and
-  hind legs under the hips, not sprawled out to the sides. The weight is
-  BALANCED: the forward reach of the neck and head is counterweighted by the
-  long tail behind.
-- HANDS AND FEET: very large and long, EXACTLY like a crested gecko's feet
-  scaled up: FIVE LONG SEPARATE toes on every foot, spread wide apart, each
-  toe ending in a big, round, soft, fleshy ADHESIVE PAD made of skin, the same
-  colour as the toe, clearly visible on all four feet. NO NAILS, no claws, no
-  talons, no hooves, nothing hard or horny at the tips of the toes, no bird
-  feet, no webbing between the toes, never fused into a paddle.
-- TAIL: very LONG, longer than the head and body together, thick at the base
-  and tapering to a thin tip, lifted off the ground and sweeping in its own
-  long S behind the animal, curling at the tip.
-- TRUNK: the torso, back, flanks and haunches are covered in LARGE, clearly
-  outlined ARMOUR PLATES, each as big as a hand or bigger, the edges of every
-  plate plainly visible.
-- SURFACE: every raised detail is FLAT and lies against the body. Over the back,
-  shoulders, flanks and thighs, large FLAT ARMOUR PLATES: smooth polished scutes
-  the size of a hand or bigger, irregular and slightly domed, set like
-  flagstones into the fine granular skin, each plate a different colour patch
-  from the skin around it, so the body is covered in bold PLATES AND BLOTCHES.
-  MANY FEATHERS: a big full RUFF of long soft layered feathers hangs from the
-  throat, the jaw and the whole underside of the neck down to the chest and
-  between the front legs, and feathers spill over the shoulders and the upper
-  front legs, thinning into the plates of the flanks; on the point of each
-  shoulder a distinct TUFT of long pale cream-white feathers stands out against
-  the dark plates; all deep petrol-green with
-  a SUBTLE iridescence, a soft teal-green sheen where the light touches it; no
-  patterns, no eye-spots, nothing like a peacock, no feathers on top of the
-  neck or the back. No spikes, no thorns, no pointed or serrated scales, no
-  crest.
+${REQUISITI.map((r) => r.prompt).join("\n\n")}
 
-COLOURS, ALIEN: this is NOT a beige gecko. Most of the body, the back, flanks,
-shoulders, thighs and tail, is covered in the armour plates, deep indigo,
-violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts teal-green
-to violet where the sun hits them; between the plates the skin is dark bronze.
-The gecko's creamy pale yellow appears ONLY as accents: the belly and a few
-small orange-red dots along the spine; the lips, the eyelash crests and
-the tip of the tail flush hot orange-red; a line of faint turquoise
-bioluminescent spots runs along each flank; the tusks are ivory. Rich,
-saturated, strange, but a real animal's skin, never neon paint.
+Before finishing, check every paragraph above against the image; each one must
+be visibly true.
 
-THE SHOT, and every part of it matters:
-- It stands on the floor of a dark primeval forest: wet leaf litter, moss,
-  buttressed trunks, tree ferns, hanging vines, nothing tidy or garden-like.
-- FOREGROUND LEAVES: large out-of-focus leaves, fern fronds and a dark branch
-  crowd the foreground and cover the top, bottom and side edges of the frame,
-  partly crossing in front of the animal, which is glimpsed through a gap in
-  the leaves. Foreground nearly black, only the animal sharp.
-- Filmed from far away with a long telephoto lens, from behind cover: stolen
-  wildlife footage of an animal that does not know it is being watched.
-- The animal is IN the scene, not pasted on it: its feet sink into the wet
-  leaf litter and push it aside, soft contact shadows pool under the feet and
-  the belly, the same forest haze and dappled light fall on it as on the trees
-  at the same distance, and its sharpness falls off with the same depth of
-  field as the trunk it stands in front of.
-- Near darkness, one hard blade of afternoon sun raking across the arched back,
-  the neck and the face. No fill light.
-- Scale: a moss-covered fallen trunk a metre thick lies behind it and its back
-  rises above it; tree ferns that would tower over a person reach its shoulder.
-
-BEAUTY: the animal must be MAGNIFICENT, an awe-inspiring creature the viewer
-cannot look away from, and HARMONIOUS: head, neck, body, legs and tail in
-balanced proportion to each other, no part oversized or undersized, every line
-flowing into the next; noble bearing, head held with presence, clean elegant
-lines from snout to tail, the light sculpting its muscles. Never grotesque,
-never messy, never a monster movie creature.
-
-POSTURE: proud and powerful, the pose of a predator that has just sensed
-something: shoulders high, chest pushed forward, every muscle tensed, the
-neck arched like a stallion's before it drops the head, the tail raised as a
-counterweight. Filmed from low down, at the level of the leaf litter, so it
-towers over the camera.
-
-STYLE: a BBC natural-history documentary frame, Prehistoric Planet grade. A real
-photograph: real lens, true skin texture, natural film grain. Never CGI, never a
-3D render, never an illustration.
-
-MUST HAVE, every one of these, check each before finishing:
-1. Wide gecko head, FLAT on top, enormous eyes, broad rounded gecko JAW with
-   the smile line.
-2. A SHORT thin rust-ochre HORIZONTAL dash, one third of the head's width,
-   CENTRED on the flat top of the head just behind the eyes, bare skin on
-   both sides; it never touches the eyes.
-3. Two ivory TUSKS from the LOWER JAW pointing FORWARD past the snout.
-4. Thick wide neck in a Loch Ness curve, snout down; NO CREST anywhere on
-   top of the animal, only flat plates.
-5. MANY petrol-green feathers, subtly iridescent: big ruff under the neck
-   and chest, spilling over the shoulders, plus a pale cream-white feather
-   TUFT on the point of each shoulder.
-6. LARGE armour PLATES on the trunk, indigo-violet iridescent.
-7. Spine arched, highest over a big round PELVIS.
-8. Long thick legs, ALL FOUR FEET PLANTED, standing still.
-9. FIVE separate toes with soft fleshy round PADS on every foot, no nails.
-10. Very long tail sweeping up in an S.
-11. Out-of-focus FOREGROUND LEAVES framing the shot.
-
-Vertical 9:16, 1080x1920.
-
-Negative: flat back, horizontal back, low hips, stripe on the neck,
-tusks from the cheeks, talons, nails, toenails, hooves, peacock feathers, eye-spots, bird feet,
-stripe touching the crests, stripe across the whole head, tusks beside the eyes, tusks from the upper
-jaw, feathers on top of the neck, crest behind the head, tusks curling up, spiky crest, fringe along the neck, frill, snake jaw,
-crocodile jaw, domed or ridged skull, stripe at the back of the head, tusks sweeping back, tusks wrapping around the
-snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, stripe the same
-colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
-floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
-sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
-towards the camera, front view, low neck, tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
-small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
-beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
-or fused toes, claws, short tail, stubby tail, nape ledge, brim
-across the back of the head, stripe reaching the sides of the head, stripe from eye to eye, long stripe, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
-neck, swan neck, snake head, beak,
-straight neck, bipedal, climbing a tree, clean empty foreground, clear
-unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
-animal, neon, cartoon, concept art, 3D render, text, watermark, people.
+Negative: narrow head, snake head, crocodile jaw, horns, crest, spikes, frill,
+mane, fringe along the back, thin legs, short legs, claws, nails, webbed toes,
+peacock feathers, flat back, low hips, raised leg, off-balance, pasted-on
+photomontage, beige body, cartoon, 3D render, text, watermark, people.
 `.trim();
 
 withProject(PID, async () => {
