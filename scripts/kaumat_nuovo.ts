@@ -51,6 +51,12 @@ proportions.
   each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
   of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
   draconic, unsettling, never cute.
+- NAPE LINE, exactly like the gecko in the second image seen from behind: the
+  back edge of the skull is a straight HORIZONTAL ridge running ACROSS the nape
+  from side to side, from behind one eye to behind the other, lined with a row
+  of small soft fringe scales, so the head ends in a squared-off, flat-topped
+  crown clearly separate from the neck. From the two ends of that line the two
+  fringe rows continue down along the outer edges of the back.
 - TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
   JAW, one on each side, emerging from under the lips at the back corners of the
   mouth near the jaw hinge and curving UPWARD like a boar's tusks, past the
@@ -69,10 +75,14 @@ proportions.
   and thigh, bent and curved at every joint like a crouching predator, standing
   ON ALL FOUR LEGS ON THE GROUND.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
-  each ending in a broad round adhesive pad, splayed on the forest floor. No
-  claws, no webbing between the toes, never fused into a paddle.
-- TAIL: thick at the base, lifted off the ground and sweeping in its own S,
-  curling at the tip.
+  all POINTING FORWARD in the direction the animal faces, fanned forward like a
+  gripping hand, never splayed sideways or backwards. Each toe ends in a broad
+  round adhesive pad with a short curved CLAW at the tip, also pointing
+  forward and digging into the forest floor. No webbing between the toes,
+  never fused into a paddle.
+- TAIL: very LONG, longer than the head and body together, thick at the base
+  and tapering to a thin tip, lifted off the ground and sweeping in its own
+  long S behind the animal, curling at the tip.
 - SURFACE: every raised detail is FLAT and lies against the body. Over the back,
   shoulders, flanks and thighs, large FLAT ARMOUR PLATES: smooth polished scutes
   the size of a hand or bigger, irregular and slightly domed, set like
@@ -117,7 +127,8 @@ Negative: horns on top of the head, horns behind the eye, goat horns, antlers,
 small head, narrow head, small eyes, head held level, thin skinny body, thin
 limbs, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
-or fused toes, claws, spikes, thorns, crest down the spine, snake head, beak,
+or fused toes, toes pointing sideways, short tail, stubby tail, rounded head
+without a nape line, spikes, thorns, crest down the spine, snake head, beak,
 straight neck, bipedal, climbing a tree, clean empty foreground, clear
 unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
 animal, neon, cartoon, concept art, 3D render, text, watermark, people.
