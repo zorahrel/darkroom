@@ -59,18 +59,23 @@ proportions.
 - NAPE LINE, exactly like the gecko in the second image: a THIN straight LINE
   drawn on the skin, running HORIZONTALLY across the back of the head, at right
   angles to the spine, just behind the eyes where the head meets the neck. It
-  is a line of colour, not a ridge, not a ledge, not a crest: a narrow stripe
-  of bright rust-ochre, clearly a different colour from the dark indigo head
+  is a line of colour, not a ridge, not a ledge, not a crest: a THIN stripe,
+  no wider than a finger on an animal this size, of bright rust-ochre, clearly a different colour from the dark indigo head
   around it, so it reads at a glance. It does NOT reach the sides of the
-  skull: it stops short of both edges, well inside the outline of the head.
+  skull: it is SHORT, spanning only the middle half of the nape, and stops
+  well short of both edges, inside the outline of the head.
   The eyelash crests run back along the sides of the head and continue as the
   two fringe rows down the outer edges of the neck and back. Nothing runs along
-  the top of the head or down the middle of the neck: no central crest, no
-  mane, no mohawk.
+  the top of the head or down the middle of the neck: the top of the neck is
+  bare plated skin, no central crest, no feathers along its midline, no mane,
+  no mohawk. The feather ruff is ONLY on the throat, under the neck.
 - The head is turned three-quarters towards the camera and tilted down, so the
   top of the skull and the horizontal nape line are clearly visible.
-- TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
-  JAW at the back corners of the mouth, one on each side, OUTSIDE the head.
+- TUSKS, not horns: a pair of long smooth ivory TUSKS rooted in the LOWER JAW,
+  the MANDIBLE. Each one bursts out of the lower jawbone just below the mouth
+  line, through the bottom lip, clearly BELOW the upper lip and far below the
+  eye: they grow from the jaw, never from the cheeks, never from the side of
+  the head, never from beside the eyes. One on each side, outside the mouth.
   They point STRAIGHT FORWARD, parallel to the snout, running along the sides
   of the face and reaching PAST THE TIP OF THE SNOUT, like a mammoth's tusks
   carried low; only the very tips turn slightly up. They never curl up, never
@@ -156,7 +161,8 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: tusks curling up, tusks sweeping back, tusks wrapping around the
+Negative: tusks from the cheeks, tusks beside the eyes, tusks from the upper
+jaw, feathers on top of the neck, crest behind the head, tusks curling up, tusks sweeping back, tusks wrapping around the
 snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
 floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
