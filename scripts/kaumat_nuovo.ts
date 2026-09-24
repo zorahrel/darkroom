@@ -70,9 +70,11 @@ proportions.
   the BACK OF THE EYES, in the FRONT half of the skull, far from the neck. It is
   a line of colour on the skin, not a ridge, not a crest, no wider than a
   finger on an animal this size, clearly a different colour from the dark
-  indigo head. It is SHORT and CENTRED, spanning only the middle of the head's
-  width, with BARE SKIN on both sides of it before the eyelash crests; it never
-  reaches the crests or the edges of the head. Behind it, the back half of the
+  indigo head. It is SHORT: its length is only ONE THIRD of the width of the head,
+  CENTRED between the eyes, so each end stops far from the eyes, with a wide
+  stretch of BARE SKIN on both sides of it, left and right. It never reaches
+  the eyes, the crests or the edges of the head; it is a short dash, not a band
+  from eye to eye. Behind it, the back half of the
   skull and the top of the neck are plain FLAT PLATES.
 - NO CREST ANYWHERE along the top of the animal: the top of the head, the top
   of the neck, the back and the tail are covered in FLAT overlapping ARMOUR
@@ -133,7 +135,9 @@ proportions.
   MANY FEATHERS: a big full RUFF of long soft layered feathers hangs from the
   throat, the jaw and the whole underside of the neck down to the chest and
   between the front legs, and feathers spill over the shoulders and the upper
-  front legs, thinning into the plates of the flanks; all deep petrol-green with
+  front legs, thinning into the plates of the flanks; on the point of each
+  shoulder a distinct TUFT of long pale cream-white feathers stands out against
+  the dark plates; all deep petrol-green with
   a SUBTLE iridescence, a soft teal-green sheen where the light touches it; no
   patterns, no eye-spots, nothing like a peacock, no feathers on top of the
   neck or the back. No spikes, no thorns, no pointed or serrated scales, no
@@ -188,13 +192,15 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 MUST HAVE, every one of these, check each before finishing:
 1. Wide gecko head, FLAT on top, enormous eyes, broad rounded gecko JAW with
    the smile line.
-2. A short thin rust-ochre HORIZONTAL stripe CENTRED on the flat top of the
-   head level with the back of the eyes, bare skin on both sides of it.
+2. A SHORT thin rust-ochre HORIZONTAL dash, one third of the head's width,
+   CENTRED on the flat top of the head just behind the eyes, bare skin on
+   both sides; it never touches the eyes.
 3. Two ivory TUSKS from the LOWER JAW pointing FORWARD past the snout.
 4. Thick wide neck in a Loch Ness curve, snout down; NO CREST anywhere on
    top of the animal, only flat plates.
 5. MANY petrol-green feathers, subtly iridescent: big ruff under the neck
-   and chest, spilling over the shoulders.
+   and chest, spilling over the shoulders, plus a pale cream-white feather
+   TUFT on the point of each shoulder.
 6. LARGE armour PLATES on the trunk, indigo-violet iridescent.
 7. Spine arched, highest over a big round PELVIS.
 8. Long thick legs, ALL FOUR FEET PLANTED, standing still.
@@ -217,7 +223,7 @@ towards the camera, front view, low neck, tusks pointing up or backwards, horns 
 small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
 or fused toes, claws, short tail, stubby tail, nape ledge, brim
-across the back of the head, stripe reaching the sides of the head, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
+across the back of the head, stripe reaching the sides of the head, stripe from eye to eye, long stripe, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
 neck, swan neck, snake head, beak,
 straight neck, bipedal, climbing a tree, clean empty foreground, clear
 unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
