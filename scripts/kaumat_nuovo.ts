@@ -23,7 +23,7 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
-const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`];
+const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -31,16 +31,21 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. Two images are attached and they play different roles:
+Create a NEW photograph. Three images are attached and they play different roles:
 - the FIRST is a hand-drawn line: the POSE, seen from the side, the animal
   facing LEFT. The hook on the left is the neck rising up and back then
-  falling forward with the head hanging, snout down; the hump in the middle is
-  the arched back; the line on the right is the long tail rising and curling.
+  falling forward with the head hanging, snout down; the hump is
+  the arched back, peaking over the hips; the line on the right is the long tail rising and curling.
   Follow that silhouette closely. It is only a line: nothing else of it.
 - the SECOND is a close photo of the back of a real crested gecko's head,
   seen from above and behind, attached ONLY as the model for the NAPE LINE
   and the shape of the head and neck. The animal must NOT look like this
   gecko otherwise: it is an alien creature, far more colourful.
+- the THIRD is a close crop of a creature's back and hindquarters, attached
+  ONLY for the CURVE OF THE SPINE AND THE PELVIS: the back arches strongly and
+  peaks HIGH over a big rounded pelvis, the haunches are full and round, the
+  hind legs drop long and straight from that high pelvis. Copy that curve and
+  that pelvis; not its colours, not its skin, nothing else.
 Everything else is described in words.
 
 THE ANIMAL, "Kaumat": a large unknown predator, four metres long, as tall as a horse,
@@ -58,7 +63,9 @@ proportions.
   draconic, unsettling, never cute.
 - NAPE LINE, exactly like the gecko in the second image: a THIN straight LINE
   drawn on the skin, running HORIZONTALLY across the back of the head, at right
-  angles to the spine, just behind the eyes where the head meets the neck. It
+  angles to the spine, ON TOP OF THE SKULL, just behind the eyes and close to
+  them, NOT on the neck: seen from above, it is the first thing behind the
+  eyes. It
   is a line of colour, not a ridge, not a ledge, not a crest: a THIN stripe,
   no wider than a finger on an animal this size, of bright rust-ochre, clearly a different colour from the dark indigo head
   around it, so it reads at a glance. It does NOT reach the sides of the
@@ -90,8 +97,10 @@ proportions.
   scaled up to four metres, deep narrow chest, tight waist, the belly drawn up
   high, every muscle long and defined under the skin, never bulky, never heavy,
   never a barrel, never a rhinoceros. The whole body follows the curve of the
-  spine in one flowing S: the back arches up into a high rounded hump in the
-  middle, the hips sit low.
+  spine in one flowing S, exactly like the third image: from the shoulders the
+  spine rises in a strong arch to its HIGHEST POINT OVER THE PELVIS, where the
+  hips form a big, rounded, powerful haunch; from there the tail falls away
+  and sweeps up again. The back is never flat, never horizontal.
 - LIMBS: VERY LONG and THICK. Long enough to lift the body high off the ground,
   with a wide gap of forest floor visible under the belly, and TWICE as thick as
   a lean predator's: massive upper arms and thighs, powerful forearms and
@@ -161,7 +170,8 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: tusks from the cheeks, tusks beside the eyes, tusks from the upper
+Negative: flat back, horizontal back, low hips, nape line on the neck,
+tusks from the cheeks, tusks beside the eyes, tusks from the upper
 jaw, feathers on top of the neck, crest behind the head, tusks curling up, tusks sweeping back, tusks wrapping around the
 snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
