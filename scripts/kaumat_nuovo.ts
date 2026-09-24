@@ -37,10 +37,10 @@ Create a NEW photograph. Three images are attached and they play different roles
   falling forward with the head hanging, snout down; the hump is
   the arched back, peaking over the hips; the line on the right is the long tail rising and curling.
   Follow that silhouette closely. It is only a line: nothing else of it.
-- the SECOND is a close photo of the back of a real crested gecko's head,
-  seen from above and behind, attached ONLY as the model for the NAPE LINE
-  and the shape of the head and neck. The animal must NOT look like this
-  gecko otherwise: it is an alien creature, far more colourful.
+- the SECOND is a close photo of a real crested gecko's head seen from above
+  and behind, attached ONLY for how FLAT and smooth the top of the head and the
+  back are. Where its stripe sits does NOT matter: the stripe's place is
+  described below. The animal must NOT look like this gecko otherwise.
 - the THIRD is a close crop of a creature's back and hindquarters, attached
   ONLY for the CURVE OF THE SPINE AND THE PELVIS: the back arches strongly and
   peaks HIGH over a big rounded pelvis, the haunches are full and round, the
@@ -54,32 +54,33 @@ proportions.
 
 - HEAD: a crested gecko's face pushed to the EXTREME, as large as a bull's head.
   VERY WIDE, FLAT and triangular seen from above, twice as wide as the neck,
-  broadest at the jaw hinge. A short blunt rounded snout and a HUGE wide
-  lipline running all the way back past the eye, curving up into the gecko's
-  fixed smile. ENORMOUS bulging round lidless eyes, each the size of a fist,
+  broadest at the jaw hinge. The TOP of the head is FLAT and smooth like a
+  gecko's, a level plate between the eyes, nothing raised on it. A short blunt
+  rounded snout. The JAW is a gecko's jaw: a broad, smooth, rounded lower jaw,
+  as wide as the head, soft-skinned and fleshy, with a HUGE wide lipline
+  running all the way back past the eye and curving up at the corner into the
+  gecko's fixed gentle smile; never a snake's or a crocodile's jaw, no bony
+  ridges, no visible teeth. ENORMOUS bulging round lidless eyes, each the size of a fist,
   glossy with a glowing amber-gold iris and a thin vertical slit pupil. Above
   each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
   of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
   draconic, unsettling, never cute.
-- NAPE LINE, exactly like the gecko in the second image: a THIN straight LINE
-  drawn on the skin, running HORIZONTALLY across the back of the head, at right
-  angles to the spine, ON TOP OF THE SKULL, just behind the eyes and close to
-  them, NOT on the neck: seen from above, it is the first thing behind the
-  eyes. It
-  is a line of colour, not a ridge, not a ledge, not a crest: a THIN stripe,
-  no wider than a finger on an animal this size, of bright rust-ochre, clearly a different colour from the dark indigo head
-  around it, so it reads at a glance. It does NOT reach the sides of the
-  skull: it is SHORT and CENTRED on the top of the head, spanning only the
-  middle third of its width, with a wide stretch of BARE SKIN on both sides of
-  it, left and right, before the eyelash crests. It never reaches the crests
-  or the edges of the head.
-  The eyelash crests run back along the sides of the head and continue as the
-  two fringe rows down the outer edges of the neck and back. Nothing runs along
-  the top of the head or down the middle of the neck: the top of the neck is
-  bare plated skin, no central crest, no feathers along its midline, no mane,
-  no mohawk. The feather ruff is ONLY on the throat, under the neck.
+- HEAD STRIPE, placed exactly where Attilio marked it: a THIN straight
+  HORIZONTAL stripe of bright rust-ochre on the FLAT TOP of the head, level with
+  the BACK OF THE EYES, in the FRONT half of the skull, far from the neck. It is
+  a line of colour on the skin, not a ridge, not a crest, no wider than a
+  finger on an animal this size, clearly a different colour from the dark
+  indigo head. It is SHORT and CENTRED, spanning only the middle of the head's
+  width, with BARE SKIN on both sides of it before the eyelash crests; it never
+  reaches the crests or the edges of the head. Behind it, the back half of the
+  skull and the top of the neck are plain FLAT PLATES.
+- NO CREST ANYWHERE along the top of the animal: the top of the head, the top
+  of the neck, the back and the tail are covered in FLAT overlapping ARMOUR
+  PLATES lying smooth against the body, like a gecko's flat back. No row of
+  spikes, no fringe, no frill, no mane, no mohawk, nothing standing up along
+  the midline or along the edges of the neck and back.
 - The head is turned three-quarters towards the camera and tilted down, so the
-  top of the skull and the horizontal nape line are clearly visible.
+  flat top of the skull and the head stripe are clearly visible.
 - TUSKS, not horns: a pair of long smooth ivory TUSKS rooted in the LOWER JAW,
   the MANDIBLE. Each one bursts out of the lower jawbone just below the mouth
   line, through the bottom lip, clearly BELOW the upper lip and far below the
@@ -129,21 +130,21 @@ proportions.
   the size of a hand or bigger, irregular and slightly domed, set like
   flagstones into the fine granular skin, each plate a different colour patch
   from the skin around it, so the body is covered in bold PLATES AND BLOTCHES.
-  A RUFF of long soft layered feathers hangs from the throat and runs down
-  under the neck to the chest, deep petrol-green with a SUBTLE iridescence, a
-  soft teal-green sheen where the light touches it; no patterns, no eye-spots,
-  nothing like a peacock; it is ONLY under the neck. Small soft white feather tufts on the shoulders,
-  and a row of soft fringe scales along each OUTER EDGE of the back, like the
-  gecko's. No spikes, no thorns, no pointed or serrated scales, no crest down
-  the middle of the spine.
+  MANY FEATHERS: a big full RUFF of long soft layered feathers hangs from the
+  throat, the jaw and the whole underside of the neck down to the chest and
+  between the front legs, and feathers spill over the shoulders and the upper
+  front legs, thinning into the plates of the flanks; all deep petrol-green with
+  a SUBTLE iridescence, a soft teal-green sheen where the light touches it; no
+  patterns, no eye-spots, nothing like a peacock, no feathers on top of the
+  neck or the back. No spikes, no thorns, no pointed or serrated scales, no
+  crest.
 
 COLOURS, ALIEN: this is NOT a beige gecko. Most of the body, the back, flanks,
 shoulders, thighs and tail, is covered in the armour plates, deep indigo,
 violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts teal-green
 to violet where the sun hits them; between the plates the skin is dark bronze.
-The gecko's creamy pale yellow appears ONLY as accents: the dorsal stripe, the
-two fringe rows along the back and the belly, with a few
-small orange-red dots along the stripe; the lips, the eyelash crests and
+The gecko's creamy pale yellow appears ONLY as accents: the belly and a few
+small orange-red dots along the spine; the lips, the eyelash crests and
 the tip of the tail flush hot orange-red; a line of faint turquoise
 bioluminescent spots runs along each flank; the tusks are ivory. Rich,
 saturated, strange, but a real animal's skin, never neon paint.
@@ -185,12 +186,15 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 3D render, never an illustration.
 
 MUST HAVE, every one of these, check each before finishing:
-1. Wide flat gecko head, enormous eyes, eyelash crests along the sides.
-2. A short thin rust-ochre HORIZONTAL stripe CENTRED on top of the skull just
-   behind the eyes, with wide bare skin on both sides before the crests.
+1. Wide gecko head, FLAT on top, enormous eyes, broad rounded gecko JAW with
+   the smile line.
+2. A short thin rust-ochre HORIZONTAL stripe CENTRED on the flat top of the
+   head level with the back of the eyes, bare skin on both sides of it.
 3. Two ivory TUSKS from the LOWER JAW pointing FORWARD past the snout.
-4. Thick wide neck in a Loch Ness curve, snout down, no crest on top.
-5. Feather RUFF under the neck, petrol-green, only subtly iridescent.
+4. Thick wide neck in a Loch Ness curve, snout down; NO CREST anywhere on
+   top of the animal, only flat plates.
+5. MANY petrol-green feathers, subtly iridescent: big ruff under the neck
+   and chest, spilling over the shoulders.
 6. LARGE armour PLATES on the trunk, indigo-violet iridescent.
 7. Spine arched, highest over a big round PELVIS.
 8. Long thick legs, ALL FOUR FEET PLANTED, standing still.
@@ -200,11 +204,12 @@ MUST HAVE, every one of these, check each before finishing:
 
 Vertical 9:16, 1080x1920.
 
-Negative: flat back, horizontal back, low hips, nape line on the neck,
+Negative: flat back, horizontal back, low hips, stripe on the neck,
 tusks from the cheeks, talons, nails, toenails, hooves, peacock feathers, eye-spots, bird feet,
 stripe touching the crests, stripe across the whole head, tusks beside the eyes, tusks from the upper
-jaw, feathers on top of the neck, crest behind the head, tusks curling up, tusks sweeping back, tusks wrapping around the
-snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
+jaw, feathers on top of the neck, crest behind the head, tusks curling up, spiky crest, fringe along the neck, frill, snake jaw,
+crocodile jaw, domed or ridged skull, stripe at the back of the head, tusks sweeping back, tusks wrapping around the
+snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, stripe the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
 floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
 sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
@@ -212,7 +217,7 @@ towards the camera, front view, low neck, tusks pointing up or backwards, horns 
 small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
 or fused toes, claws, short tail, stubby tail, nape ledge, brim
-across the back of the head, nape line reaching the sides of the head, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
+across the back of the head, stripe reaching the sides of the head, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
 neck, swan neck, snake head, beak,
 straight neck, bipedal, climbing a tree, clean empty foreground, clear
 unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
