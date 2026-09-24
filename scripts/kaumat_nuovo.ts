@@ -69,9 +69,10 @@ proportions.
   is a line of colour, not a ridge, not a ledge, not a crest: a THIN stripe,
   no wider than a finger on an animal this size, of bright rust-ochre, clearly a different colour from the dark indigo head
   around it, so it reads at a glance. It does NOT reach the sides of the
-  skull: it is SHORT and stops before the eyelash crests on both sides,
-  leaving a clear gap of BARE SKIN between each end of the stripe and the
-  crest.
+  skull: it is SHORT and CENTRED on the top of the head, spanning only the
+  middle third of its width, with a wide stretch of BARE SKIN on both sides of
+  it, left and right, before the eyelash crests. It never reaches the crests
+  or the edges of the head.
   The eyelash crests run back along the sides of the head and continue as the
   two fringe rows down the outer edges of the neck and back. Nothing runs along
   the top of the head or down the middle of the neck: the top of the neck is
@@ -113,9 +114,10 @@ proportions.
   long tail behind.
 - HANDS AND FEET: very large and long, EXACTLY like a crested gecko's feet
   scaled up: FIVE LONG SEPARATE toes on every foot, spread wide apart, each
-  toe ending in a big, round, flat ADHESIVE PAD, clearly visible on all four
-  feet. No claws, no talons, no bird feet, no webbing between the toes, never
-  fused into a paddle.
+  toe ending in a big, round, soft, fleshy ADHESIVE PAD made of skin, the same
+  colour as the toe, clearly visible on all four feet. NO NAILS, no claws, no
+  talons, no hooves, nothing hard or horny at the tips of the toes, no bird
+  feet, no webbing between the toes, never fused into a paddle.
 - TAIL: very LONG, longer than the head and body together, thick at the base
   and tapering to a thin tip, lifted off the ground and sweeping in its own
   long S behind the animal, curling at the tip.
@@ -127,10 +129,10 @@ proportions.
   the size of a hand or bigger, irregular and slightly domed, set like
   flagstones into the fine granular skin, each plate a different colour patch
   from the skin around it, so the body is covered in bold PLATES AND BLOTCHES.
-  A PEACOCK RUFF hangs from the throat and runs down under the neck to the
-  chest: long layered feathers with a metallic peacock sheen, electric blue,
-  emerald and bronze, each longer feather ending in a small peacock EYE-SPOT,
-  cascading like a train; it is ONLY under the neck. Small soft white feather tufts on the shoulders,
+  A RUFF of long soft layered feathers hangs from the throat and runs down
+  under the neck to the chest, deep petrol-green with a SUBTLE iridescence, a
+  soft teal-green sheen where the light touches it; no patterns, no eye-spots,
+  nothing like a peacock; it is ONLY under the neck. Small soft white feather tufts on the shoulders,
   and a row of soft fringe scales along each OUTER EDGE of the back, like the
   gecko's. No spikes, no thorns, no pointed or serrated scales, no crest down
   the middle of the spine.
@@ -184,22 +186,23 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 MUST HAVE, every one of these, check each before finishing:
 1. Wide flat gecko head, enormous eyes, eyelash crests along the sides.
-2. A thin rust-ochre HORIZONTAL stripe on top of the skull just behind the
-   eyes, stopping short of the crests with bare skin at both ends.
+2. A short thin rust-ochre HORIZONTAL stripe CENTRED on top of the skull just
+   behind the eyes, with wide bare skin on both sides before the crests.
 3. Two ivory TUSKS from the LOWER JAW pointing FORWARD past the snout.
 4. Thick wide neck in a Loch Ness curve, snout down, no crest on top.
-5. PEACOCK RUFF of blue-emerald-bronze feathers with eye-spots under the neck.
+5. Feather RUFF under the neck, petrol-green, only subtly iridescent.
 6. LARGE armour PLATES on the trunk, indigo-violet iridescent.
 7. Spine arched, highest over a big round PELVIS.
 8. Long thick legs, ALL FOUR FEET PLANTED, standing still.
-9. FIVE separate toes with round PADS on every foot, no claws.
+9. FIVE separate toes with soft fleshy round PADS on every foot, no nails.
 10. Very long tail sweeping up in an S.
 11. Out-of-focus FOREGROUND LEAVES framing the shot.
 
 Vertical 9:16, 1080x1920.
 
 Negative: flat back, horizontal back, low hips, nape line on the neck,
-tusks from the cheeks, talons, bird feet, stripe touching the crests, tusks beside the eyes, tusks from the upper
+tusks from the cheeks, talons, nails, toenails, hooves, peacock feathers, eye-spots, bird feet,
+stripe touching the crests, stripe across the whole head, tusks beside the eyes, tusks from the upper
 jaw, feathers on top of the neck, crest behind the head, tusks curling up, tusks sweeping back, tusks wrapping around the
 snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
