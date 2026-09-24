@@ -13,7 +13,14 @@ import { useViewState, readOneOf } from "../viewState";
 // gesture.
 
 type Recipe = { id: number; name: string; body: string; from_reference: string | null };
-type Ruolo = "stile" | "identita" | null;
+type Ruolo = "stile" | "identita" | "accessorio" | null;
+
+/** I ruoli nell'ordine in cui si offrono, con la parola che si legge. */
+const RUOLI = [
+  { id: "identita", nome: "identità", spiega: "Tiene il viso: allegata per far restare la persona se stessa" },
+  { id: "stile", nome: "stile", spiega: "Impone un aspetto: luce, colore, resa" },
+  { id: "accessorio", nome: "accessorio", spiega: "Un oggetto da indossare o tenere: se ne copiano forma e dettagli" },
+] as const;
 type Reference = {
   file: string;
   bytes: number;
@@ -294,10 +301,11 @@ export default function ReferencesPage() {
               </p>
             </div>
             <div className="flex items-center gap-1.5 text-xs">
-              {(["identita", "stile"] as const).map((ruolo) => (
+              {RUOLI.map(({ id: ruolo, nome, spiega }) => (
                 <button
                   key={ruolo}
                   type="button"
+                  title={spiega}
                   onClick={() => cambiaRuolo(r.file, r.role === ruolo ? null : ruolo)}
                   className={`px-2 py-1 rounded border ${
                     r.role === ruolo
@@ -305,7 +313,7 @@ export default function ReferencesPage() {
                       : "border-neutral-800 text-neutral-500 hover:text-neutral-300"
                   }`}
                 >
-                  {ruolo === "identita" ? "identità" : "stile"}
+                  {nome}
                 </button>
               ))}
               {!r.role && <span className="font-mono text-[11px] text-neutral-600">ruolo non dichiarato</span>}
@@ -504,16 +512,12 @@ export default function ReferencesPage() {
                       indovina dal nome, e «non dichiarato» resta una terza
                       risposta, non un valore di riposo. */}
                   <div className="flex items-center gap-1 pt-0.5">
-                    {(["identita", "stile"] as const).map((ruolo) => (
+                    {RUOLI.map(({ id: ruolo, nome, spiega }) => (
                       <button
                         key={ruolo}
                         type="button"
                         onClick={() => cambiaRuolo(r.file, r.role === ruolo ? null : ruolo)}
-                        title={
-                          ruolo === "identita"
-                            ? "Tiene il viso: allegata per far restare la persona se stessa"
-                            : "Impone un aspetto: luce, colore, resa"
-                        }
+                        title={spiega}
                         className={
                           "font-mono text-[10px] px-1.5 py-0.5 border transition-colors " +
                           (r.role === ruolo
@@ -521,7 +525,7 @@ export default function ReferencesPage() {
                             : "border-neutral-800 text-neutral-500 hover:text-neutral-200")
                         }
                       >
-                        {ruolo === "identita" ? "identità" : "stile"}
+                        {nome}
                       </button>
                     ))}
                     {/* «Non dichiarato» resta una terza risposta esplicita — non

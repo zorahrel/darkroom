@@ -85,7 +85,8 @@ referenceRoutes.get("/api/references", (c) => {
       modified_at: st.mtimeMs,
       /** How many variants were born with this reference attached. */
       used_in: uses.get(f) ?? 0,
-      /** `stile` impone un aspetto, `identita` tiene il viso. `null` = nessuno
+      /** `stile` impone un aspetto, `identita` tiene il viso, `accessorio` porta
+       *  un oggetto da indossare (occhiali, giacca). `null` = nessuno
        *  l'ha ancora detto, ed e' un'informazione, non un valore di riposo. */
       role: ruoli.get(f) ?? null,
       /** Il deprompt: luce, tonalita', inquadratura, pelle, resa. `null` = non
@@ -281,8 +282,8 @@ referenceRoutes.put("/api/references/:file/role", async (c) => {
     db().run("DELETE FROM reference_meta WHERE file = ?", [file]);
     return c.json({ file, role: null });
   }
-  if (role !== "stile" && role !== "identita") {
-    return c.json({ error: "il ruolo e' «stile» o «identita»" }, 400);
+  if (role !== "stile" && role !== "identita" && role !== "accessorio") {
+    return c.json({ error: "il ruolo e' «stile», «identita» o «accessorio»" }, 400);
   }
   db().run(
     `INSERT INTO reference_meta (file, role, updated_at) VALUES (?, ?, ?)

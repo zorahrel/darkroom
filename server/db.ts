@@ -307,7 +307,7 @@ const SCHEMA_STATEMENTS = [
   // cancellato a mano lascia una riga orfana che non fa danno.
   `CREATE TABLE IF NOT EXISTS reference_meta (
     file TEXT PRIMARY KEY,
-    role TEXT NOT NULL CHECK (role IN ('stile','identita')),
+    role TEXT NOT NULL CHECK (role IN ('stile','identita','accessorio')),
     updated_at INTEGER NOT NULL
   )`,
 
@@ -518,6 +518,27 @@ export function initSchemaOn(d: Database): void {
   // How many times this job was actually picked up by a worker (retries on
   // rate-limit increment this), and when it first started — so the log can show
   // real total elapsed instead of a per-attempt timer that resets on requeue.
+  // Terzo ruolo di una reference: ACCESSORIO. Un oggetto da indossare o
+  // tenere (occhiali, giacca) si allega per copiarne forma e dettagli, non per
+  // la faccia (identita') ne' per luce e colore (stile). Finora gli occhiali
+  // stavano fra le reference senza ruolo, e il prompt era l'unico posto che
+  // diceva a cosa servissero. SQLite non modifica un CHECK: la tabella si
+  // ricostruisce, una volta sola, quando il vincolo vecchio non lo conosce.
+  const metaSql = (d.query("SELECT sql FROM sqlite_master WHERE name = 'reference_meta'").get() as
+    | { sql: string }
+    | null)?.sql;
+  if (metaSql && !metaSql.includes("accessorio")) {
+    d.transaction(() => {
+      d.run(`CREATE TABLE reference_meta_nuova (
+        file TEXT PRIMARY KEY,
+        role TEXT NOT NULL CHECK (role IN ('stile','identita','accessorio')),
+        updated_at INTEGER NOT NULL
+      )`);
+      d.run("INSERT INTO reference_meta_nuova SELECT file, role, updated_at FROM reference_meta");
+      d.run("DROP TABLE reference_meta");
+      d.run("ALTER TABLE reference_meta_nuova RENAME TO reference_meta");
+    })();
+  }
   if (!hasColumn(d, "jobs", "attempts")) {
     d.run("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0");
   }

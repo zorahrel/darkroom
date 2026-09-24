@@ -45,6 +45,16 @@ describe("ruolo di una reference", () => {
     expect(l.references.find((r) => r.file === nome)?.role).toBeNull();
   });
 
+  test("un accessorio e' un terzo ruolo, non un tipo di stile", async () => {
+    // Occhiali e giacca si allegano per copiarne forma e dettagli: ne' la
+    // faccia (identita') ne' luce e colore (stile).
+    expect((await metti(nome, "accessorio")).status).toBe(200);
+    const l = (await (await app.request("/api/references")).json()) as {
+      references: { file: string; role: string | null }[];
+    };
+    expect(l.references.find((r) => r.file === nome)?.role).toBe("accessorio");
+  });
+
   test("un ruolo inventato viene rifiutato", async () => {
     const r = await metti(nome, "boh");
     expect(r.status).toBe(400);
