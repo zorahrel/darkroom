@@ -153,8 +153,10 @@ export function scriviIngressiVariante(
       .get(nome);
     scrivi.run(versionId, "source", nome, foto?.id ?? null, i);
   });
+  // Il percorso intero, come fa il worker: col solo nome una versione di
+  // un'altra foto («v17.png») non si ritrova piu' e la miniatura esce rotta.
   riferimenti.forEach((p, i) => {
-    scrivi.run(versionId, "reference", p.split("/").pop() ?? p, null, i);
+    scrivi.run(versionId, "reference", p, null, i);
   });
 }
 

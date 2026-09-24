@@ -136,6 +136,8 @@ export type Ingresso = {
    *  e' stata passata intatta o ritoccata. */
   tipo: "originale" | "alterata" | "generata" | "riferimento" | "altro";
   versione: number | null;
+  /** La foto a cui appartiene una versione generata, se e' un'altra. */
+  foto?: string | null;
 };
 
 export type PhotoDetail = {

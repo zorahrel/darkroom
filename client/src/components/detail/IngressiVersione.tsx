@@ -42,7 +42,7 @@ export function IngressiVersione({
 
   const miniatura = (i: Ingresso) =>
     i.tipo === "generata" && i.versione !== null
-      ? thumbGenUrl(photoId, i.versione, 160)
+      ? thumbGenUrl(i.foto ?? photoId, i.versione, 160)
       : thumbRefUrl(i.nome, 160);
 
   // Una reference si apre nella sua pagina, con il suo deprompt; una versione
@@ -50,7 +50,7 @@ export function IngressiVersione({
   const destinazione = (i: Ingresso): string | null => {
     if (i.tipo === "riferimento") return `/p/${pid}/references/${encodeURIComponent(i.nome)}`;
     if (i.tipo === "generata" && i.versione !== null)
-      return `/p/${pid}/photo/${encodeURIComponent(photoId)}?v=${i.versione}`;
+      return `/p/${pid}/photo/${encodeURIComponent(i.foto ?? photoId)}?v=${i.versione}`;
     return null;
   };
 
@@ -68,20 +68,24 @@ export function IngressiVersione({
           const et = ETICHETTA[i.tipo];
           const dest = destinazione(i);
           const corpo = (
-            <figure className="m-0 w-14" title={`${i.ruolo}: ${i.nome}`}>
+            <figure className="m-0 w-20" title={`${i.ruolo}: ${i.nome}`}>
               <div
                 className={
-                  "relative h-14 w-14 overflow-hidden rounded bg-black/70 " +
+                  "relative h-20 w-20 overflow-hidden rounded bg-black/70 " +
                   (i.ruolo === "partenza" ? "ring-2 ring-white/80" : "ring-1 ring-white/20")
                 }
               >
                 <img src={miniatura(i)} alt={i.nome} className="h-full w-full object-cover" draggable={false} />
-                <span className={`absolute bottom-0 left-0 right-0 text-center text-[9px] leading-4 ${et.classe}`}>
+                <span className={`absolute bottom-0 left-0 right-0 text-center text-[10px] leading-4 ${et.classe}`}>
                   {et.testo}
                 </span>
               </div>
-              <figcaption className="mt-0.5 truncate text-[9px] text-neutral-200 [text-shadow:0_1px_2px_#000]">
-                {i.ruolo === "partenza" ? "partenza" : i.nome}
+              <figcaption className="mt-0.5 truncate text-[10px] text-neutral-200 [text-shadow:0_1px_2px_#000]">
+                {i.ruolo === "partenza"
+                  ? "partenza"
+                  : i.foto && i.foto !== photoId
+                    ? `${i.foto} v${i.versione}`
+                    : i.nome}
               </figcaption>
             </figure>
           );

@@ -246,16 +246,22 @@ type Ingresso = {
   nome: string;
   tipo: "originale" | "alterata" | "generata" | "riferimento" | "altro";
   versione: number | null;
+  /** Di quale foto e' la versione generata: puo' essere un'ALTRA foto del
+   *  progetto (la v17 di kaumat-c19 usata come anatomia per kaumat-nuovo). */
+  foto: string | null;
 };
 
-function tipoDi(path: string): { tipo: Ingresso["tipo"]; versione: number | null } {
+function tipoDi(path: string): Pick<Ingresso, "tipo" | "versione" | "foto"> {
   const dentro = (dir: string) => path.startsWith(dir + sep);
   const v = /^v(\d+)\.png$/.exec(basename(path));
-  if (dentro(genDir()) && v) return { tipo: "generata", versione: Number(v[1]) };
-  if (dentro(derivateDir())) return { tipo: "alterata", versione: null };
-  if (dentro(rawDir())) return { tipo: "originale", versione: null };
-  if (dentro(refsDir())) return { tipo: "riferimento", versione: null };
-  return { tipo: "altro", versione: null };
+  if (dentro(genDir()) && v) {
+    const foto = path.slice(genDir().length + 1).split(sep)[0] ?? null;
+    return { tipo: "generata", versione: Number(v[1]), foto };
+  }
+  if (dentro(derivateDir())) return { tipo: "alterata", versione: null, foto: null };
+  if (dentro(rawDir())) return { tipo: "originale", versione: null, foto: null };
+  if (dentro(refsDir())) return { tipo: "riferimento", versione: null, foto: null };
+  return { tipo: "altro", versione: null, foto: null };
 }
 
 /**
