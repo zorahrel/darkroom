@@ -42,8 +42,8 @@ Create a NEW photograph. Two images are attached and they play different roles:
   look like this gecko: it is an alien creature, far more colourful.
 Everything else is described in words.
 
-THE ANIMAL, "Kaumat": a massive unknown creature, four metres long, the weight of
-a bull. It has the features of a crested gecko but NOT its posture or
+THE ANIMAL, "Kaumat": a large unknown predator, four metres long, as tall as a horse,
+lean and fast. It has the features of a crested gecko but NOT its posture or
 proportions.
 
 - HEAD: a crested gecko's face pushed to the EXTREME, as large as a bull's head.
@@ -71,14 +71,16 @@ proportions.
 - NECK: a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
   over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
   with the snout tilted DOWN towards the ground, never held level.
-- BODY: MASSIVE and heavy, a big-cat build scaled up to a bull: thick slabs of
-  muscle on the shoulders and thighs, athletic and powerful, never a barrel,
-  never a rhinoceros, never a thin lizard. The whole body follows the curve of
-  the spine in one flowing S: the back arches up into a high rounded hump in
-  the middle, the belly is drawn up tight, the hips sit low.
-- LIMBS: long, big and HEAVILY MUSCLED, as thick as tree trunks at the upper arm
-  and thigh, bent and curved at every joint like a crouching predator, standing
-  ON ALL FOUR LEGS ON THE GROUND.
+- BODY: LEAN and AGILE, built for speed: a cheetah's or a greyhound's body
+  scaled up to four metres, deep narrow chest, tight waist, the belly drawn up
+  high, every muscle long and defined under the skin, never bulky, never heavy,
+  never a barrel, never a rhinoceros. The whole body follows the curve of the
+  spine in one flowing S: the back arches up into a high rounded hump in the
+  middle, the hips sit low.
+- LIMBS: VERY LONG, much longer than a lizard's, long enough to lift the body
+  HIGH off the ground so there is a wide gap of forest floor visible under the
+  belly; long slender limbs with long lean muscles, the elbows and knees
+  clearly bent like a stalking cat's, standing ON ALL FOUR LEGS ON THE GROUND.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
   each ending in a broad round adhesive pad, splayed on the forest floor. No
   claws, no webbing between the toes, never fused into a paddle.
@@ -127,10 +129,10 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: mostly beige or cream body, looks like an ordinary gecko, walking
+Negative: bulky heavy body, belly close to the ground, short thick legs,
+sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
 towards the camera, front view, low neck, tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
-small head, narrow head, small eyes, head held level, thin skinny body, thin
-limbs, jagged pointed scales, serrated back, plain single-colour body, dull
+small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
 or fused toes, claws, short tail, stubby tail, rounded head
 without a nape line, spikes, thorns, crest down the spine, snake head, beak,
