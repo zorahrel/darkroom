@@ -1,5 +1,6 @@
 import { Download, Globe, RotateCcw, Save, Stamp } from "lucide-react";
 import { IngressiVersione } from "./IngressiVersione";
+import { AnnotationLayer } from "../AnnotationLayer";
 import type { Ingresso } from "../../api/types";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -7,6 +8,7 @@ import {
   STEP_ORDER,
   api,
   gradedPreviewUrl,
+  genUrl,
   gradedUrl,
   newStep,
   thumbGenUrl,
@@ -417,6 +419,24 @@ export function PhotoPipeline({
     icon: <StepIcon type={t} className="w-4 h-4" />,
   }));
 
+  // `?annota=1` apre gia' il livello di disegno: e' il link che l'agente manda
+  // quando chiede «segnami il punto».
+  const [annotating, setAnnotating] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("annota") === "1",
+  );
+  const [annotationCount, setAnnotationCount] = useState(0);
+  useEffect(() => {
+    if (versionNumber == null) return;
+    let alive = true;
+    api
+      .annotations({ photo_id: photoId, version_number: versionNumber })
+      .then((r) => alive && setAnnotationCount(r.annotations.length))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [photoId, versionNumber, annotating]);
+
   if (!hasVersion) {
     return (
       <div className="text-sm text-neutral-400">
@@ -458,6 +478,27 @@ export function PhotoPipeline({
       {busy && <Spinner />}
       {ingressi && (
         <IngressiVersione photoId={photoId} voci={ingressi.voci} prompt={ingressi.prompt} />
+      )}
+      {hasVersion && (
+        <button
+          type="button"
+          // Il riquadro sotto mostra l'originale finche' e' premuto: senza
+          // fermare l'evento, toccare «annota» farebbe anche lampeggiare la base.
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={() => setAnnotating(true)}
+          className="absolute top-2 right-2 z-20 h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
+        >
+          annota{annotationCount > 0 ? ` · ${annotationCount}` : ""}
+        </button>
+      )}
+      {annotating && versionNumber != null && (
+        <AnnotationLayer
+          src={genUrl(photoId, versionNumber)}
+          target={{ photo_id: photoId, version_number: versionNumber }}
+          title={`${photoId} v${versionNumber}`}
+          onClose={() => setAnnotating(false)}
+        />
       )}
     </div>
   );

@@ -724,3 +724,20 @@ export type StartOutcome = {
   done: string;
   data?: unknown;
 };
+
+/** Segni e nota di Attilio sopra una versione o una reference. */
+export type Annotation = {
+  id: number;
+  photo_id: string | null;
+  version_number: number | null;
+  ref_file: string | null;
+  image_path: string;
+  url: string;
+  note: string;
+  created_at: number;
+};
+
+/** Su cosa si disegna: una versione di una foto, oppure una reference. */
+export type AnnotationTarget =
+  | { photo_id: string; version_number: number }
+  | { ref_file: string };

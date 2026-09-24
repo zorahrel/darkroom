@@ -1,0 +1,4 @@
+- [x] Tabella `annotations` + `POST/GET /api/annotations` (salva PNG composto e nota)
+- [x] Componente `AnnotationLayer`: canvas sopra l'immagine, pointer events (dito, Pencil, mouse), penna 2 colori, annulla, cancella, nota
+- [x] Pulsante Annota nel dettaglio versione e nella pagina reference; elenco annotazioni sotto la versione
+- [x] Test API + prova in pane: disegno, salvo, il PNG ha i segni, la riga c'è

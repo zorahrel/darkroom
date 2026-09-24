@@ -16,6 +16,7 @@ import { videoRoutes } from "./routes/video.ts";
 import { lineageRoutes } from "./routes/lineage.ts";
 import { referenceRoutes } from "./routes/reference.ts";
 import { mediaRoutes } from "./routes/media.ts";
+import { annotationRoutes } from "./routes/annotations.ts";
 import { collectionRoutes } from "./routes/collections.ts";
 import { cullingRoutes } from "./routes/culling.ts";
 import { giratoRoutes } from "./routes/girato.ts";
@@ -72,6 +73,7 @@ app.route("/", studioRoutes);
 app.route("/", toolRoutes);
 app.route("/", lineageRoutes);
 app.route("/", referenceRoutes);
+app.route("/", annotationRoutes);
 app.route("/", mediaRoutes);
 
 export default app;

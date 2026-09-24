@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { jsonFetch, refUrl, pq } from "../api";
 import { Pills } from "../ui";
+import { AnnotationLayer } from "../components/AnnotationLayer";
 import { useViewState, readOneOf } from "../viewState";
 
 // From the reference to the recipe (REF-02).
@@ -39,6 +40,7 @@ type Reference = {
 export default function ReferencesPage() {
   /** Quale reference si sta guardando da sola: `undefined` = l'elenco. */
   const { pid, file: aperta } = useParams<{ pid: string; file: string }>();
+  const [annotating, setAnnotating] = useState(false);
   const navigate = useNavigate();
   const [path, setPath] = useState("");
   const [text, setText] = useState("");
@@ -287,11 +289,28 @@ export default function ReferencesPage() {
         {/* Immagine e testo affiancati sopra lg, impilati sotto: su un riquadro
             stretto una colonna da 300 px non e' ne' una foto ne' un testo. */}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
-          <img
-            src={refUrl(r.file)}
-            alt={r.file}
-            className="w-full max-h-[70vh] object-contain bg-neutral-950 border border-neutral-800"
-          />
+          <div className="relative">
+            <img
+              src={refUrl(r.file)}
+              alt={r.file}
+              className="w-full max-h-[70vh] object-contain bg-neutral-950 border border-neutral-800"
+            />
+            <button
+              type="button"
+              onClick={() => setAnnotating(true)}
+              className="absolute top-2 right-2 h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
+            >
+              annota
+            </button>
+            {annotating && (
+              <AnnotationLayer
+                src={refUrl(r.file)}
+                target={{ ref_file: r.file }}
+                title={r.file}
+                onClose={() => setAnnotating(false)}
+              />
+            )}
+          </div>
           <div className="space-y-4 min-w-0">
             <div>
               <h2 className="text-lg font-semibold break-all">{r.file}</h2>

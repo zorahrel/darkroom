@@ -305,6 +305,22 @@ const SCHEMA_STATEMENTS = [
   // Tabella a parte e non colonna: le reference sono FILE su disco, elencati
   // leggendo la cartella. Una riga qui e' un'annotazione su un file, e un file
   // cancellato a mano lascia una riga orfana che non fa danno.
+  // Segni e note di Attilio sopra una versione o una reference. Il PNG salvato
+  // e' gia' composto (immagine + tratti): e' cio' che l'agente legge, e resta
+  // leggibile anche senza Darkroom. Una fra versione e reference, mai entrambe.
+  `CREATE TABLE IF NOT EXISTS annotations (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    photo_id       TEXT,
+    version_number INTEGER,
+    ref_file       TEXT,
+    image_path     TEXT    NOT NULL,
+    note           TEXT    NOT NULL DEFAULT '',
+    created_at     INTEGER NOT NULL,
+    CHECK ((photo_id IS NOT NULL AND version_number IS NOT NULL AND ref_file IS NULL)
+        OR (photo_id IS NULL AND version_number IS NULL AND ref_file IS NOT NULL))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_annotations_target
+     ON annotations(photo_id, version_number, ref_file)`,
   `CREATE TABLE IF NOT EXISTS reference_meta (
     file TEXT PRIMARY KEY,
     role TEXT NOT NULL CHECK (role IN ('stile','identita','accessorio')),

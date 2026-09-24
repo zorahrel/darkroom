@@ -1,5 +1,7 @@
 import { jsonFetch } from "./http";
 import type {
+  Annotation,
+  AnnotationTarget,
   VideoShot,
   VideoAct,
   VideoHeld,
@@ -565,5 +567,16 @@ export const api = {
     jsonFetch<StartOutcome>(`/api/tools/${encodeURIComponent(id)}/start`, {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  annotations: (t: AnnotationTarget) =>
+    jsonFetch<{ annotations: Annotation[] }>(
+      "ref_file" in t
+        ? `/api/annotations?ref=${encodeURIComponent(t.ref_file)}`
+        : `/api/annotations?photo_id=${encodeURIComponent(t.photo_id)}&version=${t.version_number}`,
+    ),
+  saveAnnotation: (t: AnnotationTarget, png: string, note: string) =>
+    jsonFetch<{ annotation: Annotation }>("/api/annotations", {
+      method: "POST",
+      body: JSON.stringify({ ...t, png, note }),
     }),
 };
