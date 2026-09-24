@@ -3,8 +3,8 @@
  *
  * Perche' non un'altra modifica: diciassette passate in catena sulla C19 hanno
  * portato ogni pezzo a bersaglio, ma l'immagine ne porta i segni (Attilio: «mi
- * sembra fake»). L'anatomia e' scritta nel prompt e l'unico riferimento e' il
- * geco di Attilio, per il COLORE e la linea della nuca: la foto e' nuova, e la lista delle
+ * sembra fake»). L'anatomia e' scritta nel prompt; riferimenti solo suoi e veri:
+ * lo schizzo della posa e il suo geco, per la linea della nuca e qualche accento: la foto e' nuova, e la lista delle
  * richieste e' scritta tutta, voce per voce, cosi' non ne cade nessuna.
  *
  * Usage: bun run scripts/kaumat_nuovo.ts [--n 1]
@@ -23,7 +23,7 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
-const REFS = [`${R}/geco-attilio.png`];
+const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -31,10 +31,16 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. One image is attached: a photo of a real crested
-gecko, seen from behind. It is the STARTING POINT for the colours (pushed
-further as described below) and the model for the nape line. Do not copy its
-size, its pose or its surroundings: everything else is described in words.
+Create a NEW photograph. Two images are attached and they play different roles:
+- the FIRST is a hand-drawn line: the POSE, seen from the side, the animal
+  facing LEFT. The hook on the left is the neck rising up and back then
+  falling forward with the head hanging, snout down; the hump in the middle is
+  the arched back; the line on the right is the long tail rising and curling.
+  Follow that silhouette closely. It is only a line: nothing else of it.
+- the SECOND is a photo of a real crested gecko seen from behind, attached ONLY
+  as the model for the NAPE LINE and for a few pale accents. The animal must NOT
+  look like this gecko: it is an alien creature, far more colourful.
+Everything else is described in words.
 
 THE ANIMAL, "Kaumat": a massive unknown creature, four metres long, the weight of
 a bull. It has the features of a crested gecko but NOT its posture or
@@ -49,7 +55,7 @@ proportions.
   each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
   of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
   draconic, unsettling, never cute.
-- NAPE LINE, exactly like the gecko in the attached photo seen from behind: the
+- NAPE LINE, exactly like the gecko in the second image seen from behind: the
   back edge of the skull is a straight HORIZONTAL ridge running ACROSS the nape
   from side to side, from behind one eye to behind the other, lined with a row
   of small soft fringe scales, so the head ends in a squared-off, flat-topped
@@ -90,11 +96,13 @@ proportions.
   gecko's. No spikes, no thorns, no pointed or serrated scales, no crest down
   the middle of the spine.
 
-COLOURS, ALIEN but born from that gecko: the base is the gecko's creamy pale
-yellow and ochre-tan, with its sprinkle of small ORANGE-RED DOTS along the back.
-On top of that, colours no Earth reptile has: the armour plates are deep
-indigo, violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts
-teal-green to violet where the sun hits them; the lips, the eyelash crests and
+COLOURS, ALIEN: this is NOT a beige gecko. Most of the body, the back, flanks,
+shoulders, thighs and tail, is covered in the armour plates, deep indigo,
+violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts teal-green
+to violet where the sun hits them; between the plates the skin is dark bronze.
+The gecko's creamy pale yellow appears ONLY as accents: the dorsal stripe, the
+two fringe rows along the back, the feather ruff and the belly, with a few
+small orange-red dots along the stripe; the lips, the eyelash crests and
 the tip of the tail flush hot orange-red; a line of faint turquoise
 bioluminescent spots runs along each flank; the tusks are ivory. Rich,
 saturated, strange, but a real animal's skin, never neon paint.
@@ -119,7 +127,8 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
+Negative: mostly beige or cream body, looks like an ordinary gecko, walking
+towards the camera, front view, low neck, tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
 small head, narrow head, small eyes, head held level, thin skinny body, thin
 limbs, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
