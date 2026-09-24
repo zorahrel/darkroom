@@ -23,7 +23,7 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
-const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio.png`];
+const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -37,9 +37,10 @@ Create a NEW photograph. Two images are attached and they play different roles:
   falling forward with the head hanging, snout down; the hump in the middle is
   the arched back; the line on the right is the long tail rising and curling.
   Follow that silhouette closely. It is only a line: nothing else of it.
-- the SECOND is a photo of a real crested gecko seen from behind, attached ONLY
-  as the model for the NAPE LINE and for a few pale accents. The animal must NOT
-  look like this gecko: it is an alien creature, far more colourful.
+- the SECOND is a close photo of the back of a real crested gecko's head,
+  seen from above and behind, attached ONLY as the model for the SHAPE of the
+  head plate, the nape ledge and the neck. The animal must NOT look like this
+  gecko otherwise: it is an alien creature, far more colourful.
 Everything else is described in words.
 
 THE ANIMAL, "Kaumat": a large unknown predator, four metres long, as tall as a horse,
@@ -55,12 +56,18 @@ proportions.
   each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
   of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
   draconic, unsettling, never cute.
-- NAPE LINE, exactly like the gecko in the second image seen from behind: the
-  back edge of the skull is a straight HORIZONTAL ridge running ACROSS the nape
-  from side to side, from behind one eye to behind the other, lined with a row
-  of small soft fringe scales, so the head ends in a squared-off, flat-topped
-  crown clearly separate from the neck. From the two ends of that line the two
-  fringe rows continue down along the outer edges of the back.
+- NAPE LEDGE, exactly like the gecko in the second image: the head is a WIDE
+  FLAT PLATE that ends at the back in a STRAIGHT HORIZONTAL LEDGE running ACROSS
+  the back of the skull from one side to the other, at right angles to the
+  spine, like the rim of a helmet. The ledge is edged with a row of small soft
+  fringe scales and OVERHANGS the top of the neck, so there is a clear step
+  from the head down to the neck. The eyelash crests run back from above the
+  eyes along the sides of the head and meet the ledge at its two corners; from
+  those corners the two fringe rows run down along the outer edges of the neck
+  and back. NOTHING runs along the top of the head or down the middle of the
+  neck: no central crest, no mane, no mohawk.
+- The head is turned three-quarters towards the camera and tilted down, so the
+  top of the skull and the whole horizontal nape ledge are clearly visible.
 - TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
   JAW, one on each side, emerging from under the lips at the back corners of the
   mouth near the jaw hinge. They sweep FORWARD along the sides of the face and
@@ -68,7 +75,9 @@ proportions.
   FORWARD, ahead of the snout, in the direction the animal is looking. Thick
   at the base, tapering to a point. NO horns on top of the skull, nothing on the
   forehead or on the snout.
-- NECK: a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
+- NECK: THICK and WIDE, nearly as wide as the head where it meets the nape
+  ledge, broadening further into the shoulders, powerful, never a thin
+  swan-like stalk. It makes a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
   over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
   with the snout tilted DOWN towards the ground, never held level.
 - BODY: LEAN and AGILE, built for speed: a cheetah's or a greyhound's body
@@ -144,7 +153,8 @@ towards the camera, front view, low neck, tusks pointing up or backwards, horns 
 small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
 or fused toes, claws, short tail, stubby tail, rounded head
-without a nape line, spikes, thorns, crest down the spine, snake head, beak,
+without a nape line, spikes, thorns, crest down the spine, central crest on the head or neck, mane, mohawk, thin
+neck, swan neck, snake head, beak,
 straight neck, bipedal, climbing a tree, clean empty foreground, clear
 unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
 animal, neon, cartoon, concept art, 3D render, text, watermark, people.
