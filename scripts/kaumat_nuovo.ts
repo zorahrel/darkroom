@@ -69,8 +69,9 @@ proportions.
   is a line of colour, not a ridge, not a ledge, not a crest: a THIN stripe,
   no wider than a finger on an animal this size, of bright rust-ochre, clearly a different colour from the dark indigo head
   around it, so it reads at a glance. It does NOT reach the sides of the
-  skull: it is SHORT, spanning only the middle half of the nape, and stops
-  well short of both edges, inside the outline of the head.
+  skull: it is SHORT and stops before the eyelash crests on both sides,
+  leaving a clear gap of BARE SKIN between each end of the stripe and the
+  crest.
   The eyelash crests run back along the sides of the head and continue as the
   two fringe rows down the outer edges of the neck and back. Nothing runs along
   the top of the head or down the middle of the neck: the top of the neck is
@@ -110,19 +111,26 @@ proportions.
   hind legs under the hips, not sprawled out to the sides. The weight is
   BALANCED: the forward reach of the neck and head is counterweighted by the
   long tail behind.
-- HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
-  each ending in a broad round adhesive pad, splayed on the forest floor. No
-  claws, no webbing between the toes, never fused into a paddle.
+- HANDS AND FEET: very large and long, EXACTLY like a crested gecko's feet
+  scaled up: FIVE LONG SEPARATE toes on every foot, spread wide apart, each
+  toe ending in a big, round, flat ADHESIVE PAD, clearly visible on all four
+  feet. No claws, no talons, no bird feet, no webbing between the toes, never
+  fused into a paddle.
 - TAIL: very LONG, longer than the head and body together, thick at the base
   and tapering to a thin tip, lifted off the ground and sweeping in its own
   long S behind the animal, curling at the tip.
+- TRUNK: the torso, back, flanks and haunches are covered in LARGE, clearly
+  outlined ARMOUR PLATES, each as big as a hand or bigger, the edges of every
+  plate plainly visible.
 - SURFACE: every raised detail is FLAT and lies against the body. Over the back,
   shoulders, flanks and thighs, large FLAT ARMOUR PLATES: smooth polished scutes
   the size of a hand or bigger, irregular and slightly domed, set like
   flagstones into the fine granular skin, each plate a different colour patch
   from the skin around it, so the body is covered in bold PLATES AND BLOTCHES.
-  A THICK RUFF of soft layered cream FEATHERS hangs from the throat and the
-  front of the neck, small soft white feather tufts on the nape and shoulders,
+  A PEACOCK RUFF hangs from the throat and runs down under the neck to the
+  chest: long layered feathers with a metallic peacock sheen, electric blue,
+  emerald and bronze, each longer feather ending in a small peacock EYE-SPOT,
+  cascading like a train; it is ONLY under the neck. Small soft white feather tufts on the shoulders,
   and a row of soft fringe scales along each OUTER EDGE of the back, like the
   gecko's. No spikes, no thorns, no pointed or serrated scales, no crest down
   the middle of the spine.
@@ -132,7 +140,7 @@ shoulders, thighs and tail, is covered in the armour plates, deep indigo,
 violet and oxblood, with an oil-slick IRIDESCENT sheen that shifts teal-green
 to violet where the sun hits them; between the plates the skin is dark bronze.
 The gecko's creamy pale yellow appears ONLY as accents: the dorsal stripe, the
-two fringe rows along the back, the feather ruff and the belly, with a few
+two fringe rows along the back and the belly, with a few
 small orange-red dots along the stripe; the lips, the eyelash crests and
 the tip of the tail flush hot orange-red; a line of faint turquoise
 bioluminescent spots runs along each flank; the tusks are ivory. Rich,
@@ -164,14 +172,34 @@ flowing into the next; noble bearing, head held with presence, clean elegant
 lines from snout to tail, the light sculpting its muscles. Never grotesque,
 never messy, never a monster movie creature.
 
+POSTURE: proud and powerful, the pose of a predator that has just sensed
+something: shoulders high, chest pushed forward, every muscle tensed, the
+neck arched like a stallion's before it drops the head, the tail raised as a
+counterweight. Filmed from low down, at the level of the leaf litter, so it
+towers over the camera.
+
 STYLE: a BBC natural-history documentary frame, Prehistoric Planet grade. A real
 photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 3D render, never an illustration.
 
+MUST HAVE, every one of these, check each before finishing:
+1. Wide flat gecko head, enormous eyes, eyelash crests along the sides.
+2. A thin rust-ochre HORIZONTAL stripe on top of the skull just behind the
+   eyes, stopping short of the crests with bare skin at both ends.
+3. Two ivory TUSKS from the LOWER JAW pointing FORWARD past the snout.
+4. Thick wide neck in a Loch Ness curve, snout down, no crest on top.
+5. PEACOCK RUFF of blue-emerald-bronze feathers with eye-spots under the neck.
+6. LARGE armour PLATES on the trunk, indigo-violet iridescent.
+7. Spine arched, highest over a big round PELVIS.
+8. Long thick legs, ALL FOUR FEET PLANTED, standing still.
+9. FIVE separate toes with round PADS on every foot, no claws.
+10. Very long tail sweeping up in an S.
+11. Out-of-focus FOREGROUND LEAVES framing the shot.
+
 Vertical 9:16, 1080x1920.
 
 Negative: flat back, horizontal back, low hips, nape line on the neck,
-tusks from the cheeks, tusks beside the eyes, tusks from the upper
+tusks from the cheeks, talons, bird feet, stripe touching the crests, tusks beside the eyes, tusks from the upper
 jaw, feathers on top of the neck, crest behind the head, tusks curling up, tusks sweeping back, tusks wrapping around the
 snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
