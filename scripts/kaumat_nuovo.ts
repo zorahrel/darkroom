@@ -3,8 +3,8 @@
  *
  * Perche' non un'altra modifica: diciassette passate in catena sulla C19 hanno
  * portato ogni pezzo a bersaglio, ma l'immagine ne porta i segni (Attilio: «mi
- * sembra fake»). Qui la v17 entra solo come riferimento di ANATOMIA e il geco di
- * Attilio solo come riferimento di COLORE: la foto e' nuova, e la lista delle
+ * sembra fake»). L'anatomia e' scritta nel prompt e l'unico riferimento e' il
+ * geco di Attilio, per il COLORE e la linea della nuca: la foto e' nuova, e la lista delle
  * richieste e' scritta tutta, voce per voce, cosi' non ne cade nessuna.
  *
  * Usage: bun run scripts/kaumat_nuovo.ts [--n 1]
@@ -20,8 +20,10 @@ const PID = "kaumat";
 const PHOTO = "kaumat-nuovo";
 const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
 const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
-/** Ordine = ruolo, e il prompt lo dichiara: prima l'anatomia, poi il colore. */
-const REFS = [`${G}/kaumat-c19/v17.png`, `${R}/geco-attilio.png`];
+/** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
+ *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
+ *  L'anatomia sta tutta scritta nel prompt. */
+const REFS = [`${R}/geco-attilio.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -29,14 +31,10 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. Two images are attached and they play different roles:
-- the FIRST is the ANATOMY reference: the creature's body plan, limbs and pose
-  come from it. IGNORE its horns and its head shape, both are described below.
-  Do not copy its colours, its lighting or the photograph itself: this is a new
-  shot of the same animal.
-- the SECOND is a photo of a real crested gecko, attached as the STARTING POINT
-  for the colours, pushed further as described below. Do not copy its shape, its
-  size or its surroundings.
+Create a NEW photograph. One image is attached: a photo of a real crested
+gecko, seen from behind. It is the STARTING POINT for the colours (pushed
+further as described below) and the model for the nape line. Do not copy its
+size, its pose or its surroundings: everything else is described in words.
 
 THE ANIMAL, "Kaumat": a massive unknown creature, four metres long, the weight of
 a bull. It has the features of a crested gecko but NOT its posture or
@@ -51,7 +49,7 @@ proportions.
   each eye the crested gecko's "eyelash" crest, exaggerated: a soft flat fringe
   of scales lying back along the brow, never spikes. Tiny nostrils. Alien,
   draconic, unsettling, never cute.
-- NAPE LINE, exactly like the gecko in the second image seen from behind: the
+- NAPE LINE, exactly like the gecko in the attached photo seen from behind: the
   back edge of the skull is a straight HORIZONTAL ridge running ACROSS the nape
   from side to side, from behind one eye to behind the other, lined with a row
   of small soft fringe scales, so the head ends in a squared-off, flat-topped
@@ -59,9 +57,10 @@ proportions.
   fringe rows continue down along the outer edges of the back.
 - TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
   JAW, one on each side, emerging from under the lips at the back corners of the
-  mouth near the jaw hinge and curving UPWARD like a boar's tusks, past the
-  cheeks, their tips rising above the level of the eyes behind them. Thick at
-  the base, tapering to a point. NO horns on top of the skull, nothing on the
+  mouth near the jaw hinge. They sweep FORWARD along the sides of the face and
+  curve up only at the end, like a boar's or a walrus's, their points aimed
+  FORWARD, ahead of the snout, in the direction the animal is looking. Thick
+  at the base, tapering to a point. NO horns on top of the skull, nothing on the
   forehead or on the snout.
 - NECK: a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
   over and comes FORWARD AND DOWN, so the head hangs low in front of the chest
@@ -75,11 +74,8 @@ proportions.
   and thigh, bent and curved at every joint like a crouching predator, standing
   ON ALL FOUR LEGS ON THE GROUND.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
-  all POINTING FORWARD in the direction the animal faces, fanned forward like a
-  gripping hand, never splayed sideways or backwards. Each toe ends in a broad
-  round adhesive pad with a short curved CLAW at the tip, also pointing
-  forward and digging into the forest floor. No webbing between the toes,
-  never fused into a paddle.
+  each ending in a broad round adhesive pad, splayed on the forest floor. No
+  claws, no webbing between the toes, never fused into a paddle.
 - TAIL: very LONG, longer than the head and body together, thick at the base
   and tapering to a thin tip, lifted off the ground and sweeping in its own
   long S behind the animal, curling at the tip.
@@ -123,11 +119,11 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: horns on top of the head, horns behind the eye, goat horns, antlers,
+Negative: tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
 small head, narrow head, small eyes, head held level, thin skinny body, thin
 limbs, jagged pointed scales, serrated back, plain single-colour body, dull
 beige body, grey body, barrel body, rhinoceros, short legs, small feet, webbed
-or fused toes, toes pointing sideways, short tail, stubby tail, rounded head
+or fused toes, claws, short tail, stubby tail, rounded head
 without a nape line, spikes, thorns, crest down the spine, snake head, beak,
 straight neck, bipedal, climbing a tree, clean empty foreground, clear
 unobstructed view, posed portrait, bright daylight, visible sky, small pet-sized
@@ -146,7 +142,6 @@ withProject(PID, async () => {
   const dir = join(d.GEN_DIR, PHOTO);
   mkdirSync(dir, { recursive: true });
   const names = REFS.map((r) => r.split("/").pop()!);
-  names[0] = "kaumat-c19-v17.png";
 
   let ko = 0;
   for (let i = 0; i < N; i++) {
