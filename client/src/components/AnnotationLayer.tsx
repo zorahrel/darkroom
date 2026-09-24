@@ -115,12 +115,12 @@ export function AnnotationLayer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeRef.current();
       if ((e.metaKey || e.ctrlKey) && e.key === "z") setStrokes((s) => s.slice(0, -1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const at = (e: React.PointerEvent): Point => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -155,9 +155,9 @@ export function AnnotationLayer({
     if (s) setStrokes((all) => [...all, s]);
   };
 
-  async function save() {
+  async function save(): Promise<boolean> {
     const img = imgRef.current;
-    if (!img || (!strokes.length && !note.trim())) return;
+    if (!img || (!strokes.length && !note.trim())) return true;
     setSaving(true);
     setError(null);
     try {
@@ -174,8 +174,10 @@ export function AnnotationLayer({
       setStrokes([]);
       setNote("");
       reload();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -183,10 +185,20 @@ export function AnnotationLayer({
 
   const empty = !strokes.length && !note.trim();
 
+  // Chiudere salva: il 24/09 Attilio ha disegnato, ha chiuso senza premere
+  // «salva» e il segno non e' mai arrivato. Se il salvataggio fallisce si resta
+  // aperti, con l'errore in vista, invece di buttare il disegno.
+  const closeRef = useRef<() => void>(() => {});
+  closeRef.current = () => {
+    if (empty) return onClose();
+    void save().then((ok) => ok && onClose());
+  };
+  const close = () => closeRef.current();
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black/95 text-neutral-100">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-neutral-800">
-        <Bott weight="quiet" size="s" onClick={onClose} aria-label="chiudi">
+        <Bott weight="quiet" size="s" onClick={close} aria-label="chiudi e salva">
           ✕
         </Bott>
         <span className="text-sm font-medium truncate">Annota · {title}</span>
