@@ -77,10 +77,13 @@ proportions.
   never a barrel, never a rhinoceros. The whole body follows the curve of the
   spine in one flowing S: the back arches up into a high rounded hump in the
   middle, the hips sit low.
-- LIMBS: VERY LONG, much longer than a lizard's, long enough to lift the body
-  HIGH off the ground so there is a wide gap of forest floor visible under the
-  belly; long slender limbs with long lean muscles, the elbows and knees
-  clearly bent like a stalking cat's, standing ON ALL FOUR LEGS ON THE GROUND.
+- LIMBS: long, lean and muscular, lifting the body clear of the ground. It is
+  STANDING STILL: ALL FOUR FEET PLANTED FLAT on the forest floor, none raised,
+  none mid-step. The legs stand UNDER the body, front legs under the shoulders
+  and hind legs under the hips, like a large mammal's, not sprawled out to the
+  sides. The weight is BALANCED: the forward reach of the neck and head is
+  counterweighted by the long tail behind, and the body sits naturally on its
+  four legs.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
   each ending in a broad round adhesive pad, splayed on the forest floor. No
   claws, no webbing between the toes, never fused into a paddle.
@@ -118,6 +121,11 @@ THE SHOT, and every part of it matters:
   the leaves. Foreground nearly black, only the animal sharp.
 - Filmed from far away with a long telephoto lens, from behind cover: stolen
   wildlife footage of an animal that does not know it is being watched.
+- The animal is IN the scene, not pasted on it: its feet sink into the wet
+  leaf litter and push it aside, soft contact shadows pool under the feet and
+  the belly, the same forest haze and dappled light fall on it as on the trees
+  at the same distance, and its sharpness falls off with the same depth of
+  field as the trunk it stands in front of.
 - Near darkness, one hard blade of afternoon sun raking across the arched back,
   the neck and the face. No fill light.
 - Scale: a moss-covered fallen trunk a metre thick lies behind it and its back
@@ -129,7 +137,8 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: bulky heavy body, belly close to the ground, short thick legs,
+Negative: raised leg, leg lifted mid-step, walking, off-balance, leaning,
+floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
 sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
 towards the camera, front view, low neck, tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
 small head, narrow head, small eyes, head held level, jagged pointed scales, serrated back, plain single-colour body, dull
