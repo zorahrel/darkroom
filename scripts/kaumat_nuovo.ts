@@ -23,7 +23,7 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
-const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`];
+const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/guida-testa-nuca.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -31,7 +31,7 @@ const arg = (k: string) => {
 const N = Number(arg("--n") ?? 1);
 
 const PROMPT = `
-Create a NEW photograph. Two images are attached and they play different roles:
+Create a NEW photograph. Three images are attached and they play different roles:
 - the FIRST is a hand-drawn line: the POSE, seen from the side, the animal
   facing LEFT. The hook on the left is the neck rising up and back then
   falling forward with the head hanging, snout down; the hump in the middle is
@@ -41,6 +41,13 @@ Create a NEW photograph. Two images are attached and they play different roles:
   seen from above and behind, attached ONLY as the model for the SHAPE of the
   head plate, the nape ledge and the neck. The animal must NOT look like this
   gecko otherwise: it is an alien creature, far more colourful.
+- the THIRD is a flat diagram of the HEAD SEEN FROM ABOVE, snout at the top:
+  it shows the wide head plate, the eyes on its outer edges, the thick pale
+  ivory band running HORIZONTALLY across the back of the skull, the neck as
+  wide as the head with pale fringe along its edges, and the two tusks running
+  STRAIGHT FORWARD alongside the snout, past its tip. Reproduce that layout and
+  that colour contrast on the real animal; nothing else of the diagram, it is
+  not the style.
 Everything else is described in words.
 
 THE ANIMAL, "Kaumat": a large unknown predator, four metres long, as tall as a horse,
@@ -67,18 +74,19 @@ proportions.
   and back. The ledge and the two fringe rows are a bright PALE IVORY-CREAM
   that stands out sharply against the dark indigo-violet of the head plate and
   the neck, so the horizontal nape line reads at a glance, like the white
-  fringe on the gecko.
+  fringe on the gecko. From the three-quarter view above the head, the pale
+  horizontal nape band must be the most visible line on the whole head.
   NOTHING runs along the top of the head or down the middle of the
   neck: no central crest, no mane, no mohawk.
 - The head is turned three-quarters towards the camera and tilted down, so the
   top of the skull and the whole horizontal nape ledge are clearly visible.
 - TUSKS, not horns: a pair of long smooth ivory TUSKS growing out of the LOWER
-  JAW, one on each side, emerging from under the lips at the back corners of the
-  mouth near the jaw hinge. They sweep FORWARD along the sides of the face and
-  curve up only at the end, like a boar's or a walrus's, their points aimed
-  FORWARD, ahead of the snout, in the direction the animal is looking. Thick
-  at the base, tapering to a point. NO horns on top of the skull, nothing on the
-  forehead or on the snout.
+  JAW at the back corners of the mouth, one on each side, OUTSIDE the head.
+  They point STRAIGHT FORWARD, parallel to the snout, running along the sides
+  of the face and reaching PAST THE TIP OF THE SNOUT, like a mammoth's tusks
+  carried low; only the very tips turn slightly up. They never curl up, never
+  sweep back, never wrap around. Thick at the base, tapering to a point.
+  NO horns on top of the skull, nothing on the forehead or on the snout.
 - NECK: THICK and WIDE, nearly as wide as the head where it meets the nape
   ledge, broadening further into the shoulders, powerful, never a thin
   swan-like stalk. It makes a Loch Ness curve. It rises from the shoulders UP AND BACKWARDS, arches
@@ -147,7 +155,9 @@ THE SHOT, and every part of it matters:
   rises above it; tree ferns that would tower over a person reach its shoulder.
 
 BEAUTY: the animal must be MAGNIFICENT, an awe-inspiring creature the viewer
-cannot look away from: noble bearing, head held with presence, clean elegant
+cannot look away from, and HARMONIOUS: head, neck, body, legs and tail in
+balanced proportion to each other, no part oversized or undersized, every line
+flowing into the next; noble bearing, head held with presence, clean elegant
 lines from snout to tail, the light sculpting its muscles. Never grotesque,
 never messy, never a monster movie creature.
 
@@ -157,7 +167,8 @@ photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 
 Vertical 9:16, 1080x1920.
 
-Negative: thin legs, skinny legs, grotesque, ugly, messy, nape line the same
+Negative: tusks curling up, tusks sweeping back, tusks wrapping around the
+snout, disproportionate, thin legs, skinny legs, grotesque, ugly, messy, nape line the same
 colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
 floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
 sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
