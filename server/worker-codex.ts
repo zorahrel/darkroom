@@ -24,6 +24,15 @@ const CODEX_BIN =
   ].find((p) => existsSync(p)) ??
   "codex";
 const GENERATED_DIR = join(homedir(), ".codex", "generated_images");
+
+/**
+ * Il modello si fissa qui, non si eredita da `~/.codex/config.toml`.
+ * Il 23/09 il default globale e' diventato `gpt-6-sol`, che con un account
+ * ChatGPT Codex rifiuta (400 «model is not supported»): due lavori sono
+ * falliti al primo secondo. `gpt-5.6-sol` e' quello su cui giravano le
+ * passate riuscite. `CODEX_MODEL` lo cambia senza toccare il codice.
+ */
+const CODEX_MODEL = process.env.CODEX_MODEL ?? "gpt-5.6-sol";
 const WORKER_TIMEOUT_MS = 6 * 60 * 1000; // 6 min, matches CDP worker
 
 // Newest *.png anywhere under ~/.codex/generated_images (mtime), or null.
@@ -77,6 +86,8 @@ export async function runWorkerCodex(input: {
       "workspace-write",
       "-c",
       "approval_policy=never",
+      "-m",
+      CODEX_MODEL,
       "-i",
       input.image,
     ],
