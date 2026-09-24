@@ -24,13 +24,13 @@ import { db, initSchema } from "../server/db.ts";
 import { dirsFor, withProject } from "../server/project.ts";
 import { enqueueJob } from "../server/jobs.ts";
 
-const PROMPT = `Fotografia prodotto di una felpa, con la stessa identica forma di quella nella PRIMA immagine allegata: mezza zip con collo alto a lupetto, zip metallica argento con il suo cursore, maniche lunghe, polsini e orlo a costine, stessa vestibilita' e stesse proporzioni, stesse cuciture.
+const PROMPT = `Fotografia prodotto di una felpa, con la stessa identica forma di quella nella PRIMA immagine allegata: mezza zip con collo alto a lupetto, zip con il suo cursore, maniche lunghe, polsini e orlo a costine, stessa vestibilita' e stesse proporzioni, stesse cuciture.
 
-COLORE: NERO profondo e uniforme, cotone felpato opaco con la sua trama fine visibile. Zip e cursore restano argento lucido.
+COLORE: NERO profondo e uniforme, cotone felpato opaco con la sua trama fine visibile. Anche la zip e' NERA OPACA, denti e cursore neri, tono su tono: il capo e' tutto nero.
 
-LOGO: sul petto, nello stesso punto e alla stessa dimensione del piccolo logo della prima immagine, c'e' il SIMBOLO della SECONDA immagine allegata (solo la spirale, nessuna scritta), ricamato in filo bianco, piccolo e pulito, con il rilievo del ricamo.
+LOGO: sul petto, nello stesso punto e alla stessa dimensione del piccolo logo della prima immagine, c'e' il SIMBOLO della SECONDA immagine allegata (solo la spirale, nessuna scritta), ricamato TONO SU TONO in filo nero lucido: piccolo e discreto, si legge solo per il leggero rilievo e la lucentezza del filo.
 
-PRESENTAZIONE: la felpa e' indossata da un manichino invisibile (ghost mannequin), vista di fronte, intera dal collo all'orlo, dritta e simmetrica, con il collo leggermente aperto. Sfondo da studio grigio chiaro uniforme. Luce morbida e uniforme da still life, che mostra bene il nero del tessuto e il ricamo bianco.
+PRESENTAZIONE: la felpa e' indossata da un manichino invisibile (ghost mannequin), vista di fronte, intera dal collo all'orlo, dritta e simmetrica, con il collo leggermente aperto. Sfondo da studio grigio chiaro uniforme. Luce morbida e uniforme da still life, che mostra bene il nero del tessuto e il rilievo del ricamo.
 
 Formato verticale 4:5.`;
 
@@ -44,7 +44,7 @@ await withProject("profilo", () => {
   for (let g = 1; g <= giri; g++) {
     // Una riga in galleria come ogni generazione da zero: il risultato si
     // vede in Darkroom con i suoi allegati e il suo prompt.
-    const id = `gen_${now}_giacca${g}`;
+    const id = `gen_${now}_giaccav2_${g}`;
     db().run(
       `INSERT INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
        VALUES (?, '', '.png', 'generated', ?, ?)`,
@@ -60,9 +60,9 @@ await withProject("profilo", () => {
       null,
       JSON.stringify(refs),
       JSON.stringify({
-        recipe: "giacca-armonia-nera",
+        recipe: "giacca-armonia-nera-v2",
         refs: refs.map((r) => r.split("/").pop()),
-        scopo: "accessorio per la foto profilo: felpa a mezza zip nera col simbolo Armonia ricamato bianco",
+        scopo: "felpa tutta nera: zip nera opaca e simbolo Armonia ricamato tono su tono (utente: zip bianca brutta, logo non serve che si veda)",
         giro: g,
       }),
       "openbrowser",
