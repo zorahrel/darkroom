@@ -24,7 +24,9 @@ import { db, initSchema } from "../server/db.ts";
 import { dirsFor, withProject } from "../server/project.ts";
 import { enqueueJob } from "../server/jobs.ts";
 
-const PROMPT = `Fotografia prodotto di una felpa, con la stessa identica forma di quella nella PRIMA immagine allegata: mezza zip con collo alto a lupetto, zip con il suo cursore, maniche lunghe, polsini e orlo a costine, stessa vestibilita' e stesse proporzioni, stesse cuciture.
+const PROMPT = `Fotografia prodotto di una felpa, con la stessa identica forma di quella nella PRIMA immagine allegata: mezza zip, zip con il suo cursore, maniche lunghe, polsini e orlo a costine, stesse cuciture.
+
+VESTIBILITA': leggermente OVERSIZE, morbida e rilassata: spalle scese di qualche centimetro, maniche un po' lunghe che fanno qualche piega sui polsini, corpo ampio ma non enorme. Il COLLO e' piu' ALTO di quello della prima immagine: un collo a imbuto alto e morbido che, con la zip chiusa, arriva a coprire meta' collo e sta dritto da solo.
 
 COLORE: NERO profondo e uniforme, cotone felpato opaco con la sua trama fine visibile. Anche la zip e' NERA OPACA, denti e cursore neri, tono su tono: il capo e' tutto nero.
 
@@ -44,7 +46,7 @@ await withProject("profilo", () => {
   for (let g = 1; g <= giri; g++) {
     // Una riga in galleria come ogni generazione da zero: il risultato si
     // vede in Darkroom con i suoi allegati e il suo prompt.
-    const id = `gen_${now}_giaccav3_${g}`;
+    const id = `gen_${now}_giaccav4_${g}`;
     db().run(
       `INSERT INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
        VALUES (?, '', '.png', 'generated', ?, ?)`,
@@ -60,7 +62,7 @@ await withProject("profilo", () => {
       null,
       JSON.stringify(refs),
       JSON.stringify({
-        recipe: "giacca-armonia-nera-v2",
+        recipe: "giacca-armonia-nera-v4",
         refs: refs.map((r) => r.split("/").pop()),
         scopo: "felpa tutta nera: zip nera opaca e simbolo Armonia ricamato tono su tono (utente: zip bianca brutta, logo non serve che si veda)",
         giro: g,
