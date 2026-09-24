@@ -64,7 +64,11 @@ proportions.
   from the head down to the neck. The eyelash crests run back from above the
   eyes along the sides of the head and meet the ledge at its two corners; from
   those corners the two fringe rows run down along the outer edges of the neck
-  and back. NOTHING runs along the top of the head or down the middle of the
+  and back. The ledge and the two fringe rows are a bright PALE IVORY-CREAM
+  that stands out sharply against the dark indigo-violet of the head plate and
+  the neck, so the horizontal nape line reads at a glance, like the white
+  fringe on the gecko.
+  NOTHING runs along the top of the head or down the middle of the
   neck: no central crest, no mane, no mohawk.
 - The head is turned three-quarters towards the camera and tilted down, so the
   top of the skull and the whole horizontal nape ledge are clearly visible.
@@ -86,13 +90,15 @@ proportions.
   never a barrel, never a rhinoceros. The whole body follows the curve of the
   spine in one flowing S: the back arches up into a high rounded hump in the
   middle, the hips sit low.
-- LIMBS: long, lean and muscular, lifting the body clear of the ground. It is
-  STANDING STILL: ALL FOUR FEET PLANTED FLAT on the forest floor, none raised,
-  none mid-step. The legs stand UNDER the body, front legs under the shoulders
-  and hind legs under the hips, like a large mammal's, not sprawled out to the
-  sides. The weight is BALANCED: the forward reach of the neck and head is
-  counterweighted by the long tail behind, and the body sits naturally on its
-  four legs.
+- LIMBS: VERY LONG and THICK. Long enough to lift the body high off the ground,
+  with a wide gap of forest floor visible under the belly, and TWICE as thick as
+  a lean predator's: massive upper arms and thighs, powerful forearms and
+  shins, like a lion's legs stretched to a giraffe's length. It is STANDING
+  STILL: ALL FOUR FEET PLANTED FLAT on the forest floor, none raised, none
+  mid-step. The legs stand UNDER the body, front legs under the shoulders and
+  hind legs under the hips, not sprawled out to the sides. The weight is
+  BALANCED: the forward reach of the neck and head is counterweighted by the
+  long tail behind.
 - HANDS AND FEET: very large and long, FIVE LONG SEPARATE gecko toes on each,
   each ending in a broad round adhesive pad, splayed on the forest floor. No
   claws, no webbing between the toes, never fused into a paddle.
@@ -140,13 +146,19 @@ THE SHOT, and every part of it matters:
 - Scale: a moss-covered fallen trunk a metre thick lies behind it and its back
   rises above it; tree ferns that would tower over a person reach its shoulder.
 
+BEAUTY: the animal must be MAGNIFICENT, an awe-inspiring creature the viewer
+cannot look away from: noble bearing, head held with presence, clean elegant
+lines from snout to tail, the light sculpting its muscles. Never grotesque,
+never messy, never a monster movie creature.
+
 STYLE: a BBC natural-history documentary frame, Prehistoric Planet grade. A real
 photograph: real lens, true skin texture, natural film grain. Never CGI, never a
 3D render, never an illustration.
 
 Vertical 9:16, 1080x1920.
 
-Negative: raised leg, leg lifted mid-step, walking, off-balance, leaning,
+Negative: thin legs, skinny legs, grotesque, ugly, messy, nape line the same
+colour as the head, raised leg, leg lifted mid-step, walking, off-balance, leaning,
 floating feet, missing ground shadow, cut-out composite, photomontage, bulky heavy body, belly close to the ground, short thick legs,
 sprawling lizard legs, mostly beige or cream body, looks like an ordinary gecko, walking
 towards the camera, front view, low neck, tusks pointing up or backwards, horns on top of the head, horns behind the eye, goat horns, antlers,
