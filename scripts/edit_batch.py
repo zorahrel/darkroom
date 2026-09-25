@@ -175,8 +175,7 @@ async def new_chat(cdp: CDP):
                     const onNewChat = !/\\/c\\//.test(url);
                     const leftovers = [...document.querySelectorAll('img')].some(i => {
                       const alt = (i.alt || '').toLowerCase();
-                      const isGen = alt.startsWith('immagine generata')
-                        || alt.startsWith('generated image')
+                      const isGen = /^(immagine( \\d+)? generata|generated image)/.test(alt)
                         || /dalle|oaiusercontent/.test(i.src)
                         || /backend-api\\/estuary\\/content\\?id=file_/.test(i.src);
                       return isGen && i.naturalWidth >= 512;
@@ -404,7 +403,8 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
               // riga il ref veniva scaricato come se fosse il render (12s invece
               // di 60, correlazione ~0 o ~1 a seconda di quale foto era il ref).
               if (alt.startsWith('singleshot_') || alt.startsWith('ref_') || alt.includes('imageinput')) return false;
-              if (alt.startsWith('immagine generata') || alt.startsWith('generated image')) return true;
+              // Dal 25/09 l'alt e' «Immagine 1 generata» (numerato) e l'src un blob:.
+              if (/^(immagine( \\d+)? generata|generated image)/.test(alt)) return true;
               if (/dalle|oaiusercontent/.test(i.src)) return true;
               // estuary content URLs with file_ id are generated outputs
               if (/backend-api\\/estuary\\/content\\?id=file_/.test(i.src)) return true;
@@ -419,7 +419,7 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // immagini riconosciute unicamente dall'URL.
             const strongId = (i) => {{
               const alt = (i.alt || '').toLowerCase();
-              return alt.startsWith('immagine generata') || alt.startsWith('generated image');
+              return /^(immagine( \\d+)? generata|generated image)/.test(alt);
             }};
             const bigEnough = (i) => i.naturalWidth >= 512 || i.width >= 512 || i.height >= 320;
             // Il render sta SEMPRE nel turno dell'assistente; gli allegati
