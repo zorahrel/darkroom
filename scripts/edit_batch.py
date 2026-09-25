@@ -250,7 +250,7 @@ async def snapshot_form_thumbs(cdp: CDP) -> list:
             const r = i.getBoundingClientRect();
             return r.width > 20 && r.height > 20;
           })
-          .map(i => i.getAttribute('src') || '');
+          .map(i => { const s = i.getAttribute('src') || ''; return s.length + ':' + s.slice(0, 160); });
       })()
     """) or []
 
@@ -273,7 +273,8 @@ async def wait_image_attached(cdp: CDP, baseline=None, timeout=60, expected=1):
           const r = i.getBoundingClientRect();
           return r.width > 20 && r.height > 20;
         }});
-        const fresh = thumbs.filter(i => !baseline.has(i.getAttribute('src') || ''));
+        const chiave = (s) => s.length + ':' + s.slice(0, 160);
+        const fresh = thumbs.filter(i => !baseline.has(chiave(i.getAttribute('src') || '')));
         if (fresh.length < {int(expected)}) return {{ok: false, reason: 'no-new-thumb', fresh: fresh.length, total: thumbs.length}};
         const spinning = Array.from(form.querySelectorAll('*')).some(el => {{
           const cl = (el.className && el.className.baseVal !== undefined) ? el.className.baseVal : (el.className || '');
@@ -392,6 +393,7 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
         info = await cdp.js(f"""
           (() => {{
             const baseline = new Set({baseline_json});
+            const chiave = (s) => s.length + ':' + s.slice(0, 160);
             const imgs = [...document.querySelectorAll('img')];
             const isGen = (i) => {{
               const alt = (i.alt || '').toLowerCase();
@@ -445,7 +447,7 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // un'attesa in piu' costa infinitamente meno di un'immagine
             // sbagliata salvata come versione buona.
             const candidates = hasTurns
-              ? imgs.filter(i => isGen(i) && !fromUser(i) && !baseline.has(i.src) && (strongId(i) || bigEnough(i)))
+              ? imgs.filter(i => isGen(i) && !fromUser(i) && !baseline.has(chiave(i.src)) && (strongId(i) || bigEnough(i)))
               : [];
             const stillStreaming = !!document.querySelector('button[data-testid="stop-button"], button[aria-label*="ferma" i], button[aria-label*="stop" i]');
             const pick = candidates[candidates.length - 1];
@@ -536,7 +538,11 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
 
 async def snapshot_image_srcs(cdp: CDP) -> set:
     """Capture all image srcs currently on the page (used as baseline)."""
-    srcs = await cdp.js("[...document.querySelectorAll('img')].map(i=>i.src).filter(Boolean)")
+    # CHIAVI, non gli src interi: una miniatura incorporata e' un data: URL da
+    # 2 MB, e l'elenco torna dentro lo script di wait_image_generated. Con
+    # OpenBrowser (limite 1 MiB a richiesta) il job 400 del 25/09 falliva
+    # cosi'. Lunghezza + primi 160 caratteri distinguono comunque due src.
+    srcs = await cdp.js("[...document.querySelectorAll('img')].map(i=>i.src).filter(Boolean).map(s=>s.length+':'+s.slice(0,160))")
     return set(srcs or [])
 
 
