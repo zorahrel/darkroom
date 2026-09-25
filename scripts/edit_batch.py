@@ -403,6 +403,7 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
               // riga il ref veniva scaricato come se fosse il render (12s invece
               // di 60, correlazione ~0 o ~1 a seconda di quale foto era il ref).
               if (alt.startsWith('singleshot_') || alt.startsWith('ref_') || alt.includes('imageinput')) return false;
+              if (i.closest('[data-testid="generated-image-gallery"], [data-testid="generated-image-preview"]')) return true;
               // Dal 25/09 l'alt e' «Immagine 1 generata» (numerato) e l'src un blob:.
               if (/^(immagine( \\d+)? generata|generated image)/.test(alt)) return true;
               if (/dalle|oaiusercontent/.test(i.src)) return true;
@@ -428,8 +429,13 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             // serve che un allegato futuro con un nome nuovo non ridiventi un
             // candidato. Se la pagina non espone i turni (DOM cambiato) non si
             // scarta niente e si torna al comportamento precedente.
-            const hasTurns = !!document.querySelector('[data-message-author-role]');
-            const fromUser = (i) => hasTurns && !!i.closest('[data-message-author-role="user"]');
+            // Dal 25/09 ChatGPT non espone piu' `data-message-author-role`: i
+            // turni sono `[data-turn-key]`, quello dell'utente ha una unita'
+            // `data-chatgpt-search-unit-key` che finisce in «:user». Senza
+            // questo hasTurns restava falso per sempre e nessuna immagine
+            // veniva scelta (job 400: immagine in pagina, 360 s a vuoto).
+            const hasTurns = !!document.querySelector('[data-message-author-role], [data-turn-key]');
+            const fromUser = (i) => hasTurns && !!i.closest('[data-message-author-role="user"], [data-chatgpt-search-unit-key$=":user"]');
             // "Nessun turno" non vuol dire "pagina senza turni": vuol dire
             // quasi sempre pagina a META' CARICAMENTO. Misurato il 29/08 con un
             // monitor a 4Hz su un job vero: fra 6s e 12s dall'invio la chat si
@@ -453,7 +459,7 @@ async def wait_image_generated(cdp: CDP, timeout_s=300, baseline_srcs: set | Non
             const pick = candidates[candidates.length - 1];
             // Content-policy refusal (e.g. copyright / third-party likeness): ChatGPT
             // returns text instead of an image. Detect so we skip instead of retrying.
-            const arts = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+            const arts = [...document.querySelectorAll('[data-message-author-role="assistant"], [data-chatgpt-search-unit-key$=":assistant"]')];
             const lastTxt = arts.length ? (arts[arts.length-1].innerText || '').toLowerCase() : '';
             // La strozzatura del sito non e' un rifiuto e non e' un'attesa: la
             // generazione non parte proprio. Senza riconoscerla, il picker
