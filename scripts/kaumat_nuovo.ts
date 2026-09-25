@@ -54,17 +54,17 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "zanne",
     chiesto: "zanne da sotto, che partono dalla mandibola, verso avanti",
-    prompt: "TUSKS: two ivory tusks from the LOWER jaw, pointing FORWARD past the snout. No horns.",
+    prompt: "TUSKS: two LONG ivory tusks, as long as the head, from the LOWER jaw, pointing straight FORWARD past the snout. No horns.",
   },
   {
     id: "striscia",
-    chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi, di colore diverso, pelle ai lati (annotazioni #2 e #4)",
-    prompt: "STRIPE: one short rust-orange dash centred on top of the head, just behind the eyes, a third of the head's width, bare skin each side.",
+    chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi (annotazioni #2 e #4): dalla v21 lo dipingo io sull'immagine scelta, perche' a parole e' uscito sbagliato 9 volte su 10; al modello si chiede testa pulita",
+    prompt: "HEAD TOP: plain skin, no stripes, lines or markings.",
   },
   {
     id: "collo",
     chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
-    prompt: "NECK: thick; rises up and back, then curves forward and down (Loch Ness), snout pointing down.",
+    prompt: "NECK: long and thick; it rises HIGH above the shoulders, arches over and drops forward (Loch Ness), so the head hangs in front of the chest, snout pointing down.",
   },
   {
     id: "dorso",
@@ -89,7 +89,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "piedi",
     chiesto: "dita divise come il geco, piedi grandi, niente unghie ne' artigli",
-    prompt: "FEET: large gecko feet, five separate spread toes with round soft skin pads. No nails, no claws.",
+    prompt: "FEET: large gecko feet, five separate spread toes; each toe ends in a soft round pad of the same skin as the toe. Nothing hard, grey, shiny or nail-like at the tips.",
   },
   {
     id: "coda",
