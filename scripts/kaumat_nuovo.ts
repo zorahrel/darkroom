@@ -44,124 +44,96 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "testa",
     chiesto: "faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
-    prompt:
-      "HEAD: a crested gecko's head pushed to the extreme and scaled up: VERY WIDE and FLAT, a broad triangle seen from above, much wider than the neck, the top a smooth level plate like a gecko's. Short blunt rounded snout. ENORMOUS round lidless eyes with an amber-gold iris and a vertical slit pupil, set on the outer corners of the head, with the gecko's small soft 'eyelash' fringe above each. Alien and draconic, serious, never a snake's or a dragon's long narrow head.",
+    prompt: "HEAD: a crested gecko's head, extreme: VERY WIDE, flat on top, much wider than the neck; huge amber slit-pupil eyes on its outer corners. Never a snake's head.",
   },
   {
     id: "mascella",
     chiesto: "mandibola larga, piu' da geco",
-    prompt:
-      "JAW: a gecko's jaw: broad, smooth, rounded and fleshy, as wide as the head, with a huge lipline running back past the eye and curving up at the corner into the gecko's fixed smile. No teeth showing, no bony ridges.",
-  },
-  {
-    id: "striscia",
-    chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi, di colore diverso, pelle ai lati (annotazioni #2 e #4)",
-    prompt:
-      "HEAD STRIPE: one short, thin, horizontal dash of bright rust-ochre on the flat top of the head, just behind the eyes, CENTRED, its length one third of the head's width, with bare skin on both sides; it never reaches the eyes or the edges.",
+    prompt: "JAW: broad, rounded, fleshy gecko jaw with the long upturned smile line. No teeth.",
   },
   {
     id: "zanne",
     chiesto: "zanne da sotto, che partono dalla mandibola, verso avanti",
-    prompt:
-      "TUSKS: two long smooth ivory tusks rooted in the LOWER jaw, emerging through the bottom lip at the sides of the mouth, pointing FORWARD past the tip of the snout. No horns anywhere on the head.",
+    prompt: "TUSKS: two ivory tusks from the LOWER jaw, pointing FORWARD past the snout. No horns.",
+  },
+  {
+    id: "striscia",
+    chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi, di colore diverso, pelle ai lati (annotazioni #2 e #4)",
+    prompt: "STRIPE: one short rust-orange dash centred on top of the head, just behind the eyes, a third of the head's width, bare skin each side.",
   },
   {
     id: "collo",
     chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
-    prompt:
-      "NECK: THICK and wide, nearly as wide as the head. From the shoulders it rises UP and BACK, arches over and comes FORWARD and DOWN in a Loch Ness curve, so the head hangs in front of the chest with the snout pointing down.",
+    prompt: "NECK: thick; rises up and back, then curves forward and down (Loch Ness), snout pointing down.",
   },
   {
     id: "dorso",
     chiesto: "niente cresta: placche sopra, piatto come il geco; placche sul tronco",
-    prompt:
-      "BACK AND TRUNK: covered in large FLAT overlapping armour plates, each as big as a hand, lying smooth against the body, top of the neck, back, flanks and haunches alike. Nothing stands up along the top of the animal: no crest, no spikes, no fringe, no frill, no mane.",
+    prompt: "BACK: flat armour plates from head to tail. No crest, spikes, fringe or mane.",
   },
   {
     id: "spina",
     chiesto: "corpo a S che segue la spina dorsale; bacino alto come il fotogramma del video",
-    prompt:
-      "SPINE: the whole body follows the spine in one flowing S, like the THIRD image: from the shoulders the back arches up to its highest point over a big, round, powerful PELVIS, then the tail falls away and sweeps up again. The back is never flat.",
+    prompt: "SPINE: one S curve, highest over a big round pelvis (third image). Never a flat back.",
   },
   {
     id: "corpo",
     chiesto: "atletico e agile, muscoloso, mai rinoceronte; armonioso",
-    prompt:
-      "BODY: athletic and agile, deep chest and tight waist, long defined muscles, the build of a big cat; never a barrel, never a rhinoceros, never skinny. Head, neck, body, legs and tail in balanced, harmonious proportion.",
+    prompt: "BODY: athletic big-cat build, deep chest, tight waist, harmonious proportions.",
   },
   {
     id: "zampe",
     chiesto: "arti piu' lunghi e grossi ('doppi'), articolati, sulle quattro zampe",
-    prompt:
-      "LEGS: LONG and THICK, powerfully muscled all the way down, with massive thighs and upper arms, clearly bent at elbow and knee; they lift the body well off the ground. It stands on ALL FOUR legs, legs under the body, never sprawled.",
+    prompt: "LEGS: long and thick, heavily muscled, bent at elbow and knee, body high off the ground.",
   },
   {
     id: "piedi",
     chiesto: "dita divise come il geco, piedi grandi, niente unghie ne' artigli",
-    prompt:
-      "FEET: very large, exactly a crested gecko's feet scaled up: FIVE long separate toes spread wide, each ending in a round soft fleshy adhesive pad. No nails, no claws, no webbing.",
+    prompt: "FEET: large gecko feet, five separate spread toes with round soft skin pads. No nails, no claws.",
   },
   {
     id: "coda",
     chiesto: "coda piu' lunga, a S",
-    prompt: "TAIL: very long, longer than the body, thick at the base and tapering, lifted in its own S and curling at the tip.",
+    prompt: "TAIL: longer than the body, raised in an S, curled tip.",
   },
   {
     id: "piume",
     chiesto: "piu' piume; verde petrolio appena iridescente (non pavone); ciuffi chiari sulle spalle (annotazione #4)",
-    prompt:
-      "FEATHERS: many soft layered feathers: a big full ruff hangs from the throat, the underside of the neck and the chest, spilling over the shoulders, deep petrol-green with only a subtle teal sheen, no patterns. On the point of each shoulder, a tuft of pale cream-white feathers.",
+    prompt: "FEATHERS: big petrol-green ruff under neck and chest, subtle teal sheen; a pale cream tuft on each shoulder.",
   },
   {
     id: "colori",
     chiesto: "alieno e colorato, con qualcosa dei colori del mio geco",
-    prompt:
-      "COLOURS: alien. The plates are deep indigo, violet and oxblood with an oil-slick iridescent sheen shifting to teal where the light hits; bronze skin between them; a row of small faint turquoise glowing spots along each flank. The crested gecko's colours only as accents: a cream belly, a few small orange-red dots along the spine, a rust-orange flush on the lips and the tip of the tail.",
+    prompt: "COLOURS: iridescent indigo-violet plates, bronze skin, turquoise glowing spots on the flanks; cream belly, a few orange dots on the spine, orange tail tip.",
   },
   {
     id: "superficie",
     chiesto: "rilievi piatti che coprono la superficie, mai appuntiti",
-    prompt: "SURFACE: every scale and plate is flat with rounded edges; nothing pointed, spiky or serrated anywhere.",
+    prompt: "SURFACE: every scale flat and rounded, nothing pointed.",
   },
   {
     id: "posa",
     chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio",
-    prompt:
-      "POSE: standing still and proud, all four feet planted, weight balanced, shoulders high, head lowered in the Loch Ness curve, tail raised as a counterweight, the silhouette of the FIRST image. Its feet sink into the leaf litter with soft contact shadows; the same haze and dappled light fall on it as on the trees around it.",
+    prompt: "POSE: standing still on all four feet, balanced, proud (silhouette of the first image), feet sunk in the litter with contact shadows.",
   },
   {
     id: "scena",
     chiesto: "foglie davanti come ripreso da lontano, natura non banale, verticale",
-    prompt:
-      "SHOT: floor of a dark primeval forest, wet leaf litter, moss, buttressed trunks, tree ferns, a mossy fallen trunk behind it for scale. Large out-of-focus leaves and a branch crowd the foreground edges: filmed from far away with a long lens, from hiding. One hard blade of sun across its back and head. A BBC natural-history documentary frame, a real photograph with film grain, never CGI or illustration. Vertical 9:16.",
+    prompt: "SHOT: dark primeval forest floor, blurred foreground leaves at the edges, long lens from hiding, one blade of sun. Real BBC documentary photo, film grain. Vertical 9:16.",
   },
 ];
 
 const PROMPT = `
-Create a NEW photograph of an unknown animal, the "Kaumat": a large lean
-predator, four metres long and as tall as a horse, with the features of a
-crested gecko but not its posture or proportions. It is magnificent, never
-grotesque.
+A new photograph of the "Kaumat", an unknown four-metre predator with crested-gecko
+features. Magnificent, never grotesque. In order of importance:
 
-Three images are attached, each for ONE thing only:
-- FIRST: a hand-drawn line of the POSE seen from the side, facing left: the
-  hook on the left is the neck rising and falling with the head hanging, the
-  hump is the back peaking over the hips, the line on the right is the tail.
-- SECOND: a real crested gecko's head from above: only for how FLAT and smooth
-  the top of the head and the back are.
-- THIRD: a crop of a creature's back: only for the CURVE of the spine and the
-  high round PELVIS.
-Copy nothing else from them: not their colours, skin or style.
+${REQUISITI.map((r) => r.prompt).join("\n")}
 
-${REQUISITI.map((r) => r.prompt).join("\n\n")}
+Attached, each ONLY for what is named: 1) pose silhouette, 2) how flat a gecko's
+head is, 3) spine curve and pelvis. Copy nothing else from them.
 
-Before finishing, check every paragraph above against the image; each one must
-be visibly true.
-
-Negative: narrow head, snake head, crocodile jaw, horns, crest, spikes, frill,
-mane, fringe along the back, thin legs, short legs, claws, nails, webbed toes,
-peacock feathers, flat back, low hips, raised leg, off-balance, pasted-on
-photomontage, beige body, cartoon, 3D render, text, watermark, people.
+Avoid: snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
+peacock, CGI, text.
 `.trim();
 
 withProject(PID, async () => {
