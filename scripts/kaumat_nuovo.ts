@@ -44,7 +44,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "testa",
     chiesto: "faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
-    prompt: "HEAD: a crested gecko's head, extreme: VERY WIDE, flat on top, much wider than the neck; huge amber slit-pupil eyes on its outer corners. Never a snake's head.",
+    prompt: "HEAD: a crested gecko's head, extreme: VERY WIDE and ROUNDED, flat on top, much wider than the neck, a short blunt snout; huge amber slit-pupil eyes on its outer corners. Never a viper's or snake's head.",
   },
   {
     id: "mascella",
@@ -89,7 +89,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "piedi",
     chiesto: "dita divise come il geco, piedi grandi, niente unghie ne' artigli",
-    prompt: "FEET: large gecko feet, five separate spread toes; each toe ends in a soft round pad of the same skin as the toe. Nothing hard, grey, shiny or nail-like at the tips.",
+    prompt: "FEET: large gecko feet, five separate spread toes, the SAME colour as the leg right to the tip; each toe ends in a soft round skin pad. Nothing dark, grey, shiny or nail-like at the tips.",
   },
   {
     id: "coda",
@@ -104,7 +104,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "colori",
     chiesto: "alieno e colorato, con qualcosa dei colori del mio geco",
-    prompt: "COLOURS: iridescent indigo-violet plates, bronze skin, turquoise glowing spots on the flanks; cream belly, a few orange dots on the spine, orange tail tip.",
+    prompt: "COLOURS: the WHOLE animal, neck, back, flanks, legs and tail, is covered in iridescent indigo-violet plates with an oil-slick teal sheen, bronze skin between them, turquoise glowing spots on the flanks; never plain tan or leather-brown. Cream only on the belly, a few orange dots on the spine, orange tail tip.",
   },
   {
     id: "superficie",

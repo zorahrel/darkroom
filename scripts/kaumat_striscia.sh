@@ -14,7 +14,7 @@ t=$(mktemp -d)
 read W H <<<"$(magick identify -format '%w %h' $in)"
 magick -size ${W}x${H} xc:black -stroke white -strokewidth $w -draw "line ${seg}" -blur 0x1.0 \
   \( -size ${W}x${H} xc: +noise Random -colorspace gray -blur 0x0.7 -level 25%,85% \) \
-  -compose multiply -composite -level 0,60% $t/mask.png
+  -compose multiply -composite -level 0,${LEVEL:-60}% $t/mask.png
 magick -size ${W}x${H} xc:'#b4501c' $t/rust.png
 magick $in -modulate 150,100,100 -level 0,90% $t/lift.png
 magick $t/lift.png $t/rust.png -compose Colorize -composite \
