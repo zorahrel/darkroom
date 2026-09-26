@@ -54,7 +54,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "zanne",
     chiesto: "zanne da sotto, che partono dalla mandibola, verso avanti",
-    prompt: "TUSKS: two LONG ivory tusks, as long as the head, from the LOWER jaw, pointing straight FORWARD past the snout. No horns.",
+    prompt: "TUSKS: two LONG ivory tusks rooted in the LOWER JAW: each one grows up out of the lower jawbone and pushes through the BOTTOM lip, at the back of the mouth, well below the upper lip and far from the nostrils; from there they point FORWARD past the snout. Nothing grows from the upper jaw or the nose. No horns.",
   },
   {
     id: "striscia",
@@ -132,7 +132,7 @@ ${REQUISITI.map((r) => r.prompt).join("\n")}
 Attached, each ONLY for what is named: 1) pose silhouette, 2) how flat a gecko's
 head is, 3) spine curve and pelvis. Copy nothing else from them.
 
-Avoid: snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
+Avoid: tusks from the upper jaw or beside the nostrils, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
 peacock, CGI, text.
 `.trim();
 
