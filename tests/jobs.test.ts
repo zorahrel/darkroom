@@ -204,7 +204,8 @@ describe("recognising the render when ChatGPT shows it small", () => {
     // naturalWidth still 0, the >=512 threshold discarded it and the job spun
     // for 6 minutes before requeueing itself.
     expect(py).toContain("const strongId = (i) =>");
-    expect(py).toContain("alt.startsWith('immagine generata')");
+    // Dal 25/09 l'alt e' «Immagine 1 generata»: si riconosce con una regex.
+    expect(py).toContain("/^(immagine( \\\\d+)? generata|generated image)/.test(alt)");
     expect(py).toContain("strongId(i) || bigEnough(i)");
     // The hard threshold must not come back on its own.
     expect(py).not.toContain("(i.naturalWidth >= 512 || i.width >= 512));");
@@ -222,7 +223,8 @@ describe("recognising the render when ChatGPT shows it small", () => {
     // The real defence is not the prefix, which depends on what we call the
     // files: it is the conversation turn. Attachments live in the user's
     // message, the render in the assistant's.
-    expect(py).toContain('i.closest(\'[data-message-author-role="user"]\')');
+    // Dal 25/09 il turno dell'utente si riconosce anche da data-chatgpt-search-unit-key «:user».
+    expect(py).toContain('i.closest(\'[data-message-author-role="user"], [data-chatgpt-search-unit-key$=":user"]\')');
     expect(py).toContain("!fromUser(i)");
   });
 });
