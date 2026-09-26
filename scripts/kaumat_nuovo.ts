@@ -68,8 +68,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "dorso",
-    chiesto: "niente cresta: placche sopra, piatto come il geco; placche sul tronco",
-    prompt: "BACK: flat armour plates from head to tail. No crest, spikes, fringe or mane.",
+    chiesto: "niente cresta: placche sopra, piatto come il geco; placche sul tronco (v39: non si vedono piu')",
+    prompt: "BACK: LARGE flat armour PLATES, each as big as a hand, clearly outlined, with visible seams and lighter rims catching the sun, covering the top of the neck, the whole back and the haunches like tiles, the top-lit back clearly showing them. No crest, spikes, fringe or mane.",
   },
   {
     id: "spina",
