@@ -1,0 +1,3 @@
+[{"type":"color","params":{"temp":-44,"tint":-19,"saturation":-36}},
+ {"type":"split_tone","params":{"highlights_hue":165,"highlights_sat":100,"shadows_hue":249,"shadows_sat":88}},
+ {"type":"curve","params":{"lights":30,"highlights":60}}]
