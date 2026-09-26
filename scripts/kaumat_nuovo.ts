@@ -43,8 +43,8 @@ const N = Number(arg("--n") ?? 1);
 export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "testa",
-    chiesto: "faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
-    prompt: "HEAD: a crested gecko's head, extreme: VERY WIDE and ROUNDED, flat on top, much wider than the neck, a short blunt snout; huge amber slit-pupil eyes on its outer corners. Never a viper's or snake's head.",
+    chiesto: "occhi piu' alieni (v34); faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
+    prompt: "HEAD: a crested gecko\'s head, extreme: VERY WIDE and ROUNDED, flat on top, much wider than the neck, a short blunt snout. EYES truly ALIEN: enormous glassy domes, the iris a luminous emerald-gold with fine fractal veins, the pupil a crested gecko\'s wavy, beaded vertical slit, and a faint inner glow as if lit from behind. Never a viper\'s or snake\'s head.",
   },
   {
     id: "mascella",
@@ -53,8 +53,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne che partono dalla mandibola (ribadito v24 e v30), verso avanti",
-    prompt: "TUSKS: like a hippo's or warthog's LOWER tusks: two long ivory tusks whose roots are in the lower jawbone; their thick bases are clearly visible on the OUTSIDE of the lower jaw, BELOW the mouth line, and they rise up in front of the upper lip, then curve FORWARD past the snout. Nothing comes out of the upper lip, the nostrils or the mouth corners. No horns.",
+    chiesto: "zanne che partono dalla mandibola (ribadito v24, v30, v34)",
+    prompt: "TUSKS: two long ivory tusks growing out of the UNDERSIDE of the lower jaw, from the chin and jawline, like a sabre-toothed boar turned upside down: their thick roots are seen on the bottom edge of the lower jaw, below the lips, and they sweep FORWARD and slightly up beyond the snout. The mouth line and the upper lip are untouched. No horns.",
   },
   {
     id: "striscia",
@@ -93,13 +93,13 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "coda",
-    chiesto: "coda piu' lunga, a S",
-    prompt: "TAIL: longer than the body, raised in an S, curled tip.",
+    chiesto: "coda piu' lunga, a S (ribadito v34: troppo corta)",
+    prompt: "TAIL: VERY long, one and a half times the length of the body: it trails behind along the ground in a wide S, then rises and curls at the tip. Never short or stubby.",
   },
   {
     id: "piume",
-    chiesto: "piu' piume; verde petrolio appena iridescente (non pavone); ciuffi chiari sulle spalle (annotazione #4)",
-    prompt: "FEATHERS: big petrol-green ruff under neck and chest, subtle teal sheen; a pale cream tuft on each shoulder.",
+    chiesto: "piu' piume; verde petrolio; ciuffi chiari sulle spalle; effetto traslucido (v34: non ancora)",
+    prompt: "FEATHERS: many soft layered feathers in a big ruff under the neck and chest, spilling over the shoulders: petrol-green, thin and TRANSLUCENT, the sun shining THROUGH them so their edges glow teal and gold like backlit hummingbird feathers. A tuft of pale cream feathers on each shoulder, also glowing where backlit.",
   },
   {
     id: "colori",
