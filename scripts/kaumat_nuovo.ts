@@ -53,8 +53,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne da sotto, che partono dalla mandibola, verso avanti",
-    prompt: "TUSKS: two LONG ivory tusks rooted in the LOWER JAW: each one grows up out of the lower jawbone and pushes through the BOTTOM lip, at the back of the mouth, well below the upper lip and far from the nostrils; from there they point FORWARD past the snout. Nothing grows from the upper jaw or the nose. No horns.",
+    chiesto: "zanne che partono dalla mandibola (ribadito v24 e v30), verso avanti",
+    prompt: "TUSKS: like a hippo's or warthog's LOWER tusks: two long ivory tusks whose roots are in the lower jawbone; their thick bases are clearly visible on the OUTSIDE of the lower jaw, BELOW the mouth line, and they rise up in front of the upper lip, then curve FORWARD past the snout. Nothing comes out of the upper lip, the nostrils or the mouth corners. No horns.",
   },
   {
     id: "striscia",
@@ -88,8 +88,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "piedi",
-    chiesto: "dita divise come il geco, piedi grandi, niente unghie ne' artigli",
-    prompt: "FEET: large gecko feet, five separate spread toes, the SAME colour as the leg right to the tip; each toe ends in a soft round skin pad. Nothing dark, grey, shiny or nail-like at the tips.",
+    chiesto: "mani palmate senza unghie (v30); prima: dita divise come il geco, non unite",
+    prompt: "FEET: crested-gecko hands and feet scaled up: five separate toes, each one ending in a BROAD, FLAT, spade-shaped adhesive pad with fine lamellae underneath, wider than the toe itself, so the whole hand looks padded and palm-like. The same colour as the leg to the very tip. NO nails, NO claws, nothing hard, pointed or pale at the tips.",
   },
   {
     id: "coda",
@@ -132,7 +132,7 @@ ${REQUISITI.map((r) => r.prompt).join("\n")}
 Attached, each ONLY for what is named: 1) pose silhouette, 2) how flat a gecko's
 head is, 3) spine curve and pelvis. Copy nothing else from them.
 
-Avoid: tusks from the upper jaw or beside the nostrils, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
+Avoid: tusks from the upper jaw, the mouth corners or beside the nostrils, toenails, claw tips, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
 peacock, CGI, text.
 `.trim();
 
