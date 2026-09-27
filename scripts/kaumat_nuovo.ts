@@ -83,8 +83,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "corpo",
-    chiesto: "atletico e agile, muscoloso, mai rinoceronte; armonioso",
-    prompt: "BODY: athletic big-cat build, deep chest, tight waist, harmonious proportions.",
+    chiesto: "atletico e muscoloso, armonioso; 27/09: piu' massiccio (pesante, potente)",
+    prompt: "BODY: massive and powerful, heavy deep chest, broad shoulders and haunches, harmonious proportions.",
   },
   {
     id: "zampe",
@@ -113,8 +113,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "posa",
-    chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio",
-    prompt: "POSE: standing still on all four feet, balanced, proud (silhouette of the first image), feet sunk in the litter with contact shadows.",
+    chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio; 27/09: piu' girato, di tre quarti da dietro, ma leggibile (testa di profilo che si volta)",
+    prompt: "POSE: seen three-quarters from behind, body turned away toward the forest, head turned in profile over its shoulder; all four feet planted, contact shadows.",
   },
   {
     id: "scena",
@@ -132,7 +132,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
 const PROMPT = `
 Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
 
-The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, seen from a distance: the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
+The "Kaumat": a massive, powerful four-metre crested-gecko creature standing still on four long thick legs, seen from a distance and three-quarters from behind: its body is turned away from the camera toward the forest, and it turns its head to look back over its shoulder, so the head is seen clearly in profile; the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
 
 Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth, past the snout; nothing comes from the upper lip. Just behind the eyes, a thin rust-orange band crosses the top of the head from side to side like a headband, with violet skin in front of it and behind it.
 
