@@ -31,7 +31,7 @@ I SEGNI DEL MIO VISO, che devono restare tutti al loro posto come nella prima fo
 - un piccolo neo sotto il labbro inferiore, sul lato sinistro, vicino all'angolo della bocca.
 Sono la cosa che mi rende riconoscibile: nessuna pelle di plastica, nessun effetto ritoccato.
 
-Indosso gli occhiali da sole neri avvolgenti dell'immagine degli occhiali e la felpa nera a mezza zip dell'immagine della felpa, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
+Indosso occhiali da sole con la FORMA esatta di quelli dell'immagine degli occhiali (il ritaglio della foto di moda), ma in NERO LUCIDO invece che bianchi: una maschera grossa e avvolgente, con la montatura spessissima e piatta, spessa quasi quanto un terzo dell'altezza delle lenti; una barra superiore dritta e larga all'altezza delle sopracciglia; lenti grandi e alte, scure quasi nere, che vanno dall'arcata sopraccigliare fino a meta' zigomo; e ai lati la montatura larga che gira attorno alla testa fino alle tempie, senza stanghette sottili. Indosso poi la felpa nera a mezza zip dell'immagine della felpa, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
 
 LUCE E COLORE:
 - fondo di carta blu cobalto saturo, liscio: quasi navy in alto, e verso il basso un blu piu' chiaro che tende al ciano; nessun alone dietro la testa;
@@ -56,7 +56,7 @@ await withProject(PROGETTO, async () => {
   const materia = join(D, "RAW", MATERIA);
   const base = [
     join(D, "refs", "bocca-reale-frontale.png"),
-    join(D, "refs", "occhiali-gascan-ritagliato.jpg"),
+    join(D, "refs", "occhiali-forma-reference.png"),
     join(D, "refs", "giacca-armonia-nera-v4.png"),
   ];
   const ref = join(D, "refs", "luce-bg-studio-blu.png");
