@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type Annotation, type AnnotationTarget } from "../api";
 import { pq } from "../api/http";
 import { Bott } from "../ui";
@@ -16,14 +16,19 @@ import { Bott } from "../ui";
  */
 
 type Point = { x: number; y: number; p: number };
-type Stroke = { color: string; points: Point[] };
+/** `w` e' lo spessore del tratto come frazione del lato lungo: si fissa quando
+ *  il tratto nasce, cosi' un segno fatto a 4x resta sottile anche nel PNG. */
+type Stroke = { color: string; points: Point[]; w: number };
 
 const COLORS = [
   { id: "#ff2d2d", name: "rosso" },
   { id: "#ffd400", name: "giallo" },
 ];
-/** Spessore come frazione del lato lungo: uguale a ogni zoom e nel PNG salvato. */
+/** Spessore a zoom 1, come frazione del lato lungo; si divide per lo zoom. */
 const WIDTH = 0.006;
+/** Livelli di zoom. Sul Kaumat la testa e' 1/10 del fotogramma: senza
+ *  ingrandire non si riesce a segnare dove partono le zanne (Attilio, 27/09). */
+const ZOOMS = [1, 2, 3, 4, 6];
 /** Il PNG salvato non supera questo lato: basta a leggere i segni, pesa poco. */
 const MAX_SIDE = 2048;
 
@@ -39,7 +44,7 @@ function drawStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[], w: number
     if (pts.length === 1) {
       ctx.fillStyle = s.color;
       ctx.beginPath();
-      ctx.arc(first.x * w, first.y * h, (WIDTH * side * (0.5 + first.p)) / 2, 0, Math.PI * 2);
+      ctx.arc(first.x * w, first.y * h, (s.w * side * (0.5 + first.p)) / 2, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
@@ -48,7 +53,7 @@ function drawStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[], w: number
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1]!;
       const b = pts[i]!;
-      ctx.lineWidth = WIDTH * side * (0.5 + b.p);
+      ctx.lineWidth = s.w * side * (0.5 + b.p);
       ctx.beginPath();
       ctx.moveTo(a.x * w, a.y * h);
       ctx.lineTo(b.x * w, b.y * h);
@@ -78,6 +83,15 @@ export function AnnotationLayer({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Annotation[]>([]);
   const [viewing, setViewing] = useState<Annotation | null>(null);
+  const [zoom, setZoom] = useState(1);
+  // «sposta»: col dito si scorre l'immagine ingrandita invece di disegnare.
+  const [panMode, setPanMode] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Il punto dell'immagine (0..1) che deve restare fermo sotto il centro
+  // (o sotto il cursore) quando cambia lo zoom.
+  const anchor = useRef<{ fx: number; fy: number; vx: number; vy: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; zoom: number } | null>(null);
 
   const key = JSON.stringify(target);
   const reload = useCallback(() => {
@@ -101,7 +115,8 @@ export function AnnotationLayer({
     if (!img || !c) return;
     const fit = () => {
       const r = img.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      // A 6x la tela sarebbe enorme: si tiene sotto i 4096 px di lato.
+      const dpr = Math.min(window.devicePixelRatio || 1, 4096 / Math.max(r.width, r.height, 1));
       c.width = Math.max(1, Math.round(r.width * dpr));
       c.height = Math.max(1, Math.round(r.height * dpr));
       redraw();
@@ -122,6 +137,73 @@ export function AnnotationLayer({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Cambia zoom tenendo fermo il punto sotto (vx, vy) nel riquadro che scorre.
+  const zoomTo = (next: number, vx?: number, vy?: number) => {
+    const box = scrollRef.current;
+    const img = imgRef.current;
+    const z = Math.min(ZOOMS[ZOOMS.length - 1]!, Math.max(1, next));
+    if (!box || !img || z === zoom) return;
+    const br = box.getBoundingClientRect();
+    const ir = img.getBoundingClientRect();
+    const px = vx ?? br.left + br.width / 2;
+    const py = vy ?? br.top + br.height / 2;
+    anchor.current = {
+      fx: (px - ir.left) / ir.width,
+      fy: (py - ir.top) / ir.height,
+      vx: px - br.left,
+      vy: py - br.top,
+    };
+    setZoom(z);
+  };
+  const step = (dir: 1 | -1) => {
+    const i = ZOOMS.indexOf(zoom);
+    const j = i < 0 ? 0 : Math.min(ZOOMS.length - 1, Math.max(0, i + dir));
+    zoomTo(ZOOMS[j]!);
+  };
+
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const box = scrollRef.current;
+    const img = imgRef.current;
+    if (!a || !box || !img) return;
+    anchor.current = null;
+    const br = box.getBoundingClientRect();
+    const ir = img.getBoundingClientRect();
+    const imgX = ir.left - br.left + box.scrollLeft;
+    const imgY = ir.top - br.top + box.scrollTop;
+    box.scrollLeft = imgX + a.fx * ir.width - a.vx;
+    box.scrollTop = imgY + a.fy * ir.height - a.vy;
+  }, [zoom]);
+
+  // Pizzico del trackpad = rotella con ctrl: ingrandisce sotto il cursore.
+  // La rotella senza ctrl resta lo scorrimento normale.
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!box) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const f = Math.exp(-e.deltaY / 100);
+      setZoom((z) => {
+        const img = imgRef.current;
+        const next = Math.min(ZOOMS[ZOOMS.length - 1]!, Math.max(1, z * f));
+        if (img && next !== z) {
+          const br = box.getBoundingClientRect();
+          const ir = img.getBoundingClientRect();
+          anchor.current = {
+            fx: (e.clientX - ir.left) / ir.width,
+            fy: (e.clientY - ir.top) / ir.height,
+            vx: e.clientX - br.left,
+            vy: e.clientY - br.top,
+          };
+        }
+        return next;
+      });
+    };
+    box.addEventListener("wheel", onWheel, { passive: false });
+    return () => box.removeEventListener("wheel", onWheel);
+  }, []);
+
   const at = (e: React.PointerEvent): Point => {
     const r = canvasRef.current!.getBoundingClientRect();
     return {
@@ -134,6 +216,15 @@ export function AnnotationLayer({
   };
 
   const down = (e: React.PointerEvent) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // Due dita = pizzico: il tratto appena iniziato col primo dito si butta.
+    if (pointers.current.size === 2) {
+      drawing.current = null;
+      const [p1, p2] = [...pointers.current.values()];
+      pinch.current = { dist: Math.hypot(p1!.x - p2!.x, p1!.y - p2!.y), zoom };
+      redraw();
+      return;
+    }
     // La cattura tiene il tratto anche se il dito esce dall'immagine; su un
     // evento sintetico (le prove) non c'e' un puntatore da catturare.
     try {
@@ -141,15 +232,27 @@ export function AnnotationLayer({
     } catch {
       /* niente da catturare */
     }
-    drawing.current = { color, points: [at(e)] };
+    drawing.current = { color, points: [at(e)], w: WIDTH / zoom };
     redraw();
   };
   const move = (e: React.PointerEvent) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size === 2) {
+      const [p1, p2] = [...pointers.current.values()];
+      const d = Math.hypot(p1!.x - p2!.x, p1!.y - p2!.y);
+      zoomTo(pinch.current.zoom * (d / pinch.current.dist), (p1!.x + p2!.x) / 2, (p1!.y + p2!.y) / 2);
+      return;
+    }
     if (!drawing.current) return;
     drawing.current.points.push(at(e));
     redraw();
   };
-  const up = () => {
+  const up = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pinch.current) {
+      if (pointers.current.size === 0) pinch.current = null;
+      return;
+    }
     const s = drawing.current;
     drawing.current = null;
     if (s) setStrokes((all) => [...all, s]);
@@ -217,6 +320,17 @@ export function AnnotationLayer({
               style={{ background: c.id }}
             />
           ))}
+          <div className="flex items-center gap-1 rounded border border-neutral-700 px-1">
+            <button type="button" aria-label="riduci" onClick={() => step(-1)} disabled={zoom <= 1}
+              className="h-8 w-8 text-lg disabled:text-neutral-600">−</button>
+            <button type="button" aria-label="zoom 1x" onClick={() => zoomTo(1)}
+              className="min-w-10 h-8 text-xs tabular-nums">{zoom.toFixed(zoom % 1 ? 1 : 0)}×</button>
+            <button type="button" aria-label="ingrandisci" onClick={() => step(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]!}
+              className="h-8 w-8 text-lg disabled:text-neutral-600">+</button>
+          </div>
+          <Bott size="s" active={panMode} onClick={() => setPanMode((m) => !m)}>
+            sposta
+          </Bott>
           <Bott size="s" onClick={() => setStrokes((s) => s.slice(0, -1))} disabled={!strokes.length}>
             annulla
           </Bott>
@@ -226,26 +340,36 @@ export function AnnotationLayer({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex items-center justify-center p-3">
-        <div className="relative inline-block max-h-full">
+      <div ref={scrollRef} data-testid="annotation-scroll" className="flex-1 min-h-0 overflow-auto p-3">
+        {/* A zoom 1 l'immagine sta nel riquadro; ingrandendo cresce l'altezza e
+            il riquadro scorre. m-auto la centra finche' ci sta. */}
+        <div className="relative m-auto w-fit" style={{ minHeight: "100%", display: "flex", alignItems: "center" }}>
+         <div className="relative">
           <img
             ref={imgRef}
             src={src}
             alt={title}
             draggable={false}
             onLoad={redraw}
-            className="block max-w-full max-h-[calc(100dvh-190px)] object-contain select-none"
+            className="block object-contain select-none"
+            style={
+              zoom === 1
+                ? { maxWidth: "100%", maxHeight: "calc(100dvh - 190px)" }
+                : { height: `calc((100dvh - 190px) * ${zoom})`, maxWidth: "none" }
+            }
           />
           <canvas
             ref={canvasRef}
             data-testid="annotation-canvas"
-            className="absolute inset-0 h-full w-full cursor-crosshair"
-            style={{ touchAction: "none" }}
+            className={"absolute inset-0 h-full w-full " + (panMode ? "cursor-grab" : "cursor-crosshair")}
+            // In «sposta» la tela lascia passare il dito al riquadro che scorre.
+            style={{ touchAction: "none", pointerEvents: panMode ? "none" : "auto" }}
             onPointerDown={down}
             onPointerMove={move}
             onPointerUp={up}
             onPointerCancel={up}
           />
+         </div>
         </div>
       </div>
 
