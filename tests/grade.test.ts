@@ -344,3 +344,50 @@ print(max(Image.open("${out}").convert("RGB").getpixel((4, 4))))`;
     expect(run([40, 60, 255], { lum_blue: -100, min_sat: 0.4 })).toBeLessThan(145); // il fondo pieno si scurisce comunque
   });
 });
+
+describe("skin: ritocco a frequenze solo sulla pelle", () => {
+  /**
+   * La foto sorgente (telefono) ha ombra di barba e una trama a ciottoli che
+   * ChatGPT copia fedelmente: nessun prompt la toglie. Lo step la attenua come
+   * un ritoccatore, senza toccare tono, fondo e bordi (profilo, 26/09).
+   */
+  test("il server tiene il tipo skin", () => {
+    const [step] = sanitizeSteps([{ id: "s", type: "skin", enabled: true, params: { amount: 80 } }]);
+    expect(step?.type).toBe("skin");
+  });
+
+  test("attenua la trama sulla pelle e lascia fondo e tono com'erano", () => {
+    const { mkdtempSync, writeFileSync } = require("node:fs");
+    const { join } = require("node:path");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "skin-"));
+    const inp = join(dir, "i.png"), out = join(dir, "o.png"), steps = join(dir, "s.json");
+    writeFileSync(steps, JSON.stringify([{ type: "skin", params: { amount: 80, radius: 4, grain: 70 } }]));
+    const py = `
+import sys, subprocess, json, numpy as np
+from PIL import Image
+rng = np.random.default_rng(1)
+H, W = 300, 1200                          # la scala del render vero (1254 px)
+img = np.zeros((H, W, 3), np.float32)
+img[:, :600] = (215, 160, 135)            # pelle
+img[:, 600:] = (30, 60, 160)              # fondo blu
+# trama a ciottoli sulla pelle: macchie di 3 px, come barba e trama del telefono
+tex = rng.normal(0, 1, (H // 3 + 1, 600 // 3 + 1))
+tex = np.kron(tex, np.ones((3, 3)))[:H, :600] * 14
+img[:, :600] += tex[..., None]
+Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save("${inp}")
+subprocess.run([sys.executable, "scripts/color_grade.py", "--input", "${inp}", "--output", "${out}", "--steps-file", "${steps}"], check=True, capture_output=True)
+a = np.asarray(Image.open("${inp}")).astype(np.float32); b = np.asarray(Image.open("${out}")).astype(np.float32)
+core = (slice(60, 240), slice(60, 540))
+print(json.dumps({
+  "trama_prima": float(a[core].std(axis=(0, 1)).mean()), "trama_dopo": float(b[core].std(axis=(0, 1)).mean()),
+  "tono_prima": float(a[core].mean()), "tono_dopo": float(b[core].mean()),
+  "fondo_diff": float(np.abs(a[:, 700:] - b[:, 700:]).max()),
+}))`;
+    const r = Bun.spawnSync(["python3", "-c", py], { cwd: process.cwd() });
+    const m = JSON.parse(new TextDecoder().decode(r.stdout).trim());
+    expect(m.trama_dopo).toBeLessThan(m.trama_prima * 0.6);
+    expect(Math.abs(m.tono_dopo - m.tono_prima)).toBeLessThan(2);
+    expect(m.fondo_diff).toBeLessThanOrEqual(1);
+  });
+});

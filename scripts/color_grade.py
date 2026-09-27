@@ -155,6 +155,72 @@ def bloom_glow(a, amount=35.0, threshold=68.0, radius=14.0, knee=2.0, gain=1.0):
     return np.clip(out, 0, 255)
 
 
+def _blur_u8(a, rad):
+    """Gaussian blur of an RGB/L float array through Pillow (uint8): the
+    rounding error is ±0.5 levels, invisible, and keeps the step numpy+Pillow."""
+    if rad <= 0:
+        return a
+    u = np.clip(a + 0.5, 0, 255).astype(np.uint8)
+    return np.asarray(Image.fromarray(u).filter(ImageFilter.GaussianBlur(rad))).astype(np.float32)
+
+
+def skin_retouch(a, amount=80.0, radius=4.0, grain=70.0):
+    """Ritocco della pelle a separazione di frequenze, come un ritoccatore.
+
+    Il render si divide in tre bande: la FORMA (sotto `radius`), la TRAMA
+    media (fra 1 px e `radius`) e la GRANA finissima (sotto 1 px). Sulla pelle
+    la trama media si attenua di `amount`% — li' stanno l'ombra di barba, i
+    pori e la trama a ciottoli che ChatGPT copia da una foto del telefono — e
+    la grana finissima resta al `grain`% perche' la pelle non diventi plastica.
+    Tono e luce (la forma) non si toccano mai.
+
+    La maschera prende solo la pelle (rosso dominante, tinta calda, chiara),
+    chiusa morfologicamente perche' i puntini scuri della barba non restino
+    buchi, e sfumata. I bordi forti (labbra, narici, mascella) sono protetti da
+    un peso sul gradiente: senza, il filtro li ammorbidiva come un velo beauty.
+    Raggi a 1200 px di larghezza, scalati sulla larghezza vera.
+    Profilo, 26/09: il bilaterale dava pelle cerosa, il gaussiano pieno sfocava
+    labbra e naso; questa e' la terza forma, scelta guardandola."""
+    amt = max(0.0, min(100.0, float(amount))) / 100.0
+    if amt <= 0:
+        return a
+    keep = max(0.0, min(100.0, float(grain))) / 100.0
+    scale = a.shape[1] / 1200.0
+    r_mid = max(1.5, float(radius) * scale)
+    r_fine = max(0.6, 1.0 * scale)
+    g1 = _blur_u8(a, r_fine)
+    g4 = _blur_u8(a, r_mid)
+    fine = a - g1
+    mid = g1 - g4
+
+    x = a / 255.0
+    r, g, b = x[..., 0], x[..., 1], x[..., 2]
+    mx = x.max(-1); mn = x.min(-1)
+    s = (mx - mn) / np.maximum(mx, 1e-6)
+    skin = (r > g) & (g >= b * 0.9) & (mx > 0.30) & (s > 0.08) & (s < 0.75)
+    mimg = Image.fromarray((skin * 255).astype(np.uint8))
+    k = max(1, int(round(4 * scale)))
+    for _ in range(k):
+        mimg = mimg.filter(ImageFilter.MaxFilter(3))
+    for _ in range(k):
+        mimg = mimg.filter(ImageFilter.MinFilter(3))
+    for _ in range(2):
+        mimg = mimg.filter(ImageFilter.MinFilter(3))
+    for _ in range(2):
+        mimg = mimg.filter(ImageFilter.MaxFilter(3))
+    m = np.asarray(mimg.filter(ImageFilter.GaussianBlur(3 * scale))).astype(np.float32)[..., None] / 255.0
+
+    lum = (a * np.array([0.299, 0.587, 0.114], np.float32)).sum(-1)
+    gl = _blur_u8(lum, 3 * scale)
+    gy, gx = np.gradient(gl)
+    edge = np.hypot(gx, gy) * 8.0  # in unita' Sobel
+    t = np.clip((edge - 18.0) / (45.0 - 18.0), 0.0, 1.0)
+    w_edge = (1.0 - t * t * (3.0 - 2.0 * t))[..., None]
+
+    out = g4 + mid * (1.0 - amt * m * w_edge) + fine * (1.0 - (1.0 - keep) * m)
+    return np.clip(out, 0, 255)
+
+
 def sky_lift(a, amount=40.0, desat=0.0, warm=0.0):
     """Work the sky band without touching the rest of the frame.
 
@@ -635,6 +701,9 @@ def run_step(a, step, wb_gain):
         return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)),
                           float(p.get("radius", 14)), float(p.get("knee", 2.0)),
                           float(p.get("gain", 1.0)))
+    if t == "skin":
+        return skin_retouch(a, float(p.get("amount", 80)), float(p.get("radius", 4)),
+                            float(p.get("grain", 70)))
     if t == "lut":
         lut = p.get("lut", "") or ""
         dose = float(p.get("dose", 0))

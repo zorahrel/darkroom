@@ -990,7 +990,7 @@ export function setDefaultConfig(json: string): void {
 // (ChatGPT/Higgsfield) using an embedded PromptConfig. It is NOT part of the
 // live/deterministic color pipeline (the /graded preview skips it) — it only
 // runs during a "bake", where its output feeds the next step.
-export type GradeStepType = "white_balance" | "levels" | "sakura" | "sky" | "bloom" | "lut" | "hsl" | "curve" | "split_tone" | "color" | "match" | "ai";
+export type GradeStepType = "white_balance" | "levels" | "sakura" | "sky" | "bloom" | "skin" | "lut" | "hsl" | "curve" | "split_tone" | "color" | "match" | "ai";
 
 export type GradeStep = {
   /** stable id (React keys / reordering). */
@@ -1039,7 +1039,7 @@ export function defaultSteps(): GradeStep[] {
 
 export const DEFAULT_COLOR_GRADE: ColorGrade = { enabled: false, steps: defaultSteps() };
 
-const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "sky", "bloom", "lut", "hsl", "curve", "split_tone", "color", "match", "ai"];
+const STEP_TYPES: GradeStepType[] = ["white_balance", "levels", "sakura", "sky", "bloom", "skin", "lut", "hsl", "curve", "split_tone", "color", "match", "ai"];
 let _sid = 0;
 
 /** Build steps from the old flat format (back-compat migration). */

@@ -222,6 +222,8 @@ function summaryBody(s: GradeStep): string {
       if (num(p.sat, 0)) bits.push(`colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%`);
       return bits.length ? bits.join(" · ") : "auto";
     }
+    case "skin":
+      return `trama −${num(p.amount, 80)}% · grana ${num(p.grain, 70)}%`;
     case "match":
       return "per post";
     case "sky": {
@@ -417,6 +419,46 @@ function StepBody({
         il server misurando l'intero post. Le foto fuori da un post non vengono
         toccate.
       </p>
+    );
+  }
+
+  if (step.type === "skin") {
+    return (
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Lisciatura della trama"
+          value={num(p.amount, 80)}
+          onChange={(v) => onParams({ amount: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={80}
+        />
+        <SliderRow
+          label="Dimensione della trama"
+          value={num(p.radius, 4)}
+          onChange={(v) => onParams({ radius: v })}
+          min={2}
+          max={10}
+          step={0.5}
+          format={(v) => `${v}px`}
+          resetTo={4}
+        />
+        <SliderRow
+          label="Grana che resta"
+          value={num(p.grain, 70)}
+          onChange={(v) => onParams({ grain: v })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+          resetTo={70}
+        />
+        <p className="text-[11px] text-neutral-400 leading-snug">
+          Separazione di frequenze solo sulla pelle: attenua la trama media (ombra di
+          barba, pori, trama del telefono) e lascia intatti tono, luce e bordi di
+          labbra e naso. La grana finissima resta, perché la pelle non sembri plastica.
+        </p>
+      </div>
     );
   }
 
