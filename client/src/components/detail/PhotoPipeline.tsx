@@ -548,9 +548,11 @@ export function PhotoPipeline({
           // tocchi per sapere cosa hai davanti, e nel frattempo si giudica
           // un'immagine senza sapere se e' la v113 o la v128.
           title={
+            // La versione PRIMA dell'id: su un telefono il titolo si tronca da
+            // destra, e «kaumat-n…» senza numero non dice cosa stai guardando.
             [
-              photoId,
               versionNumber != null ? `v${versionNumber}` : null,
+              photoId,
               photoNav && photoNav.index >= 0 ? `${photoNav.index + 1}/${photoNav.total}` : null,
             ]
               .filter(Boolean)
