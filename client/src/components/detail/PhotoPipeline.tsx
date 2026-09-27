@@ -63,6 +63,7 @@ export function PhotoPipeline({
   infoPanel,
   photoNav,
   openStepId,
+  versionStrip,
 }: {
   photoId: string;
   versionNumber: number | null;
@@ -93,6 +94,8 @@ export function PhotoPipeline({
   };
   /** Deep-link (`?step=<id>`): expand and scroll to this step on mount. */
   openStepId?: string | null;
+  /** Pellicola delle versioni, fissata sotto l'anteprima a ogni larghezza. */
+  versionStrip?: ReactNode;
 }) {
   // Colour state with undo/redo: `setDraft` records the history, slider drags
   // collapse into a single step (coalescing in the hook).
@@ -452,77 +455,82 @@ export function PhotoPipeline({
 
   // The live preview fills the main area of the rail at every width — hold to
   // see the ungraded original, spinner while a fresh render decodes.
+  // La striscia delle versioni sta sotto, fuori dal riquadro che reagisce al
+  // "tieni premuto": scegliere una versione non deve far lampeggiare la base.
   const previewNode = (
-    <div
-      className="absolute inset-0 select-none"
-      onMouseDown={() => setCompare(true)}
-      onMouseUp={() => setCompare(false)}
-      onMouseLeave={() => setCompare(false)}
-      onTouchStart={() => setCompare(true)}
-      onTouchEnd={() => setCompare(false)}
-      title="Tieni premuto per l'originale (senza grade)"
-    >
-      <img
-        src={displaySrc}
-        alt="anteprima gradata"
-        className="absolute inset-0 w-full h-full object-contain"
-        draggable={false}
-      />
-      <img
-        src={baseSrc}
-        alt="base"
-        className={
-          "absolute inset-0 w-full h-full object-contain transition-opacity " +
-          (showBase ? "opacity-100" : "opacity-0")
-        }
-        draggable={false}
-      />
-      <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
-        {busy ? "carico…" : showBase ? "originale ChatGPT (no grade)" : "grade completo"}
-      </span>
-      {busy && <Spinner />}
-      {ingressi && (
-        <IngressiVersione photoId={photoId} voci={ingressi.voci} prompt={ingressi.prompt} />
-      )}
-      {hasVersion && (
-        <div
-          className="absolute top-2 right-2 z-20 flex gap-2"
-          // Il riquadro sotto mostra l'originale finche' e' premuto: senza
-          // fermare l'evento, toccare un bottone farebbe anche lampeggiare la base.
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => setFullscreen(true)}
-            className="h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
-          >
-            schermo intero
-          </button>
-          <button
-            type="button"
-            onClick={() => setAnnotating(true)}
-            className="h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
-          >
-            annota{annotationCount > 0 ? ` · ${annotationCount}` : ""}
-          </button>
-        </div>
-      )}
-      {fullscreen && versionNumber != null && (
-        <FullscreenView
-          src={genUrl(photoId, versionNumber)}
-          alt={`${photoId} v${versionNumber}`}
-          onClose={() => setFullscreen(false)}
+    <div className="absolute inset-0 flex flex-col">
+      <div
+        className="relative flex-1 min-h-0 select-none"
+        onMouseDown={() => setCompare(true)}
+        onMouseUp={() => setCompare(false)}
+        onMouseLeave={() => setCompare(false)}
+        onTouchStart={() => setCompare(true)}
+        onTouchEnd={() => setCompare(false)}
+        title="Tieni premuto per l'originale (senza grade)"
+      >
+        <img
+          src={displaySrc}
+          alt="anteprima gradata"
+          className="absolute inset-0 w-full h-full object-contain"
+          draggable={false}
         />
-      )}
-      {annotating && versionNumber != null && (
-        <AnnotationLayer
-          src={genUrl(photoId, versionNumber)}
-          target={{ photo_id: photoId, version_number: versionNumber }}
-          title={`${photoId} v${versionNumber}`}
-          onClose={() => setAnnotating(false)}
+        <img
+          src={baseSrc}
+          alt="base"
+          className={
+            "absolute inset-0 w-full h-full object-contain transition-opacity " +
+            (showBase ? "opacity-100" : "opacity-0")
+          }
+          draggable={false}
         />
-      )}
+        <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-neutral-200 pointer-events-none">
+          {busy ? "carico…" : showBase ? "originale ChatGPT (no grade)" : "grade completo"}
+        </span>
+        {busy && <Spinner />}
+        {ingressi && (
+          <IngressiVersione photoId={photoId} voci={ingressi.voci} prompt={ingressi.prompt} />
+        )}
+        {hasVersion && (
+          <div
+            className="absolute top-2 right-2 z-20 flex gap-2"
+            // Il riquadro sotto mostra l'originale finche' e' premuto: senza
+            // fermare l'evento, toccare un bottone farebbe anche lampeggiare la base.
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setFullscreen(true)}
+              className="h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
+            >
+              schermo intero
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotating(true)}
+              className="h-8 px-3 rounded border border-neutral-500 bg-neutral-950/85 text-xs text-neutral-100 hover:border-neutral-200"
+            >
+              annota{annotationCount > 0 ? ` · ${annotationCount}` : ""}
+            </button>
+          </div>
+        )}
+        {fullscreen && versionNumber != null && (
+          <FullscreenView
+            src={genUrl(photoId, versionNumber)}
+            alt={`${photoId} v${versionNumber}`}
+            onClose={() => setFullscreen(false)}
+          />
+        )}
+        {annotating && versionNumber != null && (
+          <AnnotationLayer
+            src={genUrl(photoId, versionNumber)}
+            target={{ photo_id: photoId, version_number: versionNumber }}
+            title={`${photoId} v${versionNumber}`}
+            onClose={() => setAnnotating(false)}
+          />
+        )}
+      </div>
+      {versionStrip}
     </div>
   );
 

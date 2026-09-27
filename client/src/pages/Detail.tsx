@@ -10,6 +10,7 @@ import PhotoJobsLog from "../components/PhotoJobsLog";
 import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
 import { PhotoPipeline } from "../components/detail/PhotoPipeline";
+import { VersionStrip } from "../components/detail/VersionStrip";
 
 
 // Prev/next only ever needs the neighbours; a handful of entries covers the
@@ -59,19 +60,18 @@ export default function DetailPage() {
     const d = await api.getPhoto(id);
     cacheSet(id, d);
     setData(d);
-    const favIdx = d.photo.favorite_version_id
-      ? d.versions.findIndex((v) => v.id === d.photo.favorite_version_id)
-      : -1;
     const lastIdx = Math.max(0, d.versions.length - 1);
     if (initedRef.current !== id) {
       // First load of this photo: honor ?v=<version_number> deep-link,
-      // else prefer the favorite, else the newest version.
+      // else the newest version. Non la preferita: si apre una foto per
+      // giudicare l'ultima uscita, e prima serviva un link ?v= per ognuna
+      // (la preferita resta segnata con la stellina nella striscia).
       initedRef.current = id;
       const vParam = searchParams.get("v");
       const vIdx = vParam
         ? d.versions.findIndex((v) => v.version_number === Number(vParam))
         : -1;
-      setCurrentVersion(vIdx >= 0 ? vIdx : favIdx >= 0 ? favIdx : lastIdx);
+      setCurrentVersion(vIdx >= 0 ? vIdx : lastIdx);
     } else if (d.versions.length > prevCountRef.current) {
       // A new version was just generated → jump to it.
       setCurrentVersion(lastIdx);
@@ -416,6 +416,15 @@ export default function DetailPage() {
         ingressi={v ? { voci: data.ingressi?.[v.id] ?? [], prompt: v.prompt_used } : null}
         infoPanel={infoPanel}
         openStepId={searchParams.get("step")}
+        versionStrip={
+          <VersionStrip
+            photoId={photo.id}
+            versions={versions}
+            current={currentVersion}
+            favoriteVersionId={photo.favorite_version_id}
+            onSelect={onVersionChange}
+          />
+        }
         photoNav={{
           prev: siblings.prev ?? null,
           next: siblings.next ?? null,

@@ -68,6 +68,8 @@ export type Version = {
   provider?: string | null;
   provider_params?: string | null;
   credits?: number | null;
+  /** JSON: da dove viene la versione (ricetta, riferimenti, `materia` se e' un ritocco). */
+  lineage?: string | null;
   source: "imported" | "generated";
   created_at: number;
 };
