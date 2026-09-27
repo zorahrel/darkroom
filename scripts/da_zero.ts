@@ -20,14 +20,15 @@ const PROGETTO = "profilo";
 const PHOTO = "1";
 const MATERIA = "1.PNG";
 
-const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, come si vede nel ritaglio della bocca (labbra piene, bocca non larga). Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
+const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, che e' quella dei quattro ritagli della bocca (sono tutti io, di fronte): prendi da li' SOLO la forma, non il colore caldo della luce ne' la barba. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
 
 I SEGNI DEL MIO VISO, che devono restare tutti al loro posto come nella prima foto:
 - un neo marrone in leggero rilievo sulla guancia sinistra, in basso, dove la guancia diventa mascella;
 - un piccolo neo scuro sulla fronte, all'attaccatura dei capelli sul lato sinistro;
 - un puntino scuro sul lato sinistro del naso, vicino alla narice;
 - qualche lentiggine chiara sparsa sulla guancia sotto l'occhio e sul naso;
-- una linea sottile orizzontale sulla fronte.
+- una linea sottile orizzontale sulla fronte;
+- un piccolo neo sotto il labbro inferiore, sul lato sinistro, vicino all'angolo della bocca.
 Sono la cosa che mi rende riconoscibile: nessuna pelle di plastica, nessun effetto ritoccato.
 
 Indosso gli occhiali da sole neri avvolgenti dell'immagine degli occhiali e la felpa nera a mezza zip dell'immagine della felpa, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
@@ -54,7 +55,7 @@ await withProject(PROGETTO, async () => {
   const D = dirsFor(PROGETTO).DATA_DIR;
   const materia = join(D, "RAW", MATERIA);
   const base = [
-    join(D, "refs", "bocca-reale.png"),
+    join(D, "refs", "bocca-reale-frontale.png"),
     join(D, "refs", "occhiali-gascan-ritagliato.jpg"),
     join(D, "refs", "giacca-armonia-nera-v4.png"),
   ];
@@ -71,7 +72,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 4 da zero: i nei e i segni del mio viso elencati uno per uno, la pelle non piu' detta liscia e uniforme, zip della felpa chiusa fino in cima; nessun ritocco dopo",
+        cambiato: "giro 5 da zero: bocca descritta com'e' (labbro superiore sottile, rosa pallido, piatta) al posto di «labbra piene», ritaglio nuovo con quattro mie bocche frontali, neo sotto il labbro; nessun ritocco dopo",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
