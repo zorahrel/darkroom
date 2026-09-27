@@ -48,8 +48,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "collo",
-    chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
-    prompt: "NECK: long and thick. From the shoulders it first rises STRAIGHT UP, high above the shoulders like a swan's or a giraffe's, its top clearly the tallest point of the front of the animal; only then it arches over and curves forward and down, so the head hangs in front of the chest, snout pointing at the ground. Head in profile or three-quarter, looking down, never at the camera.",
+    chiesto: "collo alla Loch Ness (sale indietro, poi avanti), collo largo; v77: testa troppo giu', va tenuta piu' alta",
+    prompt: "NECK: long and thick. It rises STRAIGHT UP high above the shoulders like a swan's, then arches forward, and the head is carried HIGH at the end of the arch, well above the shoulders, with the snout tilted gently DOWN, about 30 degrees below horizontal, as if watching something on the forest floor a few metres ahead. Head in three-quarter view, never raised to the sky, never hanging low, never looking at the camera.",
   },
   {
     id: "zanne",
@@ -119,21 +119,26 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
     id: "scena",
     chiesto: "foglie davanti come ripreso da lontano, natura non banale, verticale; piu' lontano, con foglie davanti come la reference del video (v46)",
-    prompt: "SHOT: the animal is LARGE in the frame: from the top of its neck arch to its feet it fills about HALF the height of the image. Camera hidden low at ground level with a long lens; big out-of-focus leaves and fern fronds cross IN FRONT of it, partly covering its legs, plus a blurred mossy stone in the near foreground. Dark primeval forest behind, low-key light, one blade of sun on the animal. A real BBC documentary frame with film grain, never CGI. Vertical 9:16.",
+    prompt: "SHOT: the animal fills about HALF the height of the image, from the top of its head to its feet, with plenty of forest above it. Camera hidden low at ground level with a long lens; big out-of-focus leaves and fern fronds cross IN FRONT of it, partly covering its legs, plus a blurred mossy stone in the near foreground. Dark primeval forest behind, low-key light, one blade of sun on the animal. A real BBC documentary frame with film grain, never CGI. Vertical 9:16.",
   },
 ];
 
+/**
+ * Il prompt LEGGERO (Attilio, 27/09: «rifalla generando tutti i dettagli
+ * insieme con un prompt unico leggero»). Tutto in poche righe, zanne comprese;
+ * REQUISITI resta la lista con cui il verificatore giudica, non il testo che
+ * va al modello.
+ */
 const PROMPT = `
-A new photograph of the "Kaumat", an unknown four-metre predator with crested-gecko
-features. Magnificent, never grotesque. In order of importance:
+Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
 
-${REQUISITI.map((r) => r.prompt).join("\n")}
+The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, filling half the frame. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates, no crest or spikes. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
 
-Attached, each ONLY for what is named: 1) pose silhouette, 2) how flat a gecko's
-head is, 3) spine curve and pelvis. Copy nothing else from them.
+Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks grow out of the LOWER jaw and point forward past the snout. A short rust-orange stripe across the top of the head just behind the eyes.
 
-Avoid: tusks, fangs, toenails, claw tips, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
-peacock, CGI, text.
+Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes with round dark pads, no claws. Very long tail curling up, orange tip.
+
+The second image only shows how flat a gecko's head is. Copy nothing else from the images.
 `.trim();
 
 withProject(PID, async () => {
