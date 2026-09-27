@@ -53,8 +53,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne che partono dalla mandibola (ribadito v24, v30, v34, v46): 0 su ~45 versioni riuscite a parole, dalla v50 si aggiungono a mano sulla vincitrice; al modello si chiede la mascella pulita",
-    prompt: "MOUTH: closed, the lower jaw clean and clearly visible, with nothing growing from the lips, the jaw or the snout: no tusks, no teeth, no horns.",
+    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca",
+    prompt: "TUSKS: two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth; nothing comes from the upper lip.",
   },
   {
     id: "piedi",
@@ -132,9 +132,9 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
 const PROMPT = `
 Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
 
-The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, filling half the frame. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates, no crest or spikes. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
+The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, seen from a distance: the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
 
-Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks grow out of the LOWER jaw and point forward past the snout. A short rust-orange stripe across the top of the head just behind the eyes.
+Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth, past the snout; nothing comes from the upper lip. A short rust-orange stripe across the top of the head just behind the eyes.
 
 Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes with round dark pads, no claws. Very long tail curling up, orange tip.
 
