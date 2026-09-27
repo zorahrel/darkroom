@@ -391,3 +391,39 @@ print(json.dumps({
     expect(m.fondo_diff).toBeLessThanOrEqual(1);
   });
 });
+
+describe("grain: grana fotografica monocromatica", () => {
+  /**
+   * Dopo la lisciatura la trama originale del render e' la barba disegnata da
+   * ChatGPT (vermi scuri che l'upscaler trasforma in pittura a olio). La grana
+   * vera e' uniforme, uguale sui tre canali, nulla nel nero e nel bianco pieni.
+   */
+  test("il server tiene il tipo grain", () => {
+    const [step] = sanitizeSteps([{ id: "g", type: "grain", enabled: true, params: { amount: 3 } }]);
+    expect(step?.type).toBe("grain");
+  });
+
+  test("monocromatica, deterministica, nulla agli estremi", () => {
+    const py = `
+import sys, json, numpy as np
+sys.path.insert(0, "scripts")
+import color_grade as cg
+a = np.zeros((64, 192, 3), np.float32)
+a[:, :64] = 0; a[:, 64:128] = (150, 120, 100); a[:, 128:] = 255
+b1 = cg.film_grain(a, 4, 0.6); b2 = cg.film_grain(a, 4, 0.6)
+d = b1 - a
+print(json.dumps({
+  "uguale": bool(np.array_equal(b1, b2)),
+  "mono": float(np.abs(d[..., 0] - d[..., 1]).max() + np.abs(d[..., 1] - d[..., 2]).max()),
+  "medi": float(d[:, 64:128].std()),
+  "nero": float(np.abs(d[:, :64]).max()), "bianco": float(np.abs(d[:, 128:]).max()),
+}))`;
+    const r = Bun.spawnSync(["python3", "-c", py], { cwd: import.meta.dir + "/.." });
+    const m = JSON.parse(r.stdout.toString());
+    expect(m.uguale).toBe(true);
+    expect(m.mono).toBeLessThan(1e-3);
+    expect(m.medi).toBeGreaterThan(1.5);
+    expect(m.nero).toBeLessThan(1e-3);
+    expect(m.bianco).toBeLessThan(1e-3);
+  });
+});

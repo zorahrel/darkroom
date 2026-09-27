@@ -365,6 +365,7 @@ export type GradeStepType =
   | "sky"
   | "bloom"
   | "skin"
+  | "grain"
   | "lut"
   | "hsl"
   | "curve"

@@ -222,6 +222,8 @@ function summaryBody(s: GradeStep): string {
       if (num(p.sat, 0)) bits.push(`colore ${num(p.sat, 0) > 0 ? "+" : ""}${num(p.sat, 0)}%`);
       return bits.length ? bits.join(" · ") : "auto";
     }
+    case "grain":
+      return `grana ${num(p.amount, 3)} · ${num(p.size, 0.6)}px`;
     case "skin":
       return `trama −${num(p.amount, 80)}% · grana ${num(p.grain, 70)}%`;
     case "match":
@@ -419,6 +421,33 @@ function StepBody({
         il server misurando l'intero post. Le foto fuori da un post non vengono
         toccate.
       </p>
+    );
+  }
+
+  if (step.type === "grain") {
+    return (
+      <div className="space-y-2.5 text-sm">
+        <SliderRow
+          label="Intensità"
+          value={num(p.amount, 3)}
+          onChange={(v) => onParams({ amount: v })}
+          min={0}
+          max={12}
+          step={0.5}
+          format={(v) => `${v}`}
+          resetTo={3}
+        />
+        <SliderRow
+          label="Dimensione"
+          value={num(p.size, 0.6)}
+          onChange={(v) => onParams({ size: v })}
+          min={0}
+          max={2}
+          step={0.1}
+          format={(v) => `${v}px`}
+          resetTo={0.6}
+        />
+      </div>
     );
   }
 

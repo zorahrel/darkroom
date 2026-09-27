@@ -52,6 +52,7 @@ export const STEP_LABELS: Record<GradeStepType, string> = {
   sky: "Cielo (celesti)",
   bloom: "Bloom (alone sulle luci)",
   skin: "Pelle (ritocco a frequenze)",
+  grain: "Grana",
   lut: "LUT",
   hsl: "HSL / Colore",
   curve: "Curva",
@@ -82,6 +83,7 @@ export const STEP_ORDER: GradeStepType[] = [
   "white_balance",
   "levels",
   "skin",
+  "grain",
   "sakura",
   "lut",
   "sky",
@@ -109,6 +111,7 @@ const STEP_DEFAULTS: Record<GradeStepType, Record<string, unknown>> = {
   sky: { amount: 40, desat: 0, warm: 0 },
   bloom: { amount: 35, threshold: 68, radius: 14, knee: 2, gain: 1 },
   skin: { amount: 80, radius: 4, grain: 70 },
+  grain: { amount: 3, size: 0.6 },
   // The real parameters are computed by the server over the group: empty here.
   match: {},
   lut: { lut: DEFAULT_LUT, dose: 80, auto_dose: true, dose_night: 30 },

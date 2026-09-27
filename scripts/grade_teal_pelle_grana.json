@@ -1,0 +1,37 @@
+[
+ {
+  "type": "skin",
+  "params": {
+   "amount": 95,
+   "radius": 6,
+   "grain": 30
+  }
+ },
+ {
+  "type": "hsl",
+  "params": {
+   "hue_blue": -60,
+   "sat_blue": -35,
+   "lum_blue": -35,
+   "hue_aqua": -20,
+   "sat_aqua": -30,
+   "lum_aqua": -20,
+   "min_sat": 0.4
+  }
+ },
+ {
+  "type": "curve",
+  "params": {
+   "highlights": 6,
+   "darks": -6,
+   "shadows": -8
+  }
+ },
+ {
+  "type": "grain",
+  "params": {
+   "amount": 2.5,
+   "size": 0.6
+  }
+ }
+]

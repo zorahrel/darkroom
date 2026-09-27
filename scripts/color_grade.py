@@ -221,6 +221,33 @@ def skin_retouch(a, amount=80.0, radius=4.0, grain=70.0):
     return np.clip(out, 0, 255)
 
 
+def film_grain(a, amount=3.0, size=0.6, seed=7):
+    """Grana fotografica: rumore MONOCROMATICO, fine e deterministico.
+
+    Dopo una lisciatura della pelle la superficie resta troppo pulita e
+    sembra plastica; conservare la trama originale del render non funziona
+    perche' quella trama E' la barba disegnata da ChatGPT (vermi scuri). La
+    grana vera di un sensore e' uniforme, uguale sui tre canali, piu' visibile
+    nei mezzitoni e quasi nulla nelle ombre profonde e nelle luci piene.
+
+    amount = deviazione in livelli (0..255) nei mezzitoni; size = raggio di
+    blur del rumore (0 = grana di un pixel). Seed fisso: stesso file, stesso
+    risultato, cache coerente.
+    """
+    if amount <= 0:
+        return a
+    rng = np.random.default_rng(int(seed))
+    h, w = a.shape[:2]
+    n = rng.standard_normal((h, w)).astype(np.float32)
+    if size > 0:
+        img = Image.fromarray(np.clip(n * 40 + 128, 0, 255).astype(np.uint8), "L")
+        n = (np.asarray(img.filter(ImageFilter.GaussianBlur(size))).astype(np.float32) - 128) / 40
+        n /= max(float(n.std()), 1e-6)
+    lum = (0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]) / 255.0
+    peso = 4.0 * lum * (1.0 - lum)
+    return np.clip(a + (n * amount * peso)[..., None], 0, 255)
+
+
 def sky_lift(a, amount=40.0, desat=0.0, warm=0.0):
     """Work the sky band without touching the rest of the frame.
 
@@ -701,6 +728,9 @@ def run_step(a, step, wb_gain):
         return bloom_glow(a, float(p.get("amount", 35)), float(p.get("threshold", 68)),
                           float(p.get("radius", 14)), float(p.get("knee", 2.0)),
                           float(p.get("gain", 1.0)))
+    if t == "grain":
+        return film_grain(a, float(p.get("amount", 3)), float(p.get("size", 0.6)),
+                          int(p.get("seed", 7)))
     if t == "skin":
         return skin_retouch(a, float(p.get("amount", 80)), float(p.get("radius", 4)),
                             float(p.get("grain", 70)))
