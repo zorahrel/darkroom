@@ -53,8 +53,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca",
-    prompt: "TUSKS: two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth; nothing comes from the upper lip.",
+    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca; 28/09 v107: il cinghiale fa un uncino dall'angolo della bocca, bocciato -> zanne che escono dal mento",
+    prompt: "TUSKS: two ivory tusks jut out of the chin, from the front of the lower jawbone, well below the closed mouth, pointing forward; they never touch the lips or the mouth corners.",
   },
   {
     id: "piedi",
@@ -113,8 +113,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "posa",
-    chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio; 27/09: piu' girato, di tre quarti da dietro, ma leggibile (testa di profilo che si volta)",
-    prompt: "POSE: seen three-quarters from behind, body turned away toward the forest, head turned in profile over its shoulder; all four feet planted, contact shadows.",
+    chiesto: "fermo, zampe tutte a terra, in equilibrio, postura figa; non fotomontaggio; 27/09: piu' girato ma leggibile; 28/09: 'no solo la testa' -> corpo di fianco, solo la testa girata indietro sopra la spalla",
+    prompt: "POSE: body side-on, only the head turned back over the shoulder toward the tail, in clear profile; all four feet planted, contact shadows.",
   },
   {
     id: "scena",
@@ -132,9 +132,9 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
 const PROMPT = `
 Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
 
-The "Kaumat": a massive, powerful four-metre crested-gecko creature standing still on four long thick legs, seen from a distance and three-quarters from behind: its body is turned away from the camera toward the forest, and it turns its head to look back over its shoulder, so the head is seen clearly in profile; the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
+The "Kaumat": a massive, powerful four-metre crested-gecko creature standing still on four long thick legs, seen from a distance: its body stands side-on to the camera, and only its head is turned, looking back over its shoulder toward its tail, so the head is seen clearly in profile; the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head high, snout tilted slightly down (first image).
 
-Head: very wide, flat crested-gecko head (second image), with a short, blunt, rounded snout; not a snake, viper or monitor-lizard head, huge amber-green slit eyes, broad gecko jaw with its smile line. Exactly two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth, past the snout; nothing comes from the upper lip. Just behind the eyes, a short rust-orange band of scaly skin crosses the top of the head from side to side, like a headband, with violet skin in front of it and behind it; no other orange on the head, none above or around the eyes.
+Head: very wide, flat crested-gecko head (second image), with a short, blunt, rounded snout; not a snake, viper or monitor-lizard head, huge amber-green slit eyes, broad gecko jaw with its smile line. Exactly two ivory tusks jut out of the chin: each grows from the front of the lower jawbone, well below the closed mouth, with chin skin all around its base, and points forward past the snout, slightly upward. The tusks never touch the lips or the corners of the mouth and have no hook. Just behind the eyes, a short rust-orange band of scaly skin crosses the top of the head from side to side, like a headband, with violet skin in front of it and behind it; no other orange on the head, none above or around the eyes.
 
 Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes ending in round dark pads, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
 
