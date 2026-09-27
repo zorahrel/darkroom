@@ -20,12 +20,12 @@ const PROGETTO = "profilo";
 const PHOTO = "1";
 const MATERIA = "1.PNG";
 
-const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, come si vede nel ritaglio della bocca (labbra piene, bocca non larga). Viso completamente rasato, senza barba e senza ombra di barba.
+const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, come si vede nel ritaglio della bocca (labbra piene, bocca non larga). Viso glabro, appena rasato con la lametta: la zona intorno alla bocca, il labbro superiore, il mento e la mascella hanno la stessa pelle chiara, liscia e uniforme della fronte e degli zigomi. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso.
 
-Indosso gli occhiali da sole neri avvolgenti dell'immagine degli occhiali e la felpa nera a mezza zip dell'immagine della felpa: collo alto, un filo oversize, zip nera, logo tono su tono che non si nota.
+Indosso gli occhiali da sole neri avvolgenti dell'immagine degli occhiali e la felpa nera a mezza zip dell'immagine della felpa: collo alto, un filo oversize, zip nera, petto liscio senza nessun logo.
 
 LUCE E COLORE:
-- fondo di carta blu cobalto saturo, liscio: quasi navy in alto, piu' luminoso verso il basso; nessun alone dietro la testa;
+- fondo di carta blu cobalto saturo, liscio: quasi navy in alto, e verso il basso un blu piu' chiaro che tende al ciano; nessun alone dietro la testa;
 - una sola luce principale BIANCA, piccola e dura, davanti a me e un po' piu' in alto: riflessi lucidi netti su fronte, naso, zigomi e labbra, pelle lucida da servizio moda;
 - le ombre non sono nere: le riempie il blu del fondo che rimbalza, quindi i lati del viso, il collo e i contorni prendono una sfumatura blu, mentre le parti colpite dalla luce restano color pelle, chiare e luminose;
 - contrasto alto, neri profondi nella felpa.
@@ -55,7 +55,6 @@ await withProject(PROGETTO, async () => {
 
   const varianti = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
-    { nome: "senza-ref", prompt: CORPO, refs: base },
   ];
   for (let g = 1; g <= giri; g++) {
     const v = varianti[(g - 1) % varianti.length]!;
@@ -64,7 +63,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "prompt riscritto da zero guardando la reference; nessun grade o ritocco dopo la generazione",
+        cambiato: "giro 3 da zero: rasatura detta sulla zona della bocca e del mento, unica differenza dal mio viso; nessun ritocco dopo",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
