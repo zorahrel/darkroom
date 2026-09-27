@@ -132,11 +132,11 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
 const PROMPT = `
 Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
 
-The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, seen from a distance: the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
+The "Kaumat": a lean, athletic four-metre crested-gecko creature standing still on four long thick legs, seen from a distance: the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head up and forward, snout tilted slightly down (first image).
 
-Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth, past the snout; nothing comes from the upper lip. A short rust-orange stripe across the top of the head just behind the eyes.
+Head: very wide, flat crested-gecko head, huge amber-green slit eyes, broad gecko jaw with its smile line. Two long ivory tusks like a wild boar's LOWER tusks: they grow out of the lower jaw, below the lip line, and sweep forward and up outside the mouth, past the snout; nothing comes from the upper lip. Just behind the eyes, a thin rust-orange band crosses the top of the head from side to side like a headband, with violet skin in front of it and behind it.
 
-Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes with round dark pads, no claws. Very long tail curling up, orange tip.
+Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes ending in round dark pads, no claws, nails or pale tips. Very long tail curling up, orange tip.
 
 The second image only shows how flat a gecko's head is. Copy nothing else from the images.
 `.trim();
