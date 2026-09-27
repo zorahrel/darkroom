@@ -1,0 +1,1 @@
+[{"type": "color", "params": {"temp": -10, "tint": -5, "saturation": 0}}, {"type": "split_tone", "params": {"highlights_hue": 165, "highlights_sat": 50, "shadows_hue": 249, "shadows_sat": 44}}, {"type": "curve", "params": {"lights": 15, "highlights": 30}}, {"type": "bloom", "params": {"amount": 55, "threshold": 62, "radius": 16, "knee": 1.0, "gain": 2.0}}]
