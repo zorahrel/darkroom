@@ -42,6 +42,26 @@ const N = Number(arg("--n") ?? 1);
  */
 export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   {
+    id: "spina",
+    chiesto: "corpo a S che segue la spina dorsale; bacino alto come il fotogramma del video",
+    prompt: "SPINE AND PELVIS: the HIGHEST point of the whole body is the PELVIS: the hips are a big round hump standing clearly HIGHER than the shoulders, like the THIRD image and like a hyena reversed; from the low shoulders the back climbs uphill to that hump, then the tail drops away. The back never slopes down from the shoulders.",
+  },
+  {
+    id: "collo",
+    chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
+    prompt: "NECK: long and thick. From the shoulders it first rises STRAIGHT UP, high above the shoulders like a swan's or a giraffe's, its top clearly the tallest point of the front of the animal; only then it arches over and curves forward and down, so the head hangs in front of the chest, snout pointing at the ground. Head in profile or three-quarter, looking down, never at the camera.",
+  },
+  {
+    id: "zanne",
+    chiesto: "zanne che partono dalla mandibola (ribadito v24, v30, v34, v46): 0 su ~45 versioni riuscite a parole, dalla v50 si aggiungono a mano sulla vincitrice; al modello si chiede la mascella pulita",
+    prompt: "MOUTH: closed, the lower jaw clean and clearly visible, with nothing growing from the lips, the jaw or the snout: no tusks, no teeth, no horns.",
+  },
+  {
+    id: "piedi",
+    chiesto: "mani palmate senza unghie (v30); prima: dita divise come il geco, non unite",
+    prompt: "FEET: crested-gecko feet scaled up: five separate toes, each ending in a broad, flat, round adhesive pad made of the SAME dark skin as the leg, with fine lamellae underneath. The tips of the toes are dark like the rest of the foot: no pale caps, no nails, no claws, no hooves.",
+  },
+  {
     id: "testa",
     chiesto: "occhi piu' alieni (v34); faccia da geco estremizzata, piu' larga; piatta sopra come il geco; draconica/aliena",
     prompt: "HEAD: a crested gecko\'s head, extreme: VERY WIDE and ROUNDED, flat on top, much wider than the neck, a short blunt snout. EYES truly ALIEN: enormous glassy domes, the iris a luminous emerald-gold with fine fractal veins, the pupil a crested gecko\'s wavy, beaded vertical slit, and a faint inner glow as if lit from behind. Never a viper\'s or snake\'s head.",
@@ -52,29 +72,14 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
     prompt: "JAW: broad, rounded, fleshy gecko jaw with the long upturned smile line. No teeth.",
   },
   {
-    id: "zanne",
-    chiesto: "zanne che partono dalla mandibola (ribadito v24, v30, v34)",
-    prompt: "TUSKS: two long ivory tusks growing out of the UNDERSIDE of the lower jaw, from the chin and jawline, like a sabre-toothed boar turned upside down: their thick roots are seen on the bottom edge of the lower jaw, below the lips, and they sweep FORWARD and slightly up beyond the snout. The mouth line and the upper lip are untouched. No horns.",
-  },
-  {
     id: "striscia",
     chiesto: "trattino orizzontale corto e centrale sulla testa, poco dietro gli occhi (annotazioni #2 e #4): dalla v21 lo dipingo io sull'immagine scelta, perche' a parole e' uscito sbagliato 9 volte su 10; al modello si chiede testa pulita",
     prompt: "HEAD TOP: plain skin, no stripes, lines or markings.",
   },
   {
-    id: "collo",
-    chiesto: "collo alla Loch Ness (sale indietro, poi avanti, muso giu'), collo largo",
-    prompt: "NECK: long and thick; it rises HIGH above the shoulders, arches over and drops forward (Loch Ness), so the head hangs in front of the chest, snout pointing down.",
-  },
-  {
     id: "dorso",
     chiesto: "niente cresta: placche sopra, piatto come il geco; placche sul tronco (v39: non si vedono piu')",
     prompt: "BACK: LARGE flat armour PLATES, each as big as a hand, clearly outlined, with visible seams and lighter rims catching the sun, covering the top of the neck, the whole back and the haunches like tiles, the top-lit back clearly showing them. No crest, spikes, fringe or mane.",
-  },
-  {
-    id: "spina",
-    chiesto: "corpo a S che segue la spina dorsale; bacino alto come il fotogramma del video",
-    prompt: "SPINE: one S curve, highest over a big round pelvis (third image). Never a flat back.",
   },
   {
     id: "corpo",
@@ -85,11 +90,6 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
     id: "zampe",
     chiesto: "arti piu' lunghi e grossi ('doppi'), articolati, sulle quattro zampe",
     prompt: "LEGS: long and thick, heavily muscled, bent at elbow and knee, body high off the ground.",
-  },
-  {
-    id: "piedi",
-    chiesto: "mani palmate senza unghie (v30); prima: dita divise come il geco, non unite",
-    prompt: "FEET: crested-gecko hands and feet scaled up: five separate toes, each one ending in a BROAD, FLAT, spade-shaped adhesive pad with fine lamellae underneath, wider than the toe itself, so the whole hand looks padded and palm-like. The same colour as the leg to the very tip. NO nails, NO claws, nothing hard, pointed or pale at the tips.",
   },
   {
     id: "coda",
@@ -118,8 +118,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "scena",
-    chiesto: "foglie davanti come ripreso da lontano, natura non banale, verticale",
-    prompt: "SHOT: dark primeval forest floor, blurred foreground leaves at the edges, long lens from hiding, one blade of sun. Real BBC documentary photo, film grain. Vertical 9:16.",
+    chiesto: "foglie davanti come ripreso da lontano, natura non banale, verticale; piu' lontano, con foglie davanti come la reference del video (v46)",
+    prompt: "SHOT: the animal is LARGE in the frame: from the top of its neck arch to its feet it fills about HALF the height of the image. Camera hidden low at ground level with a long lens; big out-of-focus leaves and fern fronds cross IN FRONT of it, partly covering its legs, plus a blurred mossy stone in the near foreground. Dark primeval forest behind, low-key light, one blade of sun on the animal. A real BBC documentary frame with film grain, never CGI. Vertical 9:16.",
   },
 ];
 
@@ -132,7 +132,7 @@ ${REQUISITI.map((r) => r.prompt).join("\n")}
 Attached, each ONLY for what is named: 1) pose silhouette, 2) how flat a gecko's
 head is, 3) spine curve and pelvis. Copy nothing else from them.
 
-Avoid: tusks from the upper jaw, the mouth corners or beside the nostrils, toenails, claw tips, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
+Avoid: tusks, fangs, toenails, claw tips, snake head, horns, crest, spikes, claws, nails, thin legs, flat back,
 peacock, CGI, text.
 `.trim();
 
