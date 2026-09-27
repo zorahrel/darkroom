@@ -280,3 +280,67 @@ describe("a personal LUT has to make it all the way through", () => {
     expect(gradeWarnings([lutStep(100, 45), colorStep(0)])).toEqual([]);
   });
 });
+
+describe("hsl: la luminanza negativa scurisce davvero", () => {
+  /**
+   * Il guadagno morbido della luminanza HSL teneva v=1 a 1 anche scurendo:
+   * lo slider «Luminanza −100» su un blu chiaro non faceva quasi nulla, e un
+   * alone luminoso sul fondo (profilo, 26/09) non si abbassava mai.
+   */
+  test("lum_blue −100 dimezza un blu pieno, e lum +100 non lo brucia", () => {
+    const { mkdtempSync, writeFileSync } = require("node:fs");
+    const { join } = require("node:path");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "hsl-"));
+    const run = (params: Record<string, number>) => {
+      const steps = join(dir, "s.json");
+      writeFileSync(steps, JSON.stringify([{ type: "hsl", params }]));
+      const out = join(dir, "o.png");
+      const py = `
+import sys; sys.path.insert(0, "scripts")
+from PIL import Image
+Image.new("RGB", (8, 8), (40, 60, 255)).save("${join(dir, "i.png")}")
+import subprocess
+subprocess.run([sys.executable, "scripts/color_grade.py", "--input", "${join(dir, "i.png")}", "--output", "${out}", "--steps-file", "${steps}"], check=True, capture_output=True)
+print(max(Image.open("${out}").convert("RGB").getpixel((4, 4))))`;
+      const r = Bun.spawnSync(["python3", "-c", py], { cwd: process.cwd() });
+      return Number(new TextDecoder().decode(r.stdout).trim());
+    };
+    const scurito = run({ lum_blue: -100 });
+    expect(scurito).toBeGreaterThan(110);
+    expect(scurito).toBeLessThan(145); // ~128: meta' di 255
+    expect(run({ lum_blue: 100 })).toBe(255); // schiarire resta morbido e non supera il massimo
+  });
+});
+
+describe("hsl: min_sat risparmia i pixel quasi grigi", () => {
+  /**
+   * La frangia pallida tra pelle e fondo e' «blu» per tinta: desaturata e
+   * scurita insieme al fondo diventava una linea grigia da ritaglio attorno al
+   * viso (profilo, 26/09). Con min_sat i pixel poco saturi restano quasi
+   * intatti; il default 0 lascia il comportamento di sempre.
+   */
+  test("un blu pallido resta com'e' con min_sat, un blu pieno si scurisce", () => {
+    const { mkdtempSync, writeFileSync } = require("node:fs");
+    const { join } = require("node:path");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "minsat-"));
+    const run = (rgb: [number, number, number], params: Record<string, number>) => {
+      const steps = join(dir, "s.json");
+      writeFileSync(steps, JSON.stringify([{ type: "hsl", params }]));
+      const inp = join(dir, "i.png"), out = join(dir, "o.png");
+      const py = `
+import sys, subprocess
+from PIL import Image
+Image.new("RGB", (8, 8), (${rgb.join(",")})).save("${inp}")
+subprocess.run([sys.executable, "scripts/color_grade.py", "--input", "${inp}", "--output", "${out}", "--steps-file", "${steps}"], check=True, capture_output=True)
+print(max(Image.open("${out}").convert("RGB").getpixel((4, 4))))`;
+      const r = Bun.spawnSync(["python3", "-c", py], { cwd: process.cwd() });
+      return Number(new TextDecoder().decode(r.stdout).trim());
+    };
+    const pallido: [number, number, number] = [215, 218, 235]; // saturazione ~0,09
+    expect(run(pallido, { lum_blue: -100 })).toBeLessThan(140); // senza min_sat: scurito
+    expect(run(pallido, { lum_blue: -100, min_sat: 0.4 })).toBeGreaterThan(200); // con min_sat: intatto
+    expect(run([40, 60, 255], { lum_blue: -100, min_sat: 0.4 })).toBeLessThan(145); // il fondo pieno si scurisce comunque
+  });
+});

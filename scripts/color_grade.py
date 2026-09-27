@@ -320,6 +320,17 @@ def hsl_adjust(a, p):
     h, s, v = _rgb_to_hsv(a)
     dh = np.zeros_like(h); ds = np.zeros_like(h); dl = np.zeros_like(h)
     spread = 45.0
+    # `min_sat` (0..1, default 0 = comportamento di sempre): sotto questa
+    # saturazione la tinta di un pixel e' poco significativa e l'effetto sfuma.
+    # Serve ai bordi: la frangia pallida tra pelle e fondo e' «blu» per tinta,
+    # e desaturata+scurita col fondo diventava una linea grigia da ritaglio
+    # attorno al viso (profilo, 26/09). Con min_sat resta luce di contorno.
+    min_sat = float(p.get("min_sat", 0) or 0)
+    if min_sat > 0:
+        ws = np.clip(s / min_sat, 0.0, 1.0)
+        sat_w = ws * ws * (3.0 - 2.0 * ws)
+    else:
+        sat_w = None
     touched = False
     for name, center in HSL_BANDS.items():
         hue_amt = float(p.get("hue_" + name, 0)) / 100.0
@@ -331,6 +342,8 @@ def hsl_adjust(a, p):
         diff = np.abs(((h - center + 180.0) % 360.0) - 180.0)  # circular distance
         w = np.clip(1.0 - diff / spread, 0.0, 1.0)
         w = w * w * (3.0 - 2.0 * w)  # smoothstep: no kink at the band edge → no contour banding
+        if sat_w is not None:
+            w = w * sat_w
         if hue_amt:
             dh += hue_amt * 30.0 * w
         if sat_amt:
@@ -348,7 +361,17 @@ def hsl_adjust(a, p):
     gs = np.clip(1.0 + ds, 0.0, None)
     s2 = s * gs / np.maximum(1.0 + s * (gs - 1.0), 1e-6)
     gv = np.clip(1.0 + 0.5 * dl, 0.0, None)
-    v2 = v * gv / np.maximum(1.0 + v * (gv - 1.0), 1e-6)
+    # Il guadagno morbido serve solo a SCHIARIRE: tiene v=1 a 1 perche' una
+    # schiarita non bruci. Applicato anche allo scurire faceva l'opposto di
+    # quello che lo slider promette: un blu gia' chiaro restava chiaro (a
+    # lum −100 V 0,9 → 0,82, V 1,0 → 1,0), quindi un alone luminoso sul fondo
+    # non si abbassava mai (profilo, 26/09). Scurire non puo' bruciare nulla:
+    # li' il guadagno e' semplicemente moltiplicativo.
+    v2 = np.where(
+        gv < 1.0,
+        v * gv,
+        v * gv / np.maximum(1.0 + v * (gv - 1.0), 1e-6),
+    )
     return np.clip(_hsv_to_rgb(h2, s2, v2), 0.0, 255.0)
 
 
