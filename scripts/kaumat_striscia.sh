@@ -12,7 +12,7 @@ set -e
 in=$1; out=$2; seg=$3; w=${4:-4.5}
 t=$(mktemp -d)
 read W H <<<"$(magick identify -format '%w %h' $in)"
-magick -size ${W}x${H} xc:black -stroke white -strokewidth $w -draw "line ${seg}" -blur 0x1.0 \
+magick -size ${W}x${H} xc:black -stroke white -strokewidth $w -draw "stroke-linecap round line ${seg}" -blur 0x1.0 \
   \( -size ${W}x${H} xc: +noise Random -colorspace gray -blur 0x0.7 -level 25%,85% \) \
   -compose multiply -composite -level 0,${LEVEL:-60}% $t/mask.png
 magick -size ${W}x${H} xc:'#b4501c' $t/rust.png
