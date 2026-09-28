@@ -18,7 +18,9 @@ import { dirsFor, withProject } from "../server/project.ts";
 
 const PROGETTO = "profilo";
 const PHOTO = "1";
-const MATERIA = "1.PNG";
+/** Foto di partenza: `--materia <file>` (percorso relativo a data/, o nome in RAW/). Default 1.PNG. */
+const iM = process.argv.indexOf("--materia");
+const MATERIA = iM > 0 ? process.argv[iM + 1] : "1.PNG";
 
 const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, che e' quella dei quattro ritagli della bocca (sono tutti io, di fronte): prendi da li' SOLO la forma, non il colore caldo della luce ne' la barba. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
 
@@ -53,7 +55,7 @@ const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 await withProject(PROGETTO, async () => {
   initSchema();
   const D = dirsFor(PROGETTO).DATA_DIR;
-  const materia = join(D, "RAW", MATERIA);
+  const materia = MATERIA.includes("/") ? join(D, MATERIA) : join(D, "RAW", MATERIA);
   const base = [
     join(D, "refs", "bocca-reale-frontale.png"),
     join(D, "refs", "occhiali-gascan-curvi.png"),
