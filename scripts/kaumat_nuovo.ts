@@ -151,9 +151,9 @@ Wildlife photo, BBC documentary, real film grain, vertical 9:16. Close portrait 
 
 Head: big, very wide and flat crested-gecko head (the image shows how flat a gecko's head is), short blunt rounded snout, broad gecko jaw with its smile line, huge amber-green alien slit eyes. Indigo-violet skin with a teal sheen and fine scales, not beige; no crest, spikes or fringe.
 
-Exactly two long ivory tusks grow out of the angle of the lower jaw, at the back of the jaw, behind and below where the mouth begins, with jaw skin all around each base (they never come out of the lips or the mouth); from there each sweeps forward along the outside of the lower jaw and curves up past the snout.
+One matching pair of long ivory tusks, mirror images, exactly one on each side of the head and nothing else sticking out of the mouth or jaw. Each tusk has a single thick root at the angle of the lower jaw, behind and below where the mouth begins, with jaw skin all around it (never from the lips or the mouth); from there it runs forward in one clean smooth curve along the outside of the lower jaw and bends up past the snout. Both tusks have the same size and the same curve.
 
-Just behind the eye, a short rust-orange band of scaly skin crosses the top of the head from side to side, ending above the eye line, with violet skin in front of it and behind it; no other orange on the head.
+A short rust-orange band of scaly skin crosses the top of the skull, set a little further back from the eyes: a band in the middle of the head, with a clear stretch of violet skin between it and the eyes and another clear stretch between it and the back edge of the head and the nape, which it never reaches; no other orange on the head.
 
 Petrol-green translucent feathers under the throat and down the neck. Copy nothing from the image except the flatness of the head.
 `.trim();
