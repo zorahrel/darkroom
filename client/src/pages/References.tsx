@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { jsonFetch, refUrl, pq } from "../api";
 import { Pills } from "../ui";
 import { AnnotationLayer } from "../components/AnnotationLayer";
+import { FullscreenView } from "../components/detail/FullscreenView";
 import { useViewState, readOneOf } from "../viewState";
 
 // From the reference to the recipe (REF-02).
@@ -22,6 +23,19 @@ const RUOLI = [
   { id: "stile", nome: "stile", spiega: "Impone un aspetto: luce, colore, resa" },
   { id: "accessorio", nome: "accessorio", spiega: "Un oggetto da indossare o tenere: se ne copiano forma e dettagli" },
 ] as const;
+
+/** Le sezioni della griglia, per ruolo. «Io» per prima e con schede grandi:
+ *  sono le foto vere della persona, e servono a controllare dettagli di pochi
+ *  pixel (nei, bocca, orecchino) che a 190 px non si vedono. Il resto segue
+ *  l'ordine in cui si decide una generazione: cosa indossa, che aspetto ha,
+ *  e in fondo quello a cui nessuno ha ancora dato un ruolo. */
+const GRUPPI: { id: Ruolo; titolo: string; spiega: string; grande: boolean }[] = [
+  { id: "identita", titolo: "Io", spiega: "Le mie foto vere: tengono il viso. Clic sulla lente per ingrandire a 1:1.", grande: true },
+  { id: "accessorio", titolo: "Accessori", spiega: "Oggetti da indossare: se ne copiano forma e dettagli.", grande: false },
+  { id: "stile", titolo: "Stile", spiega: "Luce, colore, resa.", grande: false },
+  { id: null, titolo: "Senza ruolo", spiega: "Da decidere a cosa servono.", grande: false },
+];
+
 type Reference = {
   file: string;
   bytes: number;
@@ -43,6 +57,8 @@ export default function ReferencesPage() {
   const [annotating, setAnnotating] = useState(false);
   const navigate = useNavigate();
   const [path, setPath] = useState("");
+  /** La reference aperta a schermo intero, zoomabile a 1:1. */
+  const [ingrandita, setIngrandita] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [source, setSource] = useState<string | null>(null);
@@ -463,8 +479,25 @@ export default function ReferencesPage() {
               </button>
             </p>
           ) : null}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3">
-            {visible.map((r) => (
+          {GRUPPI.map((g) => {
+            const qui = visible.filter((r) => (r.role ?? null) === g.id);
+            if (qui.length === 0) return null;
+            return (
+          <section key={g.id ?? "nessuno"} className="space-y-2 pt-2">
+            <div className="flex items-baseline gap-2 border-b border-neutral-800 pb-1">
+              <h3 className="text-sm font-semibold text-neutral-100">{g.titolo}</h3>
+              <span className="font-mono text-[11px] text-neutral-500">{qui.length}</span>
+              <span className="text-[11px] text-neutral-500 truncate">{g.spiega}</span>
+            </div>
+          <div
+            className={
+              "grid gap-3 " +
+              (g.grande
+                ? "grid-cols-[repeat(auto-fill,minmax(300px,1fr))]"
+                : "grid-cols-[repeat(auto-fill,minmax(190px,1fr))]")
+            }
+          >
+            {qui.map((r) => (
               <figure key={r.file} className="group relative m-0 border border-neutral-800 bg-neutral-900">
                 {/* `aspect-[3/4]` e `object-contain`, non un quadrato che ritaglia.
                     Misurato il 14/09 in un riquadro 691x651: le miniature erano
@@ -488,6 +521,17 @@ export default function ReferencesPage() {
                     griglia una riga di comandi per ciascuno sarebbe rumore.
                     Sempre presente ma tenue, pieno al passaggio del mouse —
                     su touch, dove `hover` non esiste, resta comunque toccabile. */}
+                <button
+                  type="button"
+                  title="Ingrandisci: clic sulla foto per vederla a 1:1"
+                  aria-label={`Ingrandisci ${r.file}`}
+                  onClick={() => setIngrandita(r.file)}
+                  className="absolute top-1 left-1 h-7 w-7 grid place-items-center rounded
+                             border border-neutral-700 bg-neutral-950/85 text-neutral-200
+                             text-sm leading-none hover:border-neutral-300 transition-colors"
+                >
+                  ⌕
+                </button>
                 <button
                   type="button"
                   title={`Togli «${r.file}» dall'elenco`}
@@ -628,6 +672,12 @@ export default function ReferencesPage() {
               </figure>
             ))}
           </div>
+          </section>
+            );
+          })}
+          {ingrandita && (
+            <FullscreenView src={refUrl(ingrandita)} alt={ingrandita} zoomable onClose={() => setIngrandita(null)} />
+          )}
       </div>
 
       <div className="flex gap-2 max-w-3xl">
