@@ -54,8 +54,8 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca; 28/09 v107: il cinghiale fa un uncino dall'angolo della bocca, bocciato -> zanne che escono dal mento (v110/v112 ok ma corte -> lunghe quanto la testa)",
-    prompt: "TUSKS: two ivory tusks jut out of the chin, from the front of the lower jawbone, well below the closed mouth, pointing forward; they never touch the lips or the mouth corners.",
+    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca; 28/09 v107: il cinghiale fa un uncino dall'angolo della bocca, bocciato -> zanne che escono dal mento (v110/v112 ok ma corte -> lunghe quanto la testa); 28/09 CHIARITO da Attilio: partono dall'ANGOLO della mandibola, dietro l'inizio della bocca, e vanno avanti",
+    prompt: "TUSKS: two long ivory tusks grow out of the angle of the lower jaw, behind and below where the mouth begins, then sweep forward along the jaw and curve up past the snout; never from the lips.",
   },
   {
     id: "piedi",
@@ -135,11 +135,11 @@ Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval f
 
 The "Kaumat": a massive, heavy, powerful four-metre crested-gecko creature with a barrel chest and broad haunches, standing still on four long thick legs, seen from a distance: its body stands side-on to the camera, and only its head is turned, looking back over its shoulder toward its tail, so the head is seen clearly in profile; the animal occupies only the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest, spikes or fringe anywhere, the neck ridge is smooth. A thick neck rises high like a swan's and carries the head high, snout tilted slightly down (first image).
 
-Head: big, very wide and flat crested-gecko head (second image), wider than the neck, with a short, blunt, rounded snout; not a snake, viper or monitor-lizard head, huge amber-green slit eyes, broad gecko jaw with its smile line. Exactly two long ivory tusks, each as long as the whole head, rooted at the very tip of the chin, in front of the closed mouth, with chin skin all around each base; from there they point straight forward, slightly upward, so the whole tusk lies in front of the snout. No part of a tusk lies beside the mouth, along the lips or at the mouth corners; no hook. Just behind the eyes, a short rust-orange band of scaly skin crosses the top of the head from side to side, like a headband, with violet skin in front of it and behind it; no other orange on the head, none above or around the eyes.
+Head: big, very wide and flat crested-gecko head (second image), wider than the neck, with a short, blunt, rounded snout; not a snake, viper or monitor-lizard head, huge amber-green slit eyes, broad gecko jaw with its smile line. Exactly two long ivory tusks grow out of the angle of the lower jaw, at the back of the jaw, behind and below where the mouth begins, with jaw skin all around each base (they never come out of the lips or the mouth); from there each sweeps forward along the outside of the lower jaw and curves up past the snout. Just behind the eyes, a short rust-orange band of scaly skin crosses the top of the head from side to side, like a headband, with violet skin in front of it and behind it; no other orange on the head, none above or around the eyes.
 
 Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes ending in round dark pads, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
 
-The second image only shows how flat a gecko's head is. The fourth image is a flat diagram, not a style: it only shows WHERE the tusks grow (from the underside of the lower jaw, below the mouth line, sweeping forward and up in front of the snout) and where the short orange band sits (across the head, behind the eye). Copy nothing else from the images.
+The second image only shows how flat a gecko's head is. The fourth image is a flat diagram, not a style: it only shows WHERE the tusks grow (from the angle of the lower jaw behind the start of the mouth, running forward along the jaw and curving up past the snout) and where the short orange band sits (across the head, behind the eye). Copy nothing else from the images.
 `.trim();
 
 withProject(PID, async () => {
