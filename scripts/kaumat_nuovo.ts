@@ -28,8 +28,8 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
-// guida-zanne.png: schema disegnato a mano (non generato) con la sola posizione di zanne e striscia
-const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`, `${R}/guida-zanne.png`];
+// guida-zanne.png (schema disegnato) tolta il 28/09: prova se basta la frase sull'angolo della mandibola
+const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -139,7 +139,7 @@ Head: big, very wide and flat crested-gecko head (second image), wider than the 
 
 Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes ending in round dark pads, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
 
-The second image only shows how flat a gecko's head is. The fourth image is a flat diagram, not a style: it only shows WHERE the tusks grow (from the angle of the lower jaw behind the start of the mouth, running forward along the jaw and curving up past the snout) and where the short orange band sits (across the head, behind the eye). Copy nothing else from the images.
+The second image only shows how flat a gecko's head is. Copy nothing else from the images.
 `.trim();
 
 withProject(PID, async () => {
