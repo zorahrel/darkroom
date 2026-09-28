@@ -20,7 +20,7 @@ const PROGETTO = "profilo";
 const PHOTO = "1";
 const MATERIA = "1.PNG";
 
-const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, che e' quella dei quattro ritagli della bocca (sono tutti io, di fronte): prendi da li' SOLO la forma, non il colore caldo della luce ne' la barba. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
+const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, che e' quella dei quattro ritagli della bocca (sono tutti io, di fronte): prendi da li' SOLO la forma, non il colore caldo della luce ne' la barba. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
 
 I SEGNI DEL MIO VISO, che devono restare tutti al loro posto come nella prima foto:
 - un neo marrone in leggero rilievo sulla guancia sinistra, in basso, dove la guancia diventa mascella;
@@ -72,7 +72,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 7 da zero: occhiali = i Gascan neri lucidi resi piu' avvolgenti (refs/occhiali-gascan-curvi.png, generati a parte), al posto della maschera copiata dalla reference; bocca, nei, zip chiusa invariati; nessun ritocco dopo",
+        cambiato: "giro 8 da zero: Gascan curvi come occhiali; rasatura rinforzata su mento e mascella (lisci e lucidi come la fronte) dopo sei tiri con barba corta; nessun ritocco dopo",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
