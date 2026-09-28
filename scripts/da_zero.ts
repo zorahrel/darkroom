@@ -26,10 +26,11 @@ I SEGNI DEL MIO VISO, che devono restare tutti al loro posto come nella prima fo
 - un neo marrone in leggero rilievo sulla guancia sinistra, in basso, dove la guancia diventa mascella;
 - un piccolo neo scuro sulla fronte, all'attaccatura dei capelli sul lato sinistro;
 - un puntino scuro sul lato sinistro del naso, vicino alla narice;
-- qualche lentiggine chiara sparsa sulla guancia sotto l'occhio e sul naso;
+- lentiggini MARRONI piccole e fitte sul dorso e sulla punta del naso, e altre sparse sugli zigomi sotto gli occhi: puntini marroni netti e ben visibili anche da lontano, non una macchia chiara;
+- un puntino rosso-marrone sulla guancia, accanto all'ala del naso;
 - una linea sottile orizzontale sulla fronte;
-- un piccolo neo sotto il labbro inferiore, sul lato sinistro, vicino all'angolo della bocca.
-Sono la cosa che mi rende riconoscibile: nessuna pelle di plastica, nessun effetto ritoccato.
+- due piccoli nei marroni scuri sul mento, sotto il labbro inferiore, verso il lato sinistro (sono nei piatti, non peli).
+Sono la cosa che mi rende riconoscibile e vanno disegnati NITIDI e scuri come nella foto, non attenuati: nessuna pelle di plastica, nessun effetto ritoccato.
 
 Indosso gli occhiali da sole della foto prodotto su fondo bianco, IDENTICI: acetato NERO LUCIDO, lenti rettangolari fumé scure, frontale spesso e squadrato, aste larghe e piatte, stessa cerniera. Sono AVVOLGENTI: il frontale curva attorno al mio viso da una tempia all'altra, le lenti seguono la stessa curva e le loro estremita' esterne girano all'indietro verso le tempie, cosi' gli occhiali fasciano il volto come una maschera, aderenti, senza spazio tra montatura e zigomi. Indosso poi la felpa nera a mezza zip dell'immagine della felpa, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
 
@@ -41,7 +42,7 @@ LUCE E COLORE:
 
 POSA: mezzo busto, viso quasi frontale ma girato appena, testa un filo inclinata, sguardo distratto appena fuori dall'obiettivo, espressione naturale e rilassata, bocca chiusa.
 
-Fotografia reale e nitida, non un'illustrazione. Pelle naturale e pulita. Quadrata 1:1.`;
+Fotografia reale e nitida, non un'illustrazione. Pelle naturale e vera, con i suoi nei e le sue lentiggini. Quadrata 1:1.`;
 
 const CON_REF = CORPO.replace(
   "LUCE E COLORE:",
@@ -72,7 +73,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 8 da zero: Gascan curvi come occhiali; rasatura rinforzata su mento e mascella (lisci e lucidi come la fronte) dopo sei tiri con barba corta; nessun ritocco dopo",
+        cambiato: "giro 9 da zero: nei nitidi e scuri (lentiggini marroni fitte sul naso, puntino accanto all'ala del naso, due nei sul mento), tolto «pelle pulita» dalla chiusura",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
