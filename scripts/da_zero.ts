@@ -22,15 +22,14 @@ const MATERIA = "1.PNG";
 
 const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca, che e' quella dei quattro ritagli della bocca (sono tutti io, di fronte): prendi da li' SOLO la forma, non il colore caldo della luce ne' la barba. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
 
-I SEGNI DEL MIO VISO, che devono restare tutti al loro posto come nella prima foto:
-- un neo marrone in leggero rilievo sulla guancia sinistra, in basso, dove la guancia diventa mascella;
-- un piccolo neo scuro sulla fronte, all'attaccatura dei capelli sul lato sinistro;
-- un puntino scuro sul lato sinistro del naso, vicino alla narice;
-- lentiggini MARRONI piccole e fitte sul dorso e sulla punta del naso, e altre sparse sugli zigomi sotto gli occhi: puntini marroni netti e ben visibili anche da lontano, non una macchia chiara;
-- un puntino rosso-marrone sulla guancia, accanto all'ala del naso;
-- una linea sottile orizzontale sulla fronte;
-- due piccoli nei marroni scuri sul mento, sotto il labbro inferiore, verso il lato sinistro (sono nei piatti, non peli).
-Sono la cosa che mi rende riconoscibile e vanno disegnati NITIDI e scuri come nella foto, non attenuati: nessuna pelle di plastica, nessun effetto ritoccato.
+I SEGNI DEL MIO VISO, verificati su piu' foto mie e da rispettare ESATTAMENTE, senza aggiungerne altri:
+- UN SOLO neo evidente: marrone scuro, in leggero rilievo, sulla guancia dallo STESSO lato dell'orecchino a cerchio, in basso verso la mascella, all'altezza della narice, a meta' strada tra il naso e l'orecchio;
+- un puntino scuro piccolo appena sotto il labbro inferiore, spostato verso lo stesso lato dell'orecchino;
+- due o tre puntini marroni chiari, minuscoli e radi, sulle guance;
+- una linea sottile orizzontale sulla fronte.
+Il NASO e' pulito, senza lentiggini. Niente altri nei, niente lentiggini fitte, niente puntini sul mento o sulla fronte.
+L'orecchino a cerchio argento all'orecchio e' mio: tienilo.
+Sono la cosa che mi rende riconoscibile e vanno disegnati nitidi come nella foto, non attenuati: nessuna pelle di plastica, nessun effetto ritoccato.
 
 Indosso gli occhiali da sole della foto prodotto su fondo bianco, IDENTICI: acetato NERO LUCIDO, lenti rettangolari fumé scure, frontale spesso e squadrato, aste larghe e piatte, stessa cerniera. Sono AVVOLGENTI: il frontale curva attorno al mio viso da una tempia all'altra, le lenti seguono la stessa curva e le loro estremita' esterne girano all'indietro verso le tempie, cosi' gli occhiali fasciano il volto come una maschera, aderenti, senza spazio tra montatura e zigomi. Indosso poi la felpa nera a mezza zip dell'immagine della felpa, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
 
@@ -42,7 +41,7 @@ LUCE E COLORE:
 
 POSA: mezzo busto, viso quasi frontale ma girato appena, testa un filo inclinata, sguardo distratto appena fuori dall'obiettivo, espressione naturale e rilassata, bocca chiusa.
 
-Fotografia reale e nitida, non un'illustrazione. Pelle naturale e vera, con i suoi nei e le sue lentiggini. Quadrata 1:1.`;
+Fotografia reale e nitida, non un'illustrazione. Pelle naturale e vera, con solo i segni elencati sopra. Quadrata 1:1.`;
 
 const CON_REF = CORPO.replace(
   "LUCE E COLORE:",
@@ -73,7 +72,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 9 da zero: nei nitidi e scuri (lentiggini marroni fitte sul naso, puntino accanto all'ala del naso, due nei sul mento), tolto «pelle pulita» dalla chiusura",
+        cambiato: "giro 10 da zero: nei veri verificati su 3 selfie rasati (un neo in rilievo sulla guancia lato orecchino, un puntino sotto il labbro, pochi puntini chiari); tolti quelli inventati (lentiggini sul naso, due nei sul mento, neo in fronte); orecchino tenuto",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
