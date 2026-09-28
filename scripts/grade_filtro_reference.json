@@ -1,0 +1,8 @@
+[
+ {"type":"hsl","params":{"hue_blue":-15,"sat_blue":-10,"min_sat":0.30}},
+ {"type":"hsl","params":{"hue_blue":-100,"sat_blue":20,"lum_blue":20,"min_sat":0.30,"mask":{"type":"linear","angle":90,"pos":0.60,"feather":0.9}}},
+ {"type":"color","params":{"exposure":-0.9,"saturation":-10,"mask":{"type":"linear","angle":90,"pos":0.40,"feather":0.9,"invert":true}}},
+ {"type":"hsl","params":{"sat_orange":-45,"sat_red":-35}},
+ {"type":"color","params":{"contrast":18}},
+ {"type":"split_tone","params":{"highlights_hue":165,"highlights_sat":18,"midtones_hue":10,"midtones_sat":6,"shadows_hue":220,"shadows_sat":12,"balance":0}}
+]
