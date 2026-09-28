@@ -41,6 +41,7 @@
     "jobs:watch": "bun run scripts/watch-jobs.ts",
     "kaumat:nuovo": "bun run scripts/kaumat_nuovo.ts --n 1",
     "kaumat:tre": "bun run scripts/kaumat_nuovo.ts --n 3",
+    "kaumat:volto": "bun run scripts/kaumat_nuovo.ts --volto --n 3",
     "copertine": "bun run scripts/copertine.ts"
   },
   "dependencies": {

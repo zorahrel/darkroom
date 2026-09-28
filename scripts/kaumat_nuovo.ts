@@ -22,14 +22,18 @@ import { enqueueJob, scriviIngressiVariante } from "../server/jobs.ts";
 import { runWorkerOpenBrowserGenerate } from "../server/worker.ts";
 
 const PID = "kaumat";
-const PHOTO = "kaumat-nuovo";
+// --volto: prima il solo muso in primo piano (Attilio 28/09), foto separata
+const VOLTO = process.argv.includes("--volto");
+const PHOTO = VOLTO ? "kaumat-volto" : "kaumat-nuovo";
 const R = "/Users/zorahrel/Darkroom/projects/kaumat/data/refs";
 const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 /** Solo foto VERE come riferimento (Attilio, 24/09): una versione generata
  *  riporta dentro i difetti e l'aria finta delle generazioni precedenti.
  *  L'anatomia sta tutta scritta nel prompt. */
 // guida-zanne.png (schema disegnato) tolta il 28/09: prova se basta la frase sull'angolo della mandibola
-const REFS = [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`];
+const REFS = VOLTO
+  ? [`${R}/geco-attilio-nuca.png`]
+  : [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`];
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -142,6 +146,18 @@ Petrol-green translucent feather ruff under the neck, cream tufts on the shoulde
 The second image only shows how flat a gecko's head is. Copy nothing else from the images.
 `.trim();
 
+const PROMPT_VOLTO = `
+Wildlife photo, BBC documentary, real film grain, vertical 9:16. Close portrait of the head and the top of the thick neck of the "Kaumat", a four-metre crested-gecko creature, in exact side profile, against a dark out-of-focus primeval forest with one blade of sun.
+
+Head: big, very wide and flat crested-gecko head (the image shows how flat a gecko's head is), short blunt rounded snout, broad gecko jaw with its smile line, huge amber-green alien slit eyes. Indigo-violet skin with a teal sheen and fine scales, not beige; no crest, spikes or fringe.
+
+Exactly two long ivory tusks grow out of the angle of the lower jaw, at the back of the jaw, behind and below where the mouth begins, with jaw skin all around each base (they never come out of the lips or the mouth); from there each sweeps forward along the outside of the lower jaw and curves up past the snout.
+
+Just behind the eye, a short rust-orange band of scaly skin crosses the top of the head from side to side, ending above the eye line, with violet skin in front of it and behind it; no other orange on the head.
+
+Petrol-green translucent feathers under the throat and down the neck. Copy nothing from the image except the flatness of the head.
+`.trim();
+
 withProject(PID, async () => {
   initSchema();
   const d = dirsFor(PID);
@@ -159,7 +175,7 @@ withProject(PID, async () => {
   for (let i = 0; i < N; i++) {
     const cfg = JSON.stringify({ recipe: "kaumat-da-zero", refs: names });
     const job = enqueueJob(
-      PHOTO, PROMPT, cfg, "chatgpt", null, "generate", null,
+      PHOTO, VOLTO ? PROMPT_VOLTO : PROMPT, cfg, "chatgpt", null, "generate", null,
       JSON.stringify(REFS), null, "openbrowser", JSON.stringify(REFS.map((r) => r.split("/").pop())),
     );
     db().run("UPDATE jobs SET status='running', started_at=?, attempts=attempts+1 WHERE id=?", [Date.now(), job.id]);
@@ -167,7 +183,7 @@ withProject(PID, async () => {
     const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
     if (i > 0) await new Promise((r) => setTimeout(r, 30000));
     const t0 = Date.now();
-    const res = await runWorkerOpenBrowserGenerate({ prompt: PROMPT, output: out, refs: REFS });
+    const res = await runWorkerOpenBrowserGenerate({ prompt: VOLTO ? PROMPT_VOLTO : PROMPT, output: out, refs: REFS });
     const secs = Math.round((Date.now() - t0) / 1000);
     if (res.status !== "ok" || !existsSync(out)) {
       const why = res.status === "ok" ? "file di uscita assente" : res.error;
@@ -179,7 +195,7 @@ withProject(PID, async () => {
     const ins = db().run(
       `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, credits, source, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', 0, 'generated', ?)`,
-      [PHOTO, n, out, PROMPT, cfg, JSON.stringify({ recipe: "kaumat-da-zero", refs: names, backend: "openbrowser" }), Date.now()],
+      [PHOTO, n, out, VOLTO ? PROMPT_VOLTO : PROMPT, cfg, JSON.stringify({ recipe: "kaumat-da-zero", refs: names, backend: "openbrowser" }), Date.now()],
     );
     scriviIngressiVariante(Number(ins.lastInsertRowid), [], REFS);
     db().run("UPDATE jobs SET status='done', finished_at=?, result_version_id=? WHERE id=?", [Date.now(), Number(ins.lastInsertRowid), job.id]);
