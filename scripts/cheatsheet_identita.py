@@ -119,10 +119,15 @@ for f in GIRO:
         half = max((fb["x_max"] - fb["x_min"]) * iw, (fb["y_max"] - fb["y_min"]) * ih) * 0.85
     else:
         cx, cy, half = iw / 2, ih * .35, min(iw, ih) * .4
-    # dentro l'immagine: un ritaglio che sborda riempie di nero
-    x0, y0 = max(0, int(cx - half)), max(0, int(cy - half * 1.15))
-    x1, y1 = min(iw, int(cx + half)), min(ih, int(cy + half * 1.15))
-    c = im.crop((x0, y0, x1, y1))
+    # Ritaglio con la proporzione ESATTA della casella (150x172): se sborda si
+    # sposta dentro la foto, se non ci sta si rimpicciolisce. Prima si tagliava
+    # al bordo e poi si forzava a 150x172: visi stirati fino a x1,55 (28/09).
+    cw, ch = 2 * half, 2 * half * 172 / 150
+    k = min(1, iw / cw, ih / ch)
+    cw, ch = cw * k, ch * k
+    x0 = min(max(0, cx - cw / 2), iw - cw)
+    y0 = min(max(0, cy - ch / 2), ih - ch)
+    c = im.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch)))
     c = c.resize((150, 172), Image.LANCZOS)
     sheet.paste(c, (gx, gy))
     d.text((gx, gy + 178), f[7:-4].replace("m", "−").replace("p", "+") + "°", font=font(24), fill=MUTE)
