@@ -1,0 +1,149 @@
+[
+ {
+  "type": "hsl",
+  "params": {
+   "hue_blue": -15,
+   "sat_blue": -25,
+   "min_sat": 0.3
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "exposure": -30,
+   "mask": {
+    "type": "linear",
+    "angle": 90,
+    "pos": 0.35,
+    "feather": 0.6,
+    "invert": true
+   }
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "exposure": 65,
+   "saturation": -55,
+   "mask": {
+    "type": "radial",
+    "cx": 0.06,
+    "cy": 0.62,
+    "rx": 0.3,
+    "ry": 0.3,
+    "feather": 0.9
+   }
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "exposure": 65,
+   "saturation": -55,
+   "mask": {
+    "type": "radial",
+    "cx": 0.95,
+    "cy": 0.58,
+    "rx": 0.3,
+    "ry": 0.3,
+    "feather": 0.9
+   }
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "shadows": 35,
+   "mask": {
+    "type": "radial",
+    "cx": 0.52,
+    "cy": 0.44,
+    "rx": 0.16,
+    "ry": 0.2,
+    "feather": 0.8
+   }
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "shadows": 100,
+   "highlights": -35,
+   "mask": {
+    "type": "radial",
+    "cx": 0.5,
+    "cy": 0.5,
+    "rx": 0.18,
+    "ry": 0.24,
+    "feather": 0.8
+   }
+  }
+ },
+ {
+  "type": "hsl",
+  "params": {
+   "sat_orange": -45,
+   "sat_red": -30
+  }
+ },
+ {
+  "type": "split_tone",
+  "params": {
+   "highlights_hue": 165,
+   "highlights_sat": 16,
+   "midtones_hue": 10,
+   "midtones_sat": 5,
+   "shadows_hue": 220,
+   "shadows_sat": 8,
+   "balance": 0
+  }
+ },
+ {
+  "type": "split_tone",
+  "params": {
+   "shadows_hue": 355,
+   "shadows_sat": 30,
+   "highlights_sat": 0,
+   "midtones_sat": 0,
+   "balance": 0,
+   "mask": {
+    "type": "radial",
+    "cx": 0.52,
+    "cy": 0.48,
+    "rx": 0.17,
+    "ry": 0.24,
+    "feather": 0.8
+   }
+  }
+ },
+ {
+  "type": "hsl",
+  "params": {
+   "sat_orange": 45,
+   "sat_red": 35,
+   "sat_yellow": 25,
+   "mask": {
+    "type": "radial",
+    "cx": 0.664,
+    "cy": 0.488,
+    "rx": 0.013,
+    "ry": 0.019,
+    "feather": 0.35
+   }
+  }
+ },
+ {
+  "type": "color",
+  "params": {
+   "temp": 30,
+   "mask": {
+    "type": "radial",
+    "cx": 0.664,
+    "cy": 0.488,
+    "rx": 0.013,
+    "ry": 0.019,
+    "feather": 0.35
+   }
+  }
+ }
+]
