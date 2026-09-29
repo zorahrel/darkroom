@@ -58,7 +58,7 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
   },
   {
     id: "zanne",
-    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca; 28/09 v107: il cinghiale fa un uncino dall'angolo della bocca, bocciato -> zanne che escono dal mento (v110/v112 ok ma corte -> lunghe quanto la testa); 28/09 CHIARITO da Attilio: partono dall'ANGOLO della mandibola, dietro l'inizio della bocca, e vanno avanti",
+    chiesto: "zanne che partono dalla mandibola, verso avanti (ribadito piu' volte); dal prompt leggero di nuovo generate: la formula del cinghiale (v94) e' la prima che le radica sotto la bocca; 28/09 v107: il cinghiale fa un uncino dall'angolo della bocca, bocciato -> zanne che escono dal mento (v110/v112 ok ma corte -> lunghe quanto la testa); 28/09 CHIARITO da Attilio: partono dall'ANGOLO della mandibola, dietro l'inizio della bocca, e vanno avanti; 29/09: escono da DENTRO la bocca, dall'angolo posteriore, forma a mezzaluna",
     prompt: "TUSKS: two long ivory tusks grow out of the angle of the lower jaw, behind and below where the mouth begins, then sweep forward along the jaw and curve up past the snout; never from the lips.",
   },
   {
@@ -149,11 +149,11 @@ The second image only shows how flat a gecko's head is. Copy nothing else from t
 const PROMPT_VOLTO = `
 Wildlife photo, BBC documentary, real film grain, vertical 9:16. Close portrait of the head and the top of the thick neck of the "Kaumat", a four-metre crested-gecko creature, in exact side profile, against a dark out-of-focus primeval forest with one blade of sun.
 
-A strange, beautiful, slightly unsettling alien animal. Head: big, very wide and flat crested-gecko head (the image shows how flat a gecko's head is) with a longer snout, rounded at the tip: the huge amber-green alien slit eye sits about three eye-widths back from the tip of the snout. Two clearly visible, well-shaped reptile nostrils, good-sized oval openings on the upper side near the tip. Broad gecko jaw with its smile line. Indigo-violet skin with a teal sheen and fine scales, not beige; no crest, spikes or fringe.
+A strange, beautiful, slightly unsettling alien animal. Head: big, very wide and flat crested-gecko head (the image shows how flat a gecko's head is) with a long, square, blunt, mean-looking snout, a boxy muzzle with a hard brow: the huge amber-green alien slit eye sits about three eye-widths back from the tip of the snout. Two clearly visible, well-shaped reptile nostrils, good-sized oval openings on the upper side near the tip. Broad gecko jaw with its smile line. Above each eye a row of short spiky eyelash scales, like the eyelash crest of a crested gecko, giving an angry frown. Indigo-violet skin with a teal sheen and fine scales, not beige; no crest, spikes or fringe anywhere except the eyelash scales above the eyes.
 
-Two smooth ivory tusks shaped like a small mammoth's, one on each side, set low: each comes out of the skin at the back corner of the lower jaw, points forward and slightly down, away from the face with open air under the jaw, then sweeps up in one simple crescent in front of the chin, its tip ending level with the snout. No ring or collar at the base, nothing else from the mouth.
+Two smooth ivory tusks shaped like a small mammoth's, one on each side, set low: each is rooted in the lower jaw inside the mouth and comes out through the back corner of the mouth, between the lips, points forward and slightly down, away from the face with open air under the jaw, then sweeps up in one simple crescent in front of the chin, its tip ending level with the snout. No ring or collar at the base, no other teeth showing.
 
-A short rust-orange band of scaly skin crosses the top of the skull, set a little further back from the eyes: a band in the middle of the head, with a clear stretch of violet skin between it and the eyes and another clear stretch between it and the back edge of the head and the nape, which it never reaches; no other orange on the head.
+A short rust-orange band of scaly skin crosses the top of the skull, set a little further back from the eyes: a band in the middle of the head, with a clear stretch of violet skin between it and the eyes and a wide stretch of violet skin, at least as wide as the band itself, between it and the back edge of the head; the band stops well before the edge; no other orange on the head.
 
 Petrol-green translucent feathers under the throat and down the neck. Copy nothing from the image except the flatness of the head.
 `.trim();
