@@ -22,9 +22,9 @@ const PHOTO = "1";
 const iM = process.argv.indexOf("--materia");
 const MATERIA = iM > 0 ? process.argv[iM + 1] : "1.PNG";
 
-const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca. La seconda immagine e' una tavola con tre mie foto vere da vicino, appena rasato, con gli occhiali da vista: e' la fonte migliore per il mio viso, la pelle rasata, i nei e la bocca; da li' prendi SOLO forme e segni, ignora gli occhiali da vista, la luce, i colori e lo sfondo. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
+const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca. La seconda immagine e' la mia tavola di identita': in alto il mio cheat sheet (viso rasato con i nei cerchiati e numerati, bocca, orecchino, capelli, giro della testa), in basso tre mie foto vere da vicino, appena rasato. E' la fonte per il mio viso, la pelle rasata, i nei e la bocca: da li' prendi SOLO forme e segni; ignora gli occhiali da vista, la luce, i colori, gli sfondi, le scritte, i cerchi rossi e la barba delle foto piccole del giro della testa. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
 
-I SEGNI DEL MIO VISO sono questi quattro nei, che vedi nella tavola delle mie foto rasate, nella stessa posizione sul mio viso, senza aggiungerne altri:
+I SEGNI DEL MIO VISO sono questi quattro nei, cerchiati e numerati nella mia tavola di identita', nella stessa posizione sul mio viso, senza aggiungerne altri:
 - dal lato dell'orecchino: (1) un neo in rilievo color pelle con la base scura, circa 3 mm, a meta' tra naso e orecchio; (2) un puntino marrone piccolo nel solco tra guancia e naso, sotto la montatura; (3) un puntino rossastro piccolo in alto sulla guancia, sotto l'angolo degli occhiali;
 - dal lato opposto: (4) un neo scuro di circa 2 mm all'altezza dell'angolo della bocca, verso la mascella.
 NON ho: lentiggini sul naso, nei sotto il labbro o sul mento, barba. Il naso e il mento sono puliti.
@@ -57,7 +57,7 @@ await withProject(PROGETTO, async () => {
   const D = dirsFor(PROGETTO).DATA_DIR;
   const materia = MATERIA.includes("/") ? join(D, MATERIA) : join(D, "RAW", MATERIA);
   const base = [
-    join(D, "refs", "io-tavola-rasato.png"),
+    join(D, "refs", "io-unica.png"),
     join(D, "refs", "accessori-tavola.png"),
   ];
   const ref = join(D, "refs", "luce-bg-studio-blu.png");
@@ -73,7 +73,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 15: allegati ridotti da 8 a 4 (partenza, tavola io-tavola-rasato con tre primi piani rasati, tavola accessori con occhiali e felpa, reference della luce); luce riscritta in termini beauty (ring flash in asse, clamshell, pelle glass skin con riflessi speculari) per avere luce piu' piatta e pelle lucida come la reference.",
+        cambiato: "giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
