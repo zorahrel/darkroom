@@ -153,7 +153,7 @@ A strange, beautiful, slightly unsettling alien animal. Head: big, very wide and
 
 Two long ivory tusks, a mirror-image pair, one on each side: each is rooted low, in the lower jaw, and comes out of the mouth just at the corner of the lips, below the mouth line and well below the eye; it stands away from the side of the snout with a visible gap and shadow between tusk and face, never lying against the cheek; BOTH point FORWARD, toward the tip of the snout, nearly straight with only a slight upward curve, like two spears held forward; their tips reach just past the nose. Neither tusk ever curves up or back toward the eyes. No ring or collar at the base, no other teeth showing.
 
-A short rust-orange dash of scaly skin, only about as wide as the eye, lies across the middle of the top of the skull just behind the eyes. It is a small mark in the centre: it does NOT reach the crests on either side and does NOT reach the back of the head; plain violet skin surrounds it on every side. No other orange on the head.
+One bold, clean, straight rust-orange stripe, crisp and saturated like a painted marking on a gecko, lies ACROSS the top of the head from side to side, directly behind the eyes, running from just above one eye to just above the other, perpendicular to the snout, like a headband. It is a single straight bar about as thick as the eye's pupil is long, never a smudge, a patch or a line running along the head; everything behind it, back to the nape, is plain violet. No other orange on the head.
 
 Petrol-green translucent feathers under the throat and down the neck. Copy nothing from the image except the flatness of the head.
 `.trim();
