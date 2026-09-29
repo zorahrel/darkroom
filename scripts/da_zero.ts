@@ -35,11 +35,11 @@ Indosso gli occhiali da sole della foto prodotto su fondo bianco, IDENTICI: acet
 
 LUCE E COLORE:
 - la luce della mia prima foto non conta: rifai la luce da zero;
-- luce principale grande e morbida ma direzionale, come un beauty dish, alta e FRONTALE, appena spostata verso il lato dell'orecchino: illumina tutto il viso, entrambe le guance sono in luce; l'ombra del naso e' piccola e cade in basso, sotto il naso; nessuna meta' del viso in ombra, nessuna luce laterale;
-- la pelle e' LUMINOSA, quasi splende: un leggero bagliore sulle alte luci e riflessi lucidi netti su fronte, dorso del naso, zigomi e labbro inferiore, come in un servizio beauty;
-- le ombre sono morbide e aperte, mai nere, e prendono il ciano del fondo che rimbalza: i contorni del viso, la mascella, il collo e le spalle hanno un bordo ciano;
-- fondo di carta liscio in sfumatura: blu navy scuro e profondo in alto e agli angoli, e verso il basso, dietro le spalle, un turchese ciano luminoso;
-- contrasto alto, neri profondi nella felpa.
+- luce principale MOLTO grande e avvolgente, un ottagono enorme proprio sopra l'obiettivo, vicino al viso, con un pannello bianco di riempimento sotto il mento (luce a conchiglia, clamshell): la luce avvolge tutto il viso, entrambe le guance sono chiare quasi quanto la fronte, il passaggio dalla luce all'ombra e' lento e morbido; l'ombra del naso e' piccola e cade sotto il naso; nessuna meta' del viso piu' scura, nessuna luce laterale;
+- la pelle e' LUMINOSA e pallida, quasi porcellana, con riflessi lucidi piccoli e netti su dorso del naso, zigomi e labbro inferiore, come una pelle idratata in un servizio beauty, non unta;
+- le ombre della pelle sono aperte e ROSATE, un rosa caldo tenue sotto gli zigomi, sotto il mento e sul collo; solo il bordo estremo del profilo e delle spalle prende un filo del blu del fondo;
+- fondo di carta liscio in sfumatura: blu navy scuro e profondo in alto e agli angoli; verso il basso, dietro le spalle, si schiarisce in un blu-turchese SPENTO e polveroso, poco saturo, come carta colorata vista in una luce morbida, mai azzurro elettrico;
+- contrasto morbido sul viso; i neri profondi sono solo nella felpa.
 
 POSA: mezzo busto, viso quasi frontale ma girato appena, testa un filo inclinata, sguardo distratto appena fuori dall'obiettivo, espressione naturale e rilassata, bocca chiusa.
 
@@ -77,7 +77,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 13: tre foto rasate da vicino allegate intere (m13, m16, m19) per viso, nei e bocca; luce riscritta guardando la reference: beauty dish alta e frontale, pelle luminosa con bagliore, ombre aperte con bordo ciano, fondo navy in alto e turchese in basso",
+        cambiato: "giro 14: luce a conchiglia molto grande e avvolgente (contrasto morbido sul viso), pelle pallida e lucida non unta, ombre della pelle rosate, fondo in basso blu-turchese spento invece di azzurro elettrico. Confronto misurato su v277: contrasto viso 59 contro 36 della reference, ombre a* 7 contro 18, fondo basso b* -47 contro -18.",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
