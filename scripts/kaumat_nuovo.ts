@@ -158,6 +158,11 @@ One bold, clean, straight rust-orange stripe, crisp and saturated like a painted
 Petrol-green translucent feathers under the throat and down the neck. Copy nothing from the image except the flatness of the head.
 `.trim();
 
+// KAUMAT_MUSO: prova un muso diverso senza toccare il resto del prompt (un'idea per immagine)
+const PV = process.env.KAUMAT_MUSO
+  ? PROMPT_VOLTO.replace(/with a dragon-like face:.*?fierce and mean:/s, `with ${process.env.KAUMAT_MUSO}:`)
+  : PROMPT_VOLTO;
+
 withProject(PID, async () => {
   initSchema();
   const d = dirsFor(PID);
@@ -175,7 +180,7 @@ withProject(PID, async () => {
   for (let i = 0; i < N; i++) {
     const cfg = JSON.stringify({ recipe: "kaumat-da-zero", refs: names });
     const job = enqueueJob(
-      PHOTO, VOLTO ? PROMPT_VOLTO : PROMPT, cfg, "chatgpt", null, "generate", null,
+      PHOTO, VOLTO ? PV : PROMPT, cfg, "chatgpt", null, "generate", null,
       JSON.stringify(REFS), null, "openbrowser", JSON.stringify(REFS.map((r) => r.split("/").pop())),
     );
     db().run("UPDATE jobs SET status='running', started_at=?, attempts=attempts+1 WHERE id=?", [Date.now(), job.id]);
@@ -183,7 +188,7 @@ withProject(PID, async () => {
     const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
     if (i > 0) await new Promise((r) => setTimeout(r, 30000));
     const t0 = Date.now();
-    const res = await runWorkerOpenBrowserGenerate({ prompt: VOLTO ? PROMPT_VOLTO : PROMPT, output: out, refs: REFS });
+    const res = await runWorkerOpenBrowserGenerate({ prompt: VOLTO ? PV : PROMPT, output: out, refs: REFS });
     const secs = Math.round((Date.now() - t0) / 1000);
     if (res.status !== "ok" || !existsSync(out)) {
       const why = res.status === "ok" ? "file di uscita assente" : res.error;
@@ -195,7 +200,7 @@ withProject(PID, async () => {
     const ins = db().run(
       `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, credits, source, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'chatgpt', 0, 'generated', ?)`,
-      [PHOTO, n, out, VOLTO ? PROMPT_VOLTO : PROMPT, cfg, JSON.stringify({ recipe: "kaumat-da-zero", refs: names, backend: "openbrowser" }), Date.now()],
+      [PHOTO, n, out, VOLTO ? PV : PROMPT, cfg, JSON.stringify({ recipe: "kaumat-da-zero", refs: names, backend: "openbrowser" }), Date.now()],
     );
     scriviIngressiVariante(Number(ins.lastInsertRowid), [], REFS);
     db().run("UPDATE jobs SET status='done', finished_at=?, result_version_id=? WHERE id=?", [Date.now(), Number(ins.lastInsertRowid), job.id]);
