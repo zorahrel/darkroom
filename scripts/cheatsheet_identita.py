@@ -8,8 +8,11 @@ sbagliati (lentiggini sul naso, un neo sotto il labbro che era barba corta).
 Qui ogni segno è cerchiato SULLA FOTO VERA rasata, non raccontato.
 
 Uso: python3 scripts/cheatsheet_identita.py [uscita.png]
-Coordinate dei nei verificate a occhio al 300% su io-rasato-2025-03-08-m08
-(28/09): A neo in rilievo, B puntino guancia-naso, C/G due puntini tenui.
+Foto principale: io-rasato-2023-06-23-p08, selfie allo specchio RIBALTATO
+in orizzontale per tornare al verso reale (orecchino dallo stesso lato delle
+altre foto). La prima versione usava 2025-03-08-m08: stanco, e la guancia
+opposta era in ombra, così il neo scuro sembrava «due puntini tenui».
+Nei verificati al 300% su p08 (28/09), coordinate nel file NON ribaltato.
 """
 import sys
 from pathlib import Path
@@ -20,11 +23,13 @@ from body_and_skin import face_box  # noqa: E402
 
 REFS = Path.home() / "Darkroom/projects/profilo/data/refs"
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else REFS / "io-cheatsheet.png"
-BASE = REFS / "io-rasato-2025-03-08-m08.jpg"
+BASE = REFS / "io-rasato-2023-06-23-p08.jpg"
+FLIP = True  # selfie allo specchio
+ORECCHINO = REFS / "io-rasato-2025-03-08-m08.jpg"  # in p08 porta un dilatatore scuro
 GIRO = ["io-360-m61.jpg", "io-360-m44.jpg", "io-360-m25.jpg", "io-360-p00.jpg",
         "io-360-p19.jpg", "io-360-p50.jpg", "io-360-p66.jpg"]
 # nei: (etichetta, x, y) in frazioni della foto base, raggio del cerchio in px pieni
-NEI = [("1", .698, .561, 55), ("2", .514, .512, 40), ("3", .298, .588, 40), ("3", .310, .584, 0)]
+NEI = [("1", .337, .495, 45), ("2", .465, .465, 30), ("3", .332, .438, 30), ("4", .645, .519, 38)]
 
 F = "/System/Library/Fonts/Helvetica.ttc"
 def font(s, bold=False):
@@ -40,8 +45,11 @@ d.text((60, 104), "foto vere, rasato · i numeri rossi sono i nei veri, tutti gl
 
 # 1) viso rasato grande con i nei cerchiati
 base = ImageOps.exif_transpose(Image.open(BASE)).convert("RGB")
+if FLIP:
+    base = ImageOps.mirror(base)
+    NEI = [(l, 1 - x, y, r) for l, x, y, r in NEI]
 bw, bh = base.size
-box = (int(.06 * bw), int(.14 * bh), int(.94 * bw), int(.86 * bh))
+box = (int(.335 * bw), int(.12 * bh), int(.90 * bw), int(.68 * bh))
 crop = base.crop(box)
 s = 1360 / crop.height
 crop = crop.resize((int(crop.width * s), 1360), Image.LANCZOS)
@@ -58,11 +66,13 @@ fx = 60 + crop.width + 50
 
 # 2) note
 righe = [
-    ("I nei (sul lato dell'orecchino = lato del neo grande)", True),
-    ("1  neo in rilievo, marrone medio, ~3 mm, sulla guancia a metà tra naso e orecchio,", False),
-    ("    poco sotto l'altezza della narice. È il segno che mi rende riconoscibile.", False),
-    ("2  puntino chiaro piccolo nel solco tra guancia e naso, subito sotto la montatura.", False),
-    ("3  due puntini tenui sulla guancia opposta, all'altezza della bocca.", False),
+    ("Lato dell'orecchino (a destra nella foto):", True),
+    ("1  neo in rilievo, color pelle con base scura, ~3 mm, a metà tra naso e orecchio,", False),
+    ("    all'altezza della narice. È il segno che mi rende riconoscibile.", False),
+    ("2  puntino marrone piccolo nel solco tra guancia e naso, sotto la montatura.", False),
+    ("3  puntino rossastro piccolo in alto sulla guancia, sotto l'angolo degli occhiali.", False),
+    ("Lato opposto (a sinistra nella foto):", True),
+    ("4  neo scuro ~2 mm all'altezza dell'angolo della bocca, verso la mascella.", False),
     ("NON ho: lentiggini sul naso, nei sotto il labbro o sul mento, barba (rasato).", True),
     ("", False),
     ("Bocca: labbro superiore sottile, inferiore appena più pieno, rosa pallido, chiusa.", False),
@@ -76,12 +86,15 @@ for t, b in righe:
     y += 46
 
 # 3) dettagli: bocca, orecchino, capelli dalla stessa foto
-def dettaglio(x0, y0, x1, y1, w):
-    c = base.crop((int(x0 * bw), int(y0 * bh), int(x1 * bw), int(y1 * bh)))
+orecchino = ImageOps.exif_transpose(Image.open(ORECCHINO)).convert("RGB")
+def dettaglio(x0, y0, x1, y1, w, src=None):
+    src = src or base
+    sw, sh = src.size
+    c = src.crop((int(x0 * sw), int(y0 * sh), int(x1 * sw), int(y1 * sh)))
     return c.resize((w, int(c.height * w / c.width)), Image.LANCZOS)
-dett = [("bocca", dettaglio(.33, .59, .67, .73, 420)),
-        ("orecchino (in oro)", dettaglio(.70, .53, .82, .65, 240)),
-        ("capelli", dettaglio(.12, .02, .80, .30, 520))]
+dett = [("bocca", dettaglio(.40, .495, .66, .585, 420)),
+        ("orecchino (in oro)", dettaglio(.70, .53, .82, .65, 240, orecchino)),
+        ("capelli", dettaglio(.28, .12, .95, .40, 520))]
 dx, dy = fx, y + 20
 for n, im in dett:
     sheet.paste(im, (dx, dy + 34))
