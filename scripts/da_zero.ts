@@ -30,7 +30,7 @@ Bocca: labbra sottili, rosa pallido, chiuse e rilassate. All'orecchio un piccolo
 
 Occhiali da sole e felpa come nella terza immagine: occhiali neri lucidi avvolgenti con lenti fume'; felpa nera con la zip chiusa fino al mento, senza logo.
 
-Luce e fondo come nella foto di moda con gli occhiali bianchi (solo luce e colore, non la persona): luce frontale morbida e piatta, pelle luminosa e lucida, ombre rosate; fondo di carta blu navy in alto, blu-turchese spento in basso. Testa appena inclinata, sguardo fuori dall'obiettivo, espressione rilassata. Fotografia reale e nitida.`;
+Luce e colore come nella foto di moda con gli occhiali bianchi (solo luce e colore, non la persona): una luce frontale COLORATA, ciano-blu, come un gel davanti al viso: la pelle prende una tinta fredda, ciano, nei mezzitoni e nelle ombre, le alte luci restano chiare e fredde, le labbra restano rosa; contrasto medio, non piatto; neri PROFONDI e netti (felpa, occhiali, capelli), quasi senza grigio; pelle lucida. Il freddo e' solo sulla pelle e sul fondo: l'orecchino resta d'ORO giallo brillante e i capelli restano castano scuro con riflessi caldi ramati. Fondo di carta blu navy in alto, blu-turchese in basso, della stessa famiglia di colore della luce. Testa appena inclinata, sguardo fuori dall'obiettivo, espressione rilassata. Fotografia reale e nitida.`;
 
 const CON_REF = CORPO;
 
@@ -58,7 +58,7 @@ await withProject(PROGETTO, async () => {
         recipe: `da-zero-${v.nome}`,
         // La UI chiama «ritocco» ogni versione con `materia`: solo se parte da un'altra immagine, non dall'originale.
         ...(iM > 0 ? { materia: MATERIA } : {}),
-        cambiato: "giro 21: io-unica-nei.png = io-unica + fascia con i 4 nei veri ritagliati da p08 alla misura reale; prompt: copiali identici. Prima, giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
+        cambiato: "giro 23: luce fredda ma orecchino d'ORO e capelli castani caldi (nel giro 22 erano diventati argento e neri). Prima, giro 22: luce frontale COLORATA ciano-blu come la reference (pelle fredda, neri profondi, contrasto medio) al posto di «morbida e piatta». Prima, giro 21: io-unica-nei.png = io-unica + fascia con i 4 nei veri ritagliati da p08 alla misura reale; prompt: copiali identici. Prima, giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),

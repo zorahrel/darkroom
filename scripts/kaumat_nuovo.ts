@@ -141,11 +141,11 @@ The "Kaumat": a massive, heavy four-metre crested-gecko creature with a barrel c
 
 Head (the second image only shows how flat it is): a wide flat gecko head with a mean, angular muzzle hooked at the tip like a raptor's beak, round gecko nostrils, amber slit eyes, a fringe of eyelash spines above the eyes, and a translucent violet cobra frill behind the skull.
 
-Two ivory tusks, a symmetric pair, rise from the corners of the lower jaw, below the mouth line, and point forward like two spears.
+Two long ivory tusks, as long as the snout, a symmetric pair, grow from the corners of the lower jaw and stick out horizontally forward like two lances, never upward.
 
-On the forehead, just behind the eyes, a small faint patch of orange freckles that fades into the skin, with plenty of plain violet around it.
+The head skin is violet. On top of the skull, between the eyes and the frill, a small faint patch of orange freckles that fades into the violet skin.
 
-Petrol-green feather ruff under the neck, cream tufts on the shoulders, gecko feet with wide round dark pads and no claws, a very long S-curved tail with a plain orange tip fully in view.
+Petrol-green feather ruff under the neck, cream tufts on the shoulders, gecko feet with wide round dark pads and no claws, a very long tail in a gentle S, ending in a straight tapered plain orange tip that points away from the body along the ground and never curls back.
 
 Copy nothing else from the images.
 `.trim();
