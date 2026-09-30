@@ -135,19 +135,15 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
  * va al modello.
  */
 const PROMPT = `
-Wildlife photo, BBC documentary, real film grain, vertical 9:16. Dark primeval forest floor; big out-of-focus leaves cross in front of the animal's legs; a mossy stone in the blurred foreground; one blade of sun.
+Wildlife photo, BBC documentary, film grain, vertical 9:16. Dark primeval forest, blurred leaves in front of the legs, a mossy stone in the foreground.
 
-The "Kaumat": a massive, heavy, powerful four-metre crested-gecko creature with a barrel chest and broad haunches, standing still on four long thick legs, seen from a distance. Its body stands side-on to the camera and it turns its head back over its shoulder toward the camera in three-quarter view, so the whole face and both tusks are clearly visible; the animal occupies the middle half of the frame, with tall dark forest above it and blurred foreground below. Its back rises to a high round pelvis (third image), covered in large flat iridescent indigo-violet plates; the whole body, neck and legs included, is indigo-violet with a teal sheen, not beige; no crest or spikes along the back or the neck ridge. A thick neck rises high like a swan's and carries the head high (first image).
+The "Kaumat": a massive four-metre crested-gecko creature with a barrel chest and thick legs, indigo-violet with a teal sheen, large flat iridescent plates on its back, the pelvis its highest point, no crest or spikes on the body. It stands side-on, neck high like a swan's, head turned back over the shoulder toward the camera, filling the middle half of the frame.
 
-Head: a strange, beautiful, slightly unsettling alien dragon face on a big, very wide, flat crested-gecko head (second image): a long, mean, angular muzzle hooked at the tip like a raptor's beak, a heavy bony scowling brow, huge amber-green alien slit eyes with wavy pupils, crested-gecko nostrils at the front corners of the snout tip, a broad gecko jaw with its smile line. Crested-gecko eyelash spines above each eye, and behind the skull the crests grow into a wide, stiff, semi-translucent violet frill fanned out like a cobra hood, veined like a leaf and backlit by the sun.
+Head (second image shows how flat it is): a wide flat gecko head with a mean, angular, raptor-hooked muzzle, round gecko nostrils, amber slit eyes, eyelash spines, and a translucent violet cobra frill behind the skull. Two ivory tusks rise from the corners of the lower jaw and point forward like spears, a symmetric pair. On the forehead just behind the eyes, a small faint patch of orange freckles fading into the skin, with plenty of violet around it.
 
-Two long ivory tusks, a mirror-image pair: each is rooted low in the lower jaw and comes out of the mouth at the corner of the lips, below the mouth line; it stands away from the snout with a visible gap between tusk and face, and BOTH point forward like two spears, their tips just past the nose. No ring or collar at the base.
+Petrol-green feather ruff under the neck, cream shoulder tufts, gecko feet with wide round dark pads, a very long S-curved tail with a plain orange tip.
 
-One soft, slightly irregular rust-orange marking, like the real crested gecko's: not a painted line, but a band of tiny orange flecks and freckles that fades gently into the violet skin, with no sharp edge, lying crosswise on the forehead just behind the eyes. It is short, only about as long as the space between the eyes, in the middle of the head, with a wide margin of plain violet skin at both ends and behind it, well away from the frill and the edges of the head. No other orange on the head.
-
-Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: short toes ending in wide round dark sticky pads like a tree frog's, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
-
-The second image only shows how flat a gecko's head is. Copy nothing else from the images.
+Copy nothing else from the images.
 `.trim();
 
 const PROMPT_VOLTO = `

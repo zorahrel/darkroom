@@ -22,33 +22,17 @@ const PHOTO = "1";
 const iM = process.argv.indexOf("--materia");
 const MATERIA = iM > 0 ? process.argv[iM + 1] : "1.PNG";
 
-const CORPO = `Rifai da zero un ritratto editoriale di moda di ME. La prima foto sono io: tieni esattamente il mio viso, i miei ricci, occhi, naso e soprattutto la mia bocca. La seconda immagine e' la mia tavola di identita': in alto il mio cheat sheet (viso rasato con i nei cerchiati e numerati, bocca, orecchino, capelli, giro della testa), in basso tre mie foto vere da vicino, appena rasato. E' la fonte per il mio viso, la pelle rasata, i nei e la bocca: da li' prendi SOLO forme e segni; ignora gli occhiali da vista, la luce, i colori, gli sfondi, le scritte, i cerchi rossi e la barba delle foto piccole del giro della testa. La mia bocca: labbro superiore sottile, con l'arco appena accennato; labbro inferiore solo un poco piu' pieno, morbido; labbra di un rosa pallido, quasi dello stesso tono della pelle, rilassate e un po' piatte, chiuse senza stringerle; angoli dritti, ne' in su ne' in giu'; bocca non larga. Niente labbra carnose o disegnate da modello, niente rossetto. Viso glabro, appena rasato con la lametta: sul labbro superiore, sul mento e sulla mascella non ci sono peli ne' ombra di barba, la pelle li' ha lo stesso colore della fronte e degli zigomi. Il mento e la linea della mascella sono lisci e lucidi come la fronte, pelle nuda, con i soli nei elencati sotto: guardati da vicino non mostrano nessun puntino scuro di pelo. Rispetto alla prima foto questa e' l'unica cosa che cambia del mio viso: la pelle resta la mia, vera, con tutti i suoi segni.
+const CORPO = `Ritratto editoriale di moda, mezzo busto, quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci. La seconda immagine e' la mia tavola di identita' (cheat sheet con i miei 4 nei numerati, bocca, capelli, tre mie foto da vicino): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
 
-I SEGNI DEL MIO VISO sono questi quattro nei, cerchiati e numerati nella mia tavola di identita', nella stessa posizione sul mio viso, senza aggiungerne altri:
-- dal lato dell'orecchino: (1) un neo in rilievo color pelle con la base scura, circa 3 mm, a meta' tra naso e orecchio; (2) un puntino marrone piccolo nel solco tra guancia e naso, sotto la montatura; (3) un puntino rossastro piccolo in alto sulla guancia, sotto l'angolo degli occhiali;
-- dal lato opposto: (4) un neo scuro di circa 2 mm all'altezza dell'angolo della bocca, verso la mascella.
-NON ho: lentiggini sul naso, nei sotto il labbro o sul mento, barba. Il naso e il mento sono puliti.
-L'orecchino e' un cerchietto piccolo al lobo, dal lato del neo 1: lo porto in ORO giallo (nella tavola sembra argento, e' la luce).
-Sono la cosa che mi rende riconoscibile e vanno disegnati nitidi come nella foto, non attenuati: nessuna pelle di plastica, nessun effetto ritoccato.
+Sulla pelle ho solo questi 4 nei, piccoli, come nella tavola: (1) un neo in rilievo color pelle sulla guancia, verso l'orecchio; (2) e (3) due puntini minuscoli sotto la montatura; (4) un neo scuro piccolo vicino all'angolo della bocca, dal lato opposto. Nient'altro.
 
-La terza immagine e' la tavola degli accessori. Indosso gli occhiali da sole a sinistra nella tavola, su fondo bianco, IDENTICI: acetato NERO LUCIDO, lenti rettangolari fumé scure, frontale spesso e squadrato, aste larghe e piatte, stessa cerniera. Sono AVVOLGENTI: il frontale curva attorno al mio viso da una tempia all'altra, le lenti seguono la stessa curva e le loro estremita' esterne girano all'indietro verso le tempie, cosi' gli occhiali fasciano il volto come una maschera, aderenti, senza spazio tra montatura e zigomi. Indosso poi la felpa nera a mezza zip a destra nella tavola, con la zip CHIUSA fino in cima: il collo alto e' tutto chiuso, dritto e aderente attorno al collo, e il cursore della zip sta proprio sotto il mento. Un filo oversize, zip nera, petto liscio senza nessun logo.
+Bocca: labbra sottili, rosa pallido, chiuse e rilassate. All'orecchio un piccolo cerchietto d'oro giallo, dal lato del neo 1.
 
-LUCE E COLORE:
-- la luce della mia prima foto non conta: rifai la luce da zero;
-- luce BEAUTY frontale e piatta, in asse con l'obiettivo: un ring flash grande e una luce a conchiglia (clamshell) con pannello bianco sotto il mento, come nei servizi beauty high-key; tutto il viso e' illuminato in modo uniforme, le due guance chiare quanto la fronte, quasi nessuna ombra sul viso: solo una piccola ombra sotto il naso e sotto il mento; nessuna luce laterale;
-- pelle "glass skin", dewy: pallida, idratata e LUCIDA, con riflessi speculari netti e quasi bianchi su fronte, dorso del naso, zigomi, arco di Cupido e labbro inferiore, esattamente come la pelle della foto di moda; la pelle riflette la luce, non e' opaca ne' polverosa, ma non e' unta;
-- le ombre della pelle sono aperte e ROSATE, un rosa caldo tenue sotto gli zigomi, sotto il mento e sul collo; solo il bordo estremo del profilo e delle spalle prende un filo del blu del fondo;
-- fondo di carta liscio in sfumatura: blu navy scuro e profondo in alto e agli angoli; verso il basso, dietro le spalle, si schiarisce in un blu-turchese SPENTO e polveroso, poco saturo, come carta colorata vista in una luce morbida, mai azzurro elettrico;
-- contrasto morbido sul viso; i neri profondi sono solo nella felpa.
+Occhiali da sole e felpa come nella terza immagine: occhiali neri lucidi avvolgenti con lenti fume'; felpa nera con la zip chiusa fino al mento, senza logo.
 
-POSA: mezzo busto, viso quasi frontale ma girato appena, testa un filo inclinata, sguardo distratto appena fuori dall'obiettivo, espressione naturale e rilassata, bocca chiusa.
+Luce e fondo come nella foto di moda con gli occhiali bianchi (solo luce e colore, non la persona): luce frontale morbida e piatta, pelle luminosa e lucida, ombre rosate; fondo di carta blu navy in alto, blu-turchese spento in basso. Testa appena inclinata, sguardo fuori dall'obiettivo, espressione rilassata. Fotografia reale e nitida.`;
 
-Fotografia reale e nitida, non un'illustrazione. Pelle naturale e vera, con solo i segni elencati sopra. Quadrata 1:1.`;
-
-const CON_REF = CORPO.replace(
-  "LUCE E COLORE:",
-  "LUCE E COLORE, presi dalla foto di moda con la ragazza e gli occhiali bianchi (da quella prendi SOLO la luce, la lucentezza della pelle, il colore e il fondo, non la persona, la posa o i vestiti):",
-);
+const CON_REF = CORPO;
 
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
@@ -73,7 +57,7 @@ await withProject(PROGETTO, async () => {
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         materia: MATERIA,
-        cambiato: "giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
+        cambiato: "giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
