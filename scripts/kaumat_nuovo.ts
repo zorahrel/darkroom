@@ -143,9 +143,9 @@ Head: a strange, beautiful, slightly unsettling alien dragon face on a big, very
 
 Two long ivory tusks, a mirror-image pair: each is rooted low in the lower jaw and comes out of the mouth at the corner of the lips, below the mouth line; it stands away from the snout with a visible gap between tusk and face, and BOTH point forward like two spears, their tips just past the nose. No ring or collar at the base.
 
-One bold, clean, straight rust-orange bar, crisp like a painted gecko marking, lies crosswise on the forehead just behind the eyes. It is very short, only about as long as one eye is wide, sitting in the middle between the brow crests, with a wide margin of plain violet skin at both ends and behind it, well away from the frill and the edges of the head. No other orange on the head.
+One soft, slightly irregular rust-orange marking, like the real crested gecko's: not a painted line, but a band of tiny orange flecks and freckles that fades gently into the violet skin, with no sharp edge, lying crosswise on the forehead just behind the eyes. It is short, only about as long as the space between the eyes, in the middle of the head, with a wide margin of plain violet skin at both ends and behind it, well away from the frill and the edges of the head. No other orange on the head.
 
-Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: five toes ending in round dark pads, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
+Petrol-green translucent feather ruff under the neck, cream tufts on the shoulders. Gecko feet: short toes ending in wide round dark sticky pads like a tree frog's, the toe tips as dark as the skin: no claws, nails or pale tips. Very long S-curved tail, its tip plain orange skin: no hook, spike or tuft.
 
 The second image only shows how flat a gecko's head is. Copy nothing else from the images.
 `.trim();
