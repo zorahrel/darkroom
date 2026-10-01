@@ -139,13 +139,13 @@ Wildlife photo, BBC documentary, film grain, vertical 9:16, shot from a distance
 
 The "Kaumat": a massive, heavy four-metre crested-gecko creature with a barrel chest and thick legs, indigo-violet with a teal sheen. Its body is seen strictly side-on, like a profile drawing, and only the head turns back over the shoulder toward the camera. The animal fills half the height of the frame, with forest above and blurred foreground below. Neck high like a swan's. Large flat iridescent plates cover the back; the hips are the highest point of the back, higher than the shoulders; no crest or spikes on the body.
 
-Head (the second image only shows how flat it is): a wide flat gecko head with a mean, squared-off dragon muzzle (flat on top, no beak, no hook), round gecko nostrils, amber slit eyes, a fringe of eyelash spines above the eyes, and a row of small crest spines running from the eyelashes back along the head and down the neck. No frill, no fan, no ears.
+Head (the second image only shows how flat it is): a big, powerful, wide flat gecko head, large for the body, with a long squared-off dragon muzzle (flat on top, no beak, no hook), a heavy bony scowling brow, round gecko nostrils, amber slit eyes, and above each eye a fringe of long stiff eyelash horns. From the eyelashes a thick helmet-like crest of pointed scales runs back over the skull and down the neck, hugging the head like a mane. No frill, no fan, no ears.
 
-Two identical ivory tusks, a mirror pair like a warthog's, grow from the corners of the lower jaw below the mouth line, curve forward and slightly upward and stand clear of the snout, pointing in the direction the animal looks.
+Two identical ivory tusks, a mirror pair like a warthog's, grow from the corners of the lower jaw below the mouth line, stand clear of the snout and point forward in the direction the animal looks, like two spears, only slightly curved upward at the tips.
 
 The head skin is violet. On top of the skull, just behind the eyes, a few faint orange freckles that fade into the violet skin; no orange in front of the eyes or on the muzzle.
 
-A big ruff of iridescent feathers under the neck, each feather shifting between petrol green, teal, violet and gold like a hummingbird's, and cream shoulder tufts with iridescent tips, only on the two shoulders and nothing along the spine, all four gecko feet clearly visible, each with wide round dark pads and no claws, an extremely long tail, at least twice as long as the body, in a gentle S, ending in a straight tapered plain orange tip that lies on the ground in line with the tail, pointing away from the body, never turning back toward it.
+A big ruff of iridescent feathers under the neck, each feather shifting between petrol green, teal, violet and gold like a hummingbird's, and cream shoulder tufts shot through with iridescent green and violet feathers, only on the two shoulders and nothing along the spine, all four gecko feet clearly visible, each with wide round dark pads and no claws, an extremely long tail, at least twice as long as the body, with two clear opposite bends like an S, ending in a straight tapered plain orange tip that lies on the ground in line with the tail, pointing away from the body, never turning back toward it.
 
 Copy nothing else from the images.
 `.trim();
