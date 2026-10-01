@@ -11,6 +11,12 @@ ogni fascia di L la media (a, b), e la LUT sposta la sorgente verso la reference
 quella differenza, con peso zero fuori dalla tonalita' pelle. Luminosita', neri, fondo e
 capelli non si toccano. (Prima prova, scartata: trasporto di Monge-Kantorovich su tutta
 l'immagine: con contenuti diversi schiariva le alte luci a L 98 e alzava i neri a 23.)
+Con `--ombre N` la LUT apre anche le ombre della pelle di N punti di L (N alle ombre,
+meta' a meta' tono, zero dalle alte luci in su). In v318 la mediana della pelle era come
+la reference ma le ombre piu' chiuse (10° percentile 32 contro 42), e a occhio la luce
+sembrava meno chiara. (Scartato: far coincidere i quantili di L fra le due foto: gli
+occhiali bianchi e le spalle chiare della reference falsavano le alte luci, e una maschera
+di tonalita' stretta lasciava macchie scure sulla mascella.)
 `--dose` 0-100 sfuma fra identita' e look pieno.
 
 Uso: lut_da_riferimento.py --sorgente a.png --riferimento ref.png --lut out.cube
@@ -64,10 +70,21 @@ def peso_pelle(lab):
     a_, b_ = lab[..., 1], lab[..., 2]
     ang = np.degrees(np.arctan2(b_, a_))
     chroma = np.hypot(a_, b_)
-    h = np.clip(ang / 20, 0, 1) * np.clip((90 - ang) / 20, 0, 1)  # 0..90 gradi, pieno da 20 a 70
-    c = np.clip((chroma - 6) / 8, 0, 1) * np.clip((55 - chroma) / 15, 0, 1)
-    l_ = np.clip((lab[..., 0] - 22) / 8, 0, 1)             # fuori dai neri e dai capelli
+    # -10..115 gradi: dal rosato al giallo, e le alte luci quasi neutre; esclude il blu del fondo
+    h = np.clip((ang + 10) / 20, 0, 1) * np.clip((115 - ang) / 20, 0, 1)
+    c = np.clip((chroma - 3) / 5, 0, 1) * np.clip((55 - chroma) / 15, 0, 1)
+    l_ = np.clip((lab[..., 0] - 15) / 8, 0, 1)             # fuori dai neri; le ombre della pelle restano dentro
     return h * c * l_
+
+
+def peso_luce(lab):
+    """0-1, morbido: tutto cio' che non e' blu del fondo ne' nero. Niente soglie di tonalita':
+    con una maschera stretta le ombre fredde della mascella restavano indietro e il viso
+    usciva a macchie."""
+    b_, chroma = lab[..., 2], np.hypot(lab[..., 1], lab[..., 2])
+    caldo = np.clip((b_ + 4) / 8, 0, 1)
+    l_ = np.clip((lab[..., 0] - 14) / 12, 0, 1)
+    return caldo * l_ * np.clip((60 - chroma) / 20, 0, 1)
 
 
 def deltas(src, ref):
@@ -80,6 +97,11 @@ def deltas(src, ref):
             out.append((lab[:, 1:] * w[:, None]).sum(0) / max(w.sum(), 1e-6) if w.sum() > 50 else None)
         d[k] = (out[1] - out[0]) if out[0] is not None and out[1] is not None else (d[k - 1] if k else 0)
     return d
+
+
+def apri_ombre(lab, n):
+    """Aumento di L: n alle ombre, scende a zero a L 70."""
+    return n * np.clip((70 - lab[..., 0]) / 40, 0, 1)
 
 
 def scrivi_cube(path, trasforma, size):
@@ -103,16 +125,20 @@ def main():
     ap.add_argument("--uscita")
     ap.add_argument("--dose", type=float, default=100.0)
     ap.add_argument("--size", type=int, default=33)
+    ap.add_argument("--ombre", type=float, default=0.0, help="apre le ombre della pelle di N punti di L")
     a = ap.parse_args()
 
-    d = deltas(pixels(a.sorgente), pixels(a.riferimento))
-    print("spostamento a/b per fascia di L", dict(zip(FASCE.astype(int).tolist(), d.round(1).tolist())))
+    src, ref = pixels(a.sorgente), pixels(a.riferimento)
+    d = deltas(src, ref)
     k = a.dose / 100.0
 
     def trasforma(lab):
         sh = np.stack([np.interp(lab[..., 0], FASCE, d[:, 0]), np.interp(lab[..., 0], FASCE, d[:, 1])], -1)
         out = lab.copy()
-        out[..., 1:] += k * peso_pelle(lab)[..., None] * sh
+        w = peso_pelle(lab)
+        out[..., 1:] += k * w[..., None] * sh
+        if a.ombre:
+            out[..., 0] += k * peso_luce(lab) * apri_ombre(lab, a.ombre)
         return out
 
     scrivi_cube(a.lut, trasforma, a.size)
