@@ -53,10 +53,15 @@ ims = []
 for p, l in voci:
     im = Image.open(p).convert("RGB"); s = H / im.height
     ims.append((im.resize((int(im.width * s), H), Image.LANCZOS), l))
-W = sum(i.width for i, _ in ims) + 20 * (len(ims) + 1)
-out = Image.new("RGB", (W, H + 90), (20, 20, 20)); d = ImageDraw.Draw(out); x = 20
-for im, l in ims:
-    out.paste(im, (x, 70)); d.text((x, 18), l, font=f, fill=(240, 240, 240)); x += im.width + 20
+# Fino a 4 immagini in una riga; oltre, due righe o piu': una striscia di 8 ritratti era larga 6000 px e nel riquadro della pagina restava illeggibile.
+cols = len(ims) if len(ims) <= 4 else -(-len(ims) // 2) if len(ims) <= 8 else 4
+righe = [ims[i:i + cols] for i in range(0, len(ims), cols)]
+W = max(sum(i.width for i, _ in r) + 20 * (len(r) + 1) for r in righe)
+out = Image.new("RGB", (W, (H + 90) * len(righe)), (20, 20, 20)); d = ImageDraw.Draw(out)
+for k, r in enumerate(righe):
+    x = 20
+    for im, l in r:
+        out.paste(im, (x, k * (H + 90) + 70)); d.text((x, k * (H + 90) + 18), l, font=f, fill=(240, 240, 240)); x += im.width + 20
 out.save(sys.argv[1])
 `;
 const r = spawnSync("python3", ["-c", py, uscita, ...files], { encoding: "utf8" });
