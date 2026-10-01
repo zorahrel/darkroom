@@ -135,17 +135,17 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
  * va al modello.
  */
 const PROMPT = `
-Wildlife photo, BBC documentary, film grain, vertical 9:16, shot from a distance. Dark primeval forest floor, big out-of-focus leaves crossing in front of the animal's legs, a mossy stone in the blurred foreground.
+Wildlife photo, BBC documentary, film grain, vertical 9:16, shot from a distance. Dark primeval forest floor with bare ground around the animal's feet, out-of-focus leaves only along the bottom edge, a mossy stone in the blurred foreground.
 
-The "Kaumat": a massive, heavy four-metre crested-gecko creature with a barrel chest and thick legs, indigo-violet with a teal sheen. Its body is seen strictly side-on, like a profile drawing, and only the head turns back over the shoulder toward the camera. The animal fills about half of the frame: forest above, blurred foreground below, space on both sides. Neck high like a swan's. Large flat iridescent plates cover the back; the round pelvis is the highest point of the back; no crest or spikes on the body.
+The "Kaumat": a massive, heavy four-metre crested-gecko creature with a barrel chest and thick legs, indigo-violet with a teal sheen. Its body is seen strictly side-on, like a profile drawing, and only the head turns back over the shoulder toward the camera. The animal fills half the height of the frame, with forest above and blurred foreground below. Neck high like a swan's. Large flat iridescent plates cover the back; the hips are the highest point of the back, higher than the shoulders; no crest or spikes on the body.
 
 Head (the second image only shows how flat it is): a wide flat gecko head with a mean, angular muzzle hooked at the tip like a raptor's beak, round gecko nostrils, amber slit eyes, a fringe of eyelash spines above the eyes, and a translucent violet cobra frill behind the skull.
 
-Two short curved ivory tusks, a symmetric pair, rise from the corners of the lower jaw, below the mouth line, and point forward like two spears.
+Two ivory tusks, a symmetric pair, rise from the corners of the lower jaw, below the mouth line, and point forward like two spears.
 
 The head skin is violet. On top of the skull, between the eyes and the frill, a small faint patch of orange freckles that fades into the violet skin.
 
-Petrol-green feather ruff under the neck, cream tufts on the shoulders, gecko feet with wide round dark pads and no claws, a very long tail in a gentle S, ending in a straight tapered plain orange tip that points away from the body along the ground and never curls back.
+Petrol-green feather ruff under the neck, cream tufts on the shoulders, all four gecko feet clearly visible, each with wide round dark pads and no claws, a very long tail in a gentle S, ending in a straight tapered plain orange tip that points away from the body along the ground and never curls back.
 
 Copy nothing else from the images.
 `.trim();
