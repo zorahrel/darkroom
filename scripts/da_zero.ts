@@ -51,6 +51,49 @@ Sunglasses and hoodie as in the third image: glossy black wraparound sunglasses 
 
 Light and colour of a studio fashion shoot: a COLOURED frontal light, cyan-blue, like a gel in front of the face: beauty-campaign skin: smooth, silky and luminous, pores barely visible, crisp near-white specular highlights on forehead, nose bridge and cheekbones; highlights are neutral and cool, no orange; midtones stay my own skin tone, never grey-blue, shadows a soft pink; the cyan sits on the edge of the face and jaw; pink lips; medium contrast, not flat; DEEP crisp blacks (hoodie, glasses, hair), almost no grey: the hoodie is pitch black, no detail in the folds and no blue reflections on the fabric, it is the darkest part of the image. The cold is only on the skin and the backdrop: the earring stays bright yellow GOLD and the hair stays dark brown with warm coppery highlights. Paper backdrop navy blue at the top, blue-turquoise at the bottom, same colour family as the light. Head slightly tilted, gaze off-camera, relaxed expression, rested and fresh face, full and soft as in my photos (full cheeks, jaw not hollow), straight relaxed eyebrows, neither raised nor frowning. Real, sharp photograph.`;
 
+// Look nuovo (giro 31): posa distratta, occhiali a specchio, felpa techwear, da una tavola di tre foto VERE (refs/look-tavola.png,
+// fatta con mostra.ts da refs/ricerca/). La terza immagine e' quella: prendi solo posa, occhiali, capo, mai volti e sfondi.
+const LOOK = `Ritratto editoriale di moda, mezzo busto, quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci (della prima foto non prendere gli occhiali da vista, il telefono, la maglietta, lo sfondo). La seconda immagine e' la mia tavola di identita' (cheat sheet con la mia foto rasata e i miei 4 nei numerati, bocca, capelli, e in fondo i miei 4 nei ritagliati da vicino alla misura reale): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
+
+Sulla pelle ho solo questi 4 nei, piccoli: copiali IDENTICI ai ritagli in fondo alla tavola, stessa misura, stesso colore, stessa posizione sul viso: (1) un neo in rilievo color pelle sulla guancia, verso l'orecchio; (2) e (3) due puntini minuscoli sotto gli occhiali; (4) un neo scuro piccolo vicino all'angolo della bocca, dal lato opposto. Nient'altro.
+
+Bocca: labbra sottili, rosa pallido, chiuse e rilassate. All'orecchio un piccolo cerchietto d'oro giallo, dal lato del neo 1.
+
+La terza immagine e' una tavola di stile con tre persone che NON sono me: da POSA prendi solo la posa, da OCCHIALI solo gli occhiali, da FELPA solo il capo. Non prendere volti, berretto, collane, sfondi o luce.
+POSA: testa abbassata e girata, sguardo distratto verso il basso, fuori campo; una mano alla montatura degli occhiali, come se li stesse abbassando o sistemando, dal lato opposto all'orecchino, cosi' il neo 1 e l'orecchino restano visibili; dita naturali, cinque, ben separate; spalle asimmetriche, aria svagata e sicura di se'.
+OCCHIALI: occhiali sportivi a mascherina, lente unica a specchio blu elettrico che riflette il blu del set; sotto la lente si vedono i puntini 2 e 3.
+FELPA: capo techwear nero opaco, giacca-felpa con cappuccio abbassato sulle spalle, collo alto, zip nastrata con cursore grande chiusa fino al mento, tasca a zip, cuciture a vista, tessuto tecnico senza logo; nero pece, la parte piu' scura dell'immagine.
+
+Luce e colore da servizio di moda in studio: una luce frontale COLORATA, ciano-blu, come un gel davanti al viso: pelle da servizio beauty: liscia, setosa e luminosa, con pori appena visibili e riflessi lucidi netti, quasi bianchi, su fronte, dorso del naso e zigomi; le alte luci sono neutre e fredde, senza arancio; i mezzitoni restano del mio incarnato, mai grigio-blu, le ombre rosa tenue; il ciano sta sul bordo del viso e della mascella; labbra rosa; contrasto medio, non piatto; neri PROFONDI e netti (felpa, cappuccio, capelli), quasi senza grigio. Il freddo e' solo sulla pelle e sul fondo: l'orecchino resta d'ORO giallo brillante e i capelli restano castano scuro con riflessi caldi ramati. Fondo di carta blu navy in alto, blu-turchese in basso, della stessa famiglia di colore della luce. Espressione rilassata e distratta, viso riposato e fresco, pieno e morbido come nelle mie foto (guance piene, mascella non scavata), sopracciglia dritte e rilassate. Fotografia reale e nitida.`;
+
+// Look trap (giro 32): atteggiamento prima dello stile pulito. Tavola refs/look-trap.png = posa 2 (testa girata, sguardo fuori campo),
+// occhiali rosso-arancio a specchio dalla trap-verde, guscio techwear 3. Due varianti: cappuccio giu' (A) e alzato come cornice (B).
+
+// Luce del look trap. BASE = quella dei giri 32-33 (la luce arrivava di lato: meta' viso nera). FRONTE = geometria della reference
+// (una sorgente grande sull'asse dell'obiettivo, riempimento dal basso). FORTE = come FRONTE ma il colore del gel si vede sulla pelle.
+const LUCE_BASE = `Luce e colore da servizio di moda in studio: una luce frontale COLORATA, ciano-blu, come un gel davanti al viso: pelle da servizio beauty: liscia, setosa e luminosa, con pori appena visibili e riflessi lucidi netti, quasi bianchi, su fronte, dorso del naso e zigomi; le alte luci sono neutre e fredde, senza arancio; i mezzitoni restano del mio incarnato, mai grigio-blu, le ombre rosa tenue; il ciano sta sul bordo del viso e della mascella; labbra rosa; contrasto medio, non piatto; neri PROFONDI e netti (giacca, capelli), quasi senza grigio.`;
+const LUCE_FRONTE = `Luce e colore da servizio beauty: UNA sola sorgente grande e morbida (softbox) DAVANTI al viso, sull'asse dell'obiettivo e appena sopra, con un gel ciano-blu; avvolge tutto il viso in modo uniforme, come nelle foto beauty di moda: nessuna meta' del viso in ombra, nessuna luce laterale, nessuna ombra dura sul lato lontano. Un pannello bianco dal basso alza le ombre sotto mento, naso e orbite. Il viso e' CHIARO e luminoso, non scuro ne' in penombra: pelle liscia, setosa, pori appena visibili, riflessi lucidi netti quasi bianchi su fronte, dorso del naso, zigomi e labbro superiore; le alte luci sono neutre e fredde, senza arancio; i mezzitoni restano del mio incarnato; labbra rosa; contrasto medio. Neri PROFONDI e netti (guscio, capelli), quasi senza grigio.`;
+const LUCE_FORTE = LUCE_FRONTE.replace("con un gel ciano-blu;", "con un gel ciano-blu SATURO, il cui colore si vede sulla pelle: alte luci bianco-azzurre, mezzitoni con un velo ciano, ombre blu profondo ai bordi del viso e della mascella;");
+const GIACCA_SPAZIALE = "GIACCA: giacca techwear da tuta spaziale, nero opaco, SENZA scritte, loghi, bandiere, patch ne' etichette di nessun tipo; colletto alto rigido a fascia che arriva sotto la mascella, cappuccio non in vista; spalle e petto a pannelli a blocchi con cuciture a vista e nastro termosaldato, una grande tasca pettorale a blocco con zip nastrata, tasche utility con zip nastrate, cinghia con fibbia che attraversa il petto, zip con cursore grande, tessuto tecnico opaco; nero pece, la parte piu' scura dell'immagine.";
+const felpaTrap = (alzato: boolean, spaziale = false) =>
+  spaziale
+    ? GIACCA_SPAZIALE
+    : alzato
+    ? "FELPA: guscio techwear nero opaco, cappuccio ALZATO sul capo come una cornice attorno al viso, cordino tirato; i miei ricci escono sulla fronte e sulle tempie, ben visibili; collo alto chiuso fino al mento, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine."
+    : "FELPA: guscio techwear nero opaco, collo alto a imbuto chiuso fino al mento e oltre, cappuccio abbassato sulle spalle, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine.";
+const lookTrap = (alzato: boolean, luce = LUCE_BASE, spaziale = false) => `Ritratto editoriale di moda, primo piano stretto (viso grande, spalle tagliate), quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci (della prima foto non prendere gli occhiali da vista, il telefono, la maglietta, lo sfondo). La seconda immagine e' la mia tavola di identita' (cheat sheet con la mia foto rasata e i miei 4 nei numerati, bocca, capelli, e in fondo i miei 4 nei ritagliati da vicino alla misura reale): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
+
+Sulla pelle ho solo questi 4 nei, piccoli: copiali IDENTICI ai ritagli in fondo alla tavola, stessa misura, stesso colore, stessa posizione sul viso: (1) un neo in rilievo color pelle sulla guancia, verso l'orecchio; (2) e (3) due puntini minuscoli sotto gli occhiali; (4) un neo scuro piccolo vicino all'angolo della bocca, dal lato opposto. Nient'altro.
+
+Bocca: labbra sottili, rosa pallido, chiuse. All'orecchio un piccolo cerchietto d'oro giallo, dal lato del neo 1.
+
+La terza immagine e' una tavola di stile con tre persone che NON sono me: da POSA prendi solo la posa e l'atteggiamento, da OCCHIALI solo gli occhiali e l'attitudine dura, da FELPA solo il capo. Non prendere volti, pelo verde, orecchini, sfondi, colori della luce.
+POSA: testa girata di tre quarti, il lato con il neo 1 e l'orecchino verso l'obiettivo (il neo 4 resta visibile all'angolo della bocca), sguardo fuori campo, duro e annoiato, sopracciglia leggermente corrucciate, mento appena alzato; nessuna mano nel quadro.
+OCCHIALI: occhiali sportivi avvolgenti, montatura rossa lucida e lenti a specchio rosso-arancio che riflettono il blu del set; sotto le lenti si vedono i puntini 2 e 3.
+${felpaTrap(alzato, spaziale)}
+
+${luce} Il caldo sta solo negli occhiali e nell'orecchino d'ORO giallo brillante; i capelli restano castano scuro con riflessi caldi ramati. Fondo di carta blu navy in alto, blu-turchese in basso, della stessa famiglia di colore della luce. Viso pieno e morbido come nelle mie foto (guance piene, mascella non scavata). Fotografia reale e nitida.`;
+
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
 await withProject(PROGETTO, async () => {
@@ -62,12 +105,19 @@ await withProject(PROGETTO, async () => {
     join(D, "refs", "accessori-tavola.png"),
   ];
   const ref = join(D, "refs", "luce-bg-studio-blu.png");
-  for (const p of [materia, ref, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
+  const look = join(D, "refs", "look-tavola.png");
+  const lookT = join(D, "refs", "look-trap.png");
+  for (const p of [materia, ref, look, lookT, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
   const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
     { nome: "it-senza-ref", prompt: SENZA_REF_IT, refs: base },
     { nome: "en-senza-ref", prompt: SENZA_REF_EN, refs: base },
+    { nome: "look", prompt: LOOK, refs: [base[0]!, look] },
+    { nome: "trap-a", prompt: lookTrap(false), refs: [base[0]!, lookT] },
+    { nome: "trap-b", prompt: lookTrap(true), refs: [base[0]!, lookT] },
+    { nome: "trap-fronte", prompt: lookTrap(false, LUCE_FRONTE), refs: [base[0]!, lookT] },
+    { nome: "trap-forte", prompt: lookTrap(false, LUCE_FORTE), refs: [base[0]!, lookT] },
   ];
   // `--var it-senza-ref,en-senza-ref`: le varianti si alternano giro dopo giro. Default: con-ref.
   const iV = process.argv.indexOf("--var");
