@@ -34,6 +34,23 @@ Luce e colore come nella foto di moda con gli occhiali bianchi (solo luce e colo
 
 const CON_REF = CORPO;
 
+// Senza la reference della modella: la luce si descrive e basta, non c'e' una terza foto a cui rimandare.
+const SENZA_REF_IT = CORPO.replace(
+  "Luce e colore come nella foto di moda con gli occhiali bianchi (solo luce e colore, non la persona): una luce",
+  "Luce e colore da servizio di moda in studio: una luce",
+);
+
+// Stesso contenuto in inglese (test lingua del prompt). Nomi dei file e dei nei restano gli stessi.
+const SENZA_REF_EN = `Editorial fashion portrait, half-length, square 1:1. This is me: the first photo is my face and my curls (from the first photo do NOT take the glasses, the phone, the t-shirt or the background). The second image is my identity sheet (a cheat sheet with my shaved photo and my 4 numbered moles, mouth, hair, and at the bottom my 4 moles cropped close-up at real size): take face, mouth and moles from it; not the light, the background, the prescription glasses or the beard. I just shaved: smooth clean skin on cheeks, chin and upper lip, no trace of stubble.
+
+On my skin I have only these 4 small moles: copy them IDENTICAL to the crops at the bottom of the sheet, same size, same colour, same position on the face: (1) a raised skin-coloured mole on the cheek, toward the ear; (2) and (3) two tiny dots under the frame; (4) a small dark mole near the corner of the mouth, on the opposite side. Nothing else.
+
+Mouth: thin pale-pink lips, closed and relaxed. A small yellow-gold hoop at the ear, on the same side as mole 1.
+
+Sunglasses and hoodie as in the third image: glossy black wraparound sunglasses with smoked lenses; black hoodie zipped up to the chin, no logo.
+
+Light and colour of a studio fashion shoot: a COLOURED frontal light, cyan-blue, like a gel in front of the face: beauty-campaign skin: smooth, silky and luminous, pores barely visible, crisp near-white specular highlights on forehead, nose bridge and cheekbones; highlights are neutral and cool, no orange; midtones stay my own skin tone, never grey-blue, shadows a soft pink; the cyan sits on the edge of the face and jaw; pink lips; medium contrast, not flat; DEEP crisp blacks (hoodie, glasses, hair), almost no grey: the hoodie is pitch black, no detail in the folds and no blue reflections on the fabric, it is the darkest part of the image. The cold is only on the skin and the backdrop: the earring stays bright yellow GOLD and the hair stays dark brown with warm coppery highlights. Paper backdrop navy blue at the top, blue-turquoise at the bottom, same colour family as the light. Head slightly tilted, gaze off-camera, relaxed expression, rested and fresh face, full and soft as in my photos (full cheeks, jaw not hollow), straight relaxed eyebrows, neither raised nor frowning. Real, sharp photograph.`;
+
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
 await withProject(PROGETTO, async () => {
@@ -47,9 +64,15 @@ await withProject(PROGETTO, async () => {
   const ref = join(D, "refs", "luce-bg-studio-blu.png");
   for (const p of [materia, ref, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
-  const varianti = [
+  const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
+    { nome: "it-senza-ref", prompt: SENZA_REF_IT, refs: base },
+    { nome: "en-senza-ref", prompt: SENZA_REF_EN, refs: base },
   ];
+  // `--var it-senza-ref,en-senza-ref`: le varianti si alternano giro dopo giro. Default: con-ref.
+  const iV = process.argv.indexOf("--var");
+  const scelte = iV > 0 ? process.argv[iV + 1]!.split(",") : ["con-ref"];
+  const varianti = scelte.map((n) => tutte.find((t) => t.nome === n) ?? (() => { throw new Error(`variante sconosciuta: ${n}`); })());
   for (let g = 1; g <= giri; g++) {
     const v = varianti[(g - 1) % varianti.length]!;
     const job = enqueueJob(
@@ -58,7 +81,7 @@ await withProject(PROGETTO, async () => {
         recipe: `da-zero-${v.nome}`,
         // La UI chiama «ritocco» ogni versione con `materia`: solo se parte da un'altra immagine, non dall'originale.
         ...(iM > 0 ? { partenza: MATERIA } : {}),
-        cambiato: "giro 29: pelle beauty liscia e lucida con riflessi quasi bianchi, alte luci neutre (reference a 0 e b 7, nostre a 12 e b 17, specular 1.5% contro 0.2%). Prima, giro 28: sopracciglia dritte, viso pieno (v317 era angoloso e corrucciato), felpa la parte piu' scura (10 contro 6-7). Prima, giro 27: felpa nera pece (nei giri dal selfie i neri erano 15-18, reference 6-7) e viso riposato non stanco. Prima, giro 26: foto di partenza = selfie rasato (derivate/io-rasato-2023-06-23-p08-dritto.jpg) invece di 1.PNG, che ha la barba corta e la passava ai tiri; giro 25 aveva tolto i primi piani senza effetto sulla grana. Prima, giro 25: tavola io-identita-nei.png = cheat sheet + 4 nei, SENZA i tre primi piani rasati (test grana mascella). Prima, giro 24: incarnato caldo beige dorato (mio), ciano solo su ombre e bordo; nel giro 23 la pelle era pallida e grigio-blu. Prima, giro 23: luce fredda ma orecchino d'ORO e capelli castani caldi (nel giro 22 erano diventati argento e neri). Prima, giro 22: luce frontale COLORATA ciano-blu come la reference (pelle fredda, neri profondi, contrasto medio) al posto di «morbida e piatta». Prima, giro 21: io-unica-nei.png = io-unica + fascia con i 4 nei veri ritagliati da p08 alla misura reale; prompt: copiali identici. Prima, giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.",
+        cambiato: `giro 30: variante ${v.nome} (test senza la reference della modella, prompt italiano contro inglese). Prima, giro 29: pelle beauty liscia e lucida con riflessi quasi bianchi, alte luci neutre (reference a 0 e b 7, nostre a 12 e b 17, specular 1.5% contro 0.2%). Prima, giro 28: sopracciglia dritte, viso pieno (v317 era angoloso e corrucciato), felpa la parte piu' scura (10 contro 6-7). Prima, giro 27: felpa nera pece (nei giri dal selfie i neri erano 15-18, reference 6-7) e viso riposato non stanco. Prima, giro 26: foto di partenza = selfie rasato (derivate/io-rasato-2023-06-23-p08-dritto.jpg) invece di 1.PNG, che ha la barba corta e la passava ai tiri; giro 25 aveva tolto i primi piani senza effetto sulla grana. Prima, giro 25: tavola io-identita-nei.png = cheat sheet + 4 nei, SENZA i tre primi piani rasati (test grana mascella). Prima, giro 24: incarnato caldo beige dorato (mio), ciano solo su ombre e bordo; nel giro 23 la pelle era pallida e grigio-blu. Prima, giro 23: luce fredda ma orecchino d'ORO e capelli castani caldi (nel giro 22 erano diventati argento e neri). Prima, giro 22: luce frontale COLORATA ciano-blu come la reference (pelle fredda, neri profondi, contrasto medio) al posto di «morbida e piatta». Prima, giro 21: io-unica-nei.png = io-unica + fascia con i 4 nei veri ritagliati da p08 alla misura reale; prompt: copiali identici. Prima, giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.`,
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,
       }),
