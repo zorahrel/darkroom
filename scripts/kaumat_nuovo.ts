@@ -143,9 +143,9 @@ Head (the second image only shows how flat it is): a wide flat gecko head with a
 
 Two ivory tusks, a symmetric pair, rise from the corners of the lower jaw, below the mouth line, and point forward like two spears.
 
-The head skin is violet. On top of the skull, between the eyes and the frill, a small faint patch of orange freckles that fades into the violet skin.
+The head skin is violet. On top of the skull, between the eyes and the frill, a few faint orange freckles that fade into the violet skin; no orange in front of the eyes or on the muzzle.
 
-Petrol-green feather ruff under the neck, cream tufts on the shoulders, all four gecko feet clearly visible, each with wide round dark pads and no claws, a very long tail in a gentle S, ending in a straight tapered plain orange tip that points away from the body along the ground and never curls back.
+Petrol-green feather ruff under the neck, cream tufts only on the two shoulders and nothing along the spine, all four gecko feet clearly visible, each with wide round dark pads and no claws, a very long tail in a gentle S, ending in a straight tapered plain orange tip that lies on the ground in line with the tail, pointing away from the body, never turning back toward it.
 
 Copy nothing else from the images.
 `.trim();
