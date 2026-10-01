@@ -11,6 +11,7 @@ import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
 import { PhotoPipeline } from "../components/detail/PhotoPipeline";
 import { VersionStrip } from "../components/detail/VersionStrip";
+import { FullscreenView } from "../components/detail/FullscreenView";
 
 
 // Prev/next only ever needs the neighbours; a handful of entries covers the
@@ -26,6 +27,8 @@ export default function DetailPage() {
   const [data, setData] = useState<PhotoDetail | null>(null);
   const [currentVersion, setCurrentVersion] = useState(0);
   const [generating, setGenerating] = useState(false);
+  /** L'originale a tutto schermo con zoom 1:1: serve alle tavole di confronto, che non hanno versioni. */
+  const [originaleGrande, setOriginaleGrande] = useState(false);
   const [allIds, setAllIds] = useState<string[]>([]);
   const [latestJob, setLatestJob] = useState<Job | null>(null);
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
@@ -382,9 +385,18 @@ export default function DetailPage() {
             <img
               src={rawUrl(photo.id, photo.original_ext)}
               alt={photo.id}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain cursor-zoom-in"
+              onClick={() => setOriginaleGrande(true)}
             />
           </div>
+          {originaleGrande && (
+            <FullscreenView
+              src={rawUrl(photo.id, photo.original_ext)}
+              alt={photo.id}
+              zoomable
+              onClose={() => setOriginaleGrande(false)}
+            />
+          )}
         </div>
 
         {/* Generations */}
