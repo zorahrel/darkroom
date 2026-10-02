@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Version } from "../api";
-import { genUrl } from "../api";
+import { genUrl, thumbGenUrl } from "../api";
 import CompareSlider from "./CompareSlider";
 
 export default function VersionCarousel({
@@ -269,9 +269,11 @@ export default function VersionCarousel({
                   : "border-transparent hover:border-neutral-600")
               }
             >
+              {/* Miniatura, non il PNG intero: con 337 versioni erano centinaia di MB a ogni apertura e la pagina restava nera. */}
               <img
-                src={genUrl(vv.photo_id, vv.version_number)}
+                src={thumbGenUrl(vv.photo_id, vv.version_number, 160)}
                 alt={`v${vv.version_number}`}
+                loading="lazy"
                 className="w-full h-full object-cover"
               />
             </button>
