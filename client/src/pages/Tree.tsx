@@ -540,7 +540,8 @@ export default function TreePage() {
           key={(n.photos ?? [n.photo]).join("|")}
           className="grid grid-cols-1 sm:grid-cols-[168px_1fr] gap-4 py-4 border-b border-neutral-800 items-start"
         >
-          <div className="sticky top-20 flex flex-col gap-1.5">
+          {/* Sticky solo con le due colonne: a una colonna restava incollata in alto e passava sopra le schede mentre si scorreva. */}
+          <div className="sm:sticky sm:top-20 flex flex-col gap-1.5 max-w-[200px] sm:max-w-none">
             {/* The root is the input SET. When the photos are more than one they
                 are all shown: showing only one passed it off as the only shot
                 used, and it is why the others came out as "0 variants" despite
