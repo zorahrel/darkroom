@@ -28,7 +28,9 @@ await withProject(progetto, async () => {
   const n = nextVersionNumber(foto);
   const out = join(dir, `v${String(n).padStart(2, "0")}.png`);
   copyFileSync(file, out);
-  const partenza = opt("partenza");
+  // «v318» o «v318.png»: il server cerca il file nella cartella delle generazioni, quindi serve l'estensione.
+  const partenzaArg = opt("partenza");
+  const partenza = /^v\d+$/.test(partenzaArg) ? `${partenzaArg}.png` : partenzaArg;
   db().run(
     `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, credits, source, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 'local', 0, 'generated', ?)`,
