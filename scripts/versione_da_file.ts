@@ -41,5 +41,21 @@ await withProject(progetto, async () => {
       Date.now(),
     ],
   );
+  // Gli ingressi: la partenza e', con i suoi riferimenti, quelli della generazione da cui nasce. Senza, la pagina mostrava
+  // una partenza «ricostruita» sbagliata e nessun riferimento, e il prompt era solo la nota.
+  const nuova = db().query<{ id: number }, [string, number]>("SELECT id FROM versions WHERE photo_id = ? AND version_number = ?").get(foto, n)!;
+  const num = /^v(\d+)\.png$/.exec(partenza)?.[1];
+  const madre = num
+    ? db().query<{ id: number; prompt_used: string }, [string, number]>("SELECT id, prompt_used FROM versions WHERE photo_id = ? AND version_number = ?").get(foto, Number(num))
+    : null;
+  if (madre) {
+    db().run("INSERT INTO version_inputs (version_id, kind, path, photo_id, position, origin) VALUES (?, 'source', ?, ?, 0, 'recorded')", [nuova.id, join(dir, partenza), foto]);
+    db().run(
+      `INSERT INTO version_inputs (version_id, kind, path, photo_id, position, origin)
+       SELECT ?, 'reference', path, NULL, position, 'recorded' FROM version_inputs WHERE version_id = ? AND kind = 'reference'`,
+      [nuova.id, madre.id],
+    );
+    db().run("UPDATE versions SET prompt_used = ? WHERE id = ?", [`${opt("nota", "versione locale")}\n\n--- prompt della generazione di partenza (${partenza}) ---\n${madre.prompt_used}`, nuova.id]);
+  }
   console.log(`v${n}`);
 });

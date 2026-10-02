@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Ingresso } from "../../api/types";
-import { thumbGenUrl, thumbRefUrl } from "../../api/urls";
+import { refUrl, thumbGenUrl, thumbRefUrl } from "../../api/urls";
+import { FullscreenView } from "./FullscreenView";
 import { currentProject } from "../../api/http";
 
 /**
@@ -38,6 +39,8 @@ export function IngressiVersione({
   prompt: string;
 }) {
   const [promptAperto, setPromptAperto] = useState(false);
+  /** Il riferimento ingrandito: un clic lo porta a 1:1, non fuori dalla pagina. */
+  const [ingrandito, setIngrandito] = useState<string | null>(null);
   const pid = currentProject();
 
   const miniatura = (i: Ingresso) =>
@@ -45,10 +48,10 @@ export function IngressiVersione({
       ? thumbGenUrl(i.foto ?? photoId, i.versione, 160)
       : thumbRefUrl(i.nome, 160);
 
-  // Una reference si apre nella sua pagina, con il suo deprompt; una versione
-  // generata apre quella versione. Una foto dell'utente non ha una pagina sua.
+  // Una versione generata apre quella versione (la principale, da cui nasce un
+  // ritocco). Un riferimento NON naviga: si ingrandisce qui, con zoom 1:1.
+  // Una foto dell'utente non ha una pagina sua.
   const destinazione = (i: Ingresso): string | null => {
-    if (i.tipo === "riferimento") return `/p/${pid}/references/${encodeURIComponent(i.nome)}`;
     if (i.tipo === "generata" && i.versione !== null)
       return `/p/${pid}/photo/${encodeURIComponent(i.foto ?? photoId)}?v=${i.versione}`;
     return null;
@@ -89,6 +92,12 @@ export function IngressiVersione({
               </figcaption>
             </figure>
           );
+          if (i.tipo === "riferimento")
+            return (
+              <button key={k} type="button" onClick={() => setIngrandito(i.nome)} className="cursor-zoom-in text-left hover:opacity-80">
+                {corpo}
+              </button>
+            );
           return dest ? (
             <Link key={k} to={dest} className="hover:opacity-80">
               {corpo}
@@ -107,6 +116,7 @@ export function IngressiVersione({
           </button>
         )}
       </div>
+      {ingrandito && <FullscreenView src={refUrl(ingrandito)} alt={ingrandito} zoomable onClose={() => setIngrandito(null)} />}
       {promptAperto && (
         <pre className="pointer-events-auto max-h-[45vh] w-full max-w-2xl overflow-auto whitespace-pre-wrap rounded border border-neutral-700 bg-neutral-950/95 p-3 font-mono text-[11px] leading-relaxed text-neutral-200">
           {prompt}

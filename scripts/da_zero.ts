@@ -74,14 +74,16 @@ Luce e colore da servizio di moda in studio: una luce frontale COLORATA, ciano-b
 const LUCE_BASE = `Luce e colore da servizio di moda in studio: una luce frontale COLORATA, ciano-blu, come un gel davanti al viso: pelle da servizio beauty: liscia, setosa e luminosa, con pori appena visibili e riflessi lucidi netti, quasi bianchi, su fronte, dorso del naso e zigomi; le alte luci sono neutre e fredde, senza arancio; i mezzitoni restano del mio incarnato, mai grigio-blu, le ombre rosa tenue; il ciano sta sul bordo del viso e della mascella; labbra rosa; contrasto medio, non piatto; neri PROFONDI e netti (giacca, capelli), quasi senza grigio.`;
 const LUCE_FRONTE = `Luce e colore da servizio beauty: UNA sola sorgente grande e morbida (softbox) DAVANTI al viso, sull'asse dell'obiettivo e appena sopra, con un gel ciano-blu; avvolge tutto il viso in modo uniforme, come nelle foto beauty di moda: nessuna meta' del viso in ombra, nessuna luce laterale, nessuna ombra dura sul lato lontano. Un pannello bianco dal basso alza le ombre sotto mento, naso e orbite. Il viso e' CHIARO e luminoso, non scuro ne' in penombra: pelle liscia, setosa, pori appena visibili, riflessi lucidi netti quasi bianchi su fronte, dorso del naso, zigomi e labbro superiore; le alte luci sono neutre e fredde, senza arancio; i mezzitoni restano del mio incarnato; labbra rosa; contrasto medio. Neri PROFONDI e netti (guscio, capelli), quasi senza grigio.`;
 const LUCE_FORTE = LUCE_FRONTE.replace("con un gel ciano-blu;", "con un gel ciano-blu SATURO, il cui colore si vede sulla pelle: alte luci bianco-azzurre, mezzitoni con un velo ciano, ombre blu profondo ai bordi del viso e della mascella;");
-const GIACCA_SPAZIALE = "GIACCA: giacca techwear da tuta spaziale, nero opaco, SENZA scritte, loghi, bandiere, patch ne' etichette di nessun tipo; SENZA CAPPUCCIO: la giacca non ha cappuccio, ne' alzato ne' abbassato ne' ripiegato dietro il collo, solo un colletto alto rigido a fascia che arriva sotto la mascella; dietro il collo si vede il fondo, nessun tessuto; spalle e petto a pannelli a blocchi con cuciture a vista e nastro termosaldato, una grande tasca pettorale a blocco con zip nastrata, tasche utility con zip nastrate, cinghia con fibbia che attraversa il petto, zip con cursore grande, tessuto tecnico opaco; nero pece, la parte piu' scura dell'immagine.";
+const GIACCA_SPAZIALE = "GIACCA: giacca techwear da tuta spaziale, nero opaco, SENZA scritte, loghi, bandiere, patch ne' etichette di nessun tipo; SENZA CAPPUCCIO: la giacca non ha cappuccio, ne' alzato ne' abbassato ne' ripiegato dietro il collo, dietro il collo si vede il fondo, nessun tessuto. COLLETTO alto rigido a fascia che arriva sotto la mascella, con un BORDO SPESSO: bordatura in nastro gommato termosaldato larga circa 2 cm tutto intorno al colletto, alle tasche e ai pannelli, ben visibile e in rilievo come un cordolo. ZIP: zip stagna nastrata, sicura, coperta da una PATTA paravento che si chiude con velcro nero e due automatici; in alto la zip finisce dentro un garage (tasca di protezione) imbottito; il cursore e' corto e bassissimo, a filo del tessuto, NESSUN tirazip lungo o penzolante, nessuna linguetta che pende. Spalle e petto a pannelli a blocchi con cuciture a vista, una grande tasca pettorale a blocco con zip nastrata e patta, tasche utility, una cinghia con fibbia che attraversa il petto, tessuto tecnico opaco; nero pece, la parte piu' scura dell'immagine.";
 const felpaTrap = (alzato: boolean, spaziale = false) =>
   spaziale
     ? GIACCA_SPAZIALE
     : alzato
     ? "FELPA: guscio techwear nero opaco, cappuccio ALZATO sul capo come una cornice attorno al viso, cordino tirato; i miei ricci escono sulla fronte e sulle tempie, ben visibili; collo alto chiuso fino al mento, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine."
     : "FELPA: guscio techwear nero opaco, collo alto a imbuto chiuso fino al mento e oltre, cappuccio abbassato sulle spalle, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine.";
-const lookTrap = (alzato: boolean, luce = LUCE_BASE, spaziale = false) => `Ritratto editoriale di moda, primo piano stretto (viso grande, spalle tagliate), quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci (della prima foto non prendere gli occhiali da vista, il telefono, la maglietta, lo sfondo). La seconda immagine e' la mia tavola di identita' (cheat sheet con la mia foto rasata e i miei 4 nei numerati, bocca, capelli, e in fondo i miei 4 nei ritagliati da vicino alla misura reale): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
+const OCCHIALI_ROSSI = "occhiali sportivi avvolgenti, montatura rossa lucida e lenti a specchio rosso-arancio che riflettono il blu del set; sotto le lenti si vedono i puntini 2 e 3.";
+const OCCHIALI_NERI = "i miei occhiali neri lucidi a mascherina avvolgente, come nella foto OCCHIALI: montatura nera lucida spessa, stanghette larghe che girano attorno alla testa, lenti scure fume' (nessuno specchio, nessun colore); sotto le lenti si vedono i puntini 2 e 3.";
+const lookTrap = (alzato: boolean, luce = LUCE_BASE, spaziale = false, occhiali = OCCHIALI_ROSSI) => `Ritratto editoriale di moda, primo piano stretto (viso grande, spalle tagliate), quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci (della prima foto non prendere gli occhiali da vista, il telefono, la maglietta, lo sfondo). La seconda immagine e' la mia tavola di identita' (cheat sheet con la mia foto rasata e i miei 4 nei numerati, bocca, capelli, e in fondo i miei 4 nei ritagliati da vicino alla misura reale): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
 
 Sulla pelle ho solo questi 4 nei, piccoli: copiali IDENTICI ai ritagli in fondo alla tavola, stessa misura, stesso colore, stessa posizione sul viso: (1) un neo in rilievo color pelle sulla guancia, verso l'orecchio; (2) e (3) due puntini minuscoli sotto gli occhiali; (4) un neo scuro piccolo vicino all'angolo della bocca, dal lato opposto. Nient'altro.
 
@@ -89,7 +91,7 @@ Bocca: labbra sottili, rosa pallido, chiuse. All'orecchio un piccolo cerchietto 
 
 La terza immagine e' una tavola di stile con tre persone che NON sono me: da POSA prendi solo la posa e l'atteggiamento, da OCCHIALI solo gli occhiali e l'attitudine dura, da FELPA solo il capo. Non prendere volti, pelo verde, orecchini, sfondi, colori della luce.
 POSA: testa girata di tre quarti, il lato con il neo 1 e l'orecchino verso l'obiettivo (il neo 4 resta visibile all'angolo della bocca), sguardo fuori campo, duro e annoiato, sopracciglia leggermente corrucciate, mento appena alzato; nessuna mano nel quadro.
-OCCHIALI: occhiali sportivi avvolgenti, montatura rossa lucida e lenti a specchio rosso-arancio che riflettono il blu del set; sotto le lenti si vedono i puntini 2 e 3.
+OCCHIALI: ${occhiali}
 ${felpaTrap(alzato, spaziale)}
 
 ${luce} Il caldo sta solo negli occhiali e nell'orecchino d'ORO giallo brillante; i capelli restano castano scuro con riflessi caldi ramati. Fondo di carta blu navy in alto, blu-turchese in basso, della stessa famiglia di colore della luce. Viso pieno e morbido come nelle mie foto (guance piene, mascella non scavata). Fotografia reale e nitida.`;
@@ -108,7 +110,8 @@ await withProject(PROGETTO, async () => {
   const look = join(D, "refs", "look-tavola.png");
   const lookT = join(D, "refs", "look-trap.png");
   const lookT2 = join(D, "refs", "look-trap2.png");
-  for (const p of [materia, ref, look, lookT, lookT2, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
+  const lookT3 = join(D, "refs", "look-pose-occhiali-giacca.png");
+  for (const p of [materia, ref, look, lookT, lookT2, lookT3, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
   const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
@@ -121,6 +124,8 @@ await withProject(PROGETTO, async () => {
     { nome: "trap-forte", prompt: lookTrap(false, LUCE_FORTE), refs: [base[0]!, lookT] },
     { nome: "spaz-fronte", prompt: lookTrap(false, LUCE_FRONTE, true), refs: [base[0]!, lookT2] },
     { nome: "spaz-forte", prompt: lookTrap(false, LUCE_FORTE, true), refs: [base[0]!, lookT2] },
+    { nome: "neri-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI), refs: [base[0]!, lookT3] },
+    { nome: "neri-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI), refs: [base[0]!, lookT3] },
   ];
   // `--var it-senza-ref,en-senza-ref`: le varianti si alternano giro dopo giro. Default: con-ref.
   const iV = process.argv.indexOf("--var");

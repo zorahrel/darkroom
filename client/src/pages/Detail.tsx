@@ -92,6 +92,16 @@ export default function DetailPage() {
     refresh();
   }, [refresh]);
 
+  // `?v=` cambia anche da fuori (la miniatura «partenza» in alto, un link): prima l'indirizzo
+  // si aggiornava ma la pagina restava sulla versione di prima, perche' `?v=` si leggeva solo
+  // al primo caricamento. Con le nostre scelte lo stato e l'indirizzo coincidono gia': nessun effetto.
+  const vParam = searchParams.get("v");
+  useEffect(() => {
+    if (!data || !vParam) return;
+    const idx = data.versions.findIndex((x) => x.version_number === Number(vParam));
+    if (idx >= 0) setCurrentVersion((cur) => (cur === idx ? cur : idx));
+  }, [vParam, data]);
+
   // Job status for this photo. The jobs payload is already polled once by the
   // app shell — read it from the outlet instead of opening a second poller on
   // the same endpoint.
