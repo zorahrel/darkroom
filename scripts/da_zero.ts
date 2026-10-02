@@ -107,7 +107,8 @@ await withProject(PROGETTO, async () => {
   const ref = join(D, "refs", "luce-bg-studio-blu.png");
   const look = join(D, "refs", "look-tavola.png");
   const lookT = join(D, "refs", "look-trap.png");
-  for (const p of [materia, ref, look, lookT, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
+  const lookT2 = join(D, "refs", "look-trap2.png");
+  for (const p of [materia, ref, look, lookT, lookT2, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
   const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
@@ -118,6 +119,8 @@ await withProject(PROGETTO, async () => {
     { nome: "trap-b", prompt: lookTrap(true), refs: [base[0]!, lookT] },
     { nome: "trap-fronte", prompt: lookTrap(false, LUCE_FRONTE), refs: [base[0]!, lookT] },
     { nome: "trap-forte", prompt: lookTrap(false, LUCE_FORTE), refs: [base[0]!, lookT] },
+    { nome: "spaz-fronte", prompt: lookTrap(false, LUCE_FRONTE, true), refs: [base[0]!, lookT2] },
+    { nome: "spaz-forte", prompt: lookTrap(false, LUCE_FORTE, true), refs: [base[0]!, lookT2] },
   ];
   // `--var it-senza-ref,en-senza-ref`: le varianti si alternano giro dopo giro. Default: con-ref.
   const iV = process.argv.indexOf("--var");
