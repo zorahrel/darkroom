@@ -121,6 +121,29 @@ const senzaVolti = (luce: string) =>
     .replace(CLAUSOLA_SCELTE.replace("La QUARTA immagine", "La TERZA immagine"), "")
     + CLAUSOLA_LISCIA;
 
+// Giro 33: solo i DUE nei che il modello non inventa, il 1 (in rilievo, accanto all'orecchino) e il 4 (angolo della bocca,
+// lato opposto), che qui diventa il 2. Su v393 il puntino scuro sotto la montatura era disegnato dal modello, piu' grande
+// e in un punto diverso dal mio solco minuscolo: la zona sotto gli occhiali si chiede uniforme, senza puntini.
+const sost = (t: string, a: string, b: string) => {
+  if (!t.includes(a)) throw new Error(`frase non trovata: ${a.slice(0, 60)}`);
+  return t.split(a).join(b);
+};
+const dueNei = (luce: string) => {
+  let t = senzaVolti(luce);
+  t = sost(t, "Sulla pelle ho solo questi 4 nei, piccoli:", "Sulla pelle ho solo questi 2 nei, piccoli:");
+  t = sost(t, "; (2) e (3) due puntini minuscoli sotto gli occhiali; (4) un neo scuro", "; (2) un neo scuro");
+  t = sost(t, "Nient'altro.", "Nient'altro: il resto del viso e' pelle uniforme, nessun altro neo o puntino, e la pelle sotto le lenti e accanto al naso e' liscia, senza segni.");
+  t = sost(t, "; sotto le lenti si vedono i puntini 2 e 3.", ". Sotto le lenti la pelle e' liscia e uniforme, senza puntini.");
+  t = sost(t, "il neo 4 resta visibile", "il neo 2 resta visibile");
+  t = sost(t, "solo i miei 4 nei.", "solo i miei 2 nei.");
+  const resti = t.match(/puntini 2 e 3|4 nei|neo 4|\(3\)|\(4\)/g);
+  if (resti) throw new Error(`rimasti riferimenti ai nei tolti: ${resti.join(", ")}`);
+  return t;
+};
+
+// Giro 34: due nei (come il 33) con la luce forte, che era la piu' luminosa (v394 54, v396 60 contro 48 e 46 della frontale),
+// piu' una frase su esposizione e incarnato: la forte da sola raffredda troppo (v396 b 2,7 contro 12,3 della reference).
+const CLAUSOLA_CHIARO = "\n\nEsposizione: il viso e' ben illuminato e luminoso, luce alta e piena sulla pelle, ombre aperte e morbide, nessuna guancia che cade nel buio. L'incarnato resta caldo, beige dorato e naturale: il freddo del gel sta solo sul bordo del viso e sulla mascella, mai al centro della pelle, che non deve sembrare gesso ne' pallida.";
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
 await withProject(PROGETTO, async () => {
@@ -161,6 +184,9 @@ await withProject(PROGETTO, async () => {
     { nome: "solo-stile-fronte", prompt: senzaVolti(LUCE_FRONTE), refs: [lookT3] },
     { nome: "solo-volti-forte", prompt: senzaTavola(LUCE_FORTE), refs: [lookT3, tavolaScelte] },
     { nome: "solo-volti-fronte", prompt: senzaTavola(LUCE_FRONTE), refs: [lookT3, tavolaScelte] },
+    { nome: "chiaro-forte", prompt: dueNei(LUCE_FORTE) + CLAUSOLA_CHIARO, refs: [lookT3] },
+    { nome: "due-nei-forte", prompt: dueNei(LUCE_FORTE), refs: [lookT3] },
+    { nome: "due-nei-fronte", prompt: dueNei(LUCE_FRONTE), refs: [lookT3] },
     { nome: "volti-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
     { nome: "volti-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
   ];
