@@ -81,6 +81,11 @@ const felpaTrap = (alzato: boolean, spaziale = false) =>
     : alzato
     ? "FELPA: guscio techwear nero opaco, cappuccio ALZATO sul capo come una cornice attorno al viso, cordino tirato; i miei ricci escono sulla fronte e sulle tempie, ben visibili; collo alto chiuso fino al mento, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine."
     : "FELPA: guscio techwear nero opaco, collo alto a imbuto chiuso fino al mento e oltre, cappuccio abbassato sulle spalle, zip nastrata con cursore grande, tasca a zip, cuciture a vista, nessun logo; nero pece, la parte piu' scura dell'immagine.";
+// Quarta immagine: altre mie foto rasate (refs/io-volti-rasato.png), solo per viso e pelle pulita.
+// Solo testo, senza la quarta immagine: con le tre foto di volti il modello appiattiva posa e occhiali (v370-v373).
+const CLAUSOLA_PELLE = "\n\nLa pelle e' liscia e pulita su tutto il viso, in particolare sulla guancia e sulla mascella in ombra: senza puntini rossi, senza brufoletti, senza efelidi e senza ombra di barba. Gli unici segni sono i miei 4 nei.";
+const CLAUSOLA_SCELTE = "\n\nLa QUARTA immagine sono tre mie foto scelte da me (rasato, barba, occhiali da vista): servono SOLO per la forma del viso, gli occhi, il naso, la bocca e i nei. Il viso nella foto finale e' rasato e con la pelle liscia e pulita: niente barba, niente ombra di barba, niente puntini rossi, niente brufoletti. Non prendere occhiali da vista, luce, sfondo, magliette o felpe.";
+const CLAUSOLA_VOLTI = "\n\nLa QUARTA immagine sono altre tre mie foto, rasato: serve SOLO per il viso e per la pelle liscia e pulita di guance, mascella e collo. Non prendere gli occhiali da vista, la luce gialla, lo sfondo, i vestiti. La pelle e' senza puntini rossi, senza brufoletti, senza efelidi e senza ombra di barba, su tutto il viso e in particolare sulla guancia e sulla mascella in ombra: gli unici segni sono i miei 4 nei.";
 const OCCHIALI_ROSSI = "occhiali sportivi avvolgenti, montatura rossa lucida e lenti a specchio rosso-arancio che riflettono il blu del set; sotto le lenti si vedono i puntini 2 e 3.";
 const OCCHIALI_NERI = "i miei occhiali neri lucidi a mascherina avvolgente, come nella foto OCCHIALI: montatura nera lucida spessa, stanghette larghe che girano attorno alla testa, lenti scure fume' (nessuno specchio, nessun colore); sotto le lenti si vedono i puntini 2 e 3.";
 const lookTrap = (alzato: boolean, luce = LUCE_BASE, spaziale = false, occhiali = OCCHIALI_ROSSI) => `Ritratto editoriale di moda, primo piano stretto (viso grande, spalle tagliate), quadrato 1:1. Sono io: la prima foto e' il mio viso e i miei ricci (della prima foto non prendere gli occhiali da vista, il telefono, la maglietta, lo sfondo). La seconda immagine e' la mia tavola di identita' (cheat sheet con la mia foto rasata e i miei 4 nei numerati, bocca, capelli, e in fondo i miei 4 nei ritagliati da vicino alla misura reale): da li' prendi viso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista o la barba. Sono appena rasato: pelle liscia e pulita su guance, mento e labbro, senza ombra di barba.
@@ -95,6 +100,26 @@ OCCHIALI: ${occhiali}
 ${felpaTrap(alzato, spaziale)}
 
 ${luce} Il caldo sta solo negli occhiali e nell'orecchino d'ORO giallo brillante; i capelli restano castano scuro con riflessi caldi ramati. Fondo di carta blu navy in alto, blu-turchese in basso, della stessa famiglia di colore della luce. Viso pieno e morbido come nelle mie foto (guance piene, mascella non scavata). Fotografia reale e nitida.`;
+
+// Senza la tavola identita' (la prima ref): le foto scelte da Attilio sono l'unica fonte del viso, e l'espressione
+// non e' piu' «dura e annoiata» (veniva dal prompt, non dalle foto). Le immagini diventano: 1 partenza, 2 stile, 3 volti.
+const senzaTavola = (luce: string) =>
+  lookTrap(false, luce, true, OCCHIALI_NERI)
+    .replace(/La seconda immagine e' la mia tavola di identita'.*?la barba\./s,
+      "La terza immagine sono tre mie foto scelte (rasato, barba, occhiali da vista): da li' prendi viso, occhi, naso, bocca e nei; non la luce, lo sfondo, gli occhiali da vista, la barba o la stanchezza dello sguardo.")
+    .replace("copiali IDENTICI ai ritagli in fondo alla tavola, stessa misura, stesso colore, stessa posizione sul viso", "copiali dalle mie foto, stessa misura, stesso colore, stessa posizione sul viso")
+    .replace("La terza immagine e' una tavola di stile", "La seconda immagine e' una tavola di stile")
+    .replace("sguardo fuori campo, duro e annoiato, sopracciglia leggermente corrucciate, mento appena alzato", "sguardo fuori campo, distratto ma sveglio e disteso, sopracciglia rilassate, mento a livello, bocca chiusa e morbida (espressione fresca e riposata, niente stanchezza, niente broncio, niente cipiglio)")
+    + CLAUSOLA_SCELTE.replace("La QUARTA immagine", "La TERZA immagine");
+
+// Senza io-scelte (le tre foto hanno barba e quella grana azzurra tornava sulla mascella): il viso e' quello della
+// prima foto, rasata, e la pelle si chiede liscia a parole. Immagini: 1 partenza, 2 stile.
+const CLAUSOLA_LISCIA = "\n\nPelle di guance, mascella, mento e collo liscia e rasata di fresco: nessuna grana, nessuna peluria, nessuna ombra di barba, nessuna texture a puntini; solo i miei 4 nei.";
+const senzaVolti = (luce: string) =>
+  senzaTavola(luce)
+    .replace(/La terza immagine sono tre mie foto scelte.*?stanchezza dello sguardo\./s, "Il viso e' quello della prima foto (forma, occhi, naso, bocca, nei), sveglio e riposato.")
+    .replace(CLAUSOLA_SCELTE.replace("La QUARTA immagine", "La TERZA immagine"), "")
+    + CLAUSOLA_LISCIA;
 
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
@@ -111,7 +136,9 @@ await withProject(PROGETTO, async () => {
   const lookT = join(D, "refs", "look-trap.png");
   const lookT2 = join(D, "refs", "look-trap2.png");
   const lookT3 = join(D, "refs", "look-pose-occhiali-giacca.png");
-  for (const p of [materia, ref, look, lookT, lookT2, lookT3, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
+  const volti = join(D, "refs", "io-volti-rasato.png");
+  const tavolaScelte = join(D, "refs", "io-scelte.png");
+  for (const p of [materia, ref, look, lookT, lookT2, lookT3, volti, tavolaScelte, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
   const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
@@ -126,6 +153,16 @@ await withProject(PROGETTO, async () => {
     { nome: "spaz-forte", prompt: lookTrap(false, LUCE_FORTE, true), refs: [base[0]!, lookT2] },
     { nome: "neri-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI), refs: [base[0]!, lookT3] },
     { nome: "neri-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI), refs: [base[0]!, lookT3] },
+    { nome: "pulita-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI) + CLAUSOLA_PELLE, refs: [base[0]!, lookT3] },
+    { nome: "pulita-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI) + CLAUSOLA_PELLE, refs: [base[0]!, lookT3] },
+    { nome: "scelte-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI) + CLAUSOLA_SCELTE, refs: [base[0]!, lookT3, tavolaScelte] },
+    { nome: "scelte-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI) + CLAUSOLA_SCELTE, refs: [base[0]!, lookT3, tavolaScelte] },
+    { nome: "solo-stile-forte", prompt: senzaVolti(LUCE_FORTE), refs: [lookT3] },
+    { nome: "solo-stile-fronte", prompt: senzaVolti(LUCE_FRONTE), refs: [lookT3] },
+    { nome: "solo-volti-forte", prompt: senzaTavola(LUCE_FORTE), refs: [lookT3, tavolaScelte] },
+    { nome: "solo-volti-fronte", prompt: senzaTavola(LUCE_FRONTE), refs: [lookT3, tavolaScelte] },
+    { nome: "volti-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
+    { nome: "volti-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
   ];
   // `--var it-senza-ref,en-senza-ref`: le varianti si alternano giro dopo giro. Default: con-ref.
   const iV = process.argv.indexOf("--var");
