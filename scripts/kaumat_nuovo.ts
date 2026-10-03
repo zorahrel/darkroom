@@ -142,9 +142,9 @@ The "Kaumat": a massive, heavy four-metre crested-gecko creature, indigo-violet 
 
 Head (the second image only shows how flat it is): big, wide and flat, with a long blunt box-shaped dragon muzzle ending in a smooth rounded tip, a heavy scowling brow, amber slit eyes, and a few small horns above each eye like eyelashes. No frill, no ears. On each side of the neck, just under the jaw, three gill slits: thin, clean, parallel, slightly curved openings in the skin with a soft pink-red rim, evenly spaced like a shark's gills.
 
-Two long ivory tusks, an exact mirror-image pair, the same shape, size and angle on the left and on the right: each rooted low in the lower jaw, coming out at the corner of the lips below the mouth line, almost straight, standing away from the snout with a gap and a shadow, both pointing straight FORWARD toward the camera-side like two spears, tips just past the nose.
+Two long ivory tusks, an exact mirror-image pair, the same shape, size and angle on the left and on the right: each is rooted FAR BACK in the lower jaw, at the hinge of the jaw, directly below the eye and well behind the corner of the mouth, so the whole length of the jaw and the mouth lie in FRONT of where the tusk starts. From there each tusk sweeps forward, standing away from the side of the jaw with a gap and a shadow, almost straight, both pointing FORWARD like two spears, tips reaching just past the nose. No tusk comes out near the tip of the snout.
 
-On the skin of the skull, just behind the eyes, one smooth soft band of rust-orange colour fading into the violet, flat to the skin like paint.
+On the flat top of the skull, just behind the eyes, one single crisp, saturated rust-orange bar lies crosswise, like a painted gecko marking: short, only as wide as the space between the two eyes, centred on the head, with a wide margin of plain violet skin on each side and behind it. The brow ridges, eyelids, snout and cheeks have no orange at all.
 
 A ruff of iridescent feathers under the neck (petrol green, teal, violet, gold), and exactly two cream feather tufts, one on each shoulder; the back and hips are covered only by plates. A very long tail lying low along the ground in a gentle S, ending in a straight tapered orange tip lying in line with the tail.
 
