@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { thumbGenUrl, type Version } from "../../api";
 
 // Ritocco = un lavoro a mano sopra un'altra versione, non una generazione
@@ -37,6 +37,11 @@ export function VersionStrip({
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
+  // Le versioni ritoccate stanno dietro un tasto: la striscia di default mostra solo
+  // quelle generate dall'AI, altrimenti le due famiglie si confondono. Quella aperta
+  // resta sempre visibile, cosi' "partenza" e i link ?v= non spariscono dalla vista.
+  const [mostraRitocchi, setMostraRitocchi] = useState(false);
+  const nRitocchi = versions.filter(isRetouch).length;
 
   // Tiene la selezionata dentro la striscia. Niente scrollIntoView: su WebKit
   // trascina anche i contenitori sopra, e l'editor e' a tutto schermo.
@@ -49,7 +54,7 @@ export function VersionStrip({
     const right = left + el.offsetWidth;
     if (left < box.scrollLeft) box.scrollLeft = left - 8;
     else if (right > box.scrollLeft + box.clientWidth) box.scrollLeft = right - box.clientWidth + 8;
-  }, [current, versions.length]);
+  }, [current, versions.length, mostraRitocchi]);
 
   if (versions.length === 0) return null;
 
@@ -59,10 +64,30 @@ export function VersionStrip({
       data-testid="version-strip"
       className="relative shrink-0 flex gap-1.5 overflow-x-auto px-2 py-1.5 bg-neutral-950 border-t border-neutral-800"
     >
+      {nRitocchi > 0 && (
+        <button
+          type="button"
+          onClick={() => setMostraRitocchi((x) => !x)}
+          aria-pressed={mostraRitocchi}
+          data-testid="toggle-ritocchi"
+          title={mostraRitocchi ? "Nascondi i ritocchi" : "Mostra anche i ritocchi"}
+          className={
+            "sticky left-0 z-10 shrink-0 w-14 h-14 rounded border-2 text-[10px] leading-tight uppercase tracking-wide " +
+            (mostraRitocchi
+              ? "border-fuchsia-500 bg-fuchsia-700/80 text-white"
+              : "border-neutral-600 bg-neutral-900 text-neutral-300 hover:border-fuchsia-500")
+          }
+        >
+          ritocchi
+          <br />
+          <span className="tabular-nums text-xs">{nRitocchi}</span>
+        </button>
+      )}
       {versions.map((v, idx) => {
         const selected = idx === current;
         const favorite = v.id === favoriteVersionId;
         const retouch = isRetouch(v);
+        if (retouch && !selected && !mostraRitocchi) return null;
         return (
           <button
             key={v.id}
