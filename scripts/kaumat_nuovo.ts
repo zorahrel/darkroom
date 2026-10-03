@@ -33,7 +33,8 @@ const G = "/Users/zorahrel/Darkroom/projects/kaumat/data/generations";
 // guida-zanne.png (schema disegnato) tolta il 28/09: prova se basta la frase sull'angolo della mandibola
 const REFS = VOLTO
   ? [`${R}/geco-attilio-nuca.png`]
-  : [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`, `${R}/video-bacino.png`];
+  : [`${R}/posa-schizzo.jpg`, `${R}/geco-attilio-nuca.png`];
+// video-bacino.png (frame del video iniziale) tolto il 02/10 su richiesta di Attilio
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -137,15 +138,15 @@ export const REQUISITI: { id: string; chiesto: string; prompt: string }[] = [
 const PROMPT = `
 Wildlife photo, BBC documentary, film grain, vertical 9:16. Dark primeval forest floor with bare ground around the feet, a few blurred leaves along the bottom edge, a mossy stone out of focus in the foreground.
 
-The "Kaumat": a massive, heavy four-metre crested-gecko creature, indigo-violet with a teal sheen, barrel chest, four thick legs ending in wide round pale-grey tree-frog pads. The body is seen side-on and only the head turns back over the shoulder toward the camera, in three-quarter view, so the whole face and both tusks are visible. It fills half the height of the frame. Neck high like a swan's. Large flat iridescent plates on the back, the hips its highest point, no crest on the body.
+The "Kaumat": a massive, heavy four-metre crested-gecko creature, indigo-violet with a teal sheen, barrel chest, four thick legs. Each foot is a giant tree-frog foot: five spread toes, every toe ending in a wide, round, flat, smooth pale-grey sticky disc, like a tree frog's, the toes slim and smooth like a gecko's, with no claws and no nails. The body is seen side-on and only the head turns back over the shoulder toward the camera, in three-quarter view, so the whole face and both tusks are visible. It fills half the height of the frame. Neck high like a swan's. Large flat iridescent plates on the back, the hips a big rounded hump standing higher than the shoulders, no crest on the body.
 
-Head (the second image only shows how flat it is): big, wide and flat, with a long blunt box-shaped dragon muzzle ending in a smooth rounded tip, a heavy scowling brow, amber slit eyes, a few sharp horns above each eye like eyelashes, and a row of short pointed scales along the skull and down the neck. No frill, no ears. On each side of the neck, under the jaw, three thin vertical gill slits edged in red, like a shark's.
+Head (the second image only shows how flat it is): big, wide and flat, with a long blunt box-shaped dragon muzzle ending in a smooth rounded tip, a heavy scowling brow, amber slit eyes, and a few small horns above each eye like eyelashes. No frill, no ears. On each side of the neck, just under the jaw, three gill slits: thin, clean, parallel, slightly curved openings in the skin with a soft pink-red rim, evenly spaced like a shark's gills.
 
-Two long ivory tusks, a mirror-image pair: each rooted low in the lower jaw, coming out at the corner of the lips below the mouth line, standing away from the snout with a gap and a shadow, both pointing forward like two spears, tips just past the nose.
+Two long ivory tusks, an exact mirror-image pair, the same shape, size and angle on the left and on the right: each rooted low in the lower jaw, coming out at the corner of the lips below the mouth line, almost straight, standing away from the snout with a gap and a shadow, both pointing straight FORWARD toward the camera-side like two spears, tips just past the nose.
 
-On top of the skull, just behind the eyes, one short soft band of tiny rust-orange flecks fading into the violet skin.
+On the skin of the skull, just behind the eyes, one smooth soft band of rust-orange colour fading into the violet, flat to the skin like paint.
 
-A ruff of iridescent feathers under the neck (petrol green, teal, violet, gold), one cream tuft on each shoulder. A very long tail in a gentle S, ending in a straight tapered orange tip lying in line with the tail.
+A ruff of iridescent feathers under the neck (petrol green, teal, violet, gold), and exactly two cream feather tufts, one on each shoulder; the back and hips are covered only by plates. A very long tail lying low along the ground in a gentle S, ending in a straight tapered orange tip lying in line with the tail.
 
 Copy nothing else from the images.
 `.trim();
