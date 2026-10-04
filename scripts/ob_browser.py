@@ -399,9 +399,15 @@ def attendi_e_chiudi() -> str:
         if not da_chiudere(segno=True, usi=0, fermo_da_s=fermo, schede=schede):
             SEGNO.unlink(missing_ok=True)  # ci naviga una persona: non e' piu' di Darkroom
             return "lasciato aperto: in uso"
-        subprocess.run(["osascript", "-e", f'tell application id "{BUNDLE}" to quit'], check=False)
+        subprocess.run(["osascript", "-e", f'tell application id "{BUNDLE}" to quit'],
+                       check=False, capture_output=True, timeout=60)
         SEGNO.unlink(missing_ok=True)
-        return "chiuso"
+        # L'exit code di osascript non basta: una OB vecchia apriva il «Quit?» e restava viva.
+        for _ in range(30):
+            if not _in_esecuzione():
+                return "chiuso"
+            time.sleep(1)
+        return "quit ignorato: OB ancora vivo"
 
 
 CHIUSURA = STATO / "chiusura.pid"
@@ -474,6 +480,7 @@ async def _sessione():
 if __name__ == "__main__" and sys.argv[1:] == ["--chiudi-se-inattivo"]:
     CHIUSURA.write_text(str(os.getpid()))
     try:
-        attendi_e_chiudi()
+        esito = attendi_e_chiudi()
+        (STATO / "ultima-chiusura").write_text(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {esito}\n")
     finally:
         CHIUSURA.unlink(missing_ok=True)
