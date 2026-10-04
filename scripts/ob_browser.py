@@ -33,7 +33,10 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 import secrets
+import subprocess
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -277,8 +280,165 @@ class OBCDP:
         return 0
 
 
+# ── OPENBROWSER ACCESO SOLO QUANDO SERVE ─────────────────────────────────────
+#
+# Prima OpenBrowser doveva restare aperto sempre: il 04/10 era su da 3 giorni e
+# la scheda di automazione, riusata job dopo job con le immagini in base64,
+# pesava 3,2 GB da sola (WebContent 37835, misurato con lsof). Ora il primo job
+# lo apre in background se e' spento, e lo richiude dopo INATTIVO_S senza job.
+#
+# Tre regole, perche' e' anche il browser di Attilio:
+#   - si chiude solo se l'ha aperto Darkroom (segno `avviato-da-darkroom`);
+#   - mai mentre un altro processo di Darkroom lo sta usando (un file per uso,
+#     con il pid: quelli di processi morti non contano);
+#   - mai se c'e' aperta una scheda che non e' ChatGPT ne' una preferita: vuol
+#     dire che qualcuno ci sta navigando, e allora il browser smette di essere
+#     di Darkroom.
+# L'attesa copre la pausa fra due job (20-35 s) con ampio margine: la coda non
+# riapre il browser a ogni foto.
+BUNDLE = "io.armonia.openbrowser"
+STATO = Path.home() / ".cache/darkroom/openbrowser"
+SEGNO = STATO / "avviato-da-darkroom"
+RILASCIO = STATO / "ultimo-rilascio"
+INATTIVO_S = 600
+AVVIO_S = 45
+
+
+def _pid_vivo(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def usi_vivi(cartella: Path = STATO) -> list[Path]:
+    """I file d'uso di processi ancora vivi; quelli orfani si cancellano."""
+    vivi = []
+    for f in cartella.glob("uso-*"):
+        try:
+            pid = int(f.name.split("-")[1])
+        except (IndexError, ValueError):
+            continue
+        if _pid_vivo(pid):
+            vivi.append(f)
+        else:
+            f.unlink(missing_ok=True)
+    return vivi
+
+
+def _di_una_persona(t: dict) -> bool:
+    """Una scheda che non e' ChatGPT, ne' una preferita, ne' vuota."""
+    if t.get("type") == "fav":
+        return False
+    url = t.get("url") or ""
+    return bool(url) and "chatgpt.com" not in url and not url.startswith("about:")
+
+
+def da_chiudere(*, segno: bool, usi: int, fermo_da_s: float, schede: list[dict]) -> bool:
+    """La decisione, pura: chiudere OpenBrowser adesso?"""
+    if not segno or usi > 0 or fermo_da_s < INATTIVO_S:
+        return False
+    return not any(_di_una_persona(t) for t in schede)
+
+
+def _richiesta(path: str, timeout: float) -> dict | None:
+    try:
+        porta, token = _credenziali()
+        req = Request(f"http://127.0.0.1:{porta}{path}", headers={"Authorization": f"Bearer {token}"})
+        with urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+    except Exception:
+        return None
+
+
+def _in_esecuzione() -> bool:
+    return subprocess.run(["pgrep", "-xq", "OpenBrowser"]).returncode == 0
+
+
+def _avvia_se_spento() -> None:
+    if _richiesta("/tabs", 2) is not None:
+        return
+    # Il segno solo se il PROCESSO non c'era: un OpenBrowser aperto da Attilio
+    # con l'API muta non diventa di Darkroom, e non verra' mai chiuso da qui.
+    if not _in_esecuzione():
+        subprocess.run(["open", "-g", "-j", "-b", BUNDLE], check=True)  # -g senza fuoco, -j nascosto
+        SEGNO.touch()
+    scadenza = time.monotonic() + AVVIO_S
+    while time.monotonic() < scadenza:
+        if _richiesta("/tabs", 2) is not None:
+            return
+        time.sleep(0.5)
+    raise OBError(f"l'API di OpenBrowser non risponde dopo {AVVIO_S}s")
+
+
+def attendi_e_chiudi() -> str:
+    """Il processo staccato: aspetta che Darkroom resti ferma INATTIVO_S, poi decide.
+
+    Uno solo alla volta (CHIUSURA): ogni fine job sposta solo l'ora
+    dell'ultimo rilascio, e questo la rilegge a ogni risveglio."""
+    while True:
+        if not SEGNO.exists():
+            return "non aperto da Darkroom"
+        if usi_vivi():
+            time.sleep(60)
+            continue
+        try:
+            fermo = time.time() - RILASCIO.stat().st_mtime
+        except FileNotFoundError:
+            fermo = INATTIVO_S
+        if fermo < INATTIVO_S:
+            time.sleep(INATTIVO_S - fermo + 1)
+            continue
+        schede = (_richiesta("/tabs", 5) or {}).get("tabs") if _in_esecuzione() else None
+        if schede is None:
+            SEGNO.unlink(missing_ok=True)
+            return "gia' chiuso"
+        if not da_chiudere(segno=True, usi=0, fermo_da_s=fermo, schede=schede):
+            SEGNO.unlink(missing_ok=True)  # ci naviga una persona: non e' piu' di Darkroom
+            return "lasciato aperto: in uso"
+        subprocess.run(["osascript", "-e", f'tell application id "{BUNDLE}" to quit'], check=False)
+        SEGNO.unlink(missing_ok=True)
+        return "chiuso"
+
+
+CHIUSURA = STATO / "chiusura.pid"
+
+
+def _programma_chiusura() -> None:
+    RILASCIO.touch()
+    if not SEGNO.exists():
+        return
+    try:
+        if _pid_vivo(int(CHIUSURA.read_text())):
+            return  # c'e' gia' chi aspetta, e rileggera' l'ora nuova
+    except (FileNotFoundError, ValueError):
+        pass
+    subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), "--chiudi-se-inattivo"],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
 @asynccontextmanager
 async def open_openbrowser():
+    STATO.mkdir(parents=True, exist_ok=True)
+    uso = STATO / f"uso-{os.getpid()}-{secrets.token_hex(4)}"
+    uso.touch()
+    try:
+        await asyncio.to_thread(_avvia_se_spento)
+        async with _sessione() as ob:
+            yield ob
+    finally:
+        uso.unlink(missing_ok=True)
+        _programma_chiusura()
+
+
+@asynccontextmanager
+async def _sessione():
     ob = OBCDP()
     # Quale scheda ha aperto QUESTO giro: quella che compare fra prima e dopo
     # la navigazione. OpenBrowser ne apre una nuova solo se la scheda di
@@ -310,3 +470,10 @@ async def open_openbrowser():
             except Exception:
                 pass
     yield ob
+
+if __name__ == "__main__" and sys.argv[1:] == ["--chiudi-se-inattivo"]:
+    CHIUSURA.write_text(str(os.getpid()))
+    try:
+        attendi_e_chiudi()
+    finally:
+        CHIUSURA.unlink(missing_ok=True)
