@@ -144,6 +144,56 @@ const dueNei = (luce: string) => {
 // Giro 34: due nei (come il 33) con la luce forte, che era la piu' luminosa (v394 54, v396 60 contro 48 e 46 della frontale),
 // piu' una frase su esposizione e incarnato: la forte da sola raffredda troppo (v396 b 2,7 contro 12,3 della reference).
 const CLAUSOLA_CHIARO = "\n\nEsposizione: il viso e' ben illuminato e luminoso, luce alta e piena sulla pelle, ombre aperte e morbide, nessuna guancia che cade nel buio. L'incarnato resta caldo, beige dorato e naturale: il freddo del gel sta solo sul bordo del viso e sulla mascella, mai al centro della pelle, che non deve sembrare gesso ne' pallida.";
+// Giro 35: le tre foto scelte da Attilio, ma RITAGLIATE dalla fronte al naso (refs/io-volti-alti.png): niente barba nel
+// ritaglio, quindi il modello non la copia (con io-scelte intera tornava la grana su mascella e mento). Bocca e mento
+// vengono dalla prima immagine. Immagini: 1 partenza, 2 stile, 3 volti alti.
+const CLAUSOLA_ALTI = "\n\nLa TERZA immagine sono tre mie foto scelte da me, ritagliate dalla fronte al naso: servono SOLO per la forma del viso, la fronte, i ricci, gli occhi, le sopracciglia, il naso e il neo 1 (nei due selfie si vede il neo in rilievo sulla guancia, accanto all'orecchino). Bocca, mento, mascella e collo NON sono in quelle foto: vengono dalla prima immagine e restano lisci e rasati di fresco, senza barba. Non prendere occhiali da vista, luce, sfondo, la mano, la maglietta o la felpa.";
+// Giro 36: le tre foto scelte da Attilio INTERE, cosi' come sono (niente ritagli: «non c'era bisogno di tagliarle»).
+// Immagini: 1 partenza, 2 stile, 3-5 le sue tre foto.
+const CLAUSOLA_INTERE = "\n\nLe immagini dalla TERZA alla QUINTA sono tre mie foto scelte da me, intere: servono SOLO per la forma del viso, la fronte, i ricci, gli occhi, le sopracciglia, il naso, la bocca e il neo 1. Mento, mascella e collo restano lisci e rasati di fresco come nella prima immagine: in due di quelle foto c'e' un po' di barba e non va copiata. Non prendere occhiali da vista, luce, sfondo, la mano, il telefono, la maglietta o la felpa.";
+// Giro 37 «premium»: Attilio, su v410: «non mi sembra premium, la giacca e' di plastica e i bottoni sembrano cinesi, gli
+// occhiali non sono ancora i miei affusolati, manca la luce frontale come la reference». Cause trovate: (1) la tavola di stile
+// conteneva una posa con luce laterale rosso-blu e il modello copiava QUELLA luce; (2) gli occhiali erano una miniatura;
+// (3) la giacca chiedeva nastro gommato e automatici. Ora: tavola solo occhiali + giacca (grandi), posa a parole, giacca tono su
+// tono senza bottoni, luce frontale con la testa quasi di fronte. Immagini: 1 partenza, 2 tavola, [3 luce modella], poi le sue 3 foto.
+const premium = (conLuceRef: boolean) => {
+  const n = conLuceRef ? 4 : 3;
+  const luceRef = conLuceRef
+    ? `\n\nLa TERZA immagine e' una foto di moda con una modella: serve SOLO per la luce e il colore del fondo. Non prendere la persona, gli occhiali bianchi, la mano, la posa, la collana, i capelli.`
+    : "";
+  return `Ritratto editoriale di moda di alta gamma, campagna di un marchio techwear di lusso. Primo piano stretto: viso grande, colletto e spalle in quadro, quadrato 1:1.
+
+PERSONA. Sono io. La prima immagine e' il mio selfie rasato: da li' prendi viso, ricci e bocca (labbra sottili, rosa pallido, chiuse). Le immagini dalla ${n === 4 ? "QUARTA alla SESTA" : "TERZA alla QUINTA"} sono tre mie foto scelte da me, intere: servono SOLO per la forma del viso, la fronte, i ricci, gli occhi, le sopracciglia, il naso, la bocca e il neo 1. Mento, mascella e collo restano lisci e rasati di fresco come nella prima immagine: in due di quelle foto c'e' un po' di barba e non va copiata. Non prendere occhiali da vista, luce, sfondo, mano, telefono, magliette o felpe.
+Sulla pelle ho solo questi 2 nei, piccoli, copiati dalle mie foto: (1) un neo in rilievo color pelle sulla guancia, verso l'orecchio; (2) un neo scuro piccolo vicino all'angolo della bocca, dal lato opposto. Nient'altro: pelle uniforme, nessun altro neo o puntino, liscia anche sotto le lenti. All'orecchio un piccolo cerchietto d'ORO giallo, dal lato del neo 1.
+
+La seconda immagine e' una tavola con due oggetti, non persone: OCCHIALI e GIACCA.
+OCCHIALI: i miei occhiali neri lucidi a mascherina avvolgente, IDENTICI a quelli della foto: frontale spesso e piatto, lenti scure fume' grandi e basse, stanghette larghe a lama che si AFFUSOLANO verso l'orecchio e girano attorno alla testa; montatura e lenti formano un'unica fascia che fascia il viso. Nero lucido, nessun logo, nessuno specchio, nessun colore.
+GIACCA: giacca techwear di lusso nello stile della foto (Acronym, Veilance), SENZA CAPPUCCIO (dietro il collo si vede il fondo), senza scritte, loghi, bandiere o patch. Tessuto: nylon tecnico a tre strati, OPACO e spesso, con grana fine di twill, che cade con pieghe pesanti e credibili; niente effetto plastica, niente lucido gommoso. Colletto alto e rigido, strutturato, sotto la mascella, con una bordatura spessa circa 2 cm in tessuto nello STESSO nero (tono su tono, cucitura saldata a filo), non un nastro grigio lucido. Chiusura: zip stagna nascosta sotto una patta paravento piatta; NESSUN bottone visibile, nessun automatico, nessun bottone a pressione, nessun velcro a vista, nessun tirazip che penzola; in alto la zip finisce in un garage imbottito. Una tasca pettorale a blocco con zip nastrata tono su tono. Ferramenta minima, in metallo nero anodizzato opaco, fatta bene: al massimo una fibbia a sgancio sulla cinghia, mai di plastica lucida. Tutto nero pece, tono su tono, senza grigio.${luceRef}
+
+POSA: testa girata di soli 15-20 gradi, quasi frontale, il lato con il neo 1 e l'orecchino un poco piu' verso l'obiettivo; mento a livello, sguardo fuori campo, distratto ma sveglio, bocca chiusa e morbida, sopracciglia rilassate; nessuna mano nel quadro.
+
+LUCE: UNA sola sorgente grande e morbida (beauty dish con softbox) esattamente DAVANTI al viso, sull'asse dell'obiettivo e appena sopra, con un gel ciano-blu; avvolge tutto il viso: tutte e due le guance, la fronte, il naso e il mento sono illuminati allo stesso modo; le uniche ombre sono sotto le lenti, sotto il naso e sotto il mento, aperte da un pannello bianco dal basso. Nessuna luce laterale, nessuna meta' del viso in penombra. Pelle luminosa con pori appena visibili e riflessi lucidi netti, quasi bianchi, su fronte, dorso del naso, zigomi e labbro superiore; alte luci neutre e fredde senza arancio; mezzitoni del mio incarnato beige dorato, mai grigio-blu; ombre rosa tenue; il ciano sta sul bordo del viso e sulla mascella; labbra rosa. Fondo di carta blu navy in alto e blu-turchese in basso, della stessa famiglia di colore della luce. Il caldo sta solo nell'orecchino d'ORO e nei capelli castano scuro con riflessi ramati.
+
+QUALITA': fotografia reale da campagna di alta gamma, obiettivo 85 mm, nitida sul viso e sul tessuto, profondita' di campo ridotta dietro le spalle; pelle con grana naturale, tessuti con trama leggibile, niente aspetto da render, niente plastica, niente effetto AI. Neri profondi e netti. Il viso e' pieno e morbido come nelle mie foto (guance piene, mascella non scavata) e ben illuminato, non scuro.${CLAUSOLA_LISCIA}`;
+};
+// Giro 38: SENZA foto di partenza. Il selfie `p08` (specchio, telefono, occhiali da vista, maglietta, luce gialla, ombra di
+// barba su guance e mento) era l'unica cosa presente in ogni giro dal v266: in modalita' «modifica» il modello ne ereditava barba,
+// espressione e posa. Qui si genera puro (`mode: generate`): immagini 1 tavola occhiali+giacca, 2 luce della modella, 3-5 le tre
+// foto che Attilio ha scelto. Il testo e' quello di `premium(true)` con la persona riscritta e i numeri delle immagini scalati.
+const premiumPura = () => {
+  const sost: [string, string][] = [
+    [`La prima immagine e' il mio selfie rasato: da li' prendi viso, ricci e bocca (labbra sottili, rosa pallido, chiuse). Le immagini dalla QUARTA alla SESTA sono tre mie foto scelte da me, intere: servono SOLO per la forma del viso, la fronte, i ricci, gli occhi, le sopracciglia, il naso, la bocca e il neo 1. Mento, mascella e collo restano lisci e rasati di fresco come nella prima immagine: in due di quelle foto c'e' un po' di barba e non va copiata.`,
+     `Le immagini dalla TERZA alla QUINTA sono tre mie foto, intere: da li' prendi la forma del viso, la fronte, i ricci, gli occhi, le sopracciglia, il naso, la bocca (labbra sottili, rosa pallido, chiuse) e il neo 1. Ma io qui sono rasato di fresco: mento, mascella, guance e collo sono lisci e puliti, senza ombra di barba, senza puntini, anche se in quelle foto c'e' un po' di barba o di ombra: non va copiata.`],
+    [`La seconda immagine e' una tavola`, `La PRIMA immagine e' una tavola`],
+    [`La TERZA immagine e' una foto di moda`, `La SECONDA immagine e' una foto di moda`],
+  ];
+  let t = premium(true);
+  for (const [da, a] of sost) {
+    if (!t.includes(da)) throw new Error(`premiumPura: frase non trovata: ${da.slice(0, 50)}`);
+    t = t.replace(da, a);
+  }
+  return t;
+};
 const giri = Number(process.argv[process.argv.indexOf("--giri") + 1] ?? 2) || 2;
 
 await withProject(PROGETTO, async () => {
@@ -161,7 +211,9 @@ await withProject(PROGETTO, async () => {
   const lookT3 = join(D, "refs", "look-pose-occhiali-giacca.png");
   const volti = join(D, "refs", "io-volti-rasato.png");
   const tavolaScelte = join(D, "refs", "io-scelte.png");
-  for (const p of [materia, ref, look, lookT, lookT2, lookT3, volti, tavolaScelte, ...base]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
+  const voltiAlti = join(D, "refs", "io-volti-alti.png");
+  const intere = ["io-felpa-mano-1.png", "io-occhiali-vista-632DC4E9.jpeg", "io-rasato-2023-06-23-p13.jpg"].map((f) => join(D, "refs", f));
+  for (const p of [materia, ref, look, lookT, lookT2, lookT3, volti, tavolaScelte, voltiAlti, ...base, ...intere]) if (!existsSync(p)) throw new Error(`manca: ${p}`);
 
   const tutte = [
     { nome: "con-ref", prompt: CON_REF, refs: [...base, ref] },
@@ -184,9 +236,14 @@ await withProject(PROGETTO, async () => {
     { nome: "solo-stile-fronte", prompt: senzaVolti(LUCE_FRONTE), refs: [lookT3] },
     { nome: "solo-volti-forte", prompt: senzaTavola(LUCE_FORTE), refs: [lookT3, tavolaScelte] },
     { nome: "solo-volti-fronte", prompt: senzaTavola(LUCE_FRONTE), refs: [lookT3, tavolaScelte] },
+    { nome: "intere-forte", prompt: dueNei(LUCE_FORTE) + CLAUSOLA_CHIARO + CLAUSOLA_INTERE, refs: [lookT3, ...intere] },
+    { nome: "alti-forte", prompt: dueNei(LUCE_FORTE) + CLAUSOLA_CHIARO + CLAUSOLA_ALTI, refs: [lookT3, voltiAlti] },
     { nome: "chiaro-forte", prompt: dueNei(LUCE_FORTE) + CLAUSOLA_CHIARO, refs: [lookT3] },
     { nome: "due-nei-forte", prompt: dueNei(LUCE_FORTE), refs: [lookT3] },
     { nome: "due-nei-fronte", prompt: dueNei(LUCE_FRONTE), refs: [lookT3] },
+    { nome: "premium", prompt: premium(true), refs: [join(D, "refs", "look-premium.png"), ref, ...intere] },
+    { nome: "premium-senza-luce", prompt: premium(false), refs: [join(D, "refs", "look-premium.png"), ...intere] },
+    { nome: "premium-pura", pura: true, prompt: premiumPura(), refs: [join(D, "refs", "look-premium.png"), ref, ...intere] },
     { nome: "volti-forte", prompt: lookTrap(false, LUCE_FORTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
     { nome: "volti-fronte", prompt: lookTrap(false, LUCE_FRONTE, true, OCCHIALI_NERI) + CLAUSOLA_VOLTI, refs: [base[0]!, lookT3, volti] },
   ];
@@ -197,11 +254,11 @@ await withProject(PROGETTO, async () => {
   for (let g = 1; g <= giri; g++) {
     const v = varianti[(g - 1) % varianti.length]!;
     const job = enqueueJob(
-      PHOTO, v.prompt, null, "chatgpt", null, "edit", materia, JSON.stringify(v.refs),
+      PHOTO, v.prompt, null, "chatgpt", null, (v as { pura?: boolean }).pura ? "generate" : "edit", (v as { pura?: boolean }).pura ? null : materia, JSON.stringify(v.refs),
       JSON.stringify({
         recipe: `da-zero-${v.nome}`,
         // La UI chiama «ritocco» ogni versione con `materia`: solo se parte da un'altra immagine, non dall'originale.
-        ...(iM > 0 ? { partenza: MATERIA } : {}),
+        ...(iM > 0 && !(v as { pura?: boolean }).pura ? { partenza: MATERIA } : {}),
         cambiato: `giro 30: variante ${v.nome} (test senza la reference della modella, prompt italiano contro inglese). Prima, giro 29: pelle beauty liscia e lucida con riflessi quasi bianchi, alte luci neutre (reference a 0 e b 7, nostre a 12 e b 17, specular 1.5% contro 0.2%). Prima, giro 28: sopracciglia dritte, viso pieno (v317 era angoloso e corrucciato), felpa la parte piu' scura (10 contro 6-7). Prima, giro 27: felpa nera pece (nei giri dal selfie i neri erano 15-18, reference 6-7) e viso riposato non stanco. Prima, giro 26: foto di partenza = selfie rasato (derivate/io-rasato-2023-06-23-p08-dritto.jpg) invece di 1.PNG, che ha la barba corta e la passava ai tiri; giro 25 aveva tolto i primi piani senza effetto sulla grana. Prima, giro 25: tavola io-identita-nei.png = cheat sheet + 4 nei, SENZA i tre primi piani rasati (test grana mascella). Prima, giro 24: incarnato caldo beige dorato (mio), ciano solo su ombre e bordo; nel giro 23 la pelle era pallida e grigio-blu. Prima, giro 23: luce fredda ma orecchino d'ORO e capelli castani caldi (nel giro 22 erano diventati argento e neri). Prima, giro 22: luce frontale COLORATA ciano-blu come la reference (pelle fredda, neri profondi, contrasto medio) al posto di «morbida e piatta». Prima, giro 21: io-unica-nei.png = io-unica + fascia con i 4 nei veri ritagliati da p08 alla misura reale; prompt: copiali identici. Prima, giro 20: prompt riscritto corto (1400 car. contro 5500), in positivo, quasi senza divieti. Prima, giro 19: sotto la montatura solo i puntini 2 e 3, in tutto due. Prima, giro 18: nei piccoli e della misura vera (neo 1 color pelle in rilievo, 2 e 3 minuscoli), nessun puntino sparso. Prima, giro 17: orecchino d'ORO senza la frase sull'argento, neo 4 ben visibile. Prima, giro 16: le mie reference unite in una sola immagine (io-unica.png = cheat sheet con nei numerati + tre primi piani rasati); allegati: partenza, io-unica, accessori-tavola, reference. Luce come il giro 15.`,
         refs: v.refs.map((r) => r.split("/").pop()),
         giro: g,

@@ -107,7 +107,10 @@ function scriviIngressi(versionId: number, job: JobRow, photoId: string): void {
   // Senza lineage la sorgente e' il file davvero passato in ingresso, e in
   // mancanza di quello la foto stessa. Nessuno dei due e' una deduzione: sono
   // esattamente i due modi in cui questo worker riceve il suo ingresso.
-  if (sorgenti.length === 0) sorgenti = [job.input_path ?? photoId];
+  // Una generazione pura (`mode: generate`, nessun file in ingresso) NON ha sorgente: scrivere la foto
+  // stessa faceva comparire in UI una «partenza · originale» che il modello non aveva mai visto
+  // (v415-v418, 04/10: Attilio ha chiesto se la partenza fosse sbagliata, ed era la foto sbagliata da vedere).
+  if (sorgenti.length === 0 && !(job.mode === "generate" && !job.input_path)) sorgenti = [job.input_path ?? photoId];
 
   const scrivi = db().prepare(
     `INSERT OR IGNORE INTO version_inputs (version_id, kind, path, photo_id, position, origin)

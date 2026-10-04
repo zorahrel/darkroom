@@ -492,7 +492,8 @@ export function PhotoPipeline({
         )}
         {hasVersion && (
           <div
-            className="absolute top-2 right-2 z-20 flex gap-2"
+            className="absolute bottom-2 right-2 z-20 flex gap-2"
+            // In basso a destra: in alto coprivano le miniature degli ingressi, che a pannello stretto vanno a capo.
             // Il riquadro sotto mostra l'originale finche' e' premuto: senza
             // fermare l'evento, toccare un bottone farebbe anche lampeggiare la base.
             onMouseDown={(e) => e.stopPropagation()}
