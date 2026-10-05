@@ -12,6 +12,7 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Generate from scratch** — text‑to‑image with no source photo; results land in the gallery like any other item.
 - **Versioning** — every render is a numbered version with the exact prompt + settings used; pick a favorite per photo.
 - **Visual prompt builder** — compose looks from labeled controls (film stock, time of day, bloom, skin tones…) with on‑disk previews. Options name the failure they prevent rather than an adjective: *neutral-strict* white balance says wood and whites must not stay amber under tungsten, *strict* food says raw fish must not go grey and yolks must not look rotten.
+- **Clips (video from a render)** — a render can become a video: the clip is archived with its first frame (the version), model, prompt, duration, audio and cost, plays in the photo page (seekable, with sound), and a one-click **Salva in Download** copies the *original* file to `~/Downloads` — byte for byte, never re-encoded, so it is the maximum quality the model produced. `bun run scripts/import_clip.ts <project> <photo> <file.mp4> --version N --model M` archives one. Removing a clip from the list never deletes the file.
 - **Pluggable backends** — ChatGPT web (default, free), Codex CLI, or Higgsfield (optional, paid).
 - **MCP server** — list galleries, enqueue edits/generations, check jobs, set favorites, export — all from Claude.
 - **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop + a sky step that can drain postcard-cyan skies without touching greens or blue signage), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.
@@ -232,6 +233,11 @@ storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_pane
 | GET/PUT | `/api/settings/global-prompt` | Global prompt |
 | GET | `/api/jobs` | Queue snapshot |
 | POST | `/api/export-favorites` | Copy favorites into `final/` |
+| GET/POST | `/api/photos/:id/clips` | List the clips of a photo · archive one (`{path, version_number?, model?, prompt?, ...}`) |
+| GET | `/api/clips/:id/file` | Play the clip (supports `Range`, so it can be scrubbed) |
+| GET | `/api/clips/:id/download` | Download the original, byte for byte |
+| POST | `/api/clips/:id/save-to-downloads` | Copy the original to `~/Downloads` (never overwrites) |
+| DELETE | `/api/clips/:id` | Remove the clip from the list (the file stays in the archive) |
 | GET | `/api/storyboard` | Panels (in order) + cast + board settings |
 | POST | `/api/storyboard/panels` | `{beats: [{description, duration_ms?, scene_label?, character_ids?}]}` |
 | PUT | `/api/storyboard/sequence` | `{ids}` → panels 0..N‑1, in that order |

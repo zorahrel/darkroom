@@ -1,5 +1,6 @@
 import { jsonFetch } from "./http";
 import type {
+  Clip,
   Annotation,
   AnnotationTarget,
   VideoShot,
@@ -579,4 +580,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ...t, png, note }),
     }),
+  clips: (photoId: string) =>
+    jsonFetch<{ clips: Clip[] }>(`/api/photos/${encodeURIComponent(photoId)}/clips`),
+  /** Il tasto rapido: copia l'originale in ~/Downloads e restituisce il percorso. */
+  saveClipToDownloads: (clipId: number) =>
+    jsonFetch<{ path: string; size: number }>(`/api/clips/${clipId}/save-to-downloads`, { method: "POST" }),
+  forgetClip: (clipId: number) => jsonFetch<{ ok: true }>(`/api/clips/${clipId}`, { method: "DELETE" }),
 };

@@ -745,3 +745,28 @@ export type Annotation = {
 export type AnnotationTarget =
   | { photo_id: string; version_number: number }
   | { ref_file: string };
+
+
+/** Un video nato da una versione: il primo fotogramma e' la versione. */
+export type Clip = {
+  id: number;
+  photo_id: string;
+  version_number: number | null;
+  model: string | null;
+  prompt: string | null;
+  params: unknown;
+  remote_id: string | null;
+  credits: number | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  fps: number | null;
+  has_audio: boolean;
+  codec: string | null;
+  size: number;
+  note: string | null;
+  created_at: number;
+  /** false se il file non e' piu' nell'archivio del progetto. */
+  available: boolean;
+  download_name: string;
+};

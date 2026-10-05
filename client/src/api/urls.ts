@@ -123,3 +123,9 @@ export function thumbRefUrl(filename: string, w?: number): string {
   const q = w ? `?w=${w}` : "";
   return pq(`/thumb/refs/${encodeURIComponent(filename)}${q}`);
 }
+
+/** Il file del clip, riproducibile (con Range: si puo' scorrere). */
+export const clipFileUrl = (clipId: number) => pq(`/api/clips/${clipId}/file`);
+
+/** Il download dal browser: gli stessi byte dell'archivio, con un nome leggibile. */
+export const clipDownloadUrl = (clipId: number) => pq(`/api/clips/${clipId}/download`);

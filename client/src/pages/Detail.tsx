@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import type { OutletCtx } from "../App";
-import { api, type PhotoDetail, type Lut, type Job, rawUrl } from "../api";
+import { api, type PhotoDetail, type Lut, type Job, type Clip, rawUrl } from "../api";
 import { Bott, Header, Page, SectionHeader } from "../ui";
 import VersionCarousel from "../components/VersionCarousel";
 import PromptEditor from "../components/PromptEditor";
 import HiggsfieldButton from "../components/HiggsfieldButton";
+import ClipsCard from "../components/ClipsCard";
 import PhotoJobsLog from "../components/PhotoJobsLog";
 import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
@@ -33,6 +34,7 @@ export default function DetailPage() {
   const [latestJob, setLatestJob] = useState<Job | null>(null);
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
   const [luts, setLuts] = useState<Lut[]>([]);
+  const [clips, setClips] = useState<Clip[]>([]);
 
   useEffect(() => {
     api.luts().then((r) => setLuts(r.luts)).catch(() => {});
@@ -91,6 +93,21 @@ export default function DetailPage() {
     }
     refresh();
   }, [refresh]);
+
+  // I video nati da questa foto: se non si caricano l'elenco resta vuoto e la scheda sparisce,
+  // senza disturbare il resto della pagina.
+  const loadClips = useCallback(async () => {
+    if (!id) return;
+    try {
+      setClips((await api.clips(id)).clips);
+    } catch {
+      setClips([]);
+    }
+  }, [id]);
+  useEffect(() => {
+    setClips([]);
+    loadClips();
+  }, [loadClips]);
 
   // `?v=` cambia anche da fuori (la miniatura «partenza» in alto, un link): prima l'indirizzo
   // si aggiornava ma la pagina restava sulla versione di prima, perche' `?v=` si leggeva solo
@@ -287,6 +304,9 @@ export default function DetailPage() {
   const versionsPanel = (
     <div className="space-y-3">
       {generateButtons}
+      {/* I video prima del carosello: nel pannello stretto il carosello e' alto e il tasto
+          «Salva in Download» finirebbe sotto una schermata di scorrimento. */}
+      <ClipsCard clips={clips} onChanged={loadClips} />
       {versionCarousel}
     </div>
   );
@@ -413,6 +433,7 @@ export default function DetailPage() {
         <div className="space-y-2">
           <SectionHeader title="Generazioni">{generateButtons}</SectionHeader>
           {versionCarousel}
+          <ClipsCard clips={clips} onChanged={loadClips} />
         </div>
       </div>
 
