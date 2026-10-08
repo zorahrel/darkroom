@@ -84,17 +84,25 @@ class CDP:
         return r.get("result", {}).get("value")
 
 
-# QUALE BROWSER. `DARKROOM_BROWSER=openbrowser` guida ChatGPT dentro
-# OpenBrowser (WebKit) invece che in Chrome via CDP: dal 14/09 Chrome non c'e'
-# piu' su questa macchina. Il resto del file non sa quale dei due sta parlando:
-# `OBCDP` ha la stessa forma di `CDP`. Vedi scripts/ob_browser.py.
-USE_OPENBROWSER = os.environ.get("DARKROOM_BROWSER", "").lower() == "openbrowser"
+# QUALE BROWSER. `DARKROOM_BROWSER=webkit` guida ChatGPT in un WebKit di
+# Playwright tutto di Darkroom (headless, profilo suo); `openbrowser` dentro
+# OpenBrowser, il browser di Attilio; vuoto in Chrome via CDP, che dal 14/09 su
+# questa macchina non c'e' piu'. Il resto del file non sa chi sta parlando:
+# `WKCDP` e `OBCDP` hanno la stessa forma di `CDP`. Vedi scripts/wk_browser.py
+# e scripts/ob_browser.py.
+BROWSER = os.environ.get("DARKROOM_BROWSER", "").lower()
+USE_OPENBROWSER = BROWSER == "openbrowser"
 
 from contextlib import asynccontextmanager as _acm
 
 
 @_acm
 async def open_browser():
+    if BROWSER == "webkit":
+        from wk_browser import open_webkit
+        async with open_webkit() as wk:
+            yield wk
+        return
     if USE_OPENBROWSER:
         from ob_browser import open_openbrowser
         async with open_openbrowser() as ob:
@@ -215,8 +223,8 @@ async def upload_file(cdp: CDP, file_path):
         await asyncio.sleep(1)
 
     if hasattr(cdp, "allega"):
-        # OpenBrowser: niente DOM.setFileInputFiles, i byte viaggiano dentro la
-        # pagina a pezzi sotto 1 MiB e diventano File via DataTransfer.
+        # OpenBrowser e WebKit: niente DOM.setFileInputFiles, ognuno allega a
+        # modo suo e verifica che le miniature siano salite.
         await cdp.allega(paths)
         return
 

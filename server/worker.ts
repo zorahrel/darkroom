@@ -219,7 +219,12 @@ async function runWorkerLocked(input: {
     env: {
       ...process.env,
       CHATGPT_CDP_URL,
-      ...(input.browser === "openbrowser" ? { DARKROOM_BROWSER: "openbrowser" } : {}),
+      // Il backend "openbrowser" e' "ChatGPT web in un WebKit": quale WebKit lo
+      // dice DARKROOM_BROWSER del servizio ("webkit" = Playwright tutto di
+      // Darkroom, scripts/wk_browser.py). Senza, resta OpenBrowser.
+      ...(input.browser === "openbrowser"
+        ? { DARKROOM_BROWSER: process.env.DARKROOM_BROWSER || "openbrowser" }
+        : {}),
     },
     stdin: "pipe",
     stdout: "pipe",
