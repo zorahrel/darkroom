@@ -74,6 +74,25 @@ function hasOpenAiVersions(): boolean {
 // ---- API: health -----------------------------------------------------------
 
 studioRoutes.get("/api/health", async (c) => {
+  // Backend "openbrowser" su cft (default dal 09/10): Chrome for Testing parte a
+  // ogni job e si chiude alla fine, quindi «e' acceso?» non ha senso e sondare
+  // la 19223 diceva «browser non avviato» mentre i job passavano. Pronto = il
+  // lanciatore c'e'; login e sfide le riporta il job stesso.
+  const darkroomBrowser = process.env.DARKROOM_BROWSER || "cft";
+  if (WORKER_BACKEND === "openbrowser" && darkroomBrowser === "cft") {
+    const launcher = process.env.DARKROOM_CFT_BIN || `${process.env.HOME}/.openclaw/bin/agent-browser`;
+    const ready = existsSync(launcher);
+    return c.json({
+      browser: ready,
+      browser_alive: ready,
+      logged_in: ready,
+      chrome_installed: ready,
+      backend: `${WORKER_BACKEND}/cft`,
+      openclaw: ready, // legacy alias for older clients
+      cdp_url: null,
+      hint: ready ? null : `Lanciatore Chrome for Testing mancante: ${launcher}`,
+    });
+  }
   const s = await checkChatgptSession();
   // `browser` resta "il worker puo' lavorare", che e' la domanda a cui la UI
   // reagisce: un Chrome acceso ma sloggato non puo', e prima rispondeva di si'.
