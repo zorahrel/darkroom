@@ -84,7 +84,9 @@ class CDP:
         return r.get("result", {}).get("value")
 
 
-# QUALE BROWSER. `DARKROOM_BROWSER=webkit` guida ChatGPT in un WebKit di
+# QUALE BROWSER. `DARKROOM_BROWSER=cft` (default del servizio dal 09/10) guida
+# ChatGPT in un Chrome for Testing headless tutto di Darkroom, senza OpenBrowser:
+# scripts/cft_browser.py. `DARKROOM_BROWSER=webkit` guida ChatGPT in un WebKit di
 # Playwright tutto di Darkroom (headless, profilo suo); `openbrowser` dentro
 # OpenBrowser, il browser di Attilio; vuoto in Chrome via CDP, che dal 14/09 su
 # questa macchina non c'e' piu'. Il resto del file non sa chi sta parlando:
@@ -98,6 +100,11 @@ from contextlib import asynccontextmanager as _acm
 
 @_acm
 async def open_browser():
+    if BROWSER == "cft":
+        from cft_browser import open_cft
+        async with open_cft() as cft:
+            yield cft
+        return
     if BROWSER == "webkit":
         from wk_browser import open_webkit
         async with open_webkit() as wk:
@@ -173,6 +180,11 @@ async def new_chat(cdp: CDP):
         has_composer = await cdp.js(
             '!!document.querySelector(\'div[contenteditable="true"][id^="prompt-textarea"], div[contenteditable="true"].ProseMirror\')'
         )
+        if not has_composer and BROWSER == "cft":
+            from cft_browser import on_challenge, pass_challenge
+            if await on_challenge(cdp):
+                await pass_challenge(cdp)
+                continue
         if has_composer:
             # Wait until the URL stabilises on the new-chat path (not /c/<id>) and
             # no leftover generated images are still in the DOM.
