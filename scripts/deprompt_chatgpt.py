@@ -13,7 +13,7 @@ scrive il blocco luce come lo scriverebbe per riprodurla.
 Nessuna immagine viene generata: e' un turno di chat con un allegato, e la
 risposta testuale finisce su stdout (e in un file, se passato).
 
-Uso: DARKROOM_BROWSER=openbrowser python3 scripts/deprompt_chatgpt.py \
+Uso: python3 scripts/deprompt_chatgpt.py \
         <immagine> "<domanda>" [output.txt]
 """
 import asyncio
@@ -23,8 +23,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+# Stesso browser del worker: Chrome for Testing headless, salvo DARKROOM_BROWSER esplicita.
+os.environ.setdefault("DARKROOM_BROWSER", "cft")
 import edit_batch as eb  # noqa: E402
-from ob_browser import open_openbrowser  # noqa: E402
 
 LOCK = Path.home() / ".cache/darkroom/chatgpt-worker.lock"
 
@@ -77,7 +78,7 @@ def lascia_lucchetto() -> None:
 
 async def main(img: str, domanda: str, out: str | None) -> None:
     import json
-    async with open_openbrowser() as ob:
+    async with eb.open_browser() as ob:
         await eb.new_chat(ob)
         base = await eb.snapshot_form_thumbs(ob)
         up, _ = eb.prepare_uploads([img], "deprompt")
