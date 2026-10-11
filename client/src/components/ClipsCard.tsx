@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, clipDownloadUrl, clipFileUrl, type Clip } from "../api";
+import { api, clipDownloadUrl, clipFileUrl, genUrl, type Clip } from "../api";
 import { Bott, Confirm } from "../ui";
 
 const fmtSize = (b: number) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${(b / 1e6).toFixed(1)} MB`);
@@ -85,6 +85,8 @@ function ClipItem({ clip, onChanged }: { clip: Clip; onChanged: () => void | Pro
       {clip.available ? (
         <video
           src={clipFileUrl(clip.id)}
+          // La copertina e' il primo fotogramma: senza, il riquadro resta nero fino al play.
+          poster={clip.version_number != null ? genUrl(clip.photo_id, clip.version_number) : undefined}
           controls
           loop
           playsInline

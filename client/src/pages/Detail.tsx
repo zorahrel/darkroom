@@ -35,6 +35,8 @@ export default function DetailPage() {
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
   const [luts, setLuts] = useState<Lut[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
+  /** Il lettore dei video e' fuori dal dock: aprendo la pagina i clip erano dietro Pipeline > Versioni. */
+  const [videoOpen, setVideoOpen] = useState(() => searchParams.get("clip") != null);
 
   useEffect(() => {
     api.luts().then((r) => setLuts(r.luts)).catch(() => {});
@@ -460,13 +462,25 @@ export default function DetailPage() {
         infoPanel={infoPanel}
         openStepId={searchParams.get("step")}
         versionStrip={
-          <VersionStrip
-            photoId={photo.id}
-            versions={versions}
-            current={currentVersion}
-            favoriteVersionId={photo.favorite_version_id}
-            onSelect={onVersionChange}
-          />
+          <>
+            {clips.length > 0 && (
+              <button
+                type="button"
+                data-testid="open-clips"
+                onClick={() => setVideoOpen(true)}
+                className="shrink-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 border-t border-neutral-800"
+              >
+                ▶ Video ({clips.length}) · guarda e salva
+              </button>
+            )}
+            <VersionStrip
+              photoId={photo.id}
+              versions={versions}
+              current={currentVersion}
+              favoriteVersionId={photo.favorite_version_id}
+              onSelect={onVersionChange}
+            />
+          </>
         }
         photoNav={{
           prev: siblings.prev ?? null,
@@ -481,6 +495,31 @@ export default function DetailPage() {
             navigate(`${base}/photo/${encodeURIComponent(siblings.next)}`),
         }}
       />
+
+      {/* Lettore dei video: a tutto schermo sopra l'editor, con i tasti di salvataggio. */}
+      {videoOpen && clips.length > 0 && (
+        <div
+          data-testid="clips-overlay"
+          className="fixed inset-0 z-50 bg-black/90 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVideoOpen(false);
+          }}
+        >
+          <div className="mx-auto max-w-md p-3 pb-10 space-y-3">
+            <div className="flex items-center justify-between sticky top-0 bg-black/80 py-2 z-10">
+              <span className="text-sm text-neutral-300">{photo.id} · video</span>
+              <button
+                type="button"
+                onClick={() => setVideoOpen(false)}
+                className="px-3 py-1 text-sm rounded bg-neutral-800 hover:bg-neutral-700"
+              >
+                Chiudi ✕
+              </button>
+            </div>
+            <ClipsCard clips={clips} onChanged={loadClips} />
+          </div>
+        </div>
+      )}
 
       {/* With a version the full-screen editor covers the page: the job log and
           the legacy prompt stay only when there is nothing to edit yet. */}
