@@ -62,6 +62,24 @@ describe("rami", () => {
     expect(r2.finals).toEqual(["v3"]);
   });
 
+  test("una versione si mette da parte e si riprende, e i riferimenti vengono dalla sua lineage", async () => {
+    db().run("UPDATE versions SET lineage = ? WHERE photo_id = ? AND version_number = 1", [
+      JSON.stringify({ refs: ["posa.jpg", "../fuori.png"] }),
+      PHOTO,
+    ]);
+    expect((await put(`/api/photos/${PHOTO}/discards`, { kind: "version", ref: 2, discarded: true })).status).toBe(200);
+    let r = await (await req(`/api/photos/${PHOTO}/branches`)).json();
+    const at = (k: string) => r.nodes.find((n: { key: string }) => n.key === k);
+    expect(at("v2").discarded).toBe(true);
+    expect(at("v1").discarded).toBe(false);
+    // solo nomi di file: un percorso non esce mai verso il client
+    expect(at("v1").refs).toEqual(["posa.jpg"]);
+    expect(at("v2").refs).toEqual([]);
+    await put(`/api/photos/${PHOTO}/discards`, { kind: "version", ref: 2, discarded: false });
+    r = await (await req(`/api/photos/${PHOTO}/branches`)).json();
+    expect(at("v2").discarded).toBe(false);
+  });
+
   test("richieste storte tornano 400, foto che non c'e' torna 404", async () => {
     expect((await put(`/api/photos/${PHOTO}/finals`, { kind: "boh", ref: 1, final: true })).status).toBe(400);
     expect((await req(`/api/photos/non_esiste/branches`)).status).toBe(404);

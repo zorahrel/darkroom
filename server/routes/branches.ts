@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getBranches, setFinal, setParent } from "../branches.ts";
+import { getBranches, setDiscard, setFinal, setParent } from "../branches.ts";
 import { db } from "../db.ts";
 
 /** Il flusso a rami di una foto: versioni e clip sullo stesso albero, con le foglie finali. */
@@ -39,4 +39,15 @@ branchRoutes.put("/api/photos/:id/versions/:n/parent", async (c) => {
     return c.json({ error: (e as Error).message }, 400);
   }
   return c.json({ ok: true });
+});
+
+/** `{kind: "version"|"clip", ref: number, discarded: boolean}`: mette da parte o riprende. */
+branchRoutes.put("/api/photos/:id/discards", async (c) => {
+  const id = c.req.param("id");
+  if (!photoExists(id)) return c.json({ error: "foto non trovata" }, 404);
+  const b = (await c.req.json().catch(() => null)) as { kind?: string; ref?: number; discarded?: boolean } | null;
+  if (!b || (b.kind !== "version" && b.kind !== "clip") || !Number.isInteger(b.ref) || typeof b.discarded !== "boolean") {
+    return c.json({ error: "servono kind (version|clip), ref (intero) e discarded (booleano)" }, 400);
+  }
+  return c.json({ discarded: setDiscard(id, b.kind, b.ref as number, b.discarded) });
 });

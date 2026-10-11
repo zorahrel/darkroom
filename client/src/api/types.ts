@@ -781,6 +781,8 @@ export type BranchNode =
       parent: number | null;
       favorite: boolean;
       final: boolean;
+      discarded: boolean;
+      refs: string[];
       note: string | null;
       created_at: number;
     }
@@ -791,6 +793,7 @@ export type BranchNode =
       /** La versione da cui parte il video. */
       parent: number | null;
       final: boolean;
+      discarded: boolean;
       model: string | null;
       duration: number | null;
       has_audio: boolean;

@@ -595,5 +595,11 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind, ref, final }),
     }),
+  setDiscard: (photoId: string, kind: "version" | "clip", ref: number, discarded: boolean) =>
+    jsonFetch<{ discarded: boolean }>(`/api/photos/${encodeURIComponent(photoId)}/discards`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind, ref, discarded }),
+    }),
   forgetClip: (clipId: number) => jsonFetch<{ ok: true }>(`/api/clips/${clipId}`, { method: "DELETE" }),
 };
