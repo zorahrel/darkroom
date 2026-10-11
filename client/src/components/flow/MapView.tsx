@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { thumbGenUrl } from "../../api";
 import { type ViewProps } from "./NodeThumb";
 import { ancestors, layoutMap, mainDescendants, nodeOf, sisters, type Ref } from "./tree";
+import { anchoredScroll, canvasSize, fitZoom, margin, scrollToCenter } from "./viewport";
 
 /**
  * La MAPPA: tutti i rami insieme, da sinistra (le radici) a destra (le foglie).
@@ -22,6 +23,9 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
   const [showOrphans, setShowOrphans] = useState(false);
   const [dragging, setDragging] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ cw: 0, ch: 0 });
+  const boxState = useRef(box);
+  boxState.current = box;
   const zRef = useRef(z);
   zRef.current = z;
   /** Dove deve stare lo scroll dopo il prossimo cambio di zoom (cosi' lo zoom tiene fermo il punto sotto il dito). */
@@ -50,73 +54,140 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
   }, [flow, sel]);
 
   const selKey = sel ? (sel.kind === "version" ? `v${sel.id}` : `c${sel.id}`) : null;
+
+  // La finestra visibile: serve per il margine (mezza finestra per lato) e per centrare.
   useEffect(() => {
-    const box = boxRef.current;
+    const el = boxRef.current;
+    if (!el) return;
+    const read = () => setBox({ cw: el.clientWidth, ch: el.clientHeight });
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** Porta il nodo scelto (o un punto) al centro della finestra, allo zoom attuale. */
+  const centerOn = useCallback(
+    (x: number, y: number, zz = zRef.current) => {
+      const el = boxRef.current;
+      if (!el) return;
+      const t = scrollToCenter(x, y, zz);
+      el.scrollLeft = t.left;
+      el.scrollTop = t.top;
+    },
+    [],
+  );
+  const centerSelection = useCallback(() => {
     const p = selKey ? pos.get(selKey) : null;
-    if (!box || !p) return;
-    const zz = zRef.current;
-    box.scrollLeft = Math.max(0, (p.x + W / 2) * zz - box.clientWidth / 2);
-    box.scrollTop = Math.max(0, (p.y + H / 2) * zz - box.clientHeight / 2);
-    // Solo quando cambia la selezione: lo zoom non deve riportarti al nodo mentre navighi.
+    if (p) centerOn(p.x + W / 2, p.y + H / 2);
+  }, [selKey, pos, centerOn]);
+
+  // Cambia la selezione (frecce, clic, altra vista): la mappa la porta al centro. Lo zoom, no.
+  const centeredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!box.cw || !selKey) return;
+    if (centeredFor.current === selKey) return;
+    centeredFor.current = selKey;
+    centerSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selKey]);
+  }, [selKey, box.cw]);
 
   useLayoutEffect(() => {
-    const box = boxRef.current;
+    const el = boxRef.current;
     const want = pendingScroll.current;
-    if (!box || !want) return;
-    box.scrollLeft = want.left;
-    box.scrollTop = want.top;
+    if (!el || !want) return;
+    el.scrollLeft = want.left;
+    el.scrollTop = want.top;
     pendingScroll.current = null;
-  }, [z]);
+  }, [z, box.cw, box.ch]);
 
   /** Zoom che tiene fermo il punto (ox, oy) della finestra: il cursore, o il centro. */
   const zoomTo = useCallback((next: number, ox?: number, oy?: number) => {
-    const box = boxRef.current;
+    const el = boxRef.current;
     const nz = Math.min(2.5, Math.max(0.15, Math.round(next * 100) / 100));
-    if (!box || nz === zRef.current) return;
-    const px = ox ?? box.clientWidth / 2;
-    const py = oy ?? box.clientHeight / 2;
-    const cx = (box.scrollLeft + px) / zRef.current;
-    const cy = (box.scrollTop + py) / zRef.current;
-    pendingScroll.current = { left: Math.max(0, cx * nz - px), top: Math.max(0, cy * nz - py) };
+    if (!el || nz === zRef.current) return;
+    const b = boxState.current;
+    pendingScroll.current = anchoredScroll(
+      ox ?? el.clientWidth / 2,
+      oy ?? el.clientHeight / 2,
+      { left: el.scrollLeft, top: el.scrollTop },
+      zRef.current,
+      nz,
+      b,
+    );
     setZ(nz);
   }, []);
 
+  /** I nodi veri, senza il vuoto in fondo alle colonne e alle righe: e' quello che deve stare al centro. */
+  const bbox = useMemo(() => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pos.values()) {
+      x0 = Math.min(x0, p.x);
+      y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x + W);
+      y1 = Math.max(y1, p.y + H);
+    }
+    return x0 === Infinity ? { x0: 0, y0: 0, x1: width, y1: height } : { x0, y0, x1, y1 };
+  }, [pos, width, height]);
+
+  /** Tutta la mappa nella finestra, centrata. */
   const fit = useCallback(() => {
-    const box = boxRef.current;
-    if (!box) return;
-    const f = Math.min(box.clientWidth / width, box.clientHeight / height);
-    setZ(Math.min(1.5, Math.max(0.15, Math.round(f * 100) / 100)));
-    pendingScroll.current = { left: 0, top: 0 };
-  }, [width, height]);
+    const b = boxState.current;
+    const nz = fitZoom(bbox.x1 - bbox.x0 + PAD * 2, bbox.y1 - bbox.y0 + PAD * 2, b);
+    const target = scrollToCenter((bbox.x0 + bbox.x1) / 2, (bbox.y0 + bbox.y1) / 2, nz);
+    if (nz === zRef.current) {
+      const el = boxRef.current;
+      if (el) {
+        el.scrollLeft = target.left;
+        el.scrollTop = target.top;
+      }
+    } else {
+      pendingScroll.current = target;
+      setZ(nz);
+    }
+  }, [bbox]);
 
   // Pizzico del trackpad e Ctrl/Cmd + rotella = zoom sul cursore. La rotella semplice scorre come sempre.
   useEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
+    const el = boxRef.current;
+    if (!el) return;
     const onWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      const r = box.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
       zoomTo(zRef.current * Math.exp(-e.deltaY * 0.0025), e.clientX - r.left, e.clientY - r.top);
     };
-    box.addEventListener("wheel", onWheel, { passive: false });
-    return () => box.removeEventListener("wheel", onWheel);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, [zoomTo]);
+
+  // Tasti della mappa: + − zoom, 0 adatta, c centra sulla selezione.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+      if (e.key === "+" || e.key === "=") zoomTo(zRef.current * 1.25);
+      else if (e.key === "-" || e.key === "_") zoomTo(zRef.current / 1.25);
+      else if (e.key === "0") fit();
+      else if (e.key === "c" || e.key === "C") centerSelection();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomTo, fit, centerSelection]);
 
   // Trascinare lo sfondo (o un nodo, appena ci si muove) sposta la mappa. Un clic fermo sceglie il nodo.
   const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    const box = boxRef.current!;
-    drag.current = { x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop, moved: false };
+    const el = boxRef.current!;
+    drag.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
-    const box = boxRef.current;
-    if (!d || !box) return;
+    const el = boxRef.current;
+    if (!d || !el) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) < 5) return;
@@ -124,13 +195,13 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
       d.moved = true;
       setDragging(true);
       try {
-        box.setPointerCapture(e.pointerId);
+        el.setPointerCapture(e.pointerId);
       } catch {
         /* il puntatore e' gia' finito: si trascina comunque finche' arrivano gli eventi */
       }
     }
-    box.scrollLeft = d.left - dx;
-    box.scrollTop = d.top - dy;
+    el.scrollLeft = d.left - dx;
+    el.scrollTop = d.top - dy;
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
@@ -166,16 +237,21 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
           {layout.items.filter((i) => i.ref.kind === "version").length} versioni · {layout.items.filter((i) => i.ref.kind === "clip").length} video
         </span>
         <span className="flex-1" />
-        <button type="button" data-testid="map-fit" title="Adatta la mappa allo spazio" onClick={fit} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
-          Adatta
+        <button type="button" data-testid="map-center" title="Centra la selezione (c)" onClick={centerSelection} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
+          ◎ Centra
         </button>
-        <button type="button" data-testid="map-out" title="Rimpicciolisci" onClick={() => zoomTo(z / 1.25)} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
-          −
+        <button type="button" data-testid="map-fit" title="Tutta la mappa nello schermo (0)" onClick={fit} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
+          ⤢ Adatta
         </button>
-        <span className="min-w-[3ch] text-center tabular-nums text-neutral-400" data-testid="map-zoom">{Math.round(z * 100)}%</span>
-        <button type="button" data-testid="map-in" title="Ingrandisci" onClick={() => zoomTo(z * 1.25)} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
-          +
-        </button>
+        <span className="flex items-center overflow-hidden rounded bg-neutral-800">
+          <button type="button" data-testid="map-out" title="Rimpicciolisci (−)" onClick={() => zoomTo(z / 1.25)} className="px-2 py-0.5 hover:bg-neutral-700">
+            −
+          </button>
+          <span className="min-w-[4ch] text-center tabular-nums text-neutral-300" data-testid="map-zoom">{Math.round(z * 100)}%</span>
+          <button type="button" data-testid="map-in" title="Ingrandisci (+)" onClick={() => zoomTo(z * 1.25)} className="px-2 py-0.5 hover:bg-neutral-700">
+            +
+          </button>
+        </span>
       </div>
 
       <div
@@ -193,8 +269,15 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
           }
         }}
       >
-        <div className="relative" style={{ width: width * z, height: height * z }}>
-          <div className="absolute left-0 top-0 origin-top-left" style={{ width, height, transform: `scale(${z})` }}>
+        {(() => {
+          const size = canvasSize(width, height, z, box);
+          const m = margin(box);
+          return (
+            <div className="relative" style={{ width: size.width, height: size.height }} data-testid="map-canvas">
+              <div
+                className="absolute origin-top-left"
+                style={{ left: m.px, top: m.py, width, height, transform: `scale(${z})` }}
+              >
             <svg width={width} height={height} className="absolute inset-0" aria-hidden>
               {layout.edges.map((e) => {
                 const on = lit.has(e.from) && lit.has(e.to);
@@ -243,8 +326,10 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
                 </button>
               );
             })}
-          </div>
-        </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {layout.orphans.length > 0 && (
