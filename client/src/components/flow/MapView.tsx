@@ -11,6 +11,10 @@ import { anchoredScroll, canvasSize, fitZoom, margin, scrollToCenter } from "./v
  * giallo, il resto resta in grigio: si vede dove si e' dentro la foresta senza perdere la foresta.
  * Le versioni senza storia dichiarata non si disegnano (sarebbero 170 puntini): restano un numero.
  */
+/** Fino a dove si puo' ingrandire: a 16x un nodo e' alto oltre mille pixel, abbastanza per vedere la foto per bene. */
+const MAX_Z = 16;
+/** Larghezze di miniatura disponibili: si sceglie la prima che copre i pixel veri a schermo. */
+const THUMB_STEPS = [100, 200, 400, 800, 1600, 3200];
 const W = 40;
 const H = 71; // 9:16
 const COL = 66;
@@ -26,6 +30,8 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
   const [box, setBox] = useState({ cw: 0, ch: 0 });
   const boxState = useRef(box);
   boxState.current = box;
+  const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  const thumbW = useMemo(() => THUMB_STEPS.find((w) => w >= W * z * dpr) ?? THUMB_STEPS[THUMB_STEPS.length - 1], [z, dpr]);
   const zRef = useRef(z);
   zRef.current = z;
   /** Dove deve stare lo scroll dopo il prossimo cambio di zoom (cosi' lo zoom tiene fermo il punto sotto il dito). */
@@ -82,6 +88,25 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
     if (p) centerOn(p.x + W / 2, p.y + H / 2);
   }, [selKey, pos, centerOn]);
 
+  /** Ingrandisce il nodo selezionato fino a riempire la finestra, e lo mette al centro. */
+  const zoomToSelection = useCallback(() => {
+    const p = selKey ? pos.get(selKey) : null;
+    if (!p) return;
+    const b = boxState.current;
+    const nz = fitZoom(W, H, b, { min: 0.15, max: MAX_Z, breathe: 0.94 });
+    const target = scrollToCenter(p.x + W / 2, p.y + H / 2, nz);
+    if (nz === zRef.current) {
+      const el = boxRef.current;
+      if (el) {
+        el.scrollLeft = target.left;
+        el.scrollTop = target.top;
+      }
+    } else {
+      pendingScroll.current = target;
+      setZ(nz);
+    }
+  }, [selKey, pos]);
+
   // Cambia la selezione (frecce, clic, altra vista): la mappa la porta al centro. Lo zoom, no.
   const centeredFor = useRef<string | null>(null);
   useEffect(() => {
@@ -104,7 +129,7 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
   /** Zoom che tiene fermo il punto (ox, oy) della finestra: il cursore, o il centro. */
   const zoomTo = useCallback((next: number, ox?: number, oy?: number) => {
     const el = boxRef.current;
-    const nz = Math.min(2.5, Math.max(0.15, Math.round(next * 100) / 100));
+    const nz = Math.min(MAX_Z, Math.max(0.15, Math.round(next * 100) / 100));
     if (!el || nz === zRef.current) return;
     const b = boxState.current;
     pendingScroll.current = anchoredScroll(
@@ -171,10 +196,11 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
       else if (e.key === "-" || e.key === "_") zoomTo(zRef.current / 1.25);
       else if (e.key === "0") fit();
       else if (e.key === "c" || e.key === "C") centerSelection();
+      else if (e.key === "z" || e.key === "Z") zoomToSelection();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomTo, fit, centerSelection]);
+  }, [zoomTo, fit, centerSelection, zoomToSelection]);
 
   // Trascinare lo sfondo (o un nodo, appena ci si muove) sposta la mappa. Un clic fermo sceglie il nodo.
   const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
@@ -239,6 +265,9 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
         <span className="flex-1" />
         <button type="button" data-testid="map-center" title="Centra la selezione (c)" onClick={centerSelection} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
           ◎ Centra
+        </button>
+        <button type="button" data-testid="map-photo" title="Ingrandisci la selezione fino a riempire la finestra (z)" onClick={zoomToSelection} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
+          ⌕ Foto
         </button>
         <button type="button" data-testid="map-fit" title="Tutta la mappa nello schermo (0)" onClick={fit} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
           ⤢ Adatta
@@ -312,7 +341,7 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
                   } ${node.discarded ? "opacity-35 grayscale" : lit.size && !lit.has(i.key) ? "opacity-70" : ""}`}
                 >
                   {frame != null && (
-                    <img src={thumbGenUrl(photoId, frame, 100)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    <img src={thumbGenUrl(photoId, frame, thumbW)} alt="" loading="lazy" className="h-full w-full object-cover" />
                   )}
                   {i.ref.kind === "clip" && (
                     <span className="absolute inset-0 flex items-center justify-center text-sm text-white drop-shadow">▶</span>

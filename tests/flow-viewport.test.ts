@@ -65,3 +65,16 @@ describe("zoom ancorato", () => {
     }
   });
 });
+
+describe("zoom su un solo nodo", () => {
+  test("un nodo 40x71 riempie la finestra, e lo zoom non supera il tetto", () => {
+    const box = { cw: 572, ch: 1158 };
+    const z = fitZoom(40, 71, box, { min: 0.15, max: 16, breathe: 0.94 });
+    // il nodo ingrandito sta nella finestra e ne occupa quasi tutta l'altezza o la larghezza
+    expect(40 * z).toBeLessThanOrEqual(box.cw);
+    expect(71 * z).toBeLessThanOrEqual(box.ch);
+    expect(Math.max((40 * z) / box.cw, (71 * z) / box.ch)).toBeGreaterThan(0.9);
+    // su una finestra enorme si ferma al tetto invece di sgranare all'infinito
+    expect(fitZoom(40, 71, { cw: 20000, ch: 20000 }, { max: 16 })).toBe(16);
+  });
+});

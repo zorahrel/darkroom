@@ -316,7 +316,7 @@ export default function FlowViewer({
             <div>
               <p className="mb-1 uppercase tracking-wide text-neutral-500">Tasti</p>
               <p><b>1 2 3</b> cambiano vista · <b>↑</b> genitore · <b>↓</b> figlio · <b>← →</b> sorelle · <b>Invio</b> al centro · <b>Esc</b> chiude</p>
-              <p><b>f</b> finale · <b>d</b> scarta · Mappa: <b>+ −</b> zoom · <b>0</b> adatta · <b>c</b> centra · trascina per spostarti · <b>Ctrl/Cmd + rotella</b> zoom</p>
+              <p><b>f</b> finale · <b>d</b> scarta · Mappa: <b>+ −</b> zoom · <b>0</b> adatta · <b>c</b> centra · <b>z</b> ingrandisce la foto selezionata a tutta finestra (fino a 16×) · trascina per spostarti · <b>Ctrl/Cmd + rotella</b> zoom</p>
             </div>
             <div>
               <p className="mb-1 uppercase tracking-wide text-neutral-500">Simboli</p>
