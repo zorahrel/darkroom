@@ -806,7 +806,9 @@ async def attach_with_fallback(cdp: CDP, primary: list, refs: list, tag: str) ->
         return []
     baseline = await snapshot_form_thumbs(cdp)
     await upload_file(cdp, wanted)
-    if await wait_image_attached(cdp, baseline=baseline, timeout=25, expected=len(wanted)):
+    # 75 s e non 25: con il Mac in swap le miniature arrivano dopo mezzo minuto
+    # e scartare i riferimenti vuol dire generare con un viso inventato.
+    if await wait_image_attached(cdp, baseline=baseline, timeout=75, expected=len(wanted)):
         return wanted
     if not refs:
         return []
@@ -817,7 +819,7 @@ async def attach_with_fallback(cdp: CDP, primary: list, refs: list, tag: str) ->
         return []
     baseline = await snapshot_form_thumbs(cdp)
     await upload_file(cdp, primary)
-    if await wait_image_attached(cdp, baseline=baseline, timeout=25, expected=1):
+    if await wait_image_attached(cdp, baseline=baseline, timeout=75, expected=1):
         return primary
     return []
 
