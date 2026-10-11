@@ -6,6 +6,7 @@ import {
   layoutMap,
   mainDescendants,
   sisters,
+  stepSelection,
   subtreeSize,
 } from "../client/src/components/flow/tree.ts";
 import type { BranchNode } from "../client/src/api/types.ts";
@@ -100,5 +101,25 @@ describe("tratte dritte", () => {
     const dieci = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => ({ v }));
     const out = groupRuns(dieci, (r) => r.v === 1 || r.v === 5 || r.v === 10, idOf, new Set());
     expect(out.map((x) => x.kind)).toEqual(["row", "run", "row", "run", "row"]);
+  });
+});
+
+describe("passi con le frecce", () => {
+  test("su va al genitore, giu' al ramo principale, e dove non c'e' strada non si muove", () => {
+    expect(stepSelection(f, { kind: "version", id: 4 }, "up")).toEqual({ kind: "version", id: 2 });
+    expect(stepSelection(f, { kind: "version", id: 1 }, "up")).toBeNull();
+    expect(stepSelection(f, { kind: "version", id: 1 }, "down")).toEqual({ kind: "version", id: 2 });
+    // sotto v4 non ci sono versioni: scende sul suo video
+    expect(stepSelection(f, { kind: "version", id: 4 }, "down")).toEqual({ kind: "clip", id: 1 });
+    // un video e' una foglia, ma risale al suo primo fotogramma
+    expect(stepSelection(f, { kind: "clip", id: 1 }, "down")).toBeNull();
+    expect(stepSelection(f, { kind: "clip", id: 1 }, "up")).toEqual({ kind: "version", id: 4 });
+  });
+  test("destra e sinistra girano fra le sorelle in cerchio; senza sorelle restano ferme", () => {
+    expect(stepSelection(f, { kind: "version", id: 2 }, "next")).toEqual({ kind: "version", id: 3 });
+    expect(stepSelection(f, { kind: "version", id: 3 }, "next")).toEqual({ kind: "version", id: 2 });
+    expect(stepSelection(f, { kind: "version", id: 2 }, "prev")).toEqual({ kind: "version", id: 3 });
+    expect(stepSelection(f, { kind: "version", id: 4 }, "next")).toBeNull();
+    expect(stepSelection(f, { kind: "version", id: 9 }, "prev")).toBeNull();
   });
 });

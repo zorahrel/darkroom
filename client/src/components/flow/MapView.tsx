@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { thumbGenUrl } from "../../api";
 import { type ViewProps } from "./NodeThumb";
 import { ancestors, layoutMap, mainDescendants, nodeOf, sisters, type Ref } from "./tree";
@@ -20,7 +20,12 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
   const layout = useMemo(() => layoutMap(flow), [flow]);
   const [z, setZ] = useState(0.6);
   const [showOrphans, setShowOrphans] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const zRef = useRef(z);
+  zRef.current = z;
+  /** Dove deve stare lo scroll dopo il prossimo cambio di zoom (cosi' lo zoom tiene fermo il punto sotto il dito). */
+  const pendingScroll = useRef<{ left: number; top: number } | null>(null);
 
   const pos = useMemo(() => {
     const m = new Map<string, { x: number; y: number }>();
@@ -49,11 +54,98 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
     const box = boxRef.current;
     const p = selKey ? pos.get(selKey) : null;
     if (!box || !p) return;
-    box.scrollLeft = Math.max(0, p.x * z - box.clientWidth / 2);
-    box.scrollTop = Math.max(0, p.y * z - box.clientHeight / 2);
-    // Solo quando cambia la selezione o lo zoom: non a ogni render.
+    const zz = zRef.current;
+    box.scrollLeft = Math.max(0, (p.x + W / 2) * zz - box.clientWidth / 2);
+    box.scrollTop = Math.max(0, (p.y + H / 2) * zz - box.clientHeight / 2);
+    // Solo quando cambia la selezione: lo zoom non deve riportarti al nodo mentre navighi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selKey, z]);
+  }, [selKey]);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const want = pendingScroll.current;
+    if (!box || !want) return;
+    box.scrollLeft = want.left;
+    box.scrollTop = want.top;
+    pendingScroll.current = null;
+  }, [z]);
+
+  /** Zoom che tiene fermo il punto (ox, oy) della finestra: il cursore, o il centro. */
+  const zoomTo = useCallback((next: number, ox?: number, oy?: number) => {
+    const box = boxRef.current;
+    const nz = Math.min(2.5, Math.max(0.15, Math.round(next * 100) / 100));
+    if (!box || nz === zRef.current) return;
+    const px = ox ?? box.clientWidth / 2;
+    const py = oy ?? box.clientHeight / 2;
+    const cx = (box.scrollLeft + px) / zRef.current;
+    const cy = (box.scrollTop + py) / zRef.current;
+    pendingScroll.current = { left: Math.max(0, cx * nz - px), top: Math.max(0, cy * nz - py) };
+    setZ(nz);
+  }, []);
+
+  const fit = useCallback(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const f = Math.min(box.clientWidth / width, box.clientHeight / height);
+    setZ(Math.min(1.5, Math.max(0.15, Math.round(f * 100) / 100)));
+    pendingScroll.current = { left: 0, top: 0 };
+  }, [width, height]);
+
+  // Pizzico del trackpad e Ctrl/Cmd + rotella = zoom sul cursore. La rotella semplice scorre come sempre.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const r = box.getBoundingClientRect();
+      zoomTo(zRef.current * Math.exp(-e.deltaY * 0.0025), e.clientX - r.left, e.clientY - r.top);
+    };
+    box.addEventListener("wheel", onWheel, { passive: false });
+    return () => box.removeEventListener("wheel", onWheel);
+  }, [zoomTo]);
+
+  // Trascinare lo sfondo (o un nodo, appena ci si muove) sposta la mappa. Un clic fermo sceglie il nodo.
+  const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const box = boxRef.current!;
+    drag.current = { x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const box = boxRef.current;
+    if (!d || !box) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) < 5) return;
+    if (!d.moved) {
+      d.moved = true;
+      setDragging(true);
+      try {
+        box.setPointerCapture(e.pointerId);
+      } catch {
+        /* il puntatore e' gia' finito: si trascina comunque finche' arrivano gli eventi */
+      }
+    }
+    box.scrollLeft = d.left - dx;
+    box.scrollTop = d.top - dy;
+  };
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    if (d?.moved) {
+      suppressClick.current = true; // il clic che chiude il trascinamento non deve scegliere il nodo sotto
+      setTimeout(() => (suppressClick.current = false), 0);
+      try {
+        boxRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        /* non era catturato */
+      }
+    }
+    setDragging(false);
+  };
 
   const edgePath = (from: string, to: string) => {
     const a = pos.get(from);
@@ -74,34 +166,33 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
           {layout.items.filter((i) => i.ref.kind === "version").length} versioni · {layout.items.filter((i) => i.ref.kind === "clip").length} video
         </span>
         <span className="flex-1" />
-        <button
-          type="button"
-          data-testid="map-fit"
-          title="Adatta la mappa allo spazio"
-          onClick={() => {
-            const box = boxRef.current;
-            if (!box) return;
-            const fit = Math.min(box.clientWidth / width, box.clientHeight / height);
-            setZ(Math.min(1.5, Math.max(0.2, Math.round(fit * 20) / 20)));
-          }}
-          className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700"
-        >
+        <button type="button" data-testid="map-fit" title="Adatta la mappa allo spazio" onClick={fit} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
           Adatta
         </button>
-        <span className="tabular-nums text-neutral-500" data-testid="map-zoom">{Math.round(z * 100)}%</span>
-        {[0.6, 1, 1.5].map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setZ(v)}
-            className={`rounded px-2 py-0.5 ${z === v ? "bg-amber-500 text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
-          >
-            {Math.round(v * 100)}%
-          </button>
-        ))}
+        <button type="button" data-testid="map-out" title="Rimpicciolisci" onClick={() => zoomTo(z / 1.25)} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
+          −
+        </button>
+        <span className="min-w-[3ch] text-center tabular-nums text-neutral-400" data-testid="map-zoom">{Math.round(z * 100)}%</span>
+        <button type="button" data-testid="map-in" title="Ingrandisci" onClick={() => zoomTo(z * 1.25)} className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700">
+          +
+        </button>
       </div>
 
-      <div ref={boxRef} className="min-h-0 flex-1 overflow-auto bg-neutral-950" data-testid="map-scroll">
+      <div
+        ref={boxRef}
+        className={`min-h-0 flex-1 overflow-auto overscroll-contain bg-neutral-950 ${dragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        data-testid="map-scroll"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={(e) => {
+          if (suppressClick.current) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        }}
+      >
         <div className="relative" style={{ width: width * z, height: height * z }}>
           <div className="absolute left-0 top-0 origin-top-left" style={{ width, height, transform: `scale(${z})` }}>
             <svg width={width} height={height} className="absolute inset-0" aria-hidden>

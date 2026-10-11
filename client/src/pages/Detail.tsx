@@ -216,6 +216,9 @@ export default function DetailPage() {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
         return;
       }
+      // Con il flusso (o il lettore video) aperto le frecce e «g» sono suoi: senza questo
+      // ← → saltavano alla foto accanto dietro lo schermo, e «g» lanciava una generazione.
+      if (videoOpen) return;
       if (e.key === "g" || e.key === "G") {
         if (!generating) onGenerate();
       } else if ((e.key === "[" || e.key === "ArrowLeft") && siblings.prev) {
@@ -227,7 +230,7 @@ export default function DetailPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generating, siblings.prev, siblings.next, navigate]);
+  }, [generating, siblings.prev, siblings.next, navigate, videoOpen]);
 
   if (!id) return null;
   if (!data) return <div className="py-20 text-center text-neutral-400">Carico…</div>;

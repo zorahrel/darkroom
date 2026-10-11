@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Branches, type Clip } from "../api";
 import BranchView from "./flow/BranchView";
 import LeafView from "./flow/LeafView";
 import MapView from "./flow/MapView";
 import NodeThumb from "./flow/NodeThumb";
-import { buildFlow, children, keyOf, nodeOf, refOfKey, sisters, type Ref } from "./flow/tree";
+import { buildFlow, children, keyOf, nodeOf, refOfKey, sisters, stepSelection, type Ref } from "./flow/tree";
 
 /**
  * Il flusso di una foto, a schermo intero, in tre viste che guardano la STESSA selezione:
@@ -63,21 +63,45 @@ export default function FlowViewer({
     void load();
   }, [load, clips.length]);
 
+  const flow = useMemo(() => (data ? buildFlow(data.nodes) : null), [data]);
+  const node = flow && sel ? nodeOf(flow, sel) : undefined;
+
+  // Tastiera, uguale in tutte e tre le viste: 1 2 3 cambiano vista, le frecce si muovono nell'albero
+  // (su = genitore, giu' = figlio, sinistra/destra = sorelle), Invio porta al centro.
+  // Se il fuoco e' nel player video o in un campo di testo le frecce sono sue.
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const flowRef = useRef(flow);
+  flowRef.current = flow;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      const t = (e.target as HTMLElement | null)?.tagName;
-      if (t === "INPUT" || t === "SELECT" || t === "TEXTAREA") return;
-      if (e.key === "1") setView("foglia");
-      if (e.key === "2") setView("ramo");
-      if (e.key === "3") setView("mappa");
+      if (e.key === "Escape") return onClose();
+      const el = e.target instanceof Element ? (e.target as HTMLElement) : null;
+      const t = el?.tagName;
+      if (t === "INPUT" || t === "SELECT" || t === "TEXTAREA" || el?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "1") return setView("foglia");
+      if (e.key === "2") return setView("ramo");
+      if (e.key === "3") return setView("mappa");
+      if (el?.closest?.('[data-testid="video-player"]')) return;
+      const f = flowRef.current;
+      const cur = selRef.current;
+      if (!f || !cur) return;
+      const step = ({ ArrowUp: "up", ArrowDown: "down", ArrowLeft: "prev", ArrowRight: "next" } as const)[
+        e.key as "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"
+      ];
+      if (step) {
+        e.preventDefault();
+        const to = stepSelection(f, cur, step);
+        if (to) setSel(to);
+      } else if (e.key === "Enter") {
+        setView("foglia");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const flow = useMemo(() => (data ? buildFlow(data.nodes) : null), [data]);
-  const node = flow && sel ? nodeOf(flow, sel) : undefined;
   // Un video con l'archivio perso non sta nell'elenco dei clip: la selezione cade sul genitore.
   const select = useCallback((r: Ref) => setSel(r), []);
   const openLeaf = useCallback((r: Ref) => {
@@ -183,6 +207,7 @@ export default function FlowViewer({
             {summary ?? "Nessuna selezione"}
           </span>
           <span>⑂ sorelle · ★ finale · ♥ favorita della galleria · ⊘ scartata</span>
+          <span className="text-neutral-500" data-testid="flow-keys">↑ genitore · ↓ figlio · ←→ sorelle · Invio centro · 1 2 3 viste</span>
         </div>
         {flow && finals.length > 0 && (
           <div className="mt-1.5 flex items-center gap-2 overflow-x-auto" data-testid="finals">
@@ -199,9 +224,10 @@ export default function FlowViewer({
       {!viewProps && !error && <p className="p-4 text-sm text-neutral-500">Carico…</p>}
 
       {viewProps && (
-        <main className="min-h-0 flex-1 overflow-y-auto" data-testid="flow-body" data-view={view}>
+        <main className="min-h-0 flex-1 overflow-hidden" data-testid="flow-body" data-view={view}>
           {view === "foglia" && (
             <LeafView
+              key={sel ? keyOf(sel) : "none"}
               {...viewProps}
               clips={clips}
               onClipsChanged={onClipsChanged}

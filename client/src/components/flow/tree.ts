@@ -204,3 +204,28 @@ export function groupRuns<T>(
   flush();
   return out;
 }
+
+export type Step = "up" | "down" | "prev" | "next";
+
+/**
+ * Un passo con le frecce, lo stesso in tutte e tre le viste:
+ *   su      al genitore            giu'      al figlio sul ramo principale (prima una versione, poi un video)
+ *   sinistra/destra  alla sorella precedente/successiva (in cerchio, per numero)
+ * Restituisce null quando il passo non porta da nessuna parte: la selezione non si muove.
+ */
+export function stepSelection(f: Flow, r: Ref, step: Step): Ref | null {
+  const n = nodeOf(f, r);
+  if (!n) return null;
+  if (step === "up") return n.parent != null && f.versions.has(n.parent) ? { kind: "version", id: n.parent } : null;
+  if (step === "down") {
+    if (r.kind !== "version") return null;
+    const main = mainDescendants(f, r.id)[0];
+    if (main != null) return { kind: "version", id: main };
+    const clip = (f.clipsBy.get(r.id) ?? [])[0];
+    return clip ? { kind: "clip", id: clip.clip_id } : null;
+  }
+  const ring = [r, ...sisters(f, r)].sort((a, b) => a.id - b.id);
+  if (ring.length < 2) return null;
+  const i = ring.findIndex((x) => x.kind === r.kind && x.id === r.id);
+  return ring[(i + (step === "next" ? 1 : -1) + ring.length) % ring.length]!;
+}

@@ -67,7 +67,7 @@ export default function BranchView({ photoId, flow, sel, onSelect, onOpenLeaf }:
   );
 
   return (
-    <div ref={boxRef} className="relative h-full overflow-y-auto p-3" data-testid="branch-view">
+    <div ref={boxRef} className="relative h-full overflow-y-auto overscroll-contain p-3 pb-10" data-testid="branch-view">
       <div className="mx-auto max-w-md">
         <div className="mb-2 flex items-center gap-2 text-xs text-neutral-400">
           <span>

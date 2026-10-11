@@ -51,7 +51,8 @@ export default function LeafView({
   const h = "mb-1 text-[11px] uppercase tracking-wide text-neutral-400";
 
   return (
-    <div className="mx-auto max-w-md space-y-4 p-3" data-testid="leaf-view">
+    <div className="h-full overflow-y-auto overscroll-contain" data-testid="leaf-scroll">
+    <div className="mx-auto max-w-md space-y-4 p-3 pb-10" data-testid="leaf-view">
       <section data-testid="leaf-origin">
         <h3 className={h}>Da dove arriva</h3>
         {node.kind === "version" && node.refs.length > 0 && (
@@ -148,6 +149,7 @@ export default function LeafView({
           </div>
         )}
       </section>
+    </div>
     </div>
   );
 }
