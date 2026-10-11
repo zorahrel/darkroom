@@ -13,6 +13,9 @@ Local-first dashboard to **manage photo galleries and batch‑edit or generate i
 - **Versioning** — every render is a numbered version with the exact prompt + settings used; pick a favorite per photo.
 - **Visual prompt builder** — compose looks from labeled controls (film stock, time of day, bloom, skin tones…) with on‑disk previews. Options name the failure they prevent rather than an adjective: *neutral-strict* white balance says wood and whites must not stay amber under tungsten, *strict* food says raw fish must not go grey and yolks must not look rotten.
 - **Clips (video from a render)** — a render can become a video: the clip is archived with its first frame (the version), model, prompt, duration, audio and cost, plays in the photo page (seekable, with sound), and a one-click **Salva in Download** copies the *original* file to `~/Downloads` — byte for byte, never re-encoded, so it is the maximum quality the model produced. `bun run scripts/import_clip.ts <project> <photo> <file.mp4> --version N --model M` archives one. Removing a clip from the list never deletes the file.
+- **Flow (photos and videos on one tree)** — every version knows the one it came from and every clip the version it starts from, so a photo reads as a branching history instead of a flat list. The *Flusso* button opens it full screen: versions on rows, alternatives and videos hanging from each, a big viewer, and a **final leaf** toggle (a photo *or* a video, as many as you like — not the same thing as the gallery favourite). Parents are recorded in `version_parents`; `scripts/seed_parents.ts` fills them from the notes of an older history.
+- **Video player** — built for judging a video, not just watching it: wheel/pinch zoom with pan, frame step (`,` `.`), slow motion down to 0.1×, loop, scrub and fullscreen (native when the page stays visible, a full-window layer otherwise). Keys: space, ←/→, `[` `]`, `f`, `m`, `l`, `+` `-` `0`.
+- **Video generation (Higgsfield)** — `bun run scripts/gen_video.ts <project> <photo> --version N --prompt-file p.txt` quotes the same first frame and prompt on MiniMax H3, Kling 3.0, Seedance 2.0 and Veo 3.1 **without spending anything**; add `--yes --max-credits N` to launch them together and archive each result as a clip next to the others, ready to compare with the zoom.
 - **Pluggable backends** — ChatGPT web (default, free), Codex CLI, or Higgsfield (optional, paid).
 - **MCP server** — list galleries, enqueue edits/generations, check jobs, set favorites, export — all from Claude.
 - **Local color grade** — one uniform look for the whole set (3D `.cube` LUT + robust AWB + pink pop + a sky step that can drain postcard-cyan skies without touching greens or blue signage), previewed live in the grid and baked into the full‑res export. Drop your LUTs in `data/luts/`.
@@ -238,6 +241,9 @@ storyboard set (`list_storyboard`, `create_panels`, `set_sequence`, `update_pane
 | GET | `/api/clips/:id/download` | Download the original, byte for byte |
 | POST | `/api/clips/:id/save-to-downloads` | Copy the original to `~/Downloads` (never overwrites) |
 | DELETE | `/api/clips/:id` | Remove the clip from the list (the file stays in the archive) |
+| GET | `/api/photos/:id/branches` | The flow: every version and clip with its parent, plus the final leaves |
+| PUT | `/api/photos/:id/finals` | `{kind: "version"\|"clip", ref, final}` — mark or unmark a final leaf |
+| PUT | `/api/photos/:id/versions/:n/parent` | `{parent: number\|null}` — which version this one comes from |
 | GET | `/api/storyboard` | Panels (in order) + cast + board settings |
 | POST | `/api/storyboard/panels` | `{beats: [{description, duration_ms?, scene_label?, character_ids?}]}` |
 | PUT | `/api/storyboard/sequence` | `{ids}` → panels 0..N‑1, in that order |

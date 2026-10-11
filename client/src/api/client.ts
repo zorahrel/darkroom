@@ -1,5 +1,6 @@
 import { jsonFetch } from "./http";
 import type {
+  Branches,
   Clip,
   Annotation,
   AnnotationTarget,
@@ -585,5 +586,14 @@ export const api = {
   /** Il tasto rapido: copia l'originale in ~/Downloads e restituisce il percorso. */
   saveClipToDownloads: (clipId: number) =>
     jsonFetch<{ path: string; size: number }>(`/api/clips/${clipId}/save-to-downloads`, { method: "POST" }),
+  // Mai dalla cache: i rami cambiano a ogni versione, a ogni video e a ogni foglia segnata.
+  branches: (photoId: string) =>
+    jsonFetch<Branches>(`/api/photos/${encodeURIComponent(photoId)}/branches`, { cache: "no-store" }),
+  setFinal: (photoId: string, kind: "version" | "clip", ref: number, final: boolean) =>
+    jsonFetch<{ final: boolean }>(`/api/photos/${encodeURIComponent(photoId)}/finals`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind, ref, final }),
+    }),
   forgetClip: (clipId: number) => jsonFetch<{ ok: true }>(`/api/clips/${clipId}`, { method: "DELETE" }),
 };

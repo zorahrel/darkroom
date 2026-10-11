@@ -107,7 +107,7 @@ export function erroreDiRete(e: unknown): boolean {
 let rpcId = 100;
 
 /** Stateless JSON-RPC tools/call against the Higgsfield MCP. Auto-refreshes on 401. */
-async function mcpCall<T = any>(
+export async function mcpCall<T = any>(
   name: string,
   args: Record<string, unknown>,
   retry = true,

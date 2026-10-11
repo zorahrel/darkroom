@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, clipDownloadUrl, clipFileUrl, genUrl, type Clip } from "../api";
 import { Bott, Confirm } from "../ui";
+import VideoPlayer from "./VideoPlayer";
 
 const fmtSize = (b: number) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${(b / 1e6).toFixed(1)} MB`);
 
@@ -23,7 +24,7 @@ export default function ClipsCard({ clips, onChanged }: { clips: Clip[]; onChang
   );
 }
 
-function ClipItem({ clip, onChanged }: { clip: Clip; onChanged: () => void | Promise<unknown> }) {
+export function ClipItem({ clip, onChanged }: { clip: Clip; onChanged: () => void | Promise<unknown> }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,15 +84,12 @@ function ClipItem({ clip, onChanged }: { clip: Clip; onChanged: () => void | Pro
       {saved && <p className="text-xs text-emerald-300 break-all">Salvato in {saved}</p>}
       {error && <p className="text-xs text-rose-300">{error}</p>}
       {clip.available ? (
-        <video
+        <VideoPlayer
           src={clipFileUrl(clip.id)}
           // La copertina e' il primo fotogramma: senza, il riquadro resta nero fino al play.
           poster={clip.version_number != null ? genUrl(clip.photo_id, clip.version_number) : undefined}
-          controls
-          loop
-          playsInline
-          preload="metadata"
-          className="w-full max-h-[60vh] rounded bg-black"
+          fps={clip.fps}
+          title={clip.download_name}
         />
       ) : (
         <p className="text-sm text-rose-300">Il file non e' piu' nell'archivio del progetto.</p>

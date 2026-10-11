@@ -770,3 +770,30 @@ export type Clip = {
   available: boolean;
   download_name: string;
 };
+
+
+/** Un nodo del flusso a rami di una foto: una versione (immagine) o un clip (video). */
+export type BranchNode =
+  | {
+      key: string;
+      kind: "version";
+      version_number: number;
+      parent: number | null;
+      favorite: boolean;
+      final: boolean;
+      note: string | null;
+      created_at: number;
+    }
+  | {
+      key: string;
+      kind: "clip";
+      clip_id: number;
+      /** La versione da cui parte il video. */
+      parent: number | null;
+      final: boolean;
+      model: string | null;
+      duration: number | null;
+      has_audio: boolean;
+      created_at: number;
+    };
+export type Branches = { nodes: BranchNode[]; finals: string[] };

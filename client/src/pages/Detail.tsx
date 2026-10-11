@@ -7,6 +7,7 @@ import VersionCarousel from "../components/VersionCarousel";
 import PromptEditor from "../components/PromptEditor";
 import HiggsfieldButton from "../components/HiggsfieldButton";
 import ClipsCard from "../components/ClipsCard";
+import FlowViewer from "../components/FlowViewer";
 import PhotoJobsLog from "../components/PhotoJobsLog";
 import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
@@ -36,7 +37,7 @@ export default function DetailPage() {
   const [luts, setLuts] = useState<Lut[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
   /** Il lettore dei video e' fuori dal dock: aprendo la pagina i clip erano dietro Pipeline > Versioni. */
-  const [videoOpen, setVideoOpen] = useState(() => searchParams.get("clip") != null);
+  const [videoOpen, setVideoOpen] = useState(() => searchParams.get("clip") != null || searchParams.get("flow") != null);
 
   useEffect(() => {
     api.luts().then((r) => setLuts(r.luts)).catch(() => {});
@@ -463,14 +464,14 @@ export default function DetailPage() {
         openStepId={searchParams.get("step")}
         versionStrip={
           <>
-            {clips.length > 0 && (
+            {(clips.length > 0 || versions.length > 1) && (
               <button
                 type="button"
                 data-testid="open-clips"
                 onClick={() => setVideoOpen(true)}
                 className="shrink-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 border-t border-neutral-800"
               >
-                ▶ Video ({clips.length}) · guarda e salva
+                ◈ Flusso · rami e video ({clips.length})
               </button>
             )}
             <VersionStrip
@@ -496,29 +497,20 @@ export default function DetailPage() {
         }}
       />
 
-      {/* Lettore dei video: a tutto schermo sopra l'editor, con i tasti di salvataggio. */}
-      {videoOpen && clips.length > 0 && (
-        <div
-          data-testid="clips-overlay"
-          className="fixed inset-0 z-50 bg-black/90 overflow-y-auto"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setVideoOpen(false);
+      {/* Il flusso: versioni e video sullo stesso albero, a tutto schermo sopra l'editor. */}
+      {videoOpen && (
+        <FlowViewer
+          photoId={photo.id}
+          clips={clips}
+          currentVersion={v ? v.version_number : null}
+          initialClipId={Number(searchParams.get("clip")) || null}
+          onClose={() => setVideoOpen(false)}
+          onClipsChanged={loadClips}
+          onPickVersion={(n) => {
+            const idx = versions.findIndex((x) => x.version_number === n);
+            if (idx >= 0) onVersionChange(idx);
           }}
-        >
-          <div className="mx-auto max-w-md p-3 pb-10 space-y-3">
-            <div className="flex items-center justify-between sticky top-0 bg-black/80 py-2 z-10">
-              <span className="text-sm text-neutral-300">{photo.id} · video</span>
-              <button
-                type="button"
-                onClick={() => setVideoOpen(false)}
-                className="px-3 py-1 text-sm rounded bg-neutral-800 hover:bg-neutral-700"
-              >
-                Chiudi ✕
-              </button>
-            </div>
-            <ClipsCard clips={clips} onChanged={loadClips} />
-          </div>
-        </div>
+        />
       )}
 
       {/* With a version the full-screen editor covers the page: the job log and

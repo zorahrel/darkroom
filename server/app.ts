@@ -16,6 +16,7 @@ import { videoRoutes } from "./routes/video.ts";
 import { lineageRoutes } from "./routes/lineage.ts";
 import { referenceRoutes } from "./routes/reference.ts";
 import { mediaRoutes } from "./routes/media.ts";
+import { branchRoutes } from "./routes/branches.ts";
 import { clipRoutes } from "./routes/clips.ts";
 import { annotationRoutes } from "./routes/annotations.ts";
 import { collectionRoutes } from "./routes/collections.ts";
@@ -76,6 +77,7 @@ app.route("/", lineageRoutes);
 app.route("/", referenceRoutes);
 app.route("/", annotationRoutes);
 app.route("/", clipRoutes);
+app.route("/", branchRoutes);
 // Ultimo: mediaRoutes chiude con il fallback dell'interfaccia (qualunque GET non riconosciuta).
 app.route("/", mediaRoutes);
 
