@@ -18,7 +18,7 @@ const PAD = 24;
 
 export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: ViewProps) {
   const layout = useMemo(() => layoutMap(flow), [flow]);
-  const [z, setZ] = useState(1);
+  const [z, setZ] = useState(0.6);
   const [showOrphans, setShowOrphans] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +74,21 @@ export default function MapView({ photoId, flow, sel, onSelect, onOpenLeaf }: Vi
           {layout.items.filter((i) => i.ref.kind === "version").length} versioni · {layout.items.filter((i) => i.ref.kind === "clip").length} video
         </span>
         <span className="flex-1" />
+        <button
+          type="button"
+          data-testid="map-fit"
+          title="Adatta la mappa allo spazio"
+          onClick={() => {
+            const box = boxRef.current;
+            if (!box) return;
+            const fit = Math.min(box.clientWidth / width, box.clientHeight / height);
+            setZ(Math.min(1.5, Math.max(0.2, Math.round(fit * 20) / 20)));
+          }}
+          className="rounded bg-neutral-800 px-2 py-0.5 hover:bg-neutral-700"
+        >
+          Adatta
+        </button>
+        <span className="tabular-nums text-neutral-500" data-testid="map-zoom">{Math.round(z * 100)}%</span>
         {[0.6, 1, 1.5].map((v) => (
           <button
             key={v}

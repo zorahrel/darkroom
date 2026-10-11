@@ -174,3 +174,33 @@ export function layoutMap(f: Flow): MapLayout {
   }
   return { items, edges, cols, rows: Math.max(1, Math.ceil(row)), orphans };
 }
+
+export type RunItem<T> = { kind: "row"; row: T } | { kind: "run"; start: number; rows: T[] };
+
+/**
+ * Piega le tratte dritte: una serie di righe di fila senza niente da dire, da `min` in su, diventa un
+ * solo elemento «⋯ N passi». Una tratta aperta (`open` contiene l'id della sua prima riga) resta in chiaro.
+ */
+export function groupRuns<T>(
+  rows: T[],
+  interesting: (row: T, index: number) => boolean,
+  idOf: (row: T) => number,
+  open: Set<number>,
+  min = 3,
+): RunItem<T>[] {
+  const out: RunItem<T>[] = [];
+  let run: T[] = [];
+  const flush = () => {
+    if (run.length >= min && !open.has(idOf(run[0]!))) out.push({ kind: "run", start: idOf(run[0]!), rows: run });
+    else for (const row of run) out.push({ kind: "row", row });
+    run = [];
+  };
+  rows.forEach((row, i) => {
+    if (interesting(row, i)) {
+      flush();
+      out.push({ kind: "row", row });
+    } else run.push(row);
+  });
+  flush();
+  return out;
+}

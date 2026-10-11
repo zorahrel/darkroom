@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import NodeThumb, { type ViewProps } from "./NodeThumb";
-import { ancestors, children, mainDescendants, nodeOf, sisters, type Ref } from "./tree";
+import { ancestors, children, groupRuns, mainDescendants, nodeOf, sisters, type Ref } from "./tree";
 
 /**
  * Il RAMO: la strada dalla radice alla versione scelta, e poi giu' lungo il ramo principale.
@@ -44,29 +44,11 @@ export default function BranchView({ photoId, flow, sel, onSelect, onOpenLeaf }:
     );
   };
 
-  // Una tratta e' una serie di righe di fila senza niente da dire; da 3 in su si piega.
-  const items = useMemo(() => {
-    const out: ({ kind: "row"; row: Row } | { kind: "run"; start: number; rows: Row[] })[] = [];
-    let run: Row[] = [];
-    let start = 0;
-    const flush = () => {
-      if (run.length >= 3 && !openRuns.has(start)) out.push({ kind: "run", start, rows: run });
-      else for (const r of run) out.push({ kind: "row", row: r });
-      run = [];
-    };
-    rows.forEach((r, i) => {
-      if (interesting(r, i)) {
-        flush();
-        out.push({ kind: "row", row: r });
-      } else {
-        if (run.length === 0) start = r.v;
-        run.push(r);
-      }
-    });
-    flush();
-    return out;
+  const items = useMemo(
+    () => groupRuns(rows, interesting, (r) => r.v, openRuns),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, openRuns, all, flow]);
+    [rows, openRuns, all, flow],
+  );
 
   // La riga scelta deve stare in vista: a mano, perche' scrollIntoView su WebKit trascina anche i contenitori sopra.
   useEffect(() => {

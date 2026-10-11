@@ -73,3 +73,32 @@ describe("albero del flusso", () => {
     expect(m.items.some((i) => i.key === "v9")).toBe(false);
   });
 });
+
+import { groupRuns } from "../client/src/components/flow/tree.ts";
+
+describe("tratte dritte", () => {
+  const rows = [1, 2, 3, 4, 5, 6, 7, 8].map((v) => ({ v }));
+  const idOf = (r: { v: number }) => r.v;
+
+  test("da tre righe di fila senza niente da dire si piega in una sola tratta", () => {
+    const out = groupRuns(rows, (r) => r.v === 1 || r.v === 8, idOf, new Set());
+    expect(out.map((x) => x.kind)).toEqual(["row", "run", "row"]);
+    const run = out[1] as { kind: "run"; start: number; rows: { v: number }[] };
+    expect(run.start).toBe(2);
+    expect(run.rows.map((r) => r.v)).toEqual([2, 3, 4, 5, 6, 7]);
+  });
+
+  test("due righe sole non si piegano, e una tratta aperta resta in chiaro", () => {
+    const poche = groupRuns(rows.slice(0, 4), (r) => r.v === 1 || r.v === 4, idOf, new Set());
+    expect(poche.every((x) => x.kind === "row")).toBe(true);
+    const aperta = groupRuns(rows, (r) => r.v === 1 || r.v === 8, idOf, new Set([2]));
+    expect(aperta.every((x) => x.kind === "row")).toBe(true);
+    expect(aperta).toHaveLength(8);
+  });
+
+  test("una riga con qualcosa da dire spezza la tratta in due", () => {
+    const dieci = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => ({ v }));
+    const out = groupRuns(dieci, (r) => r.v === 1 || r.v === 5 || r.v === 10, idOf, new Set());
+    expect(out.map((x) => x.kind)).toEqual(["row", "run", "row", "run", "row"]);
+  });
+});

@@ -85,22 +85,32 @@ export default function FlowViewer({
     setView("foglia");
   }, []);
 
-  /** Aggiorna subito lo stato (la stella deve rispondere al tocco), poi lo conferma al server. */
+  /**
+   * Aggiorna subito lo stato (la stella deve rispondere al tocco), poi lo conferma al server.
+   * Finale e scartata si escludono: una strada messa da parte non puo' essere una scelta finale.
+   */
   const mark = async (what: "final" | "discarded") => {
     if (!sel || !node) return;
     const on = !node[what];
+    const other = what === "final" ? "discarded" : "final";
+    const clearOther = on && node[other];
     const key = keyOf(sel);
+    const finalNow = what === "final" ? on : clearOther ? false : node.final;
     setData((d) =>
       d
         ? {
-            nodes: d.nodes.map((n) => (n.key === key ? { ...n, [what]: on } : n)),
-            finals: what === "final" ? (on ? [...d.finals, key] : d.finals.filter((k) => k !== key)) : d.finals,
+            nodes: d.nodes.map((n) =>
+              n.key === key ? { ...n, [what]: on, ...(clearOther ? { [other]: false } : {}) } : n,
+            ),
+            finals: finalNow ? (d.finals.includes(key) ? d.finals : [...d.finals, key]) : d.finals.filter((k) => k !== key),
           }
         : d,
     );
+    const call = (w: "final" | "discarded", v: boolean) =>
+      w === "final" ? api.setFinal(photoId, sel.kind, sel.id, v) : api.setDiscard(photoId, sel.kind, sel.id, v);
     try {
-      if (what === "final") await api.setFinal(photoId, sel.kind, sel.id, on);
-      else await api.setDiscard(photoId, sel.kind, sel.id, on);
+      if (clearOther) await call(other, false);
+      await call(what, on);
     } catch (e) {
       setError((e as Error).message);
       void load();
