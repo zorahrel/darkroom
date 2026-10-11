@@ -240,8 +240,18 @@ async def upload_file(cdp: CDP, file_path):
         await cdp.allega(paths)
         return
 
+    # ChatGPT ha 4 input file nel form e il PRIMO e' `multiple: false`
+    # (image/*): con piu' file ne entra uno solo, il worker ne aspetta due e
+    # dopo 25 s scarta i riferimenti ("attachments did not settle"), cioe'
+    # generava senza le foto dell'utente. Serve un input multiplo che accetti
+    # immagini; il primo del form resta il ripiego (e basta per un file solo).
     res = await cdp.call("Runtime.evaluate", {
-        "expression": "document.querySelector('input[type=file]')",
+        "expression": """(() => {
+          const tutti = Array.from(document.querySelectorAll('input[type=file]'));
+          const multipli = tutti.filter(i => i.multiple && /image/.test(i.accept || ''));
+          return multipli.find(i => i.closest('form')) || multipli[0]
+            || tutti.find(i => i.closest('form')) || tutti[0] || null;
+        })()""",
         "returnByValue": False,
     })
     obj_id = res["result"].get("objectId")
