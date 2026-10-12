@@ -1032,11 +1032,21 @@ async def generate_only(prompt: str, output: Path, refs=None):
 
             await new_chat(cdp)
             if ref_paths:
-                log_line("generate", f"attaching {len(ref_paths)} reference image(s)")
-                if not await attach_with_fallback(cdp, [], ref_paths, "generate"):
-                    # No references attached: generate anyway, just without them
-                    # (attach_with_fallback already reset the chat).
-                    log_line("generate", "references did not attach -- generating without them")
+                # Il prompt parla dei riferimenti (identita', occhiali): generare senza
+                # produce un viso inventato, e il giro intero e' sprecato. Tre tentativi
+                # (attach_with_fallback resetta la chat da solo a ogni fallimento), poi
+                # il job si ferma invece di mentire. Giro 57: 3 tiri su 4 senza.
+                agganciati = False
+                for tentativo in range(1, 4):
+                    log_line("generate", f"attaching {len(ref_paths)} reference image(s) (try {tentativo}/3)")
+                    if await attach_with_fallback(cdp, [], ref_paths, "generate"):
+                        agganciati = True
+                        break
+                if not agganciati:
+                    raise RuntimeError(
+                        f"references not attached ({len(ref_paths)} requested, 3 tries) — "
+                        "the prompt talks about them, generating without would be a lie"
+                    )
             baseline = await snapshot_image_srcs(cdp)
             await send_prompt(cdp, prompt)
             gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
