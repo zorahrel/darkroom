@@ -668,6 +668,34 @@ def changed_fraction(a_path, b_path, soglia=0.12) -> float:
         return 1.0
 
 
+def mean_abs_diff(a_path, b_path) -> float:
+    """Differenza media assoluta fra sorgente e render, in livelli 0..255.
+
+    `changed_fraction` conta solo i pixel che cambiano di piu' di 0,12 e per una
+    modifica SOTTILE e diffusa e' cieca: il 13/10, togliendo la stoppia da una
+    foto del profilo, ChatGPT ha reso 8 immagini corrette (mento liscio, il resto
+    intatto) che `changed_fraction` misurava a 0,0000-0,0011, cioe' come la foto
+    restituita intatta (0,0000), e la guardia le ha scartate tutte. Misurata
+    con questa funzione la foto restituita intatta sta a ~2,5 (rumore di
+    ricompressione) e le 8 modifiche vere a 5,0-5,9: il rapporto e' 2, non 500,
+    ma le due classi non si toccano."""
+    try:
+        import numpy as np
+        from PIL import Image, ImageOps
+
+        def gray(path, size):
+            return np.asarray(
+                ImageOps.exif_transpose(Image.open(path)).convert("L").resize(size), np.float32
+            )
+
+        w, h = Image.open(a_path).size
+        size = (max(1, w // 2), max(1, h // 2))
+        return float(np.abs(gray(a_path, size) - gray(b_path, size)).mean())
+    except Exception:
+        # Nel dubbio si considera modificata, come per changed_fraction.
+        return 255.0
+
+
 async def download_image(cdp: CDP, src_url: str, dst: Path):
     b64 = await cdp.js(f"""
       (async () => {{
@@ -998,7 +1026,13 @@ async def single_shot(image: Path, prompt: str, output: Path, refs=None):
             # dita, una barba) la lascia a 0,998. Identica e' solo se anche i
             # pixel sono rimasti fermi.
             cambiati = changed_fraction(str(image), str(output)) if corr > float(os.environ.get("SCENE_MAX_CORR", "0.985")) else 1.0
-            if cambiati < float(os.environ.get("SCENE_MIN_CHANGED", "0.002")):
+            # Una modifica SOTTILE e diffusa (la pelle del mento senza stoppia)
+            # lascia `cambiati` a ~0 come la foto restituita intatta: scartava
+            # 8 render corretti su 8 (13/10). Si scarta solo se ANCHE la
+            # differenza media e' al livello del rumore di ricompressione
+            # (intatta 0,54; modifiche vere 2,5-3,2; soglia 1,3).
+            media = mean_abs_diff(str(image), str(output)) if cambiati < float(os.environ.get("SCENE_MIN_CHANGED", "0.002")) else 255.0
+            if cambiati < float(os.environ.get("SCENE_MIN_CHANGED", "0.002")) and media < float(os.environ.get("SCENE_MIN_MEAN", "1.3")):
                 quarantena(output, f"identica{corr:.3f}")
                 raise RuntimeError(
                     f"ChatGPT returned the source photo unedited "
