@@ -49,7 +49,12 @@ class CFTError(RuntimeError):
     pass
 
 
-def _wait_cdp(timeout_s: float = 20) -> None:
+# 20 s bastavano a Mac scarico; il 14/10 con load average ~100 l'avvio ne ha chiesti piu' di 20
+# e ogni generazione falliva con «non risponde sulla porta». DARKROOM_CFT_WAIT_S lo regola.
+WAIT_S = float(os.environ.get("DARKROOM_CFT_WAIT_S", "120"))
+
+
+def _wait_cdp(timeout_s: float = WAIT_S) -> None:
     fine = time.time() + timeout_s
     while time.time() < fine:
         try:
