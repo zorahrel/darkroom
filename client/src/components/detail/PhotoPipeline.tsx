@@ -46,6 +46,7 @@ import { QualityCheck } from "./QualityCheck";
 export function PhotoPipeline({
   photoId,
   versionNumber,
+  versionLabel,
   versionId,
   favoriteVersionId,
   effectiveConfig,
@@ -67,6 +68,8 @@ export function PhotoPipeline({
 }: {
   photoId: string;
   versionNumber: number | null;
+  /** Come si chiama la versione a schermo («v364 · r1» per un ritocco); di default «vN». */
+  versionLabel?: string | null;
   /** Row id of the render on screen — the quality panel checks this one. */
   versionId?: number | null;
   favoriteVersionId?: number | null;
@@ -552,7 +555,7 @@ export function PhotoPipeline({
             // La versione PRIMA dell'id: su un telefono il titolo si tronca da
             // destra, e «kaumat-n…» senza numero non dice cosa stai guardando.
             [
-              versionNumber != null ? `v${versionNumber}` : null,
+              versionLabel ?? (versionNumber != null ? `v${versionNumber}` : null),
               photoId,
               photoNav && photoNav.index >= 0 ? `${photoNav.index + 1}/${photoNav.total}` : null,
             ]

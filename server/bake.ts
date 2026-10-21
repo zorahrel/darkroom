@@ -7,6 +7,7 @@ import {
   effectiveGrade,
   getDefaultConfig,
   nextVersionNumber,
+  retouchSlot,
   versionFileName,
   type PhotoRow,
   type GradeStep,
@@ -278,10 +279,19 @@ export async function bakePhoto(photoId: string): Promise<BakeResult> {
   const finalPath = join(photoGenDir, versionFileName(versionNumber));
   copyFileSync(working, finalPath);
 
+  // Un bake solo deterministico (LUT, grade) e' un ritocco della versione da cui
+  // parte: va sotto la sua principale. Partendo dall'originale resta principale.
+  const baseVersion = db()
+    .query<{ id: number }, [string, string]>(
+      "SELECT id FROM versions WHERE photo_id = ? AND image_path = ? ORDER BY id DESC LIMIT 1",
+    )
+    .get(photo.id, start);
+  const slot = baseVersion ? retouchSlot(baseVersion.id) : null;
   const ins = db().run(
     `INSERT INTO versions
-       (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at)
-     VALUES (?, ?, ?, ?, ?, 'baked', 'generated', ?)`,
+       (photo_id, version_number, image_path, prompt_used, config, provider, source, created_at,
+        parent_version_id, retouch_number)
+     VALUES (?, ?, ?, ?, ?, 'baked', 'generated', ?, ?, ?)`,
     [
       photo.id,
       versionNumber,
@@ -289,6 +299,8 @@ export async function bakePhoto(photoId: string): Promise<BakeResult> {
       "baked pipeline",
       JSON.stringify({ baked: true, steps: grade.steps }),
       Date.now(),
+      slot?.parent_version_id ?? null,
+      slot?.retouch_number ?? null,
     ],
   );
   const versionId = Number(ins.lastInsertRowid);

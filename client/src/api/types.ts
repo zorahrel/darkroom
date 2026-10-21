@@ -72,6 +72,10 @@ export type Version = {
   lineage?: string | null;
   source: "imported" | "generated";
   created_at: number;
+  /** Il ritocco sta sotto questa principale; NULL/assente = e' una principale. */
+  parent_version_id?: number | null;
+  /** r1, r2… dentro la principale. */
+  retouch_number?: number | null;
 };
 
 export type Photo = {

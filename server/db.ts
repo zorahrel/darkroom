@@ -734,6 +734,22 @@ export function initSchemaOn(d: Database): void {
     d.run("ALTER TABLE versions ADD COLUMN lineage TEXT");
   }
 
+  // Un ritocco (LUT, grade, file fatto in locale) sta SOTTO la generazione da
+  // cui nasce invece che in fila con le altre. Il numero globale e il file
+  // `vNNN.png` restano quelli: cambia solo chi e' il padre, cosi' nessun `?v=`
+  // e nessuna miniatura si rompe.
+  if (!hasColumn(d, "versions", "parent_version_id")) {
+    d.run("ALTER TABLE versions ADD COLUMN parent_version_id INTEGER");
+  }
+  if (!hasColumn(d, "versions", "retouch_number")) {
+    d.run("ALTER TABLE versions ADD COLUMN retouch_number INTEGER");
+  }
+  d.run(
+    `CREATE INDEX IF NOT EXISTS idx_versions_parent ON versions(parent_version_id)
+       WHERE parent_version_id IS NOT NULL`,
+  );
+  backfillRetouches(d);
+
   // Un job puo' DICHIARARE quali riferimenti allega. NULL = non ha dichiarato
   // niente, ed e' tutto lo storico: il controllo non morde.
   if (!hasColumn(d, "jobs", "declared_refs")) {
@@ -877,6 +893,84 @@ export type CollectionRow = {
   created_at: number;
 };
 
+/**
+ * Dove va un ritocco fatto sopra `baseVersionId`: la principale e il prossimo
+ * numero di ritocco. Un ritocco di un ritocco si appiattisce sulla principale
+ * (r1, r2, r3 della stessa generazione, mai r1.1).
+ */
+export function retouchSlotOn(
+  d: Database,
+  baseVersionId: number,
+): { parent_version_id: number; retouch_number: number } | null {
+  const base = d
+    .query<{ id: number; parent_version_id: number | null }, [number]>(
+      "SELECT id, parent_version_id FROM versions WHERE id = ?",
+    )
+    .get(baseVersionId);
+  if (!base) return null;
+  const parent = base.parent_version_id ?? base.id;
+  const row = d
+    .query<{ n: number }, [number]>(
+      "SELECT COALESCE(MAX(retouch_number), 0) AS n FROM versions WHERE parent_version_id = ?",
+    )
+    .get(parent);
+  return { parent_version_id: parent, retouch_number: (row?.n ?? 0) + 1 };
+}
+
+export function retouchSlot(baseVersionId: number) {
+  return retouchSlotOn(db(), baseVersionId);
+}
+
+/** Il numero di versione scritto nel lineage come partenza: «v318», «v348.png»
+ *  o un percorso assoluto che finisce cosi'. Il resto («1» = l'originale) no. */
+function versionNumberIn(ref: unknown): number | null {
+  if (typeof ref !== "string") return null;
+  const m = /(?:^|\/)v(\d+)(?:\.png)?$/.exec(ref);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Riempie padre e numero sui ritocchi gia' esistenti. Solo le versioni
+ * `local` con una partenza che esiste sulla stessa foto: le generazioni nate
+ * da un'altra versione sono rigenerazioni, non ritocchi, e restano principali.
+ * In ordine di id, cosi' un ritocco di un ritocco trova il padre gia' scritto
+ * e si appiattisce. Idempotente: tocca solo righe senza padre.
+ */
+function backfillRetouches(d: Database): void {
+  const rows = d
+    .query<{ id: number; photo_id: string; lineage: string | null }, []>(
+      `SELECT id, photo_id, lineage FROM versions
+        WHERE provider = 'local' AND parent_version_id IS NULL AND lineage IS NOT NULL
+        ORDER BY id`,
+    )
+    .all();
+  if (rows.length === 0) return;
+  const byNumber = d.query<{ id: number }, [string, number]>(
+    "SELECT id FROM versions WHERE photo_id = ? AND version_number = ?",
+  );
+  const set = d.query("UPDATE versions SET parent_version_id = ?, retouch_number = ? WHERE id = ?");
+  d.transaction(() => {
+    for (const r of rows) {
+      let l: { partenza?: unknown; materia?: unknown; sources?: unknown };
+      try {
+        l = JSON.parse(r.lineage!);
+      } catch {
+        continue;
+      }
+      // `partenza` e' quella dichiarata; gli script Kaumat scrivevano solo
+      // `materia` o `sources`, che li' dicono la stessa cosa.
+      const first = Array.isArray(l.sources) ? l.sources[0] : null;
+      const n = versionNumberIn(l.partenza) ?? versionNumberIn(l.materia) ?? versionNumberIn(first);
+      if (n == null) continue;
+      const base = byNumber.get(r.photo_id, n);
+      if (!base || base.id === r.id) continue;
+      const slot = retouchSlotOn(d, base.id);
+      if (!slot || slot.parent_version_id === r.id) continue;
+      set.run(slot.parent_version_id, slot.retouch_number, r.id);
+    }
+  })();
+}
+
 export type VersionRow = {
   id: number;
   photo_id: string;
@@ -889,6 +983,10 @@ export type VersionRow = {
   credits: number | null;
   source: "imported" | "generated";
   created_at: number;
+  /** La principale sotto cui sta questo ritocco; NULL = e' una principale. */
+  parent_version_id?: number | null;
+  /** r1, r2… dentro la principale; NULL sulle principali. */
+  retouch_number?: number | null;
 };
 
 /**

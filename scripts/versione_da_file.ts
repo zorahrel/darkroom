@@ -8,7 +8,7 @@
  */
 import { copyFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { db, initSchema, nextVersionNumber } from "../server/db.ts";
+import { db, initSchema, nextVersionNumber, retouchSlot } from "../server/db.ts";
 import { dirsFor, withProject } from "../server/project.ts";
 
 const args = process.argv.slice(2);
@@ -55,7 +55,11 @@ await withProject(progetto, async () => {
        SELECT ?, 'reference', path, NULL, position, 'recorded' FROM version_inputs WHERE version_id = ? AND kind = 'reference'`,
       [nuova.id, madre.id],
     );
+    // Sotto la principale: se la partenza e' gia' un ritocco, il padre e' la sua principale.
+    const slot = retouchSlot(madre.id);
+    if (slot) db().run("UPDATE versions SET parent_version_id = ?, retouch_number = ? WHERE id = ?", [slot.parent_version_id, slot.retouch_number, nuova.id]);
     db().run("UPDATE versions SET prompt_used = ? WHERE id = ?", [`${opt("nota", "versione locale")}\n\n--- prompt della generazione di partenza (${partenza}) ---\n${madre.prompt_used}`, nuova.id]);
   }
-  console.log(`v${n}`);
+  const r = db().query<{ parent: number | null; r: number | null }, [number]>("SELECT (SELECT version_number FROM versions p WHERE p.id = v.parent_version_id) AS parent, retouch_number AS r FROM versions v WHERE id = ?").get(nuova.id);
+  console.log(r?.parent != null ? `v${n} (v${r.parent} · r${r.r})` : `v${n}`);
 });

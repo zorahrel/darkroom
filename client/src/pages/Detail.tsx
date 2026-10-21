@@ -12,7 +12,7 @@ import PhotoJobsLog from "../components/PhotoJobsLog";
 import { IconRefresh } from "../components/mobile/icons";
 import { JobStatusBadge, JobStatusBanner } from "../components/detail/JobStatus";
 import { PhotoPipeline } from "../components/detail/PhotoPipeline";
-import { VersionStrip } from "../components/detail/VersionStrip";
+import { VersionStrip, versionLabel } from "../components/detail/VersionStrip";
 import { FullscreenView } from "../components/detail/FullscreenView";
 
 
@@ -339,7 +339,7 @@ export default function DetailPage() {
         {infoRow("Versioni", String(versions.length))}
         {infoRow(
           "Versione mostrata",
-          v ? `v${v.version_number}${v.provider ? ` · ${v.provider}` : ""}` : "—",
+          v ? `${versionLabel(v, versions)}${v.parent_version_id != null ? ` (file v${v.version_number})` : ""}${v.provider ? ` · ${v.provider}` : ""}` : "—",
         )}
         {infoRow("Generata", v ? fmtTs(v.created_at) : "—")}
         {v?.credits != null && infoRow("Crediti", String(v.credits))}
@@ -449,6 +449,7 @@ export default function DetailPage() {
       <PhotoPipeline
         photoId={photo.id}
         versionNumber={v ? v.version_number : null}
+        versionLabel={v ? versionLabel(v, versions) : null}
         versionId={v ? v.id : null}
         favoriteVersionId={photo.favorite_version_id}
         effectiveConfig={effective_config}
