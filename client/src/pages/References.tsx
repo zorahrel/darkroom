@@ -44,6 +44,8 @@ type Reference = {
   /** A cosa serve: tenere il viso o imporre un aspetto. Due lavori opposti sulla
    *  stessa immagine, e finora si distinguevano solo dal nome del file. */
   role?: Ruolo;
+  /** Scelta per il prossimo giro di generazione. */
+  picked?: boolean;
   /** Cosa c'e' dentro, letto dall'immagine: luce, tonalita', inquadratura,
    *  pelle, resa. `null` = mai letta, diverso da «letta e vuota». */
   prompt?: string | null;
@@ -131,6 +133,19 @@ export default function ReferencesPage() {
     } catch {
       // Se il server rifiuta, l'elenco riletto rimette la verita': meglio un
       // ritorno indietro visibile di una riga che mente.
+      load();
+    }
+  }
+
+  /** Mette o toglie la scelta per il prossimo giro; si aggiorna subito, come il ruolo. */
+  async function scegli(file: string, picked: boolean) {
+    setRefs((v) => (v ?? []).map((r) => (r.file === file ? { ...r, picked } : r)));
+    try {
+      await jsonFetch(`/api/references/${encodeURIComponent(file)}/pick`, {
+        method: "PUT",
+        body: JSON.stringify({ picked }),
+      });
+    } catch {
       load();
     }
   }
@@ -488,17 +503,28 @@ export default function ReferencesPage() {
               <h3 className="text-sm font-semibold text-neutral-100">{g.titolo}</h3>
               <span className="font-mono text-[11px] text-neutral-500">{qui.length}</span>
               <span className="text-[11px] text-neutral-500 truncate">{g.spiega}</span>
+              {g.id === "identita" && (
+                <span className="ml-auto font-mono text-[11px] text-emerald-400 whitespace-nowrap">
+                  scelte per il prossimo giro: {qui.filter((r) => r.picked).length}
+                </span>
+              )}
             </div>
           <div
             className={
               "grid gap-3 " +
               (g.grande
-                ? "grid-cols-[repeat(auto-fill,minmax(300px,1fr))]"
+                ? "grid-cols-[repeat(auto-fill,minmax(230px,1fr))]"
                 : "grid-cols-[repeat(auto-fill,minmax(190px,1fr))]")
             }
           >
             {qui.map((r) => (
-              <figure key={r.file} className="group relative m-0 border border-neutral-800 bg-neutral-900">
+              <figure
+                key={r.file}
+                className={
+                  "group relative m-0 border-2 bg-neutral-900 transition-colors " +
+                  (r.picked ? "border-emerald-400" : "border-neutral-800")
+                }
+              >
                 {/* `aspect-[3/4]` e `object-contain`, non un quadrato che ritaglia.
                     Misurato il 14/09 in un riquadro 691x651: le miniature erano
                     rese 198x198 con `object-cover`, mentre i file stanno fra 0,56
@@ -546,6 +572,23 @@ export default function ReferencesPage() {
                   ×
                 </button>
                 <figcaption className="px-2 py-1.5 space-y-0.5">
+                  {/* Il tasto sta DENTRO la scheda, in una riga sua: sopra l'immagine
+                      copriva il nome del file. Scelta = cornice verde + tasto pieno
+                      verde con la spunta: si legge anche a colpo d'occhio dalla griglia. */}
+                  <button
+                    type="button"
+                    aria-pressed={!!r.picked}
+                    title={r.picked ? "Scelta per il prossimo giro: clic per toglierla" : "Usala nel prossimo giro"}
+                    onClick={() => scegli(r.file, !r.picked)}
+                    className={
+                      "w-full mb-1 py-1.5 border text-xs font-semibold transition-colors " +
+                      (r.picked
+                        ? "border-emerald-400 bg-emerald-500 text-neutral-950"
+                        : "border-neutral-600 text-neutral-200 hover:border-neutral-300 hover:bg-neutral-800")
+                    }
+                  >
+                    {r.picked ? "✓ Scelta per il prossimo giro" : "Scegli per il prossimo giro"}
+                  </button>
                   {/* Il nome apre la reference da sola: e' il gesto che ci si
                       aspetta da una scheda, e porta a un indirizzo che si puo'
                       mandare a qualcuno. */}

@@ -63,6 +63,10 @@ referenceRoutes.get("/api/references", (c) => {
       .map((r) => [r.file, r.role] as const),
   );
 
+  const scelte = new Set(
+    db().query<{ file: string }, []>("SELECT file FROM reference_pick").all().map((r) => r.file),
+  );
+
   // Cosa c'e' dentro, letto dall'immagine. Arriva con l'elenco e non su
   // richiesta: una descrizione che si ottiene solo cliccando e' una descrizione
   // che nessuno legge mentre decide quale reference allegare.
@@ -89,6 +93,8 @@ referenceRoutes.get("/api/references", (c) => {
        *  un oggetto da indossare (occhiali, giacca). `null` = nessuno
        *  l'ha ancora detto, ed e' un'informazione, non un valore di riposo. */
       role: ruoli.get(f) ?? null,
+      /** Scelta per il prossimo giro di generazione. */
+      picked: scelte.has(f),
       /** Il deprompt: luce, tonalita', inquadratura, pelle, resa. `null` = non
        *  ancora letta, che e' diverso da «letta e vuota». */
       prompt: d ? d.body : null,
@@ -265,6 +271,20 @@ referenceRoutes.post("/api/references", async (c) => {
   }
   writeFileSync(join(dir, name), Buffer.from(await file.arrayBuffer()));
   return c.json({ file: name, renamed: name !== safeName || tooLong });
+});
+
+/** Mette o toglie la scelta «la voglio nel prossimo giro». */
+referenceRoutes.put("/api/references/:file/pick", async (c) => {
+  const file = decodeURIComponent(c.req.param("file"));
+  if (file !== (file.split(/[/\\]/).pop() ?? "")) return c.json({ error: "nome non valido" }, 400);
+  if (!existsSync(join(refsDir(), file))) return c.json({ error: "reference inesistente" }, 404);
+  const b = (await c.req.json().catch(() => ({}))) as { picked?: unknown };
+  if (b.picked) {
+    db().run("INSERT OR REPLACE INTO reference_pick (file, picked_at) VALUES (?, ?)", [file, Date.now()]);
+  } else {
+    db().run("DELETE FROM reference_pick WHERE file = ?", [file]);
+  }
+  return c.json({ file, picked: !!b.picked });
 });
 
 /** Dichiara a cosa serve una reference. `null` la riporta a «non dichiarato». */

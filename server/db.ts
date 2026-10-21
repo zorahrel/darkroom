@@ -321,6 +321,12 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_annotations_target
      ON annotations(photo_id, version_number, ref_file)`,
+  // Le foto che chi lavora ha scelto per il PROSSIMO giro: e' un segno che si mette e si toglie,
+  // separato dal ruolo (quello dice a cosa serve una reference, questo dice se oggi la voglio).
+  `CREATE TABLE IF NOT EXISTS reference_pick (
+    file TEXT PRIMARY KEY,
+    picked_at INTEGER NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS reference_meta (
     file TEXT PRIMARY KEY,
     role TEXT NOT NULL CHECK (role IN ('stile','identita','accessorio')),
