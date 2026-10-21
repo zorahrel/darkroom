@@ -39,7 +39,7 @@ const cinema = process.env.SCENA_TONO === "cinema";
 const pos = process.env.SCENA_TONO === "pos";
 const posTre = process.env.SCENA_POS === "tre";
 
-const PROMPT = `
+const PROMPT_BUILT = `
 ${
   conRif
     ? pos
@@ -154,6 +154,9 @@ ${
 
 `}Keep the creature itself the same animal: the same head with the amber eye and the two ivory tusks, the same iridescent violet scales, the neck feather ruff, the dorsal ridge, the feathered tail tip. Photographic, not an illustration, no glow, no CGI look. ${wide || cine ? "Horizontal 16:9 frame." : "Vertical 9:16 frame."}
 `.trim();
+
+/** SCENA_PROMPT_FILE: usa il prompt scritto in un file al posto di quello costruito dalle varianti (per scene rifatte a mano con una lista di vincoli). */
+const PROMPT = process.env.SCENA_PROMPT_FILE ? (await Bun.file(process.env.SCENA_PROMPT_FILE).text()).trim() : PROMPT_BUILT;
 
 const res = await runWorkerOpenBrowser({ image: src, refs: conRif ? [ref] : [], prompt: PROMPT, output: out });
 console.log(res.status === "ok" ? `ok → ${out}` : `FALLITA: ${res.error}`);
