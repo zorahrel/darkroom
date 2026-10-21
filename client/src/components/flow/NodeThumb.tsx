@@ -62,7 +62,7 @@ export default function NodeThumb({
       {r.kind === "clip" && (
         <span className="absolute inset-0 flex items-center justify-center text-lg text-white drop-shadow">▶</span>
       )}
-      <span className="absolute bottom-0 left-0 max-w-full truncate bg-black/70 px-1 text-[10px] text-neutral-100">
+      <span className="absolute bottom-0 inset-x-0 truncate bg-black/70 px-0.5 text-center text-[9px] leading-[15px] tracking-tight tabular-nums text-neutral-100">
         {label}
       </span>
       {node.final && <span className="absolute right-0.5 top-0.5 text-amber-400 drop-shadow">★</span>}
@@ -72,8 +72,10 @@ export default function NodeThumb({
       {discarded && (
         <span className="absolute inset-0 flex items-center justify-center text-2xl text-rose-300">⊘</span>
       )}
+      {/* Sopra l'etichetta, non accanto: su una miniatura 9:16 alta 56 px (31 di larghezza) le due
+          cose in fondo si coprivano e restava leggibile solo «⑂17», uguale su ogni sorella. */}
       {nSis > 0 && (
-        <span className="absolute bottom-0 right-0 rounded-tl bg-amber-500 px-1 text-[10px] font-semibold text-black">
+        <span className="absolute bottom-[15px] right-0 rounded-l bg-amber-500 px-1 text-[10px] leading-[14px] font-semibold text-black">
           ⑂{nSis}
         </span>
       )}

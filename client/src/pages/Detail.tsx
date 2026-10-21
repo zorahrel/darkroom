@@ -472,9 +472,14 @@ export default function DetailPage() {
                 type="button"
                 data-testid="open-clips"
                 onClick={() => setVideoOpen(true)}
-                className="shrink-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 border-t border-neutral-800"
+                // Neutro come gli altri comandi, accento solo sul simbolo: la fascia arancione piena
+                // si leggeva come un avviso. Il conteggio dice cosa conta, non un numero nudo.
+                className="shrink-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-neutral-900 text-neutral-200 hover:bg-neutral-800 hover:text-white border-t border-neutral-800 transition-colors"
               >
-                ◈ Flusso · rami e video ({clips.length})
+                <span className="text-amber-400">◈</span> Flusso
+                <span className="text-neutral-500 font-normal">
+                  · rami{clips.length > 0 ? ` e ${clips.length} video` : ""}
+                </span>
               </button>
             )}
             <VersionStrip

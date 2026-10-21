@@ -71,10 +71,12 @@ export function VersionStrip({
           aria-pressed={mostraRitocchi}
           data-testid="toggle-ritocchi"
           title={mostraRitocchi ? "Nascondi i ritocchi" : "Mostra anche i ritocchi"}
+          // Lo sticky si ferma al padding della striscia (px-2): l'ombra piena del fondo copre
+          // quegli 8 px, sennò le miniature che scorrono sotto spuntano a sinistra del tasto.
           className={
-            "sticky left-0 z-10 shrink-0 w-14 h-14 rounded border-2 text-[10px] leading-tight uppercase tracking-wide " +
+            "sticky left-0 z-10 shrink-0 w-14 h-14 rounded border-2 text-[10px] leading-tight uppercase tracking-wide shadow-[-0.5rem_0_0_0.25rem_#0a0a0a] " +
             (mostraRitocchi
-              ? "border-fuchsia-500 bg-fuchsia-700/80 text-white"
+              ? "border-fuchsia-500 bg-fuchsia-700 text-white"
               : "border-neutral-600 bg-neutral-900 text-neutral-300 hover:border-fuchsia-500")
           }
         >
