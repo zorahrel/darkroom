@@ -68,3 +68,11 @@ describe("the types that decide whether a thing is displayed or downloaded", () 
     expect(guessMime("/a/b.mp3")).toBe("audio/mpeg");
   });
 });
+
+describe("SPA fallback", () => {
+  test("index.html is revalidated every time, or a build keeps showing the old bundle", async () => {
+    const { mediaRoutes } = await import("../server/routes/media.ts");
+    const r = await mediaRoutes.request("/p/qualcosa/photo/x");
+    expect(r.headers.get("cache-control")).toBe("no-cache");
+  });
+});

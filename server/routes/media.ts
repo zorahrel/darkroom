@@ -217,4 +217,11 @@ mediaRoutes.get("/assets/*", (c) => {
 });
 
 // SPA fallback: any other GET serves index.html (client-side routing).
-mediaRoutes.get("*", () => serveFile(join(DIST_DIR, "index.html"), "text/html; charset=utf-8"));
+// `no-cache`, not the 5 minutes of serveFile: index.html is what names the hashed bundle, so a
+// cached copy keeps loading the OLD interface after every build (seen 21/10: the fix was built and
+// the page still showed the previous bundle). The files under /assets/ carry the hash and can stay cached.
+mediaRoutes.get("*", () => {
+  const r = serveFile(join(DIST_DIR, "index.html"), "text/html; charset=utf-8");
+  r.headers.set("cache-control", "no-cache");
+  return r;
+});
