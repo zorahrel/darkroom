@@ -195,7 +195,9 @@ export default function PhotoCard({
       // asks for a 4:5 crop), so a square cell with object-cover cut a fifth
       // off: you judged a photo without seeing its edge, and the edge is
       // precisely what the AI's reframe changes.
-      className={`group relative block aspect-[4/5] overflow-hidden rounded-md bg-neutral-900 border ${selected ? "border-blue-500" : "border-neutral-800"} hover:border-neutral-600 transition-colors ${ringClass}`}
+      // `isolate`: i badge dentro (z-20) restano dentro la card e non salgono sopra le barre sticky
+      // della griglia mentre si scorre (stesso z-20, vinceva chi veniva dopo nel DOM).
+      className={`group relative isolate block aspect-[4/5] overflow-hidden rounded-md bg-neutral-900 border ${selected ? "border-blue-500" : "border-neutral-800"} hover:border-neutral-600 transition-colors ${ringClass}`}
     >
       {/* Base layer: best preview (favorite/latest or RAW) */}
       <img
