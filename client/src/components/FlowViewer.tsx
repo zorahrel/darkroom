@@ -3,6 +3,7 @@ import { api, type BranchNode, type Branches, type Clip, type ClipJob } from "..
 import BranchView from "./flow/BranchView";
 import LeafView from "./flow/LeafView";
 import MapView from "./flow/MapView";
+import SequenceView from "./flow/SequenceView";
 import NodeThumb from "./flow/NodeThumb";
 import { ancestors, buildFlow, children, keyOf, nodeOf, refOfKey, sisters, stepSelection, type Ref } from "./flow/tree";
 
@@ -18,11 +19,12 @@ import { ancestors, buildFlow, children, keyOf, nodeOf, refOfKey, sisters, stepS
  * Da qui si decide cosa e' una FOGLIA FINALE (foto o video, anche piu' d'una) e cosa si mette da parte.
  */
 
-type View = "foglia" | "ramo" | "mappa";
+type View = "foglia" | "ramo" | "mappa" | "sequenza";
 const VIEWS: { id: View; label: string; hint: string }[] = [
   { id: "foglia", label: "Foglia", hint: "1 · il nodo, da dove arriva e cosa ne è nato" },
   { id: "ramo", label: "Ramo", hint: "2 · la strada fin qui, con le biforcazioni" },
   { id: "mappa", label: "Mappa", hint: "3 · tutti i rami insieme" },
+  { id: "sequenza", label: "Sequenza", hint: "4 · la strada in colonna, immagini grandi e video" },
 ];
 
 export default function FlowViewer({
@@ -125,6 +127,7 @@ export default function FlowViewer({
       if (e.key === "1") return setView("foglia");
       if (e.key === "2") return setView("ramo");
       if (e.key === "3") return setView("mappa");
+      if (e.key === "4") return setView("sequenza");
       if (el?.closest?.('[data-testid="video-player"]')) return;
       if (e.key === "f" || e.key === "F") return void markRef.current("final");
       if (e.key === "d" || e.key === "D") return void markRef.current("discarded");
@@ -428,6 +431,7 @@ export default function FlowViewer({
           )}
           {view === "ramo" && <BranchView {...viewProps} />}
           {view === "mappa" && <MapView {...viewProps} />}
+          {view === "sequenza" && <SequenceView {...viewProps} />}
         </main>
       )}
     </div>
