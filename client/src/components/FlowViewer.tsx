@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type Branches, type Clip } from "../api";
+import { api, type Branches, type Clip, type ClipJob } from "../api";
 import BranchView from "./flow/BranchView";
 import LeafView from "./flow/LeafView";
 import MapView from "./flow/MapView";
@@ -63,6 +63,39 @@ export default function FlowViewer({
   useEffect(() => {
     void load();
   }, [load, clips.length]);
+
+  // Video in generazione: si interroga finche' ce n'e' uno acceso. Quando uno sparisce e' diventato
+  // un clip, e il flusso si ricarica da solo.
+  const [jobs, setJobs] = useState<ClipJob[]>([]);
+  const [now, setNow] = useState(() => Date.now());
+  const runningBefore = useRef(0);
+  useEffect(() => {
+    let live = true;
+    const tick = async () => {
+      try {
+        const r = await api.clipJobs(photoId);
+        if (!live) return;
+        const running = r.jobs.filter((j) => j.status === "running").length;
+        if (running < runningBefore.current) {
+          await onClipsChanged();
+          void load();
+        }
+        runningBefore.current = running;
+        setJobs(r.jobs);
+      } catch {
+        /* il prossimo giro riprova */
+      }
+    };
+    void tick();
+    const t = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() % 5000 < 1100) void tick();
+    }, 1000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [photoId, load, onClipsChanged]);
 
   const flow = useMemo(() => (data ? buildFlow(data.nodes) : null), [data]);
   const node = flow && sel ? nodeOf(flow, sel) : undefined;
@@ -340,6 +373,29 @@ export default function FlowViewer({
       {error && <p className="px-3 py-1 text-xs text-rose-300">{error}</p>}
       {!viewProps && !error && <p className="p-4 text-sm text-neutral-500">Carico…</p>}
 
+      {jobs.length > 0 && (
+        <div className="shrink-0 space-y-1 border-b border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px]" data-testid="flow-jobs">
+          {jobs.map((j) => {
+            const sec = Math.max(0, Math.round((now - j.started_at) / 1000));
+            const mm = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+            return j.status === "running" ? (
+              <div key={j.id} className="flex items-center gap-2 text-amber-300" data-testid="flow-job">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+                <span className="font-medium">{j.model ?? "video"}</span>
+                <span className="text-neutral-400">in generazione{j.version_number != null ? ` da v${j.version_number}` : ""} · {mm}</span>
+              </div>
+            ) : (
+              <div key={j.id} className="flex items-center gap-2 text-red-300" data-testid="flow-job-failed">
+                <span className="font-medium">{j.model ?? "video"}</span>
+                <span className="min-w-0 flex-1 truncate" title={j.error ?? ""}>non riuscito: {j.error}</span>
+                <button type="button" className="shrink-0 rounded bg-neutral-800 px-2 py-0.5 text-neutral-200 hover:bg-neutral-700" onClick={() => void api.dismissClipJob(j.id).then(() => setJobs((x) => x.filter((y) => y.id !== j.id)))}>
+                  togli
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {viewProps && (
         <main className="min-h-0 flex-1 overflow-hidden" data-testid="flow-body" data-view={view}>
           {view === "foglia" && (

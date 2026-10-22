@@ -12,7 +12,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { importClip } from "../server/clips.ts";
+import { importClip, startClipJob, endClipJob } from "../server/clips.ts";
 import { db } from "../server/db.ts";
 import {
   VIDEO_PRESETS,
@@ -81,13 +81,25 @@ const results = await Promise.allSettled(
   costs.map(async (c) => {
     const jobId = await launch(c.req);
     console.log(`  ${c.key}: job ${jobId}`);
-    const { url, generation } = await waitForVideo(jobId, {
-      onTick: (st, s) => s % 40 < 8 && console.log(`  ${c.key}: ${st} (${s} s)`),
-    });
-    const file = join(tmp, `${c.key}.mp4`);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`scarico ${c.key}: ${res.status}`);
-    writeFileSync(file, new Uint8Array(await res.arrayBuffer()));
+    // Da qui il flusso sa che questo video sta caricando; il clip vero arriva a fine lavoro.
+    const pending = withProject(progetto, () => startClipJob(foto, { version_number: version, model: c.req.preset.label, remote_id: jobId }));
+    try {
+      const { url, generation } = await waitForVideo(jobId, {
+        onTick: (st, s) => s % 40 < 8 && console.log(`  ${c.key}: ${st} (${s} s)`),
+      });
+      const file = join(tmp, `${c.key}.mp4`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`scarico ${c.key}: ${res.status}`);
+      writeFileSync(file, new Uint8Array(await res.arrayBuffer()));
+      return await finish(c, jobId, url, generation, file, pending);
+    } catch (e) {
+      withProject(progetto, () => endClipJob(pending, (e as Error).message));
+      throw e;
+    }
+  }),
+);
+async function finish(c: (typeof costs)[number], jobId: string, url: string, generation: any, file: string, pending: number) {
+  {
     const row = withProject(progetto, () =>
       importClip(foto, {
         path: file,
@@ -101,8 +113,9 @@ const results = await Promise.allSettled(
       }),
     );
     console.log(`  ${c.key}: archiviato come clip #${row.id} (${row.width}x${row.height}, ${row.duration?.toFixed(1)} s)`);
+    withProject(progetto, () => endClipJob(pending));
     return { key: c.key, jobId, url, gen: generation?.id };
-  }),
-);
+  }
+}
 for (const [i, r] of results.entries()) if (r.status === "rejected") console.error(`FALLITO ${costs[i]!.key}: ${(r.reason as Error).message}`);
 process.exit(results.some((r) => r.status === "rejected") ? 1 : 0);

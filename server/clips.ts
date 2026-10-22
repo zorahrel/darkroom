@@ -63,6 +63,57 @@ function ensure(): void {
     created_at INTEGER NOT NULL
   )`);
   db().run("CREATE INDEX IF NOT EXISTS idx_clips_photo ON clips(photo_id, created_at)");
+  db().run(`CREATE TABLE IF NOT EXISTS clip_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    photo_id TEXT NOT NULL,
+    version_number INTEGER,
+    model TEXT,
+    remote_id TEXT,
+    status TEXT NOT NULL DEFAULT 'running',
+    error TEXT,
+    started_at INTEGER NOT NULL,
+    ended_at INTEGER
+  )`);
+}
+
+/**
+ * Un video in generazione. Il clip vero esiste solo a video finito, e per minuti la pagina non
+ * mostrava niente: il job lo registra all'avvio, cosi' il flusso puo' dire che sta caricando.
+ * Un job fallito resta visibile con l'errore finche' non lo si toglie.
+ */
+export type ClipJob = {
+  id: number;
+  photo_id: string;
+  version_number: number | null;
+  model: string | null;
+  remote_id: string | null;
+  status: "running" | "failed";
+  error: string | null;
+  started_at: number;
+};
+
+export function startClipJob(photoId: string, v: { version_number?: number | null; model?: string; remote_id?: string }): number {
+  ensure();
+  return Number(
+    db().run(
+      "INSERT INTO clip_jobs (photo_id, version_number, model, remote_id, started_at) VALUES (?,?,?,?,?)",
+      [photoId, v.version_number ?? null, v.model ?? null, v.remote_id ?? null, Date.now()],
+    ).lastInsertRowid,
+  );
+}
+
+/** Finito bene: il job sparisce, al suo posto c'e' il clip. Finito male: resta con l'errore. */
+export function endClipJob(id: number, error?: string): void {
+  ensure();
+  if (error) db().run("UPDATE clip_jobs SET status='failed', error=?, ended_at=? WHERE id=?", [error.slice(0, 400), Date.now(), id]);
+  else db().run("DELETE FROM clip_jobs WHERE id=?", [id]);
+}
+
+export function listClipJobs(photoId: string): ClipJob[] {
+  ensure();
+  // Un job "running" di piu' di 40 minuti e' di uno script morto: non lo lascio girare per sempre.
+  db().run("UPDATE clip_jobs SET status='failed', error='interrotto', ended_at=? WHERE status='running' AND started_at<?", [Date.now(), Date.now() - 40 * 60_000]);
+  return db().query("SELECT id,photo_id,version_number,model,remote_id,status,error,started_at FROM clip_jobs WHERE photo_id=? ORDER BY started_at").all(photoId) as ClipJob[];
 }
 
 export const clipsDir = (photoId: string) => join(dirs().DATA_DIR, "video", photoId);

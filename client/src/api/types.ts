@@ -803,4 +803,16 @@ export type BranchNode =
       has_audio: boolean;
       created_at: number;
     };
+/** Un video che sta caricando: il clip vero esiste solo a fine lavoro. */
+export type ClipJob = {
+  id: number;
+  photo_id: string;
+  version_number: number | null;
+  model: string | null;
+  remote_id: string | null;
+  status: "running" | "failed";
+  error: string | null;
+  started_at: number;
+};
+
 export type Branches = { nodes: BranchNode[]; finals: string[] };

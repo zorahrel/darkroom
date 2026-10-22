@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { existsSync, statSync } from "node:fs";
 import { db } from "../db.ts";
-import { downloadName, forgetClip, getClip, importClip, listClips, saveToDownloads, type ClipRow } from "../clips.ts";
+import { downloadName, endClipJob, forgetClip, listClipJobs, startClipJob, getClip, importClip, listClips, saveToDownloads, type ClipRow } from "../clips.ts";
 
 /**
  * Clip: i video nati da una versione di una foto. Elenco, riproduzione (con Range, perche'
@@ -79,6 +79,24 @@ clipRoutes.get("/api/photos/:id/clips", (c) => {
   const id = c.req.param("id");
   if (!photoExists(id)) return c.json({ error: "foto non trovata" }, 404);
   return c.json({ clips: listClips(id).map(view) });
+});
+
+clipRoutes.get("/api/photos/:id/clip-jobs", (c) => {
+  const id = c.req.param("id");
+  if (!photoExists(id)) return c.json({ error: "foto non trovata" }, 404);
+  return c.json({ jobs: listClipJobs(id) });
+});
+
+clipRoutes.post("/api/photos/:id/clip-jobs", async (c) => {
+  const id = c.req.param("id");
+  if (!photoExists(id)) return c.json({ error: "foto non trovata" }, 404);
+  const b = await c.req.json().catch(() => ({}));
+  return c.json({ id: startClipJob(id, b) });
+});
+
+clipRoutes.delete("/api/clip-jobs/:jid", (c) => {
+  endClipJob(Number(c.req.param("jid")), c.req.query("error") || undefined);
+  return c.json({ ok: true });
 });
 
 clipRoutes.post("/api/photos/:id/clips", async (c) => {

@@ -1,6 +1,7 @@
 import { jsonFetch } from "./http";
 import type {
   Branches,
+  ClipJob,
   Clip,
   Annotation,
   AnnotationTarget,
@@ -587,6 +588,9 @@ export const api = {
   saveClipToDownloads: (clipId: number) =>
     jsonFetch<{ path: string; size: number }>(`/api/clips/${clipId}/save-to-downloads`, { method: "POST" }),
   // Mai dalla cache: i rami cambiano a ogni versione, a ogni video e a ogni foglia segnata.
+  clipJobs: (photoId: string) =>
+    jsonFetch<{ jobs: ClipJob[] }>(`/api/photos/${encodeURIComponent(photoId)}/clip-jobs`, { cache: "no-store" }),
+  dismissClipJob: (id: number) => jsonFetch<{ ok: boolean }>(`/api/clip-jobs/${id}`, { method: "DELETE" }),
   branches: (photoId: string) =>
     jsonFetch<Branches>(`/api/photos/${encodeURIComponent(photoId)}/branches`, { cache: "no-store" }),
   setFinal: (photoId: string, kind: "version" | "clip", ref: number, final: boolean) =>
