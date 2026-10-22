@@ -37,6 +37,13 @@ export const VIDEO_PRESETS: Record<string, VideoPreset> = {
     durations: [3, 15],
     note: "pro, audio",
   },
+  kling4_1080: {
+    model: "kling4_0",
+    label: "Kling 4.0",
+    params: { mode: "image-to-video", resolution: "1080p" },
+    durations: [3, 30],
+    note: "1080p, image-to-video",
+  },
   seedance_1080: {
     model: "seedance_2_0",
     label: "Seedance 2.0",
@@ -160,7 +167,7 @@ export async function waitForVideo(
     const status = String(g?.status ?? "?");
     opts.onTick?.(status, Math.round((Date.now() - t0) / 1000));
     if (status === "completed") {
-      const res = g.results?.[0] ?? {};
+      const res = (Array.isArray(g.results) ? g.results[0] : g.results) ?? {};
       const url = res.rawUrl ?? res.raw_url ?? res.url;
       if (!url) throw new Error(`video completato ma senza indirizzo: ${JSON.stringify(g).slice(0, 300)}`);
       return { url, generation: g };
