@@ -1,7 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clipFileUrl, genUrl, thumbGenUrl } from "../../api";
 import { type ViewProps } from "./NodeThumb";
-import { ancestors, children, mainDescendants, nodeOf } from "./tree";
+import { ancestors, children, nodeOf, type Flow } from "./tree";
+
+/** Il nodo (versione o video) piu' recente che sta sotto una versione, lei compresa. */
+function newestUnder(f: Flow, v: number, seen: Set<number>): number {
+  if (seen.has(v)) return 0;
+  seen.add(v);
+  const c = children(f, v);
+  let best = f.versions.get(v)?.created_at ?? 0;
+  for (const k of c.clips) best = Math.max(best, k.created_at);
+  for (const k of c.versions) best = Math.max(best, newestUnder(f, k.version_number, seen));
+  return best;
+}
+
+/**
+ * La strada che continua sotto una versione, verso il lavoro PIU' RECENTE: a ogni passo il figlio sotto
+ * cui c'e' il nodo creato per ultimo. Non il ramo con piu' storia (come nel Ramo): qui si vuole vedere
+ * dove si e' arrivati, non da dove si e' passati piu' volte.
+ */
+function latestDescendants(f: Flow, v: number): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>([v]);
+  let cur = v;
+  for (;;) {
+    const kids = children(f, cur).versions.filter((k) => !seen.has(k.version_number));
+    if (kids.length === 0) break;
+    const best = [...kids].sort(
+      (a, b) => newestUnder(f, b.version_number, new Set(seen)) - newestUnder(f, a.version_number, new Set(seen)),
+    )[0]!;
+    seen.add(best.version_number);
+    out.push(best.version_number);
+    cur = best.version_number;
+  }
+  return out;
+}
 
 /**
  * La SEQUENZA: la strada in colonna, una cosa sotto l'altra, a partire da una foto a scelta.
@@ -20,7 +53,7 @@ export default function SequenceView({ photoId, flow, sel, onSelect }: ViewProps
 
   const road = useMemo(() => {
     if (anchor == null || !flow.versions.has(anchor)) return [];
-    return [...ancestors(flow, anchor), anchor, ...mainDescendants(flow, anchor)];
+    return [...ancestors(flow, anchor), anchor, ...latestDescendants(flow, anchor)];
   }, [flow, anchor]);
 
   // Il punto di partenza di default: due passi prima di quello scelto, cosi' si vede la storia recente
