@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type Branches, type Clip, type ClipJob } from "../api";
+import { api, type BranchNode, type Branches, type Clip, type ClipJob } from "../api";
 import BranchView from "./flow/BranchView";
 import LeafView from "./flow/LeafView";
 import MapView from "./flow/MapView";
@@ -97,7 +97,14 @@ export default function FlowViewer({
     };
   }, [photoId, load, onClipsChanged]);
 
-  const flow = useMemo(() => (data ? buildFlow(data.nodes) : null), [data]);
+  // «Solo la strada»: nasconde le versioni messe da parte (⊘). La selezione resta sempre visibile.
+  const [hideDiscarded, setHideDiscarded] = useState(false);
+  const flow = useMemo(() => {
+    if (!data) return null;
+    const keep = (n: BranchNode) =>
+      !hideDiscarded || !n.discarded || (sel != null && keyOf(sel) === (n.kind === "version" ? `v${n.version_number}` : `c${n.clip_id}`));
+    return buildFlow(data.nodes.filter(keep));
+  }, [data, hideDiscarded, sel]);
   const node = flow && sel ? nodeOf(flow, sel) : undefined;
 
   // Tastiera, uguale in tutte e tre le viste: 1 2 3 cambiano vista, le frecce si muovono nell'albero
@@ -252,6 +259,16 @@ export default function FlowViewer({
             ))}
           </nav>
           <span className="flex-1" />
+          <button
+            type="button"
+            data-testid="flow-hide-discarded"
+            aria-pressed={hideDiscarded}
+            title="Nasconde le versioni messe da parte (⊘): resta solo la strada buona"
+            onClick={() => setHideDiscarded((h) => !h)}
+            className={`${btn} shrink-0 ${hideDiscarded ? "bg-rose-500/30 text-rose-200" : "bg-neutral-800 hover:bg-neutral-700"}`}
+          >
+            ⊘<span className="hidden sm:inline">{hideDiscarded ? " Scartate nascoste" : " Nascondi scartate"}</span>
+          </button>
           <button
             type="button"
             data-testid="flow-help"
