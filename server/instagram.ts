@@ -67,7 +67,8 @@ export function withLut(base: ColorGrade | null, lut: string): ColorGrade {
   const step = { id: "lut", type: "lut" as const, enabled: true, params: { lut, dose: 100, auto_dose: false } };
   const steps = (base?.steps ?? []).filter((x) => x.type !== "ai");
   const i = steps.findIndex((x) => x.type === "lut");
-  if (i >= 0) steps[i] = { ...steps[i], ...step, params: { ...steps[i].params, ...step.params } };
+  const prev = steps[i];
+  if (prev) steps[i] = { ...prev, ...step, params: { ...prev.params, ...step.params } };
   else steps.push(step);
   return { enabled: true, steps };
 }
