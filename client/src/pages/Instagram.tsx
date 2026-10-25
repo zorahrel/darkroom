@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { assoluto, jsonFetch } from "../api/http";
 
 /**
@@ -30,7 +30,11 @@ type Profile = {
 type AvatarRef = { project: string; photo: string; version: number; focus_y?: number };
 type Planned = { id: string; title: string; caption: string; photo_count: number; kind: Kind; cover: string | null };
 type Payload = {
-  settings: { username: string | null; avatar: AvatarRef | null };
+  settings: {
+    username: string | null;
+    avatar: AvatarRef | null;
+    palette?: { planned_lut: string | null; avatar_lut: string | null } | null;
+  };
   profile: Profile | null;
   avatar: string | null;
   planned: Planned[];
@@ -47,10 +51,11 @@ export default function Instagram() {
   const [showPlanned, setShowPlanned] = useState(true);
   const [user, setUser] = useState("");
   const [av, setAv] = useState({ project: "", photo: "", version: "" });
+  const [palette, setPalette] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const d = await jsonFetch<Payload>("/api/instagram");
+      const d = await jsonFetch<Payload>(`/api/instagram${palette ? "?palette=1" : ""}`);
       setData(d);
       setUser(d.settings.username ?? "");
       const a = d.settings.avatar;
@@ -59,7 +64,7 @@ export default function Instagram() {
     } catch (e) {
       setErr(String((e as Error).message ?? e));
     }
-  }, []);
+  }, [palette]);
   useEffect(() => void load(), [load]);
   useEffect(() => localStorage.setItem("darkroom.ig.tema", dark ? "scuro" : "chiaro"), [dark]);
 
@@ -174,6 +179,17 @@ export default function Instagram() {
             <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />
             Tema scuro
           </label>
+          {/* La palette di prova si vede solo qui: il grade del progetto e le
+              versioni della foto profilo restano come sono. */}
+          <label className="flex items-center gap-2" title={data?.settings.palette ? `${data.settings.palette.planned_lut ?? "—"} · ${data.settings.palette.avatar_lut ?? "—"}` : "nessuna palette impostata"}>
+            <input
+              type="checkbox"
+              checked={palette}
+              disabled={!data?.settings.palette}
+              onChange={(e) => setPalette(e.target.checked)}
+            />
+            Palette del feed (prova)
+          </label>
         </section>
 
         {(data?.planned.length ?? 0) > 0 && (
@@ -197,26 +213,49 @@ export default function Instagram() {
   );
 }
 
+/**
+ * Il telefono e' sempre 393×852 punti: se la finestra e' piu' bassa si
+ * rimpicciolisce tutto insieme, invece di accorciare lo schermo. Accorciarlo
+ * cambiava le proporzioni e mostrava meno griglia di quanta ne veda un iPhone
+ * vero, cioe' proprio la cosa da giudicare.
+ */
 function Phone({ dark, children }: { dark: boolean; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = box.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const byH = (window.innerHeight - top - 16) / (H + 24);
+      const byW = (el.parentElement?.clientWidth ?? W + 24) / (W + 24);
+      setScale(Math.max(0.4, Math.min(1, byH, byW)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   return (
-    <div
-      className="shrink-0 rounded-[56px] p-[12px] bg-neutral-950 shadow-2xl ring-1 ring-neutral-700"
-      style={{ width: W + 24 }}
-    >
+    <div ref={box} className="shrink-0" style={{ width: (W + 24) * scale, height: (H + 24) * scale }}>
       <div
-        data-testid="ig-screen"
-        className="ig-screen relative overflow-y-auto overflow-x-hidden rounded-[44px] overscroll-contain"
-        style={{
-          width: W,
-          height: `min(${H}px, calc(100vh - 120px))`,
-          background: dark ? "#000" : "#fff",
-          color: dark ? "#f5f5f5" : "#000",
-          fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif',
-          fontSize: 14,
-          scrollbarWidth: "none",
-        }}
+        className="rounded-[56px] p-[12px] bg-neutral-950 shadow-2xl ring-1 ring-neutral-700"
+        style={{ width: W + 24, height: H + 24, transform: `scale(${scale})`, transformOrigin: "top left" }}
       >
-        {children}
+        <div
+          data-testid="ig-screen"
+          className="ig-screen relative overflow-y-auto overflow-x-hidden rounded-[44px] overscroll-contain"
+          style={{
+            width: W,
+            height: H,
+            background: dark ? "#000" : "#fff",
+            color: dark ? "#f5f5f5" : "#000",
+            fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif',
+            fontSize: 14,
+            scrollbarWidth: "none",
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

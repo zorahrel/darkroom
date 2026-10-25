@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { db } from "./db.ts";
+import { LUT_DIR } from "./config.ts";
+import { type ColorGrade, db, getColorGrade } from "./db.ts";
 import { REGISTRY_PATH, currentProjectId, getProject, withProject } from "./project.ts";
 
 /**
@@ -40,7 +41,38 @@ export type IgProfile = {
 /** La foto profilo da provare: una versione di una foto di un progetto qualsiasi. */
 export type AvatarRef = { project: string; photo: string; version: number; focus_y?: number };
 
-export type IgSettings = { username: string | null; avatar: AvatarRef | null };
+/**
+ * La palette di prova: due LUT (in LUT_DIR) verso i colori del feed, una
+ * costruita sui post in programma e una sulla foto profilo, perche' partono da
+ * colori diversi (vedi scripts/lut_palette.py). Si vedono solo nell'anteprima:
+ * il grade salvato del progetto non cambia.
+ */
+export type IgPalette = { planned_lut: string | null; avatar_lut: string | null };
+
+export type IgSettings = { username: string | null; avatar: AvatarRef | null; palette?: IgPalette | null };
+
+/** Un id di LUT valido: relativo, .cube, dentro LUT_DIR, esistente. */
+export function isValidLut(id: unknown): id is string {
+  return (
+    typeof id === "string" &&
+    id.endsWith(".cube") &&
+    !id.startsWith("/") &&
+    !id.split("/").includes("..") &&
+    existsSync(join(LUT_DIR, id))
+  );
+}
+
+/** Il grade di `base` con il passo LUT acceso su `lut`, a dose piena. */
+export function withLut(base: ColorGrade | null, lut: string): ColorGrade {
+  const step = { id: "lut", type: "lut" as const, enabled: true, params: { lut, dose: 100, auto_dose: false } };
+  const steps = (base?.steps ?? []).filter((x) => x.type !== "ai");
+  const i = steps.findIndex((x) => x.type === "lut");
+  if (i >= 0) steps[i] = { ...steps[i], ...step, params: { ...steps[i].params, ...step.params } };
+  else steps.push(step);
+  return { enabled: true, steps };
+}
+
+const gParam = (g: ColorGrade) => `&g=${encodeURIComponent(JSON.stringify(g))}`;
 
 const SAFE_USER = /^[A-Za-z0-9._]{1,30}$/;
 
@@ -92,13 +124,16 @@ function versionFile(photo: string, version: number): string | null {
   return row ? basename(row.image_path) : null;
 }
 
-/** L'indirizzo dell'avatar scelto, o null se la versione non esiste (piu'). */
-export function avatarUrl(ref: AvatarRef): string | null {
+/** L'indirizzo dell'avatar scelto, o null se la versione non esiste (piu').
+ *  Con `lut` passa da /graded con la sola LUT, senza creare una versione. */
+export function avatarUrl(ref: AvatarRef, lut?: string | null): string | null {
   if (!getProject(ref.project)) return null;
   const file = withProject(ref.project, () => versionFile(ref.photo, ref.version));
   if (!file) return null;
   const q = `project=${encodeURIComponent(ref.project)}&w=480`;
-  return `/thumb/gen/${encodeURIComponent(ref.photo)}/${encodeURIComponent(file)}?${q}`;
+  const seg = `${encodeURIComponent(ref.photo)}/${encodeURIComponent(file)}`;
+  if (lut) return `/graded/${seg}?${q}${gParam(withLut(null, lut))}`;
+  return `/thumb/gen/${seg}?${q}`;
 }
 
 export type PlannedPost = {
@@ -118,8 +153,11 @@ export type PlannedPost = {
  * prima. La copertina e' la preferita della foto di copertina, passata dal
  * grade del progetto (`/graded`), cioe' com'e' davvero quando si esporta.
  */
-export function plannedPosts(): PlannedPost[] {
+export function plannedPosts(lut?: string | null): PlannedPost[] {
   const pid = currentProjectId();
+  // Con la palette di prova: il grade del progetto con la LUT di prova al posto
+  // della sua, cosi' il resto della catena (bilanciamento, livelli) resta quello.
+  const g = lut ? gParam(withLut(getColorGrade(), lut)) : "";
   const rows = db()
     .query<
       { id: string; title: string; caption: string; cover_photo_id: string | null; photo_count: number },
@@ -150,7 +188,7 @@ export function plannedPosts(): PlannedPost[] {
         .get(coverPhoto);
       if (fav) {
         const q = `project=${encodeURIComponent(pid)}&w=720`;
-        cover = `/graded/${encodeURIComponent(coverPhoto)}/${encodeURIComponent(basename(fav.image_path))}?${q}`;
+        cover = `/graded/${encodeURIComponent(coverPhoto)}/${encodeURIComponent(basename(fav.image_path))}?${q}${g}`;
       }
     }
     return {

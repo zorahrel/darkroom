@@ -4,6 +4,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../server/db.ts";
 import { dirs } from "../server/project.ts";
+import { LUT_DIR } from "../server/config.ts";
 import { IG_ROOT } from "../server/instagram.ts";
 import { instagramRoutes } from "../server/routes/instagram.ts";
 
@@ -106,5 +107,26 @@ describe("anteprima Instagram", () => {
     const r = await call("PUT", "/api/instagram", { avatar: { project: "nessuno", photo: "1", version: 1 } });
     expect(r.status).toBe(400);
     expect((await call("GET", "/api/instagram")).json.settings.avatar).toBeNull();
+  });
+
+  test("con la palette di prova la copertina porta la LUT nel grade dell'indirizzo", async () => {
+    mkdirSync(join(LUT_DIR, "prova"), { recursive: true });
+    writeFileSync(join(LUT_DIR, "prova", "feed.cube"), "LUT_3D_SIZE 2\n");
+    photoWithFavorite("a", 3);
+    collection("uno", 0, "a", ["a"]);
+    expect((await call("PUT", "/api/instagram", { palette: { planned_lut: "prova/feed.cube", avatar_lut: null } })).status).toBe(200);
+
+    const off = (await call("GET", "/api/instagram")).json.planned[0].cover as string;
+    const on = (await call("GET", "/api/instagram?palette=1")).json.planned[0].cover as string;
+    expect(off).not.toContain("&g=");
+    const g = JSON.parse(new URL(on, "http://x").searchParams.get("g")!);
+    const lut = g.steps.find((s: any) => s.type === "lut");
+    expect(lut.enabled).toBe(true);
+    expect(lut.params.lut).toBe("prova/feed.cube");
+  });
+
+  test("una LUT fuori dalla cartella delle LUT e' rifiutata", async () => {
+    const r = await call("PUT", "/api/instagram", { palette: { planned_lut: "../../etc/x.cube" } });
+    expect(r.status).toBe(400);
   });
 });

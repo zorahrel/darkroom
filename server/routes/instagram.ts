@@ -5,8 +5,10 @@ import { REPO_ROOT } from "../config.ts";
 import { safeSeg, serveFile } from "../http.ts";
 import {
   type AvatarRef,
+  type IgPalette,
   avatarUrl,
   getIgSettings,
+  isValidLut,
   isValidUsername,
   plannedPosts,
   profileDir,
@@ -39,14 +41,16 @@ function withUrls(username: string) {
   };
 }
 
+// `?palette=1` mostra copertine e avatar con le LUT della palette di prova.
 instagramRoutes.get("/api/instagram", (c) => {
   const settings = getIgSettings();
   const profile = settings.username ? withUrls(settings.username) : null;
+  const pal = c.req.query("palette") === "1" ? settings.palette ?? null : null;
   return c.json({
     settings,
     profile,
-    avatar: settings.avatar ? avatarUrl(settings.avatar) : null,
-    planned: plannedPosts(),
+    avatar: settings.avatar ? avatarUrl(settings.avatar, pal?.avatar_lut) : null,
+    planned: plannedPosts(pal?.planned_lut),
   });
 });
 
@@ -54,8 +58,20 @@ instagramRoutes.put("/api/instagram", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     username?: unknown;
     avatar?: unknown;
+    palette?: unknown;
   };
-  const patch: { username?: string | null; avatar?: AvatarRef | null } = {};
+  const patch: { username?: string | null; avatar?: AvatarRef | null; palette?: IgPalette | null } = {};
+  if ("palette" in body) {
+    const pl = body.palette as Partial<IgPalette> | null;
+    if (pl === null) patch.palette = null;
+    else {
+      const ok = (x: unknown) => x === null || x === undefined || isValidLut(x);
+      if (!pl || !ok(pl.planned_lut) || !ok(pl.avatar_lut)) {
+        return c.json({ error: "palette: LUT inesistente o fuori dalla cartella delle LUT" }, 400);
+      }
+      patch.palette = { planned_lut: pl.planned_lut ?? null, avatar_lut: pl.avatar_lut ?? null };
+    }
+  }
   if ("username" in body) {
     if (body.username !== null && !isValidUsername(body.username)) {
       return c.json({ error: "nome utente non valido" }, 400);
