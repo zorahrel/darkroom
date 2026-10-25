@@ -265,9 +265,17 @@ function ProfileView({
           </span>
         </div>
         <div className="flex items-center justify-between" style={{ height: 44, padding: "0 16px" }}>
-          <span style={{ fontSize: 26, fontWeight: 300, width: 56 }}>＋</span>
-          <b style={{ fontSize: 20 }}>{p.username} ⌄</b>
-          <span style={{ fontSize: 20, width: 56, textAlign: "right" }}>@ ≡</span>
+          <span style={{ width: 64 }}>
+            <PlusIcon size={26} />
+          </span>
+          <b className="flex items-center" style={{ fontSize: 20, gap: 4 }}>
+            {p.username}
+            <ChevronIcon />
+          </b>
+          <span className="flex justify-end items-center" style={{ width: 64, gap: 18 }}>
+            <ThreadsIcon />
+            <MenuIcon />
+          </span>
         </div>
       </div>
 
@@ -297,7 +305,12 @@ function ProfileView({
         {p.bio.map((l, i) => (
           <div key={i}>{l}</div>
         ))}
-        {p.link && <div style={{ fontWeight: 600, marginTop: 2 }}>🔗 {p.link.text}</div>}
+        {p.link && (
+          <div className="flex items-center" style={{ fontWeight: 600, marginTop: 2, gap: 5 }}>
+            <LinkIcon />
+            {p.link.text}
+          </div>
+        )}
       </div>
 
       <div className="flex" style={{ gap: 6, padding: "14px 16px 0" }}>
@@ -307,7 +320,7 @@ function ProfileView({
           </div>
         ))}
         <div className="flex items-center justify-center rounded-lg" style={{ width: 34, height: 32, background: muted }}>
-          👤
+          <AddPersonIcon />
         </div>
       </div>
 
@@ -358,12 +371,12 @@ function ProfileView({
 
       <div
         className="sticky bottom-0 flex justify-around"
-        style={{ height: 84, paddingTop: 12, background: dark ? "#000" : "#fff", borderTop: `1px solid ${line}`, fontSize: 24 }}
+        style={{ height: 84, paddingTop: 14, background: dark ? "#000" : "#fff", borderTop: `1px solid ${line}`, color: fg }}
       >
-        <span>⌂</span>
-        <span>⌕</span>
-        <span>＋</span>
-        <span>▷</span>
+        <HomeIcon />
+        <SearchIcon />
+        <PlusIcon size={26} />
+        <ReelsIcon size={26} />
         <span className="rounded-full overflow-hidden" style={{ width: 28, height: 28, border: `2px solid ${fg}` }}>
           {avatar && (
             <img src={assoluto(avatar)} alt="" className="w-full h-full object-cover" style={{ objectPosition: `50% ${Math.round(focusY * 100)}%` }} />
@@ -389,8 +402,8 @@ const GridIcon = () => (
     <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
   </svg>
 );
-const ReelsIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+const ReelsIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <rect x="3" y="3" width="18" height="18" rx="5" />
     <path d="M3 8h18M9 3l3 5M15 3l3 5" />
     <path d="M10 11.5v5l4.3-2.5z" fill="currentColor" />
@@ -414,5 +427,55 @@ const CarouselBadge = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
     <path d="M7 2h11a4 4 0 0 1 4 4v11h-2V6a2 2 0 0 0-2-2H7z" />
     <rect x="2" y="7" width="15" height="15" rx="3" />
+  </svg>
+);
+
+// Icone nello stile dell'app: tratto 2, angoli tondi. Erano caratteri ed emoji
+// (＋, ⌂, 🔗, 👤…): si leggevano come testo e non come l'interfaccia di Instagram.
+const line2 = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+const PlusIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line2}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <path d="M12 8v8M8 12h8" />
+  </svg>
+);
+const ChevronIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" {...line2} strokeWidth={3}>
+    <path d="M5 9l7 7 7-7" />
+  </svg>
+);
+const ThreadsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" {...line2}>
+    <path d="M16.5 11.2c-.3-2.6-2-4-4.5-4-2.8 0-4.6 2-4.6 4.9 0 3 1.9 4.9 4.6 4.9 2.3 0 3.9-1.4 3.9-3.4 0-2.2-1.9-3.1-4.3-2.6-1.6.3-2.4 1.3-2.2 2.4.2 1.2 1.6 1.7 3 1.4 2-.5 3.1-2.3 3.1-4.9" />
+    <path d="M19.5 8.5C18.4 5 15.6 3 12 3 6.9 3 3.5 6.6 3.5 12s3.4 9 8.5 9c3.4 0 6-1.6 7.2-4.4" />
+  </svg>
+);
+const MenuIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" {...line2}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+const LinkIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" {...line2} strokeWidth={2.4}>
+    <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L11.6 6" />
+    <path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.6-1.6" />
+  </svg>
+);
+const AddPersonIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" {...line2}>
+    <circle cx="9.5" cy="8" r="4" />
+    <path d="M2.5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" />
+    <path d="M19 8v6M16 11h6" />
+  </svg>
+);
+const HomeIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" {...line2}>
+    <path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z" />
+  </svg>
+);
+const SearchIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" {...line2}>
+    <circle cx="10.5" cy="10.5" r="7" />
+    <path d="M16 16l5 5" />
   </svg>
 );
