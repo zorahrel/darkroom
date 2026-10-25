@@ -20,6 +20,8 @@ export type VideoPreset = {
   /** Intervallo di durata che il modello accetta. */
   durations: [number, number] | number[];
   note: string;
+  /** Le immagini vanno come soggetto (image_references), non come primo fotogramma. */
+  references?: boolean;
 };
 
 export const VIDEO_PRESETS: Record<string, VideoPreset> = {
@@ -43,6 +45,14 @@ export const VIDEO_PRESETS: Record<string, VideoPreset> = {
     params: { mode: "image-to-video", resolution: "1080p" },
     durations: [3, 30],
     note: "1080p, image-to-video",
+  },
+  kling4_ref: {
+    model: "kling4_0",
+    label: "Kling 4.0 (riferimenti)",
+    params: { mode: "reference-to-video", resolution: "1080p" },
+    durations: [3, 30],
+    note: "1080p, foto come soggetto + video di movimento",
+    references: true,
   },
   seedance_1080: {
     model: "seedance_2_0",
@@ -90,12 +100,26 @@ export async function uploadStartFrame(path: string): Promise<string> {
   return slot.media_id;
 }
 
+/** Carica un file qualsiasi (immagine o video) cosi' com'e', senza ricodificarlo. */
+export async function uploadMedia(path: string, contentType: string, type: "image" | "video"): Promise<string> {
+  const ext = path.split(".").pop() ?? "bin";
+  const up = await mcpCall<Upload>("media_upload", { filename: `file.${ext}`, content_type: contentType });
+  const slot = up.uploads?.[0];
+  if (!slot?.upload_url || !slot.media_id) throw new Error("media_upload: nessuna upload_url");
+  const put = await fetch(slot.upload_url, { method: "PUT", headers: { "content-type": contentType }, body: readFileSync(path) });
+  if (!put.ok) throw new Error(`upload PUT fallito: ${put.status}`);
+  await mcpCall("media_confirm", { media_id: slot.media_id, type });
+  return slot.media_id;
+}
+
 export type VideoRequest = {
   preset: VideoPreset;
   prompt: string;
   mediaId: string;
   duration: number;
   aspect: string;
+  /** Video di movimento da copiare (solo preset con riferimenti). */
+  motionMediaId?: string;
 };
 
 const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
@@ -103,7 +127,9 @@ const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
   prompt: r.prompt,
   aspect_ratio: r.aspect,
   duration: fitDuration(r.preset, r.duration),
-  medias: [{ value: r.mediaId, role: "start_image" }],
+  medias: r.preset.references
+    ? [{ value: r.mediaId, role: "image_references" }, ...(r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])]
+    : [{ value: r.mediaId, role: "start_image" }],
   ...r.preset.params,
   ...extra,
 });

@@ -38,6 +38,7 @@ import type {
   ColorGrade,
   Health,
   HiggsfieldModel,
+  HiggsfieldBalance,
   HiggsfieldStatus,
   ImportTemplateResult,
   Job,
@@ -185,6 +186,8 @@ export const api = {
       `/api/photos/${encodeURIComponent(id)}/grade`,
       { method: "PUT", body: JSON.stringify({ grade }) },
     ),
+  higgsfieldBalance: () =>
+    jsonFetch<HiggsfieldBalance>("/api/higgsfield/balance"),
   higgsfieldStatus: () =>
     jsonFetch<HiggsfieldStatus>("/api/higgsfield/status"),
   higgsfieldModels: () =>

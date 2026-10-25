@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { clipFileUrl, thumbGenUrl } from "../../api";
+import { useEffect, useMemo, useState } from "react";
+import { api, clipFileUrl, thumbGenUrl } from "../../api";
 import type { Clip } from "../../api";
 import { type ViewProps } from "./NodeThumb";
 import { type Ref } from "./tree";
@@ -46,6 +46,20 @@ export default function VideoListView({
   }, [clips, stato, conScartati, nuoviPrima]);
 
   const nascosti = clips.length - clips.filter((c) => !stato.get(c.id)?.discarded).length;
+  // Saldo vero di Higgsfield: si rilegge ogni minuto e quando cambia il numero di video
+  // (un video appena finito ha speso crediti), cosi' non si scopre il muro lanciando un job.
+  const [saldo, setSaldo] = useState<{ credits: number; plan: string } | null | "no">(null);
+  useEffect(() => {
+    let vivo = true;
+    const leggi = () =>
+      api.higgsfieldBalance().then(
+        (b) => vivo && setSaldo({ credits: b.credits, plan: b.subscription_plan_type }),
+        () => vivo && setSaldo("no"),
+      );
+    leggi();
+    const t = setInterval(leggi, 60_000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [clips.length]);
   const crediti = lista.reduce((s, c) => s + (c.credits ?? 0), 0);
 
   let ultimoGiorno = "";
@@ -53,7 +67,16 @@ export default function VideoListView({
     <div className="flex h-full flex-col" data-testid="videolist-view">
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-800 px-3 py-1.5 text-[11px] text-neutral-400">
         <span className="font-semibold text-neutral-200">{lista.length} video</span>
-        {crediti > 0 && <span>{crediti} crediti</span>}
+        {crediti > 0 && <span>{crediti} spesi</span>}
+        {saldo && saldo !== "no" && (
+          <span
+            data-testid="videolist-saldo"
+            title={`Saldo Higgsfield, piano ${saldo.plan}`}
+            className={`rounded px-1.5 py-0.5 font-semibold ${saldo.credits < 150 ? "bg-red-900/60 text-red-200" : "bg-neutral-800 text-amber-300"}`}
+          >
+            saldo {saldo.credits} cr
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1">
           <button
             type="button"

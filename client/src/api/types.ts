@@ -209,6 +209,8 @@ export type HiggsfieldModel = {
   tags: string[];
 };
 
+export type HiggsfieldBalance = { credits: number; subscription_plan_type: string };
+
 export type HiggsfieldStatus = {
   configured: boolean;
   credits?: number;

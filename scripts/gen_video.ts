@@ -20,6 +20,7 @@ import {
   launch,
   quote,
   uploadStartFrame,
+  uploadMedia,
   waitForVideo,
   type VideoRequest,
 } from "../server/higgsfield_video.ts";
@@ -56,7 +57,9 @@ const frame = withProject(progetto, () => {
 console.log(`primo fotogramma: ${frame}\nprompt: ${prompt.slice(0, 90)}...\n`);
 const mediaId = await uploadStartFrame(frame);
 
-const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect } as VideoRequest }));
+const motionPath = flag("motion-video");
+const motionMediaId = motionPath ? await uploadMedia(motionPath, "video/mp4", "video") : undefined;
+const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId } as VideoRequest }));
 const costs = await Promise.all(reqs.map(async (x) => ({ ...x, credits: await quote(x.req) })));
 let total = 0;
 for (const c of costs) {
