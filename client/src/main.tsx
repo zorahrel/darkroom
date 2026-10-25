@@ -24,6 +24,8 @@ const TreePage = lazy(() => import("./pages/Tree"));
 const ReferencesPage = lazy(() => import("./pages/References"));
 const CullingPage = lazy(() => import("./pages/Culling"));
 const GiratoPage = lazy(() => import("./pages/Girato"));
+// L'anteprima del profilo Instagram: la base della futura pubblicazione.
+const InstagramPage = lazy(() => import("./pages/Instagram"));
 
 function PageFallback() {
   return <div className="p-6 text-neutral-400 text-sm">Carico…</div>;
@@ -131,6 +133,14 @@ ReactDOM.createRoot(root).render(
             element={
               <Suspense fallback={<PageFallback />}>
                 <TreePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="p/:pid/instagram"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <InstagramPage />
               </Suspense>
             }
           />

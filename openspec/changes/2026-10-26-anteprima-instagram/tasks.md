@@ -1,0 +1,3 @@
+- Copia locale del profilo pubblico (script WebKit) → barra 3
+- Rotte e impostazioni per progetto, post in programma dalle collezioni → barra 1
+- Vista iPhone scrollabile, linguetta e rotta → barra 2

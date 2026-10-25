@@ -382,6 +382,11 @@ export default function App() {
                   <ViewTab to={`/p/${pid}/references`} current={location.pathname.includes("/references")}>
                     Riferimenti
                   </ViewTab>
+                  {/* Il profilo Instagram con i post del progetto in cima: dove si
+                      giudica l'insieme prima di pubblicare. */}
+                  <ViewTab to={`/p/${pid}/instagram`} current={location.pathname.includes("/instagram")}>
+                    Instagram
+                  </ViewTab>
                 </>
               )}
               {orphanCount > 0 && (

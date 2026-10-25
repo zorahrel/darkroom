@@ -23,6 +23,7 @@ import { collectionRoutes } from "./routes/collections.ts";
 import { cullingRoutes } from "./routes/culling.ts";
 import { giratoRoutes } from "./routes/girato.ts";
 import { mcpLogRoutes } from "./routes/mcpLog.ts";
+import { instagramRoutes } from "./routes/instagram.ts";
 
 /**
  * The Darkroom HTTP app: middleware + every route module, with no side effects
@@ -78,6 +79,7 @@ app.route("/", referenceRoutes);
 app.route("/", annotationRoutes);
 app.route("/", clipRoutes);
 app.route("/", branchRoutes);
+app.route("/", instagramRoutes);
 // Ultimo: mediaRoutes chiude con il fallback dell'interfaccia (qualunque GET non riconosciuta).
 app.route("/", mediaRoutes);
 
