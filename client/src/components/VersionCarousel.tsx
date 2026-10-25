@@ -274,7 +274,7 @@ export default function VersionCarousel({
                 src={thumbGenUrl(vv.photo_id, vv.version_number, 160)}
                 alt={`v${vv.version_number}`}
                 loading="lazy"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain bg-black"
               />
             </button>
           ))}

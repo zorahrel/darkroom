@@ -39,9 +39,11 @@ export function IngressiVersione({
   prompt: string;
 }) {
   const [promptAperto, setPromptAperto] = useState(false);
-  /** Il riferimento ingrandito: un clic lo porta a 1:1, non fuori dalla pagina. */
-  const [ingrandito, setIngrandito] = useState<string | null>(null);
+  /** Il riferimento ingrandito: indice nella lista dei riferimenti, cosi' il
+   *  lightbox li scorre tutti (frecce) invece di mostrarne uno alla volta. */
+  const [ingrandito, setIngrandito] = useState<number | null>(null);
   const pid = currentProject();
+  const riferimenti = voci.filter((v) => v.tipo === "riferimento");
 
   const miniatura = (i: Ingresso) =>
     i.tipo === "generata" && i.versione !== null
@@ -71,15 +73,16 @@ export function IngressiVersione({
           const et = ETICHETTA[i.tipo];
           const dest = destinazione(i);
           const corpo = (
-            <figure className="m-0 w-20" title={`${i.ruolo}: ${i.nome}`}>
+            <figure className="m-0 w-24" title={`${i.ruolo}: ${i.nome}`}>
+              {/* contain: la foto si vede intera, mai ritagliata. */}
               <div
                 className={
-                  "relative h-20 w-20 overflow-hidden rounded bg-black/70 " +
+                  "relative h-24 w-24 overflow-hidden rounded bg-black/70 " +
                   (i.ruolo === "partenza" ? "ring-2 ring-white/80" : "ring-1 ring-white/20")
                 }
               >
-                <img src={miniatura(i)} alt={i.nome} className="h-full w-full object-cover" draggable={false} />
-                <span className={`absolute bottom-0 left-0 right-0 text-center text-[10px] leading-4 ${et.classe}`}>
+                <img src={miniatura(i)} alt={i.nome} className="h-full w-full object-contain" draggable={false} />
+                <span className={`absolute top-0 left-0 rounded-br px-1 text-[10px] leading-4 ${et.classe}`}>
                   {et.testo}
                 </span>
               </div>
@@ -94,7 +97,12 @@ export function IngressiVersione({
           );
           if (i.tipo === "riferimento")
             return (
-              <button key={k} type="button" onClick={() => setIngrandito(i.nome)} className="cursor-zoom-in text-left hover:opacity-80">
+              <button
+                key={k}
+                type="button"
+                onClick={() => setIngrandito(riferimenti.findIndex((r) => r.nome === i.nome))}
+                className="cursor-zoom-in text-left hover:opacity-80"
+              >
                 {corpo}
               </button>
             );
@@ -116,7 +124,17 @@ export function IngressiVersione({
           </button>
         )}
       </div>
-      {ingrandito && <FullscreenView src={refUrl(ingrandito)} alt={ingrandito} zoomable onClose={() => setIngrandito(null)} />}
+      {ingrandito !== null && riferimenti[ingrandito] && (
+        <FullscreenView
+          src={refUrl(riferimenti[ingrandito].nome)}
+          alt={riferimenti[ingrandito].nome}
+          zoomable
+          gallery={riferimenti.map((r) => ({ src: refUrl(r.nome), alt: r.nome }))}
+          index={ingrandito}
+          onIndex={setIngrandito}
+          onClose={() => setIngrandito(null)}
+        />
+      )}
       {promptAperto && (
         <pre className="pointer-events-auto max-h-[45vh] w-full max-w-2xl overflow-auto whitespace-pre-wrap rounded border border-neutral-700 bg-neutral-950/95 p-3 font-mono text-[11px] leading-relaxed text-neutral-200">
           {prompt}

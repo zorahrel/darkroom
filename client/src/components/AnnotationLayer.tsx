@@ -396,7 +396,7 @@ export function AnnotationLayer({
                 title={a.note || new Date(a.created_at).toLocaleString()}
                 className="h-10 w-10 shrink-0 overflow-hidden rounded border border-neutral-700 hover:border-neutral-300"
               >
-                <img src={pq(a.url)} alt="" className="h-full w-full object-cover" />
+                <img src={pq(a.url)} alt="" className="h-full w-full object-contain bg-black" />
               </button>
             ))}
           </div>

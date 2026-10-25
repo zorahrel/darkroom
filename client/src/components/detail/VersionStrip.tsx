@@ -102,7 +102,7 @@ export function VersionStrip({
                 alt=""
                 loading="lazy"
                 draggable={false}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain bg-black"
               />
               <span className="absolute bottom-0 left-0 px-1 text-[10px] leading-4 tabular-nums bg-black/70 text-neutral-100">
                 v{v.version_number}
@@ -192,7 +192,7 @@ function RetouchChip({
           : "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500")
       }
     >
-      {thumb && <img src={thumb} alt="" loading="lazy" draggable={false} className="h-full aspect-square object-cover rounded-l-sm" />}
+      {thumb && <img src={thumb} alt="" loading="lazy" draggable={false} className="h-full aspect-square object-contain bg-black rounded-l-sm" />}
       {label}
       {favorite && <span className="text-amber-300" aria-label="preferita">★</span>}
     </button>

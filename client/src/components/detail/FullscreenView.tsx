@@ -8,6 +8,9 @@ export function FullscreenView({
   alt,
   onClose,
   zoomable = false,
+  gallery,
+  index = 0,
+  onIndex,
 }: {
   src: string;
   alt: string;
@@ -17,6 +20,12 @@ export function FullscreenView({
    *  punto: sulle foto di identita' i nei sono pochi pixel, e a schermo
    *  intero adattato un selfie 1440x2560 li riduce a mezzo pixel. */
   zoomable?: boolean;
+  /** Piu' foto da scorrere nello stesso lightbox (i riferimenti di una
+   *  versione): frecce, tasti ←/→ e una striscia in basso. Senza, si comporta
+   *  come prima. `src`/`alt` restano quelli della foto corrente. */
+  gallery?: { src: string; alt: string }[];
+  index?: number;
+  onIndex?: (i: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   /** Dove portare lo scroll dopo il passaggio a 1:1: la frazione cliccata. */
@@ -44,6 +53,15 @@ export function FullscreenView({
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
+  const n = gallery?.length ?? 0;
+  const vai = (d: number) => {
+    if (n > 1 && onIndex) onIndex((index + d + n) % n);
+  };
+  const vaiRef = useRef(vai);
+  vaiRef.current = vai;
+  // Cambiando foto si riparte dall'immagine intera, non dallo zoom della precedente.
+  useEffect(() => setZoom(null), [src]);
+
   useEffect(() => {
     const el = ref.current;
     // Il Fullscreen API e' un di piu': nel pane WebKit incorporato spesso manca
@@ -63,6 +81,12 @@ export function FullscreenView({
     };
     // In cattura e fermato: sotto c'e' l'EditorRail, che con Esc chiude il dettaglio.
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        e.stopPropagation();
+        vaiRef.current(e.key === "ArrowLeft" ? -1 : 1);
+        return;
+      }
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopPropagation();
@@ -121,6 +145,50 @@ export function FullscreenView({
       >
         ✕
       </button>
+      {n > 1 && (
+        <>
+          {(["<", ">"] as const).map((v, k) => (
+            <button
+              key={v}
+              type="button"
+              aria-label={k === 0 ? "precedente" : "successiva"}
+              onClick={(e) => {
+                e.stopPropagation();
+                vai(k === 0 ? -1 : 1);
+              }}
+              className={
+                "fixed top-1/2 -translate-y-1/2 z-[81] h-12 w-10 rounded border border-neutral-500 bg-neutral-950/85 text-lg text-neutral-100 hover:border-neutral-200 " +
+                (k === 0 ? "left-3" : "right-3")
+              }
+            >
+              {v}
+            </button>
+          ))}
+          {/* La striscia: tutte le foto del set, intere, la corrente evidenziata. */}
+          <div
+            className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[81] flex max-w-[92vw] gap-2 overflow-x-auto rounded border border-neutral-700 bg-neutral-950/85 p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {gallery!.map((g, k) => (
+              <button
+                key={g.src}
+                type="button"
+                title={g.alt}
+                onClick={() => onIndex?.(k)}
+                className={
+                  "h-16 w-16 flex-none rounded bg-black " +
+                  (k === index ? "ring-2 ring-white" : "ring-1 ring-white/20 hover:ring-white/60")
+                }
+              >
+                <img src={g.src} alt={g.alt} className="h-full w-full object-contain" draggable={false} />
+              </button>
+            ))}
+          </div>
+          <div className="fixed top-3 left-3 z-[81] rounded bg-neutral-950/85 px-2 py-1 text-xs text-neutral-100">
+            {index + 1}/{n} · {alt}
+          </div>
+        </>
+      )}
     </div>,
     document.body,
   );
