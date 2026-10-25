@@ -164,13 +164,15 @@ export default function FlowViewer({
    * Aggiorna subito lo stato (la stella deve rispondere al tocco), poi lo conferma al server.
    * Finale e scartata si escludono: una strada messa da parte non puo' essere una scelta finale.
    */
-  const mark = async (what: "final" | "discarded") => {
-    if (!sel || !node) return;
-    const on = !node[what];
+  const mark = async (what: "final" | "discarded", target?: Ref) => {
+    const t = target ?? sel;
+    const tNode = t ? data?.nodes.find((n) => n.key === keyOf(t)) : undefined;
+    if (!t || !tNode) return;
+    const on = !tNode[what];
     const other = what === "final" ? "discarded" : "final";
-    const clearOther = on && node[other];
-    const key = keyOf(sel);
-    const finalNow = what === "final" ? on : clearOther ? false : node.final;
+    const clearOther = on && tNode[other];
+    const key = keyOf(t);
+    const finalNow = what === "final" ? on : clearOther ? false : tNode.final;
     setData((d) =>
       d
         ? {
@@ -182,7 +184,7 @@ export default function FlowViewer({
         : d,
     );
     const call = (w: "final" | "discarded", v: boolean) =>
-      w === "final" ? api.setFinal(photoId, sel.kind, sel.id, v) : api.setDiscard(photoId, sel.kind, sel.id, v);
+      w === "final" ? api.setFinal(photoId, t.kind, t.id, v) : api.setDiscard(photoId, t.kind, t.id, v);
     try {
       if (clearOther) await call(other, false);
       await call(what, on);
@@ -435,7 +437,7 @@ export default function FlowViewer({
           {view === "ramo" && <BranchView {...viewProps} />}
           {view === "mappa" && <MapView {...viewProps} />}
           {view === "sequenza" && <SequenceView {...viewProps} />}
-          {view === "video" && <VideoListView {...viewProps} clips={clips} />}
+          {view === "video" && <VideoListView {...viewProps} clips={clips} onMark={(w, r) => void mark(w, r)} />}
         </main>
       )}
     </div>

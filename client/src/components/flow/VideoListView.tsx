@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { clipFileUrl, thumbGenUrl } from "../../api";
 import type { Clip } from "../../api";
 import { type ViewProps } from "./NodeThumb";
+import { type Ref } from "./tree";
 
 /** I timestamp del database sono in millisecondi, ma qualche riga vecchia li ha in secondi. */
 const ms = (t: number) => (t < 1e12 ? t * 1000 : t);
@@ -23,7 +24,8 @@ export default function VideoListView({
   onSelect,
   onOpenLeaf,
   clips,
-}: ViewProps & { clips: Clip[] }) {
+  onMark,
+}: ViewProps & { clips: Clip[]; onMark: (what: "final" | "discarded", r: Ref) => void }) {
   const [nuoviPrima, setNuoviPrima] = useState(true);
   const [conScartati, setConScartati] = useState(false);
   const [aperto, setAperto] = useState<number | null>(() => (sel?.kind === "clip" ? sel.id : null));
@@ -148,6 +150,28 @@ export default function VideoListView({
                     {c.has_audio && <span>audio</span>}
                     {c.credits != null && <span>{c.credits} cr</span>}
                     {!c.available && <span className="text-red-400">file mancante</span>}
+                    <span className="ml-auto flex gap-1">
+                      <button
+                        type="button"
+                        data-testid={`videolist-final-c${c.id}`}
+                        aria-pressed={!!st?.final}
+                        title={st?.final ? "Togli da foglie finali" : "Segna come foglia finale"}
+                        onClick={() => onMark("final", { kind: "clip", id: c.id })}
+                        className={`rounded px-1.5 ${st?.final ? "bg-amber-500 text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
+                      >
+                        {st?.final ? "★" : "☆"}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`videolist-discard-c${c.id}`}
+                        aria-pressed={!!st?.discarded}
+                        title={st?.discarded ? "Rimetti in lista" : "Scarta: resta nel flusso, sbiadito"}
+                        onClick={() => onMark("discarded", { kind: "clip", id: c.id })}
+                        className={`rounded px-1.5 ${st?.discarded ? "bg-neutral-600 text-white" : "bg-neutral-800 hover:bg-neutral-700"}`}
+                      >
+                        ⊘
+                      </button>
+                    </span>
                   </p>
                   {c.prompt && (
                     <p
