@@ -787,7 +787,7 @@ const promptPovFresco14 = () => {
 // aggiunto (lenti, luce del tunnel, labbra, quattro nei) piu' il mento liscio.
 // Occhiali: solo la vista laterale vera. Ogni sostituzione e' su un'ancora che deve
 // esserci una volta sola, altrimenti si ferma invece di mandare un prompt storto.
-const promptRicrea528 = (palette: boolean) => {
+const promptRicrea528 = (palette: boolean, dritta = false) => {
   const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 528").get(PHOTO) as { prompt_used: string } | null;
   if (!row) throw new Error("ricrea528: v528 non trovata");
   let t = row.prompt_used;
@@ -807,6 +807,9 @@ const promptRicrea528 = (palette: boolean) => {
   if (t.includes("Image 2 has three photos of me") === false) throw new Error("ricrea528: manca il set");
   if (/Exactly ONE mole|three-quarter view|hard powerful light/.test(t)) throw new Error("ricrea528: resti del vecchio testo");
   if (palette) t += "\n\nCOLOUR PALETTE (this wins over everything above): the whole photo has the muted, soft, low-saturation colour of a film photo on an overcast day. The tunnel of screens glows soft neutral-to-warm white, like overcast daylight on paper: NOT cyan, NOT teal, NOT electric blue, NOT neon. Lifted blacks: the deepest shadows are a soft dark grey, never pure black. No blown or clipped whites: even the brightest screens keep their texture. The only warm accent in the frame is my natural skin. The light streaks reflected inside the lenses are warm white, not cyan.";
+  // Il blocco finale di fresco14, che in v615-v618 ha raddrizzato la testa; sta in fondo
+  // perche' deve vincere sulla posa «8 gradi» e sull'angolo da selfie di v528.
+  if (dritta) t += "\n\nFINAL OVERRIDES (these win over anything above): HEAD: perfectly frontal, facing the camera straight on, both ears at the same height, chin level, NO head tilt, NO three-quarter turn, NO low camera angle, nose centred between the eyes; the camera is on my face axis at eye height. BEARD: very short, clean and even, like a 1-2 mm trimmed shadow of stubble, the same density on cheeks, jaw and chin; render it as smooth soft skin tone with a faint darker shade, NOT as separate dots, NO grey speckles, NO grain, NO salt-and-pepper noise, no patches. Skin stays natural with fine pores, never waxy.";
   return t;
 };
 
@@ -970,6 +973,7 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "ricrea-528", pura: true, prompt: promptRicrea528(false), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
+    { nome: "ricrea-528-dritta", pura: true, prompt: promptRicrea528(true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "ricrea-528-palette", pura: true, prompt: promptRicrea528(true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "pura-pov-fresco15", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco15d", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
