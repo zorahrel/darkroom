@@ -114,8 +114,11 @@ export const api = {
       "/api/culling/motore",
     ),
 
+  // Lista leggera: il prompt della versione aperta lo porta getVersionPrompt.
   getPhoto: (id: string) =>
-    jsonFetch<PhotoDetail>(`/api/photos/${encodeURIComponent(id)}`),
+    jsonFetch<PhotoDetail>(`/api/photos/${encodeURIComponent(id)}?slim=1`),
+  getVersionPrompt: (id: string, vid: number) =>
+    jsonFetch<{ prompt_used: string }>(`/api/photos/${encodeURIComponent(id)}/versions/${vid}/prompt`),
   setFavorite: (id: string, version_id: number | null) =>
     jsonFetch(`/api/photos/${encodeURIComponent(id)}/favorite`, {
       method: "PUT",

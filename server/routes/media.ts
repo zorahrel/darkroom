@@ -150,7 +150,7 @@ mediaRoutes.get("/thumb/orphan/:filename", async (c) => {
 // LUT + color) applied on the fly, cached on disk by a params-hash. Grade off /
 // no active steps / grade error all fail open to the ungraded generation, so the
 // grid never breaks.
-mediaRoutes.get("/graded/:photoId/:filename", (c) => {
+mediaRoutes.get("/graded/:photoId/:filename", async (c) => {
   const photoId = c.req.param("photoId");
   const filename = c.req.param("filename");
   if (!safeSeg(photoId) || !safeSeg(filename)) {
@@ -165,7 +165,11 @@ mediaRoutes.get("/graded/:photoId/:filename", (c) => {
   const base = photo ? effectiveGrade(photo) : getColorGrade();
   const cfg = gradeFromQuery(c, base);
   if (!gradeActive(cfg)) {
-    return serveFile(source); // passthrough — ungraded original
+    // Senza grade: con una larghezza chiesta (la pagina della foto) si manda
+    // l'anteprima a quella larghezza, non il PNG intero da 2,4 MB; senza,
+    // l'originale com'e' (export).
+    if (c.req.query("w")) return serveFile(await thumbnailPath(source, parseWidth(c, 1600, 3200)));
+    return serveFile(source);
   }
   const width = parseWidth(c, 1600, 3200);
   const wbGain = sceneMatchRequested(cfg) ? wbGainFor(photoId) : null;

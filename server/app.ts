@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { initSchema } from "./db.ts";
 import { currentProjectId, getProject, withProject } from "./project.ts";
@@ -41,6 +42,10 @@ initSchema();
 export const app = new Hono();
 
 app.use("*", cors());
+// Le risposte JSON sono grandi e ripetitive (il dettaglio di una foto con 600
+// versioni porta 3,3 MB di prompt): compresse diventano una frazione. Solo /api,
+// le immagini sono gia' compresse.
+app.use("/api/*", compress());
 
 // Resolve the active project for every request from `?project=` or the
 // `x-darkroom-project` header, and run the handler inside that project's ALS

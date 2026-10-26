@@ -233,9 +233,29 @@ export default function DetailPage() {
   }, [generating, siblings.prev, siblings.next, navigate, videoOpen]);
 
   if (!id) return null;
+  // Il prompt arriva solo per la versione aperta (la lista e' leggera).
+  const [prompts, setPrompts] = useState<Record<number, string>>({});
+  const openVid = data?.versions[currentVersion]?.id;
+  useEffect(() => {
+    if (!id || openVid === undefined || prompts[openVid] !== undefined) return;
+    let alive = true;
+    api
+      .getVersionPrompt(id, openVid)
+      .then((r) => alive && setPrompts((p) => ({ ...p, [openVid]: r.prompt_used })))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [id, openVid, prompts]);
+  const versionsWithPrompt = useMemo(
+    () => (data ? data.versions.map((x) => (prompts[x.id] !== undefined ? { ...x, prompt_used: prompts[x.id]! } : x)) : []),
+    [data, prompts],
+  );
+
   if (!data) return <div className="py-20 text-center text-neutral-400">Carico…</div>;
 
-  const { photo, versions, effective_prompt, global_prompt, effective_config, has_override } = data;
+  const versions = versionsWithPrompt;
+  const { photo, effective_prompt, global_prompt, effective_config, has_override } = data;
   // Route id changed but the loaded photo hasn't caught up yet → show a spinner
   // instead of the previous photo.
   const navigating = photo.id !== id;

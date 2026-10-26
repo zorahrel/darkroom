@@ -288,6 +288,21 @@ function ingressiDelle(versions: { id: number; photo_id: string; lineage?: strin
   if (versions.length === 0) return out;
   const ids = versions.map((v) => v.id);
   const perId = new Map(versions.map((v) => [v.id, v]));
+  // Le stesse partenze e gli stessi riferimenti tornano in centinaia di versioni:
+  // risolverli una volta sola evita migliaia di existsSync (1 s su 609 versioni a
+  // Mac carico, ed era il caricamento lento della pagina della foto).
+  const risolti = new Map<string, string>();
+  const risolviUnaVolta = (nome: string, photoId: string) => {
+    const k = `${photoId}\0${nome}`;
+    let r = risolti.get(k);
+    if (r === undefined) risolti.set(k, (r = risolvi(nome, photoId)));
+    return r;
+  };
+  const originali = new Map<string, string | undefined>();
+  const originaleDi = (photoId: string) => {
+    if (!originali.has(photoId)) originali.set(photoId, getPhoto(photoId)?.original_path);
+    return originali.get(photoId);
+  };
   const righe = dbIngressi()
     .query<{ version_id: number; kind: string; path: string; origin: string }, number[]>(
       `SELECT version_id, kind, path, origin FROM version_inputs
@@ -310,8 +325,8 @@ function ingressiDelle(versions: { id: number; photo_id: string; lineage?: strin
       }
     }
     // «1» come partenza = l'originale con cui la foto e' entrata nel progetto.
-    if (r.kind === "source" && path === v.photo_id) path = getPhoto(v.photo_id)?.original_path ?? path;
-    const pieno = risolvi(path, v.photo_id);
+    if (r.kind === "source" && path === v.photo_id) path = originaleDi(v.photo_id) ?? path;
+    const pieno = risolviUnaVolta(path, v.photo_id);
     const lista = (out[r.version_id] ??= []);
     // La partenza e' UNA: la prima sorgente. Le altre sorgenti sono foto
     // dell'utente allegate come riferimento d'identita'.
@@ -331,9 +346,19 @@ photoRoutes.get("/api/photos/:id", (c) => {
   if (!photo) return c.json({ error: "not found" }, 404);
   const versions = getVersionsFor(id);
   const cfg = effectiveConfig(photo);
+  // `slim=1` (la pagina della foto): niente prompt ne' discendenza nella lista,
+  // che con centinaia di versioni pesavano megabyte; il prompt della versione
+  // aperta arriva da /versions/:vid/prompt. Senza, la forma resta quella di sempre.
+  const slim = c.req.query("slim") === "1";
   return c.json({
     photo,
-    versions,
+    versions: slim
+      ? versions.map((v) => {
+          // SELECT * porta anche lineage, che VersionRow non dichiara.
+          const { lineage: _l, ...rest } = v as typeof v & { lineage?: string | null };
+          return { ...rest, prompt_used: "" };
+        })
+      : versions,
     ingressi: ingressiDelle(versions),
     effective_prompt: promptFor(withExtra(cfg, photo)),
     effective_config: cfg,
@@ -343,6 +368,16 @@ photoRoutes.get("/api/photos/:id", (c) => {
     effective_grade: effectiveGrade(photo),
     has_grade_override: photo.grade_override !== null,
   });
+});
+
+photoRoutes.get("/api/photos/:id/versions/:vid/prompt", (c) => {
+  const row = db()
+    .query<{ prompt_used: string }, [number, string]>(
+      "SELECT prompt_used FROM versions WHERE id = ? AND photo_id = ?",
+    )
+    .get(Number(c.req.param("vid")), c.req.param("id"));
+  if (!row) return c.json({ error: "version not found" }, 404);
+  return c.json({ prompt_used: row.prompt_used });
 });
 
 photoRoutes.put("/api/photos/:id/favorite", async (c) => {
