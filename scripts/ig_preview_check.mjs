@@ -110,6 +110,40 @@ try {
   if (covered > 0) fail(`il fondo del telefono e' coperto per ${covered}px a finestra stretta`);
   console.log(JSON.stringify({ coperto_a_finestra_stretta_px: covered }));
   console.log(JSON.stringify({ riquadri: tiles, scroll: `${top}/${max}`, barra_dal_fondo_px: gaps, evidenze_scrollLeft: left }));
+
+  // Zoom: a finestra grande il telefono raddoppia col pulsante (due +25% ≈ 156%),
+  // Ctrl+rotella ingrandisce sotto il cursore, 0 torna ad adattare.
+  await p.setViewportSize({ width: 1400, height: 900 });
+  await p.waitForTimeout(500);
+  const w0 = await p.evaluate(() => document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect().width);
+  await p.getByRole("button", { name: "Ingrandisci" }).click();
+  await p.getByRole("button", { name: "Ingrandisci" }).click();
+  await p.waitForTimeout(300);
+  const w1 = await p.evaluate(() => document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect().width);
+  if (!(w1 > w0 * 1.5)) fail(`lo zoom dai pulsanti non ingrandisce: ${w0} -> ${w1}`);
+  const fr = await p.evaluate(() => { const r = document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + 200 }; });
+  await p.mouse.move(fr.x, fr.y);
+  await p.keyboard.down("Control");
+  await p.mouse.wheel(0, -120);
+  await p.keyboard.up("Control");
+  await p.waitForTimeout(300);
+  const w2 = await p.evaluate(() => document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect().width);
+  if (!(w2 > w1 * 1.1 && w2 < w1 * 1.6)) fail(`Ctrl+rotella non ingrandisce: ${w1} -> ${w2}`);
+  await p.keyboard.press("0");
+  await p.waitForTimeout(300);
+  const w3 = await p.evaluate(() => document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect().width);
+  if (Math.abs(w3 - w0) > 1) fail(`0 non torna ad adattare: ${w3} invece di ${w0}`);
+
+  // Tocco su un post: si apre a tutto schermo, con le frecce verso gli altri.
+  await p.locator('[data-testid="ig-tile"]').first().click();
+  const fs = p.locator('[data-testid="fullscreen-view"]');
+  await fs.waitFor({ timeout: 10000 }).catch(() => fail("il tocco su un post non apre il lightbox"));
+  const conta = await fs.innerText().catch(() => "");
+  if (!/1\s*\/\s*\d+/.test(conta)) fail(`il lightbox non mostra la posizione fra i post: ${conta.slice(0, 60)}`);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(300);
+  if (await fs.count()) fail("Esc non chiude il lightbox del post");
+  console.log(JSON.stringify({ zoom_larghezze: [w0, w1, w2, w3].map(Math.round), lightbox: conta.match(/\d+\s*\/\s*\d+/)?.[0] }));
 } finally {
   await ctx.close(); await b.close();
 }

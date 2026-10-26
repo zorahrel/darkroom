@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { Maximize2, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import { assoluto, jsonFetch } from "../api/http";
+import { FullscreenView } from "../components/detail/FullscreenView";
 
 /**
  * Anteprima del profilo Instagram, scrollabile dentro un iPhone.
@@ -100,12 +101,33 @@ export default function Instagram() {
     }
   };
 
+  const [zoom, setZoom] = useState(1);
+  const [open, setOpen] = useState<number | null>(null);
   const p = data?.profile ?? null;
   const planned = showPlanned ? (data?.planned ?? []).filter((x) => x.cover) : [];
   const realCount = Number((p?.counts.posts ?? "").replace(/[.,]/g, "")) || null;
   const postCount = realCount != null ? (realCount + planned.length).toLocaleString("it-IT") : p?.counts.posts;
   const avatarSrc = data?.avatar ?? p?.avatar ?? null;
   const focusY = data?.settings.avatar?.focus_y ?? (data?.avatar ? 0.32 : 0.5);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (open != null || settingsOpen || (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
+      if (e.key === "+" || e.key === "=") setZoom((z) => clampZoom(z * 1.25));
+      else if (e.key === "-") setZoom((z) => clampZoom(z / 1.25));
+      else if (e.key === "0") setZoom(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, settingsOpen]);
+
+  const gallery = p
+    ? [
+        ...planned.map((x) => ({ src: assoluto(big(x.cover ?? "")), alt: x.title ?? "" })),
+        ...p.posts.map((x) => ({ src: assoluto(big(x.image ?? "")), alt: x.alt ?? "" })),
+      ]
+    : [];
 
   return (
     <div className="relative flex flex-col items-center gap-3 p-3 md:p-6" data-testid="instagram-page">
@@ -120,7 +142,7 @@ export default function Instagram() {
         <SlidersHorizontal size={16} aria-hidden />
         <span className="hidden sm:inline">Impostazioni</span>
       </button>
-      <Phone dark={dark} overlay={p ? <TabBar dark={dark} avatar={avatarSrc} focusY={focusY} /> : null}>
+      <Phone zoom={zoom} onZoom={setZoom} dark={dark} overlay={p ? <TabBar dark={dark} avatar={avatarSrc} focusY={focusY} /> : null}>
         {!p ? (
           <div className="p-6 pt-24 text-sm opacity-70 space-y-3">
             <p>
@@ -140,9 +162,40 @@ export default function Instagram() {
             focusY={focusY}
             postCount={postCount ?? null}
             planned={planned}
+            onOpen={setOpen}
           />
         )}
       </Phone>
+
+      <div
+        data-testid="ig-zoom"
+        className="fixed z-20 bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-900/90 p-1 text-neutral-200 shadow-lg"
+      >
+        <button type="button" aria-label="Rimpicciolisci" className="rounded-full p-2 hover:bg-neutral-800" onClick={() => setZoom((z) => clampZoom(z / 1.25))}>
+          <Minus size={16} aria-hidden />
+        </button>
+        <button type="button" aria-label="Adatta" title="Adatta (0)" className="min-w-14 rounded-full px-2 py-1 text-xs tabular-nums hover:bg-neutral-800" onClick={() => setZoom(1)} data-testid="ig-zoom-level">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button type="button" aria-label="Ingrandisci" className="rounded-full p-2 hover:bg-neutral-800" onClick={() => setZoom((z) => clampZoom(z * 1.25))}>
+          <Plus size={16} aria-hidden />
+        </button>
+        <button type="button" aria-label="Adatta allo spazio" className="rounded-full p-2 hover:bg-neutral-800" onClick={() => setZoom(1)}>
+          <Maximize2 size={14} aria-hidden />
+        </button>
+      </div>
+
+      {open != null && gallery[open] && (
+        <FullscreenView
+          src={gallery[open].src}
+          alt={gallery[open].alt}
+          gallery={gallery}
+          index={open}
+          onIndex={setOpen}
+          zoomable
+          onClose={() => setOpen(null)}
+        />
+      )}
 
       {settingsOpen && (
         <div className="fixed inset-0 z-50 bg-black/40" data-testid="ig-settings-backdrop" onClick={() => setSettingsOpen(false)} />
@@ -260,12 +313,44 @@ export default function Instagram() {
  * cambiava le proporzioni e mostrava meno griglia di quanta ne veda un iPhone
  * vero, cioe' proprio la cosa da giudicare.
  */
-function Phone({ dark, children, overlay }: { dark: boolean; children: React.ReactNode; overlay?: React.ReactNode }) {
+function clampZoom(z: number) {
+  return Math.min(6, Math.max(1, Math.round(z * 100) / 100));
+}
+
+/** Immagine del lightbox: la stessa del riquadro, chiesta piu' grande dove la
+ *  rotta accetta una larghezza (copertine del progetto); le foto di Instagram
+ *  restano quelle della copia locale. */
+function big(src: string) {
+  return /[?&]w=\d+/.test(src) ? src.replace(/([?&]w=)\d+/, "$12400") : src;
+}
+
+function Phone({
+  dark,
+  children,
+  overlay,
+  zoom,
+  onZoom,
+}: {
+  dark: boolean;
+  children: React.ReactNode;
+  overlay?: React.ReactNode;
+  zoom: number;
+  onZoom: (z: number) => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const view = useRef<HTMLDivElement>(null);
+  const [fitScale, setScale] = useState(1);
+  const [area, setArea] = useState({ w: W + 24, h: H + 24 });
+  const scale = fitScale * zoom;
+  // punto da tenere fermo sotto il cursore mentre lo zoom cambia
+  const anchor = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
   useLayoutEffect(() => {
     const fit = () => {
-      const el = box.current;
+      const el = view.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
       // Su schermo stretto la barra di Darkroom e' fissa in basso: il telefono
@@ -279,6 +364,7 @@ function Phone({ dark, children, overlay }: { dark: boolean; children: React.Rea
       const avail = par && cs ? par.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) : W + 24;
       const byW = avail / (W + 24);
       setScale(Math.max(0.25, Math.min(1, byH, byW)));
+      setArea({ w: Math.max(0, avail), h: Math.max(0, (window.innerHeight - navH - top - 16)) });
     };
     fit();
     window.addEventListener("resize", fit);
@@ -287,14 +373,96 @@ function Phone({ dark, children, overlay }: { dark: boolean; children: React.Rea
     // Il body ha altezza fissa: si osservano i contenitori del telefono, che
     // crescono quando sopra di lui compare qualcosa.
     const ro = new ResizeObserver(fit);
-    for (let a = box.current?.parentElement; a && a !== document.body; a = a.parentElement) ro.observe(a);
+    for (let a = view.current?.parentElement; a && a !== document.body; a = a.parentElement) ro.observe(a);
     return () => {
       window.removeEventListener("resize", fit);
       ro.disconnect();
     };
   }, []);
+  // Rotella con Ctrl/Cmd (e il pizzico del trackpad, che il browser manda cosi')
+  // ingrandisce attorno al cursore. Deve poter fermare lo zoom della pagina:
+  // listener non passivo.
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const r = v.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const s = scaleRef.current;
+      anchor.current = { x, y, px: (v.scrollLeft + x) / s, py: (v.scrollTop + y) / s };
+      onZoom(clampZoom(zoomRef.current * Math.exp(-e.deltaY * 0.0025)));
+    };
+    v.addEventListener("wheel", onWheel, { passive: false });
+    return () => v.removeEventListener("wheel", onWheel);
+  }, [onZoom]);
+
+  useLayoutEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const a = anchor.current;
+    if (a) {
+      v.scrollLeft = a.px * scale - a.x;
+      v.scrollTop = a.py * scale - a.y;
+      anchor.current = null;
+    } else if (zoom > 1) {
+      // dai pulsanti e dai tasti: resta centrato su cio' che si stava guardando
+      v.scrollLeft = (v.scrollWidth - v.clientWidth) / 2;
+    }
+  }, [scale, zoom]);
+
+  // Trascinare sposta l'inquadratura quando e' ingrandito; un trascinamento
+  // vero (oltre 4 px) non deve diventare un clic su un post.
+  const drag = useRef<{ x: number; y: number; l: number; t: number; moved: boolean } | null>(null);
+  const zoomed = zoom > 1.001;
+  const boxW = (W + 24) * scale;
+  const boxH = (H + 24) * scale;
   return (
-    <div ref={box} className="shrink-0" style={{ width: (W + 24) * scale, height: (H + 24) * scale }}>
+    <div
+      ref={view}
+      data-testid="ig-viewport"
+      className={zoomed ? "overflow-auto cursor-grab active:cursor-grabbing" : ""}
+      style={zoomed ? { width: area.w, height: area.h } : { width: boxW, height: boxH }}
+      onPointerDown={(e) => {
+        if (!zoomed || e.button !== 0) return;
+        const v = view.current!;
+        drag.current = { x: e.clientX, y: e.clientY, l: v.scrollLeft, t: v.scrollTop, moved: false };
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        const dx = e.clientX - d.x;
+        const dy = e.clientY - d.y;
+        if (!d.moved && Math.hypot(dx, dy) < 4) return;
+        d.moved = true;
+        const v = view.current!;
+        v.scrollLeft = d.l - dx;
+        v.scrollTop = d.t - dy;
+      }}
+      onPointerUp={() => {
+        const d = drag.current;
+        drag.current = null;
+        if (d?.moved) {
+          // il clic che segue il rilascio non deve aprire il post sotto il cursore
+          const stop = (ev: MouseEvent) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+          };
+          window.addEventListener("click", stop, { capture: true, once: true });
+          setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
+        }
+      }}
+      onPointerLeave={() => {
+        drag.current = null;
+      }}
+    >
+    <div
+      ref={box}
+      className="shrink-0"
+      style={{ width: boxW, height: boxH, margin: zoomed && boxW < area.w ? "0 auto" : undefined }}
+    >
       <div
         className="rounded-[56px] p-[12px] bg-neutral-950 shadow-2xl ring-1 ring-neutral-700"
         style={{ width: W + 24, height: H + 24, transform: `scale(${scale})`, transformOrigin: "top left" }}
@@ -325,10 +493,12 @@ function Phone({ dark, children, overlay }: { dark: boolean; children: React.Rea
         </div>
       </div>
     </div>
+    </div>
   );
 }
 
 function ProfileView({
+  onOpen,
   p,
   dark,
   avatar,
@@ -336,6 +506,7 @@ function ProfileView({
   postCount,
   planned,
 }: {
+  onOpen?: (i: number) => void;
   p: Profile;
   dark: boolean;
   avatar: string | null;
@@ -454,8 +625,15 @@ function ProfileView({
       </div>
 
       <div className="grid grid-cols-3" style={{ gap: 2 }} data-testid="ig-grid">
-        {tiles.map((t) => (
-          <div key={t.key} className="relative overflow-hidden" style={{ aspectRatio: "3 / 4", background: muted }} title={t.title}>
+        {tiles.map((t, i) => (
+          <div
+            key={t.key}
+            className="relative overflow-hidden cursor-zoom-in"
+            style={{ aspectRatio: "3 / 4", background: muted }}
+            title={t.title}
+            data-testid="ig-tile"
+            onClick={() => t.src && onOpen?.(i)}
+          >
             {t.src && <img src={assoluto(t.src)} alt="" loading="lazy" className="w-full h-full object-cover block" />}
             {t.kind !== "photo" && (
               <span className="absolute" style={{ top: 6, right: 6, filter: "drop-shadow(0 0 2px rgba(0,0,0,.6))" }}>
