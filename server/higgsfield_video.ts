@@ -22,6 +22,8 @@ export type VideoPreset = {
   note: string;
   /** Le immagini vanno come soggetto (image_references), non come primo fotogramma. */
   references?: boolean;
+  /** Primo fotogramma esatto + video di movimento da copiare (video_references). */
+  startWithMotion?: boolean;
 };
 
 export const VIDEO_PRESETS: Record<string, VideoPreset> = {
@@ -53,6 +55,14 @@ export const VIDEO_PRESETS: Record<string, VideoPreset> = {
     durations: [3, 30],
     note: "1080p, foto come soggetto + video di movimento",
     references: true,
+  },
+  kling4_start_ref: {
+    model: "kling4_0",
+    label: "Kling 4.0 (primo fotogramma + movimento)",
+    params: { mode: "reference-to-video", resolution: "1080p" },
+    durations: [3, 30],
+    note: "1080p, primo fotogramma esatto + video di movimento",
+    startWithMotion: true,
   },
   seedance_1080: {
     model: "seedance_2_0",
@@ -129,7 +139,7 @@ const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
   duration: fitDuration(r.preset, r.duration),
   medias: r.preset.references
     ? [{ value: r.mediaId, role: "image_references" }, ...(r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])]
-    : [{ value: r.mediaId, role: "start_image" }],
+    : [{ value: r.mediaId, role: "start_image" }, ...(r.preset.startWithMotion && r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])],
   ...r.preset.params,
   ...extra,
 });

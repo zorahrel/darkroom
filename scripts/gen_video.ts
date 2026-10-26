@@ -41,7 +41,6 @@ if (!progetto || !foto || !Number.isInteger(version) || !promptFile) {
 const keys = (flag("presets") ?? Object.keys(VIDEO_PRESETS).join(",")).split(",").map((s) => s.trim()).filter(Boolean);
 for (const k of keys) if (!VIDEO_PRESETS[k]) throw new Error(`preset sconosciuto: ${k} (ci sono: ${Object.keys(VIDEO_PRESETS).join(", ")})`);
 const duration = Number(flag("duration") ?? 10);
-const aspect = flag("aspect") ?? "9:16";
 const yes = argv.includes("--yes");
 const maxCredits = flag("max-credits") ? Number(flag("max-credits")) : null;
 const prompt = readFileSync(promptFile, "utf8").trim();
@@ -54,6 +53,14 @@ const frame = withProject(progetto, () => {
   return r.image_path;
 });
 
+// Senza --aspect il formato segue il primo fotogramma: con i riferimenti Kling non lo eredita da solo
+// (clip #21 uscito 9:16 da una v372 orizzontale).
+const aspect = flag("aspect") ?? (() => {
+  const out = Bun.spawnSync(["sips", "-g", "pixelWidth", "-g", "pixelHeight", frame]).stdout.toString();
+  const w = Number(/pixelWidth: (\d+)/.exec(out)?.[1]), h = Number(/pixelHeight: (\d+)/.exec(out)?.[1]);
+  return w && h ? (w > h * 1.2 ? "16:9" : h > w * 1.2 ? "9:16" : "1:1") : "9:16";
+})();
+console.log(`formato: ${aspect}`);
 console.log(`primo fotogramma: ${frame}\nprompt: ${prompt.slice(0, 90)}...\n`);
 const mediaId = await uploadStartFrame(frame);
 
