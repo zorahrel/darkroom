@@ -6,6 +6,7 @@ import { safeSeg, serveFile } from "../http.ts";
 import {
   type AvatarRef,
   type IgPalette,
+  avatarCandidates,
   avatarUrl,
   getIgSettings,
   isValidLut,
@@ -50,6 +51,7 @@ instagramRoutes.get("/api/instagram", (c) => {
     settings,
     profile,
     avatar: settings.avatar ? avatarUrl(settings.avatar, pal?.avatar_lut) : null,
+    avatar_candidates: settings.avatar ? avatarCandidates(settings.avatar, pal?.avatar_lut) : [],
     planned: plannedPosts(pal?.planned_lut),
   });
 });

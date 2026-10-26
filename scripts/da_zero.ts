@@ -778,6 +778,17 @@ const promptPovFresco14 = () => {
   return out;
 };
 
+// Giro 15: fresco14 + la palette del feed di @zorahrel (chiaro, spento, neri sollevati,
+// un solo accento caldo). Il ciano del tunnel e' il soggetto stesso: una LUT non lo toglie
+// senza spegnere il concetto, quindi la palette si chiede in generazione.
+const promptPovFresco15 = () => {
+  const t = promptPovFresco14();
+  const pal = "\n\nCOLOUR PALETTE (this wins over everything above, including the likeness guide and its colours): the whole photo has the muted, soft, low-saturation colour of a film photo on an overcast day. The tunnel of screens glows soft neutral-to-warm white, like overcast daylight on paper: NOT cyan, NOT teal, NOT electric blue, NOT neon. Lifted blacks: the deepest shadows are a soft dark grey, never pure black. No blown or clipped whites: even the brightest screens keep their texture. The only warm accent in the frame is my natural skin. The light streaks reflected inside the lenses are warm white, not cyan.";
+  const out = t + pal;
+  if (!out.includes("COLOUR PALETTE") || !out.includes("FINAL OVERRIDES")) throw new Error("fresco15: blocchi mancanti");
+  return out;
+};
+
 const promptPovFresco3 = () => {
   const t = promptPovFresco2();
   const ancora = "\n\nPOSE: almost frontal";
@@ -929,6 +940,8 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
+    { nome: "pura-pov-fresco15", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
+    { nome: "pura-pov-fresco15d", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco12", pura: true, prompt: promptPovFresco12(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "pura-pov-fresco11d", pura: true, prompt: promptPovFresco11(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "io-identita-nei.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco10", pura: true, prompt: promptPovFresco10(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "io-identita-nei.png"), "/tmp/v368-look.png"] },

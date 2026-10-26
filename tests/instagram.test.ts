@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../server/db.ts";
-import { dirs } from "../server/project.ts";
+import { currentProjectId, dirs } from "../server/project.ts";
 import { LUT_DIR } from "../server/config.ts";
 import { IG_ROOT } from "../server/instagram.ts";
 import { instagramRoutes } from "../server/routes/instagram.ts";
@@ -123,6 +123,23 @@ describe("anteprima Instagram", () => {
     const lut = g.steps.find((s: any) => s.type === "lut");
     expect(lut.enabled).toBe(true);
     expect(lut.params.lut).toBe("prova/feed.cube");
+  });
+
+  test("i candidati per la foto profilo sono le ultime versioni della stessa foto, dalla piu' recente", async () => {
+    photoWithFavorite("ritratto", 1);
+    for (const n of [2, 3]) {
+      db().run(
+        `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, source, created_at)
+         VALUES ('ritratto', ?, ?, 'p', 'generated', ?)`,
+        [n, join(dirs().GEN_DIR, "ritratto", `v${n}.png`), Date.now()],
+      );
+    }
+    const project = currentProjectId();
+    expect((await call("PUT", "/api/instagram", { avatar: { project, photo: "ritratto", version: 1 } })).status).toBe(200);
+    const g = (await call("GET", "/api/instagram")).json;
+    expect(g.avatar_candidates.map((x: { version: number }) => x.version)).toEqual([3, 2, 1]);
+    expect(g.avatar_candidates[0].url).toContain("v3.png");
+    expect(g.avatar_candidates[2].current).toBe(true);
   });
 
   test("una LUT fuori dalla cartella delle LUT e' rifiutata", async () => {

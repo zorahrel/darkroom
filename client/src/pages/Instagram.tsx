@@ -32,6 +32,7 @@ type Profile = {
 type AvatarRef = { project: string; photo: string; version: number; focus_y?: number };
 type Planned = { id: string; title: string; caption: string; photo_count: number; kind: Kind; cover: string | null };
 type Payload = {
+  avatar_candidates?: { version: number; url: string; current: boolean }[];
   settings: {
     username: string | null;
     avatar: AvatarRef | null;
@@ -244,6 +245,26 @@ export default function Instagram() {
 
         <section className="space-y-2">
           <h2 className="text-neutral-100 font-semibold">Foto profilo</h2>
+          {(data?.avatar_candidates?.length ?? 0) > 0 && (
+            <div data-testid="ig-candidates" className="grid grid-cols-4 gap-1.5">
+              {data!.avatar_candidates!.map((c) => (
+                <button
+                  key={c.version}
+                  type="button"
+                  disabled={busy || c.current}
+                  title={`Prova v${c.version} come foto profilo`}
+                  onClick={() =>
+                    data?.settings.avatar &&
+                    save({ avatar: { project: data.settings.avatar.project, photo: data.settings.avatar.photo, version: c.version } })
+                  }
+                  className={`relative aspect-square rounded bg-black overflow-hidden border ${c.current ? "border-sky-400" : "border-neutral-700 hover:border-neutral-400"}`}
+                >
+                  <img src={assoluto(c.url)} alt={`v${c.version}`} loading="lazy" className="w-full h-full object-contain" />
+                  <span className="absolute left-0.5 bottom-0.5 text-[10px] px-1 rounded bg-black/70 text-neutral-100">v{c.version}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2">
             <input className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1" placeholder="progetto" value={av.project} onChange={(e) => setAv({ ...av, project: e.target.value.trim() })} />
             <input className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1" placeholder="foto" value={av.photo} onChange={(e) => setAv({ ...av, photo: e.target.value.trim() })} />

@@ -137,6 +137,27 @@ export function avatarUrl(ref: AvatarRef, lut?: string | null): string | null {
   return `/thumb/gen/${seg}?${q}`;
 }
 
+/** Le ultime versioni della stessa foto dell'avatar, dalla piu' recente: sono i candidati
+ *  che la generazione produce, da provare con un clic nella vista. */
+export function avatarCandidates(
+  ref: AvatarRef,
+  lut?: string | null,
+  limit = 12,
+): { version: number; url: string; current: boolean }[] {
+  if (!getProject(ref.project)) return [];
+  const rows = withProject(ref.project, () =>
+    db()
+      .query<{ version_number: number }, [string, number]>(
+        "SELECT version_number FROM versions WHERE photo_id = ? ORDER BY version_number DESC LIMIT ?",
+      )
+      .all(ref.photo, limit),
+  );
+  return rows.flatMap((r) => {
+    const url = avatarUrl({ ...ref, version: r.version_number }, lut);
+    return url ? [{ version: r.version_number, url, current: r.version_number === ref.version }] : [];
+  });
+}
+
 export type PlannedPost = {
   id: string;
   title: string;
