@@ -12,7 +12,7 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { initSchema } from "../server/db.ts";
+import { db, initSchema } from "../server/db.ts";
 import { enqueueJob } from "../server/jobs.ts";
 import { dirsFor, withProject } from "../server/project.ts";
 
@@ -781,6 +781,35 @@ const promptPovFresco14 = () => {
 // Giro 15: fresco14 + la palette del feed di @zorahrel (chiaro, spento, neri sollevati,
 // un solo accento caldo). Il ciano del tunnel e' il soggetto stesso: una LUT non lo toglie
 // senza spegnere il concetto, quindi la palette si chiede in generazione.
+// Ricrea v565 senza la guida generata: si parte dal prompt della sua radice da zero
+// (v528, letto dal DB: la catena v528 → v534 → v539 → v548 → v553 → … → v565 e' nel
+// log del worker) e ci si fondono dentro le correzioni che le modifiche avevano
+// aggiunto (lenti, luce del tunnel, labbra, quattro nei) piu' il mento liscio.
+// Occhiali: solo la vista laterale vera. Ogni sostituzione e' su un'ancora che deve
+// esserci una volta sola, altrimenti si ferma invece di mandare un prompt storto.
+const promptRicrea528 = (palette: boolean) => {
+  const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 528").get(PHOTO) as { prompt_used: string } | null;
+  if (!row) throw new Error("ricrea528: v528 non trovata");
+  let t = row.prompt_used;
+  const sost = (da: string, a: string, fino?: string) => {
+    const i = t.indexOf(da);
+    if (i < 0 || t.indexOf(da, i + 1) >= 0) throw new Error(`ricrea528: ancora non unica: ${da.slice(0, 40)}`);
+    const j = fino ? t.indexOf(fino, i) : i + da.length;
+    if (j < 0) throw new Error(`ricrea528: fine ancora non trovata: ${fino}`);
+    t = t.slice(0, i) + a + t.slice(fino ? j + fino.length : j);
+  };
+  sost("Exactly ONE mole on my whole face:", "LIPS: thin upper lip, lower lip only slightly fuller, pale muted pink, closed and relaxed, a little dry and matte: no gloss, no wet highlight, no lipstick colour, no pout. CHIN: smooth and rounded, NO cleft, NO dimple, NO vertical crease, same short even skin as the cheeks. MY FOUR MOLES, and nowhere else. Mole 1: small raised bump, skin-coloured with a slightly darker base, about 3 mm, on the cheek halfway between nose and ear at nostril height, on the side of the gold hoop earring (my LEFT cheek, on the RIGHT side of the frame); small and flesh-toned, never a dark ball. Mole 2: a tiny brown dot in the groove between cheek and nose, just under the frame. Mole 3: a tiny reddish dot high on the cheek, under the outer corner of the eye, at the lower edge of the frame. Mole 4: a small dark mole of about 2 mm on the opposite side of the face, at the height of the corner of the mouth, toward the jaw. Each one tiny and realistic. No other moles, no freckles, no marks.", "no beauty marks, no spots.");
+  sost("GLASSES: image 1 shows my sunglasses from the front and from three-quarter view. Copy them exactly:", "GLASSES: image 1 is a real photo of my sunglasses seen from the SIDE: copy exactly that frame thickness, the glossy black finish, the hinge block and the long straight temple arm. Seen from the front they are:");
+  sost("The lenses are NOT mirrored: only a faint soft reflection.", "LENSES: they read first of all as DARK SMOKE-GREY TINTED GLASS. On top of that tint, a faint, soft, out-of-focus reflection of the tunnel: only a few blurred, low-contrast curved bands of light, strongest along the top edge and the outer edge of each lens, fading to almost nothing toward the centre and the bottom, about 25 percent as bright as the real screens, with one thin soft highlight streak. No sharp screen grid, no readable rings, no flat mirror, no bright fill inside the lens.");
+  sost("LIGHT: one hard powerful light", "LIGHT: the only light source in this scene is the tunnel of screens around me, so the light on my face, neck, ear, hair and t-shirt is exactly what that tunnel would physically produce: a very large, soft, wraparound white-cyan light from the front and both sides, with natural falloff. Brightest on the forehead, the bridge of the nose, the cheekbones and the chin that face the camera, with small crisp specular glints on the nose tip and forehead. The skin keeps my natural olive tan in the midtones with only a slight teal influence; the highlights go white with a cyan tint; the shadow side under the jaw, under the nose and on the neck goes deep teal, never black and never orange. A thin cyan rim of light on the hair, the ear edge and the jaw. Soft shadows, no hard shadow from a studio lamp, no warm key light on the face. Both cheeks equally bright. ", "MOTION BLUR:");
+  // la sostituzione della luce consuma l'ancora «MOTION BLUR:»: la si rimette subito dopo
+  t = t.replace("Both cheeks equally bright. ", "Both cheeks equally bright. MOTION BLUR:");
+  if (t.includes("Image 2 has three photos of me") === false) throw new Error("ricrea528: manca il set");
+  if (/Exactly ONE mole|three-quarter view|hard powerful light/.test(t)) throw new Error("ricrea528: resti del vecchio testo");
+  if (palette) t += "\n\nCOLOUR PALETTE (this wins over everything above): the whole photo has the muted, soft, low-saturation colour of a film photo on an overcast day. The tunnel of screens glows soft neutral-to-warm white, like overcast daylight on paper: NOT cyan, NOT teal, NOT electric blue, NOT neon. Lifted blacks: the deepest shadows are a soft dark grey, never pure black. No blown or clipped whites: even the brightest screens keep their texture. The only warm accent in the frame is my natural skin. The light streaks reflected inside the lenses are warm white, not cyan.";
+  return t;
+};
+
 const promptPovFresco15 = () => {
   const t = promptPovFresco14();
   const pal = "\n\nCOLOUR PALETTE (this wins over everything above, including the likeness guide and its colours): the whole photo has the muted, soft, low-saturation colour of a film photo on an overcast day. The tunnel of screens glows soft neutral-to-warm white, like overcast daylight on paper: NOT cyan, NOT teal, NOT electric blue, NOT neon. Lifted blacks: the deepest shadows are a soft dark grey, never pure black. No blown or clipped whites: even the brightest screens keep their texture. The only warm accent in the frame is my natural skin. The light streaks reflected inside the lenses are warm white, not cyan.";
@@ -940,6 +969,8 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
+    { nome: "ricrea-528", pura: true, prompt: promptRicrea528(false), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
+    { nome: "ricrea-528-palette", pura: true, prompt: promptRicrea528(true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "pura-pov-fresco15", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco15d", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco12", pura: true, prompt: promptPovFresco12(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png")] },
@@ -966,6 +997,11 @@ await withProject(PROGETTO, async () => {
   const iV = process.argv.indexOf("--var");
   const scelte = iV > 0 ? process.argv[iV + 1]!.split(",") : ["con-ref"];
   const varianti = scelte.map((n) => tutte.find((t) => t.nome === n) ?? (() => { throw new Error(`variante sconosciuta: ${n}`); })());
+  // `--stampa`: scrive prompt e riferimenti delle varianti scelte e non accoda niente.
+  if (process.argv.includes("--stampa")) {
+    for (const v of varianti) console.log(`=== ${v.nome}  (${v.prompt.length} car.)\nrefs: ${v.refs.map((r) => r.split("/").pop()).join(", ")}\n${v.prompt}\n`);
+    return;
+  }
   for (let g = 1; g <= giri; g++) {
     const v = varianti[(g - 1) % varianti.length]!;
     const job = enqueueJob(
