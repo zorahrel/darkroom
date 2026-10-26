@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { assoluto, jsonFetch } from "../api/http";
 
 /**
@@ -52,6 +53,14 @@ export default function Instagram() {
   const [user, setUser] = useState("");
   const [av, setAv] = useState({ project: "", photo: "", version: "" });
   const [palette, setPalette] = useState(false);
+  // Le impostazioni non stanno sempre aperte: si aprono dall'ingranaggio.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettingsOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settingsOpen]);
 
   const load = useCallback(async () => {
     try {
@@ -99,13 +108,29 @@ export default function Instagram() {
   const focusY = data?.settings.avatar?.focus_y ?? (data?.avatar ? 0.32 : 0.5);
 
   return (
-    <div className="flex flex-wrap gap-8 p-6 items-start" data-testid="instagram-page">
+    <div className="relative flex flex-col items-center gap-3 p-3 md:p-6" data-testid="instagram-page">
+      <button
+        type="button"
+        data-testid="ig-settings-btn"
+        aria-label="Impostazioni anteprima"
+        aria-expanded={settingsOpen}
+        onClick={() => setSettingsOpen(true)}
+        className="self-end sm:absolute sm:top-3 sm:right-3 md:top-6 md:right-6 z-10 flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/90 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
+      >
+        <SlidersHorizontal size={16} aria-hidden />
+        <span className="hidden sm:inline">Impostazioni</span>
+      </button>
       <Phone dark={dark} overlay={p ? <TabBar dark={dark} avatar={avatarSrc} focusY={focusY} /> : null}>
         {!p ? (
-          <div className="p-6 text-sm opacity-70">
-            {data?.settings.username
-              ? "Nessuna copia del profilo: premi «Aggiorna dal profilo»."
-              : "Scegli l'account a destra."}
+          <div className="p-6 pt-24 text-sm opacity-70 space-y-3">
+            <p>
+              {data?.settings.username
+                ? "Nessuna copia del profilo: premi «Aggiorna dal profilo» nelle impostazioni."
+                : "Scegli l'account nelle impostazioni."}
+            </p>
+            <button type="button" className="underline" onClick={() => setSettingsOpen(true)}>
+              Apri le impostazioni
+            </button>
           </div>
         ) : (
           <ProfileView
@@ -119,7 +144,23 @@ export default function Instagram() {
         )}
       </Phone>
 
-      <aside className="w-80 space-y-5 text-sm text-neutral-300">
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40" data-testid="ig-settings-backdrop" onClick={() => setSettingsOpen(false)} />
+      )}
+      <aside
+        data-testid="ig-settings"
+        aria-label="Impostazioni anteprima"
+        aria-hidden={!settingsOpen}
+        className={`fixed top-0 right-0 bottom-0 z-50 w-[min(22rem,90vw)] overflow-y-auto border-l border-neutral-800 bg-neutral-950 p-5 space-y-5 text-sm text-neutral-300 shadow-2xl transition-transform duration-200 ${
+          settingsOpen ? "translate-x-0" : "translate-x-full invisible"
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <h1 className="text-neutral-100 font-semibold text-base">Impostazioni anteprima</h1>
+          <button type="button" aria-label="Chiudi" className="rounded p-1 hover:bg-neutral-800" onClick={() => setSettingsOpen(false)}>
+            <X size={18} aria-hidden />
+          </button>
+        </div>
         <section className="space-y-2">
           <h2 className="text-neutral-100 font-semibold">Account</h2>
           <div className="flex gap-2">
@@ -232,7 +273,11 @@ function Phone({ dark, children, overlay }: { dark: boolean; children: React.Rea
       const nav = document.querySelector('nav[aria-label="Navigazione principale"]');
       const navH = nav ? nav.getBoundingClientRect().height : 0;
       const byH = (window.innerHeight - navH - top - 16) / (H + 24);
-      const byW = (el.parentElement?.clientWidth ?? W + 24) / (W + 24);
+      // larghezza utile del contenitore, senza il suo padding
+      const par = el.parentElement;
+      const cs = par ? getComputedStyle(par) : null;
+      const avail = par && cs ? par.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) : W + 24;
+      const byW = avail / (W + 24);
       setScale(Math.max(0.25, Math.min(1, byH, byW)));
     };
     fit();

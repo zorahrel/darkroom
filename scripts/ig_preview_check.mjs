@@ -61,6 +61,33 @@ try {
   const left = await hl.evaluate((e) => e.scrollLeft);
   const canScroll = await hl.evaluate((e) => e.scrollWidth > e.clientWidth);
   if (canScroll && left <= 0) fail("le evidenze non scorrono di lato");
+  // Impostazioni: chiuse all'avvio, si aprono dal pulsante, Esc le chiude.
+  const shown = () => p.evaluate(() => {
+    const a = document.querySelector('[data-testid="ig-settings"]').getBoundingClientRect();
+    return a.left < window.innerWidth - 1 && getComputedStyle(document.querySelector('[data-testid="ig-settings"]')).visibility !== "hidden";
+  });
+  if (await shown()) fail("le impostazioni sono aperte all'avvio");
+  await p.click('[data-testid="ig-settings-btn"]'); await p.waitForTimeout(400);
+  if (!(await shown())) fail("il pulsante non apre le impostazioni");
+  await p.keyboard.press("Escape"); await p.waitForTimeout(400);
+  if (await shown()) fail("Esc non chiude le impostazioni");
+  // Responsive: a desktop, pannello e telefono vero il telefono sta centrato e
+  // tutto dentro la finestra.
+  const fits = [];
+  for (const [w, h] of [[1400, 900], [900, 700], [390, 844]]) {
+    await p.setViewportSize({ width: w, height: h });
+    await p.waitForTimeout(700);
+    const m = await p.evaluate(() => {
+      const f = document.querySelector('[data-testid="ig-frame"]').getBoundingClientRect();
+      const pg = document.querySelector('[data-testid="instagram-page"]').getBoundingClientRect();
+      return { l: Math.round(f.left - pg.left), r: Math.round(pg.right - f.right), w: Math.round(f.width), ratio: +(f.height / f.width).toFixed(3) };
+    });
+    fits.push(`${w}x${h}:${m.w}px`);
+    if (m.l < 0 || m.r < 0) fail(`${w}x${h}: telefono fuori dalla pagina (${m.l}/${m.r})`);
+    if (Math.abs(m.l - m.r) > 2) fail(`${w}x${h}: telefono non centrato (${m.l} a sinistra, ${m.r} a destra)`);
+    if (Math.abs(m.ratio - 852 / 393) > 0.01) fail(`${w}x${h}: proporzioni dello schermo cambiate (${m.ratio})`);
+  }
+  console.log(JSON.stringify({ larghezze: fits }));
   // Finestra stretta come il pannello: la barra mobile di Darkroom («Strumenti /
   // Progetti») e' fissa in basso e non deve coprire il fondo del telefono.
   await p.setViewportSize({ width: 750, height: 600 });
