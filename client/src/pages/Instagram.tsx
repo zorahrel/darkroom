@@ -100,7 +100,7 @@ export default function Instagram() {
 
   return (
     <div className="flex flex-wrap gap-8 p-6 items-start" data-testid="instagram-page">
-      <Phone dark={dark}>
+      <Phone dark={dark} overlay={p ? <TabBar dark={dark} avatar={avatarSrc} focusY={focusY} /> : null}>
         {!p ? (
           <div className="p-6 text-sm opacity-70">
             {data?.settings.username
@@ -219,7 +219,7 @@ export default function Instagram() {
  * cambiava le proporzioni e mostrava meno griglia di quanta ne veda un iPhone
  * vero, cioe' proprio la cosa da giudicare.
  */
-function Phone({ dark, children }: { dark: boolean; children: React.ReactNode }) {
+function Phone({ dark, children, overlay }: { dark: boolean; children: React.ReactNode; overlay?: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -227,13 +227,26 @@ function Phone({ dark, children }: { dark: boolean; children: React.ReactNode })
       const el = box.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      const byH = (window.innerHeight - top - 16) / (H + 24);
+      // Su schermo stretto la barra di Darkroom e' fissa in basso: il telefono
+      // deve finire sopra di lei, o la sua barra di Instagram ci passa sotto.
+      const nav = document.querySelector('nav[aria-label="Navigazione principale"]');
+      const navH = nav ? nav.getBoundingClientRect().height : 0;
+      const byH = (window.innerHeight - navH - top - 16) / (H + 24);
       const byW = (el.parentElement?.clientWidth ?? W + 24) / (W + 24);
-      setScale(Math.max(0.4, Math.min(1, byH, byW)));
+      setScale(Math.max(0.25, Math.min(1, byH, byW)));
     };
     fit();
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    // Cio' che sta sopra il telefono puo' arrivare dopo (un avviso, l'intestazione
+    // che si riempie) e spingerlo in basso senza nessun resize della finestra.
+    // Il body ha altezza fissa: si osservano i contenitori del telefono, che
+    // crescono quando sopra di lui compare qualcosa.
+    const ro = new ResizeObserver(fit);
+    for (let a = box.current?.parentElement; a && a !== document.body; a = a.parentElement) ro.observe(a);
+    return () => {
+      window.removeEventListener("resize", fit);
+      ro.disconnect();
+    };
   }, []);
   return (
     <div ref={box} className="shrink-0" style={{ width: (W + 24) * scale, height: (H + 24) * scale }}>
@@ -241,9 +254,12 @@ function Phone({ dark, children }: { dark: boolean; children: React.ReactNode })
         className="rounded-[56px] p-[12px] bg-neutral-950 shadow-2xl ring-1 ring-neutral-700"
         style={{ width: W + 24, height: H + 24, transform: `scale(${scale})`, transformOrigin: "top left" }}
       >
+        {/* La cornice non scorre: dentro c'e' l'area che scorre e, sopra, la barra.
+            Una barra `sticky` in fondo allo stesso contenitore che scorre restava
+            ferma solo a fine pagina (e WebKit col telefono scalato la sganciava). */}
         <div
-          data-testid="ig-screen"
-          className="ig-screen relative overflow-y-auto overflow-x-hidden rounded-[44px] overscroll-contain"
+          data-testid="ig-frame"
+          className="relative overflow-hidden rounded-[44px]"
           style={{
             width: W,
             height: H,
@@ -251,10 +267,16 @@ function Phone({ dark, children }: { dark: boolean; children: React.ReactNode })
             color: dark ? "#f5f5f5" : "#000",
             fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif',
             fontSize: 14,
-            scrollbarWidth: "none",
           }}
         >
-          {children}
+          <div
+            data-testid="ig-screen"
+            className="ig-screen absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {children}
+          </div>
+          {overlay}
         </div>
       </div>
     </div>
@@ -408,20 +430,65 @@ function ProfileView({
         </div>
       )}
 
+      {/* Il contenuto passa sotto la barra di vetro, come nell'app: in fondo
+          serve lo spazio perche' l'ultima riga possa salire sopra la barra. */}
+      <div style={{ height: TAB_SPACE }} />
+    </>
+  );
+}
+
+/** Spazio in fondo allo scroll: barra (62) + distanza dal bordo (24) + aria. */
+const TAB_SPACE = 104;
+
+/**
+ * Barra di Instagram su iOS 26 (Liquid Glass, rollout dic 2025 - giu 2026):
+ * capsula di vetro che galleggia sopra il bordo, cinque schede nell'ordine
+ * Home, Reels, Messaggi, Cerca, Profilo. Il «crea» non e' piu' qui, sta in alto.
+ * Sotto, l'indicatore home dell'iPhone.
+ */
+function TabBar({ dark, avatar, focusY }: { dark: boolean; avatar: string | null; focusY: number }) {
+  const fg = dark ? "#f5f5f5" : "#000";
+  return (
+    <>
       <div
-        className="sticky bottom-0 flex justify-around"
-        style={{ height: 84, paddingTop: 14, background: dark ? "#000" : "#fff", borderTop: `1px solid ${line}`, color: fg }}
+        data-testid="ig-tabbar"
+        className="absolute flex items-center justify-between"
+        style={{
+          left: 14,
+          right: 14,
+          bottom: 22,
+          height: 62,
+          padding: "0 6px 0 24px",
+          borderRadius: 31,
+          color: fg,
+          background: dark ? "rgba(38,38,42,0.62)" : "rgba(255,255,255,0.62)",
+          backdropFilter: "blur(18px) saturate(170%) brightness(1.08)",
+          WebkitBackdropFilter: "blur(18px) saturate(170%) brightness(1.08)",
+          border: `1px solid ${dark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.07)"}`,
+          boxShadow: `0 10px 30px rgba(0,0,0,${dark ? 0.45 : 0.14}), inset 0 1px 0 rgba(255,255,255,${dark ? 0.16 : 0.7})`,
+          zIndex: 20,
+        }}
       >
         <HomeIcon />
+        <ReelsIcon size={25} />
+        <DirectIcon />
         <SearchIcon />
-        <PlusIcon size={26} />
-        <ReelsIcon size={26} />
-        <span className="rounded-full overflow-hidden" style={{ width: 28, height: 28, border: `2px solid ${fg}` }}>
-          {avatar && (
-            <img src={assoluto(avatar)} alt="" className="w-full h-full object-cover" style={{ objectPosition: `50% ${Math.round(focusY * 100)}%` }} />
-          )}
+        {/* scheda attiva: la lente piu' chiara dietro, come le tab bar di iOS 26 */}
+        <span
+          className="flex items-center justify-center"
+          style={{ width: 84, height: 50, borderRadius: 25, background: dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.07)" }}
+        >
+          <span className="rounded-full overflow-hidden" style={{ width: 28, height: 28, border: `2px solid ${fg}` }}>
+            {avatar && (
+              <img src={assoluto(avatar)} alt="" className="w-full h-full object-cover" style={{ objectPosition: `50% ${Math.round(focusY * 100)}%` }} />
+            )}
+          </span>
         </span>
       </div>
+      <div
+        className="absolute rounded-full"
+        style={{ left: "50%", bottom: 8, width: 134, height: 5, marginLeft: -67, background: fg, zIndex: 21 }}
+      />
     </>
   );
 }
@@ -507,6 +574,13 @@ const AddPersonIcon = () => (
     <path d="M19 8v6M16 11h6" />
   </svg>
 );
+const DirectIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+    <line x1="22" y1="3" x2="9.218" y2="10.083" />
+    <polygon points="11.698 20.334 22 3.001 2 3.001 9.218 10.084 11.698 20.334" />
+  </svg>
+);
+
 const HomeIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" {...line2}>
     <path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z" />
