@@ -344,12 +344,12 @@ photoRoutes.get("/api/photos/:id", (c) => {
   const id = c.req.param("id");
   const photo = getPhoto(id);
   if (!photo) return c.json({ error: "not found" }, 404);
-  const versions = getVersionsFor(id);
+  const slim = c.req.query("slim") === "1";
+  const versions = getVersionsFor(id, { withPrompt: !slim });
   const cfg = effectiveConfig(photo);
   // `slim=1` (la pagina della foto): niente prompt ne' discendenza nella lista,
   // che con centinaia di versioni pesavano megabyte; il prompt della versione
   // aperta arriva da /versions/:vid/prompt. Senza, la forma resta quella di sempre.
-  const slim = c.req.query("slim") === "1";
   return c.json({
     photo,
     versions: slim

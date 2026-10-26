@@ -21,11 +21,18 @@ export function getPhoto(id: string): PhotoRow | null {
   );
 }
 
-export function getVersionsFor(photoId: string): VersionRow[] {
+/**
+ * `withPrompt: false` lascia fuori il prompt (stringa vuota): con 630 versioni sono
+ * 2,4 MB di pagine di overflow lette in modo sincrono, e a Mac sotto swap quella
+ * lettura teneva fermo il server per decine di secondi anche quando la risposta
+ * il prompt lo scartava.
+ */
+export function getVersionsFor(photoId: string, { withPrompt = true }: { withPrompt?: boolean } = {}): VersionRow[] {
+  const cols = withPrompt
+    ? "*"
+    : "id, photo_id, version_number, image_path, '' AS prompt_used, source, created_at, config, provider, provider_params, credits, verdict, note, lineage, parent_version_id, retouch_number";
   return db()
-    .query<VersionRow, [string]>(
-      "SELECT * FROM versions WHERE photo_id = ? ORDER BY version_number ASC",
-    )
+    .query<VersionRow, [string]>(`SELECT ${cols} FROM versions WHERE photo_id = ? ORDER BY version_number ASC`)
     .all(photoId);
 }
 
