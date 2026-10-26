@@ -787,6 +787,21 @@ const promptPovFresco14 = () => {
 // aggiunto (lenti, luce del tunnel, labbra, quattro nei) piu' il mento liscio.
 // Occhiali: solo la vista laterale vera. Ogni sostituzione e' su un'ancora che deve
 // esserci una volta sola, altrimenti si ferma invece di mandare un prompt storto.
+// Giro v364: «il viso non sei tu» su v634 (26/10). Si torna alla ricetta di v364 (v368 = v364 + LUT,
+// la preferita): prompt esatto letto dal DB, stessa foto 1 e stesse tavole, piu' le correzioni di oggi.
+const promptV364Corretta = () => {
+  const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 364").get(PHOTO) as { prompt_used: string } | null;
+  if (!row?.prompt_used) throw new Error("prompt di v364 non trovato");
+  return row.prompt_used.trim() + `
+
+CORREZIONI FINALI (vincono su tutto quello che c'e' sopra):
+IDENTITA' PRIMA DI TUTTO: il viso deve essere riconoscibile come ME nella prima foto, non un modello che mi somiglia. Copia dalla prima foto e dalla tavola: la forma del viso pieno, il naso, la distanza fra gli occhi, le sopracciglia folte e dritte, la forma delle labbra, l'attaccatura e il volume dei ricci castano scuro. Se devi scegliere fra bellezza e somiglianza, scegli la somiglianza.
+QUARTA IMMAGINE: sono i miei occhiali veri, gli Oakley Gascan neri lucidi visti di lato: montatura spessa e avvolgente, lente unica curva che gira attorno al viso, stanghetta larga. Prendi solo la forma degli occhiali, non lo sfondo.
+RIFLESSO NELLE LENTI: le lenti fume' sono scure e non lasciano vedere gli occhi; dentro si riflette la softbox: una fascia di luce bianco-azzurra morbida e CURVA che segue la curvatura della lente, piu' forte in alto e verso l'esterno, con un piccolo punto di luce netto. Niente righe dritte, niente specchio piatto, niente lente trasparente.
+ORECCHINO: cerchietto in ORO GIALLO lucido, caldo, mai argento, mai acciaio, mai grigio.
+PELLE: appena rasato davvero: mento, mascella, guance e labbro superiore lisci, senza un solo puntino di barba, ne' grigio ne' scuro, nessuna grana sulla mascella.`;
+};
+
 const promptRicrea528 = (palette: boolean, dritta = false, gascan = false) => {
   const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 528").get(PHOTO) as { prompt_used: string } | null;
   if (!row) throw new Error("ricrea528: v528 non trovata");
@@ -983,6 +998,7 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
+    { nome: "v364-corretta", prompt: promptV364Corretta(), refs: [join(D, "refs", "io-identita-nei.png"), lookT3, join(D, "refs", "occhiali-laterale.jpg")] },
     { nome: "ricrea-528", pura: true, prompt: promptRicrea528(false), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "ricrea-528-gascan", pura: true, prompt: promptRicrea528(true, true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "occhiali-gascan-frontale.jpg")] },
     { nome: "ricrea-528-dritta", pura: true, prompt: promptRicrea528(true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
