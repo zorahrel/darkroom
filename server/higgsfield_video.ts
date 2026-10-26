@@ -130,6 +130,8 @@ export type VideoRequest = {
   aspect: string;
   /** Video di movimento da copiare (solo preset con riferimenti). */
   motionMediaId?: string;
+  /** Chiude sul primo fotogramma (end_image): riporta l'animale alla posa iniziale. */
+  endOnStart?: boolean;
 };
 
 const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
@@ -139,7 +141,11 @@ const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
   duration: fitDuration(r.preset, r.duration),
   medias: r.preset.references
     ? [{ value: r.mediaId, role: "image_references" }, ...(r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])]
-    : [{ value: r.mediaId, role: "start_image" }, ...(r.preset.startWithMotion && r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])],
+    : [
+        { value: r.mediaId, role: "start_image" },
+        ...(r.endOnStart ? [{ value: r.mediaId, role: "end_image" }] : []),
+        ...(r.preset.startWithMotion && r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : []),
+      ],
   ...r.preset.params,
   ...extra,
 });

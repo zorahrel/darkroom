@@ -66,7 +66,7 @@ const mediaId = await uploadStartFrame(frame);
 
 const motionPath = flag("motion-video");
 const motionMediaId = motionPath ? await uploadMedia(motionPath, "video/mp4", "video") : undefined;
-const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId } as VideoRequest }));
+const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId, endOnStart: argv.includes("--end-on-start") } as VideoRequest }));
 const costs = await Promise.all(reqs.map(async (x) => ({ ...x, credits: await quote(x.req) })));
 let total = 0;
 for (const c of costs) {
