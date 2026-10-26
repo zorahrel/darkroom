@@ -787,7 +787,7 @@ const promptPovFresco14 = () => {
 // aggiunto (lenti, luce del tunnel, labbra, quattro nei) piu' il mento liscio.
 // Occhiali: solo la vista laterale vera. Ogni sostituzione e' su un'ancora che deve
 // esserci una volta sola, altrimenti si ferma invece di mandare un prompt storto.
-const promptRicrea528 = (palette: boolean, dritta = false) => {
+const promptRicrea528 = (palette: boolean, dritta = false, gascan = false) => {
   const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 528").get(PHOTO) as { prompt_used: string } | null;
   if (!row) throw new Error("ricrea528: v528 non trovata");
   let t = row.prompt_used;
@@ -809,7 +809,18 @@ const promptRicrea528 = (palette: boolean, dritta = false) => {
   if (palette) t += "\n\nCOLOUR PALETTE (this wins over everything above): the whole photo has the muted, soft, low-saturation colour of a film photo on an overcast day. The tunnel of screens glows soft neutral-to-warm white, like overcast daylight on paper: NOT cyan, NOT teal, NOT electric blue, NOT neon. Lifted blacks: the deepest shadows are a soft dark grey, never pure black. No blown or clipped whites: even the brightest screens keep their texture. The only warm accent in the frame is my natural skin. The light streaks reflected inside the lenses are warm white, not cyan.";
   // Il blocco finale di fresco14, che in v615-v618 ha raddrizzato la testa; sta in fondo
   // perche' deve vincere sulla posa «8 gradi» e sull'angolo da selfie di v528.
-  if (dritta) t += "\n\nFINAL OVERRIDES (these win over anything above): HEAD: perfectly frontal, facing the camera straight on, both ears at the same height, chin level, NO head tilt, NO three-quarter turn, NO low camera angle, nose centred between the eyes; the camera is on my face axis at eye height. BEARD: very short, clean and even, like a 1-2 mm trimmed shadow of stubble, the same density on cheeks, jaw and chin; render it as smooth soft skin tone with a faint darker shade, NOT as separate dots, NO grey speckles, NO grain, NO salt-and-pepper noise, no patches. Skin stays natural with fine pores, never waxy.";
+  // `gascan`: i Gascan anche di fronte (image 3, foto vera tenuta in mano), il riflesso
+  // vero del tunnel nelle lenti (v628 aveva strisce dritte e l'occhio che si vedeva) e
+  // l'orecchino in oro giallo (in v628 era grigio spento).
+  if (gascan) {
+    sost("Seen from the front they are:", "Image 3 is a real photo of the same sunglasses from the FRONT, held in a hand: copy that front shape exactly, the thick wraparound one-piece frame that curves around the face, the deep lens shape and the notch at the bridge; ignore the hand, the red logo and the ground. NOT thin rectangular shades, NOT flat fashion glasses. Seen from the front they are:");
+    const i = t.indexOf("LENSES: they read first of all as DARK SMOKE-GREY TINTED GLASS.");
+    const j = t.indexOf("no bright fill inside the lens.", i);
+    if (i < 0 || j < 0) throw new Error("ricrea528: blocco LENSES non trovato");
+    t = t.slice(0, i) + "LENSES: dark smoke-grey glass, opaque enough that my eyes are NOT visible through them. In each lens, a clearly visible reflection of the ROUND TUNNEL of screens around me: curved concentric arcs and radial light streaks that bend with the curvature of the lens, converging toward the centre like the tunnel itself, brighter on the upper and outer part of each lens, about 40 percent as bright as the real screens, slightly soft. The two lenses show the same tunnel from two slightly different angles. NOT straight horizontal stripes, NOT a flat mirror, NOT a sharp copy of the screens." + t.slice(j + "no bright fill inside the lens.".length);
+  }
+  if (dritta) t += "\n\nFINAL OVERRIDES (these win over anything above): HEAD: perfectly frontal, facing the camera straight on, both ears at the same height, chin level, NO head tilt, NO three-quarter turn, NO low camera angle, nose centred between the eyes; the camera is on my face axis at eye height. BEARD: very short, clean and even, like a 1-2 mm trimmed shadow of stubble, the same density on cheeks, jaw and chin; render it as smooth soft skin tone with a faint darker shade, NOT as separate dots, NO grey speckles, NO grain, NO salt-and-pepper noise, no patches. Skin stays natural with fine pores, never waxy." + (gascan ? " EARRING: one small hoop in polished YELLOW GOLD, warm and shiny, catching a small highlight, clearly gold and never silver, grey or steel; on my LEFT ear, on the RIGHT side of the frame, the same side as mole 1." : "");
+  if (gascan) t = t.replace("The only warm accent in the frame is my natural skin.", "The only warm accents in the frame are my natural skin and the small gold earring.");
   return t;
 };
 
@@ -973,6 +984,7 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "ricrea-528", pura: true, prompt: promptRicrea528(false), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
+    { nome: "ricrea-528-gascan", pura: true, prompt: promptRicrea528(true, true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "occhiali-gascan-frontale.jpg")] },
     { nome: "ricrea-528-dritta", pura: true, prompt: promptRicrea528(true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "ricrea-528-palette", pura: true, prompt: promptRicrea528(true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "pura-pov-fresco15", pura: true, prompt: promptPovFresco15(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
