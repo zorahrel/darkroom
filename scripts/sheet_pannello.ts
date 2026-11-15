@@ -8,6 +8,7 @@
  * del progetto (`sheet-<pannello>`), cosi' i tentativi stanno nel suo albero.
  *
  *   bun run scripts/sheet_pannello.ts --pannello frontale [--giri 3] [--stampa]
+ *   bun run scripts/sheet_pannello.ts --ritocca <sheet.png> --foto <evidenziata> [--giri 3]
  */
 import { join } from "node:path";
 import { existsSync } from "node:fs";
@@ -65,8 +66,51 @@ function arg(nome: string, def?: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : def;
 }
 
+// Giro di ritocco dello sheet: l'immagine da modificare e' lo sheet scelto da Attilio
+// (o l'ultimo buono), il riferimento e' UNA sola sua foto vera evidenziata. Un giro per
+// foto: ogni giro avvicina il viso a quella foto senza toccare griglia, pose e luce.
+const RITOCCO = (foto: string) => [
+  "Image 1 is my face reference sheet: six photographic panels of me in a 3x2 grid. Image 2 is a REAL, unretouched photo of me.",
+  "Edit image 1 so that the man in EVERY panel looks exactly like the man in image 2. Correct only the face: face width and fullness, round cheeks, jawline and chin, nose width, bridge and tip, eye shape, heavy eyelids, low thick eyebrows, lips, ears, hairline and the real age of image 2.",
+  "If in doubt, make the face FULLER and the jaw SOFTER, never slimmer or sharper. Do NOT beautify, do NOT de-age, do NOT make it more symmetrical than image 2.",
+  foto.includes("selfie")
+    ? "Image 2 is a selfie at arm's length: ignore the wide-angle distortion (bigger nose and forehead from the lens), keep the real proportions as seen from two metres."
+    : "",
+  "Keep EVERYTHING else of image 1 identical: the same grid, panel positions and gaps, the same view and head angle in each panel, plain light grey background, the same soft even light, black t-shirt, my short dark-brown curls, small hoop earring on the same ear, no glasses, clean-shaven with only a faint shadow, no text.",
+  "From image 2 take ONLY the face. Ignore its background, light, clothes, necklace, beard, glasses, hands and phone.",
+  "Real photograph, real skin pores, no smoothing, no painterly or CGI look.",
+].filter(Boolean).join("\n");
+
 withProject(PROGETTO, () => {
   initSchema();
+  const ritocca = arg("ritocca");
+  if (ritocca) {
+    const foto = arg("foto");
+    const evid = db().query<{ file: string }, []>("SELECT file FROM reference_pick").all().map((r) => r.file);
+    if (!foto || !evid.includes(foto)) throw new Error(`--foto deve essere una foto evidenziata: ${evid.join(", ")}`);
+    if (!existsSync(ritocca)) throw new Error(`sheet mancante: ${ritocca}`);
+    const ref = join(dirsFor(PROGETTO).DATA_DIR, "refs", foto);
+    if (!existsSync(ref)) throw new Error(`foto mancante: ${ref}`);
+    const prompt = RITOCCO(foto);
+    if (process.argv.includes("--stampa")) { console.log(`da: ${ritocca}\nref: ${foto}\n${prompt.length} car.\n${prompt}`); return; }
+    const giri = Number(arg("giri", "3"));
+    const id = "sheet-iter";
+    const now = Date.now();
+    db().prepare(
+      `INSERT OR IGNORE INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
+       VALUES (?, ?, '.png', 'generated', ?, ?)`,
+    ).run(id, ritocca, now, now);
+    for (let g = 1; g <= giri; g++) {
+      const job = enqueueJob(
+        id, prompt, null, "chatgpt", null, "edit", ritocca, JSON.stringify([ref]),
+        JSON.stringify({ recipe: "sheet-ritocco", sources: [ritocca.split("/").slice(-2).join("/")], refs: [foto], giro: g, cambiato: `viso verso ${foto}` }),
+        "openbrowser",
+        JSON.stringify([foto]),
+      );
+      console.log(`[sheet-iter] job ${job.id}  ref ${foto}  giro ${g}/${giri}`);
+    }
+    return;
+  }
   const nome = arg("pannello", "frontale")!;
   const p = PANNELLI[nome];
   if (!p) throw new Error(`pannello sconosciuto: ${nome} (noti: ${Object.keys(PANNELLI).join(", ")})`);
