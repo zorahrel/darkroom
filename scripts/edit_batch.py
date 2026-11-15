@@ -1086,6 +1086,9 @@ async def generate_only(prompt: str, output: Path, refs=None):
             gen_timeout = int(os.environ.get("GEN_TIMEOUT_S", "540"))
             src_url = await wait_image_generated(cdp, timeout_s=gen_timeout, baseline_srcs=baseline)
             await download_image(cdp, src_url, output)
+            # Come in single_shot: senza questa riga ogni generazione da zero
+            # finiva con model=null e non si poteva dire quale modello l'avesse fatta.
+            single_shot.ultimo_modello = await modello_effettivo(cdp)
     finally:
         # Same as single_shot: references must not survive a failed generation.
         cleanup_uploads(ref_cleanup)
