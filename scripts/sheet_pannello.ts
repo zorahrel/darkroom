@@ -77,7 +77,7 @@ const RITOCCO = (foto: string) => [
   foto.includes("selfie")
     ? "Image 2 is a selfie at arm's length: ignore the wide-angle distortion (bigger nose and forehead from the lens), keep the real proportions as seen from two metres."
     : "",
-  "Keep EVERYTHING else of image 1 identical: the same grid, panel positions and gaps, the same view and head angle in each panel, plain light grey background, the same soft even light, black t-shirt, my short dark-brown curls, small hoop earring on the same ear, no glasses, clean-shaven with only a faint shadow, no text.",
+  "Keep EVERYTHING else of image 1 identical: the same grid, panel positions and gaps, the same view and head angle in each panel, plain light grey background, the same soft even light, black t-shirt, my short dark-brown curls, small YELLOW-GOLD hoop earring on the same ear, no glasses, the same stubble as image 1, no text.",
   "From image 2 take ONLY the face. Ignore its background, light, clothes, necklace, beard, glasses, hands and phone.",
   "Real photograph, real skin pores, no smoothing, no painterly or CGI look.",
 ].filter(Boolean).join("\n");
