@@ -1028,6 +1028,22 @@ The face is ME from image 2, not the face in image 4.
 SKIN: freshly and closely shaved: chin, jaw, cheeks and upper lip completely smooth, not a single dot of stubble, grey or dark, no grain along the jaw.
 EARRING: small hoop in shiny YELLOW GOLD, never silver.
 HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png"), join(D, "refs", "v611-look.png")] },
+    // Giro pelle (v611-pelle): come v611-guida ma la pelle di v647-v650 aveva un reticolo a carta
+    // stropicciata; qui pori, peluria e tono irregolare veri, e il reticolo vietato per nome.
+    { nome: "v611-pelle", pura: true, prompt: promptPovFresco13() + `
+
+FINAL OVERRIDES (these win over everything above):
+IMAGE 4 is the exact target photo: copy its pose, camera angle, framing, light and colour as closely as possible. Three-quarter view: my head turned about 30 degrees to my right and tilted slightly, chin a little down, looking past the camera, exactly like image 4. NOT frontal, NOT a passport photo, NOT looking straight into the lens.
+The face is ME from image 2, not the face in image 4.
+SKIN: shaved this morning: no stubble dots, grey or dark, on chin, jaw, cheeks or upper lip.
+SKIN MUST LOOK LIKE A REAL UNRETOUCHED MACRO PHOTO OF A 30-YEAR-OLD MAN, matching the skin in image 2:
+- visible individual pores, larger on the nose and inner cheeks, finer on the forehead and outer cheeks;
+- fine soft vellus hair catching the light on the cheek line;
+- natural uneven tone: slightly redder around the nostrils and on the cheeks, a few tiny capillaries, small natural blemishes, no makeup;
+- a gentle natural sheen on nose and forehead, matte elsewhere.
+FORBIDDEN skin: any uniform crackle or craquelure net, crinkled-paper or tissue texture, reptile-scale or cell pattern, embossed lines, plastic, waxy, airbrushed, CGI or porcelain skin, beauty-filter smoothing, oversharpened texture.
+EARRING: small hoop in shiny YELLOW GOLD, never silver.
+HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png"), join(D, "refs", "v611-look.png")] },
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
