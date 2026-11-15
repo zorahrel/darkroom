@@ -82,6 +82,17 @@ const RITOCCO = (foto: string) => [
   "Real photograph, real skin pores, no smoothing, no painterly or CGI look.",
 ].filter(Boolean).join("\n");
 
+// Correzione mirata della sola pelle: il viso dello sheet scelto resta com'e' (occhi,
+// sguardo, forma), si tolgono barba e puntini e si rimettono i nei della foto vera.
+const SOLO_PELLE = [
+  "Image 1 is my face reference sheet: six photographic panels of me in a 3x2 grid. Image 2 is a REAL, unretouched photo of me, freshly shaved.",
+  "Edit image 1 changing ONLY the skin, in every panel:",
+  "1. Freshly and closely shaved like image 2: remove all stubble and beard dots on chin, jaw, cheeks, upper lip and neck. Keep real skin pores, no smoothing.",
+  "2. My moles exactly as in image 2: the dark mole on the cheek, at the same place relative to the nose, mouth and ear, on the SAME side as the earring; it must be visible in every panel where that cheek is visible, and nowhere else. No extra moles.",
+  "Keep EVERYTHING else of image 1 pixel-identical: the face shape and width, eyes, eyelids, gaze, eyebrows, nose, lips, ears, age, hair, earring, the grid, poses, background, light and black t-shirt.",
+  "From image 2 take ONLY the shaved skin and the moles. Ignore its glasses, light, background and clothes.",
+].join("\n");
+
 withProject(PROGETTO, () => {
   initSchema();
   const ritocca = arg("ritocca");
@@ -92,7 +103,7 @@ withProject(PROGETTO, () => {
     if (!existsSync(ritocca)) throw new Error(`sheet mancante: ${ritocca}`);
     const ref = join(dirsFor(PROGETTO).DATA_DIR, "refs", foto);
     if (!existsSync(ref)) throw new Error(`foto mancante: ${ref}`);
-    const prompt = RITOCCO(foto);
+    const prompt = process.argv.includes("--solo-pelle") ? SOLO_PELLE : RITOCCO(foto);
     if (process.argv.includes("--stampa")) { console.log(`da: ${ritocca}\nref: ${foto}\n${prompt.length} car.\n${prompt}`); return; }
     const giri = Number(arg("giri", "3"));
     const id = "sheet-iter";
