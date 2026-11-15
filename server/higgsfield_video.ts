@@ -132,6 +132,8 @@ export type VideoRequest = {
   motionMediaId?: string;
   /** Chiude sul primo fotogramma (end_image): riporta l'animale alla posa iniziale. */
   endOnStart?: boolean;
+  /** Ultimo fotogramma diverso dal primo (end_image): dove deve arrivare il clip. */
+  endMediaId?: string;
 };
 
 const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
@@ -143,7 +145,7 @@ const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
     ? [{ value: r.mediaId, role: "image_references" }, ...(r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])]
     : [
         { value: r.mediaId, role: "start_image" },
-        ...(r.endOnStart ? [{ value: r.mediaId, role: "end_image" }] : []),
+        ...(r.endMediaId ? [{ value: r.endMediaId, role: "end_image" }] : r.endOnStart ? [{ value: r.mediaId, role: "end_image" }] : []),
         ...(r.preset.startWithMotion && r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : []),
       ],
   ...r.preset.params,

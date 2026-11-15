@@ -66,7 +66,17 @@ const mediaId = await uploadStartFrame(frame);
 
 const motionPath = flag("motion-video");
 const motionMediaId = motionPath ? await uploadMedia(motionPath, "video/mp4", "video") : undefined;
-const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId, endOnStart: argv.includes("--end-on-start") } as VideoRequest }));
+// --end-version N: il clip deve arrivare a quella versione (es. dal profilo allo sguardo in camera).
+const endVersion = flag("end-version");
+const endMediaId = endVersion
+  ? await uploadStartFrame(withProject(progetto, () => {
+      const r = db().query("SELECT image_path FROM versions WHERE photo_id = ? AND version_number = ?").get(foto, Number(endVersion)) as { image_path: string } | null;
+      if (!r) throw new Error(`${foto} non ha una v${endVersion}`);
+      console.log(`ultimo fotogramma: ${r.image_path}`);
+      return r.image_path;
+    }))
+  : undefined;
+const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId, endMediaId, endOnStart: argv.includes("--end-on-start") } as VideoRequest }));
 const costs = await Promise.all(reqs.map(async (x) => ({ ...x, credits: await quote(x.req) })));
 let total = 0;
 for (const c of costs) {
