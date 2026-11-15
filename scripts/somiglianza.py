@@ -43,6 +43,14 @@ for f, e in E.items():
     altre = norm(np.mean([v for k, v in E.items() if k != f], axis=0))
     print(f"  {float(e @ altre):.3f}  {f}")
 
+# --tutti: un face sheet ha piu' visi, ognuno va misurato (righe dall'alto, poi da sinistra)
+if sys.argv[1:2] == ["--tutti"]:
+    for path in sys.argv[2:]:
+        fs = app.get(cv2.imread(path))
+        fs.sort(key=lambda f: (round(f.bbox[1] / 300), f.bbox[0]))
+        print(path, " ".join(f"{float(f.normed_embedding @ ancora):.3f}" for f in fs) or "nessun viso")
+    sys.exit(0)
+
 for path in sys.argv[1:]:
     e = emb(path)
     print(f"{'nessun viso' if e is None else f'{float(e @ ancora):.3f}'}  {path}")

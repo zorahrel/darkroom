@@ -23,7 +23,27 @@ const VISO_INTATTO =
   "moles and small gold hoop earring, same age. Do NOT slim the face, do NOT sharpen the jaw or cheekbones, " +
   "do NOT beautify, de-age or retouch, do NOT change the proportions. It must still be obviously me.";
 
-const PANNELLI: Record<string, { da: string; prompt: string }> = {
+const PANNELLI: Record<string, { da: string; base?: boolean; prompt: string }> = {
+  // Face sheet completo: si modifica la griglia delle 5 foto evidenziate
+  // (scripts/face_sheet_base.py), non si genera da zero.
+  foglio: {
+    da: "io-face-sheet-base.png",
+    base: true,
+    prompt: [
+      "This is a grid of six panels. Five of them are REAL photos of me (the same man), the first one is empty.",
+      "Turn this grid into ONE clean professional face reference sheet of me, photographic, same 3x2 grid, same panel positions, thin light grey gaps between panels, no text, no numbers, no labels.",
+      "IDENTITY, the most important rule: in every panel keep my face EXACTLY as it is in the real photo in that panel: the same face width and fullness, round cheeks, jaw and chin, the same nose shape and width, eyes, heavy eyelids, low thick eyebrows, lips, ears, real skin texture with pores, the moles, same age (about 30). Do NOT slim the face, do NOT sharpen the jaw or cheekbones, do NOT beautify, de-age or retouch. Panel 1 must be the same man as the others.",
+      "SAME FOR EVERY PANEL: no glasses; no hands, no phone, no necklace; clean-shaven with only a faint shadow, like the shaved photos (panels 3, 4, 5), never the full beard of panel 6; my own short dark-brown curls, the same volume in every panel; a small hoop earring on my left ear (it is on the same side in every panel, as in the photos); plain black crew-neck t-shirt; light grey seamless studio background; the same soft even studio light from the front in every panel; head and top of the shoulders, the same scale in every panel; neutral relaxed expression, mouth closed.",
+      "VIEW OF EACH PANEL:",
+      "1. Full side profile (90 degrees), facing the opposite way from panels 2 and 5. Use the face of the other panels.",
+      "2. Three-quarter view (about 45 degrees), turned the same way as in this photo.",
+      "3. Front view, head straight, eyes into the lens.",
+      "4. Front close-up of the face from forehead to chin, filling the panel, to show skin, moles and earring.",
+      "5. Full side profile (90 degrees), turned further the same way as in this photo.",
+      "6. Three-quarter view (about 45 degrees), turned the opposite way from panel 2.",
+      "Real photograph, real skin pores, no smoothing, no painterly, CGI or illustration look.",
+    ].join("\n"),
+  },
   frontale: {
     da: "io-felpa-mano-1.png",
     prompt: [
@@ -53,7 +73,7 @@ withProject(PROGETTO, () => {
   const giri = Number(arg("giri", "3"));
 
   const evidenziate = db().query<{ file: string }, []>("SELECT file FROM reference_pick").all().map((r) => r.file);
-  if (!evidenziate.includes(p.da)) throw new Error(`${p.da} non e' fra le foto evidenziate: ${evidenziate.join(", ")}`);
+  if (!p.base && !evidenziate.includes(p.da)) throw new Error(`${p.da} non e' fra le foto evidenziate: ${evidenziate.join(", ")}`);
   const input = join(dirsFor(PROGETTO).DATA_DIR, "refs", p.da);
   if (!existsSync(input)) throw new Error(`foto mancante: ${input}`);
 
