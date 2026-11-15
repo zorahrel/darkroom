@@ -1017,6 +1017,17 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco9", pura: true, prompt: promptPovFresco9(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "io-identita-nei.png"), join(D, "refs", "luce-bg-studio-blu.png"), "/tmp/v368-look.png"] },
     { nome: "pura-pov-fresco11", pura: true, prompt: promptPovFresco11(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "io-identita-nei.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco13", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
+    // Attilio 15/11: v611 e' la sua reference; le rigenerazioni con lo stesso prompt (v639-v642)
+    // uscivano frontali e peggiori. Stessa ricetta + v611 allegata come guida di posa e luce
+    // (eccezione esplicita alla regola «niente versioni generate fra i riferimenti») + niente barba.
+    { nome: "v611-guida", pura: true, prompt: promptPovFresco13() + `
+
+FINAL OVERRIDES (these win over everything above):
+IMAGE 4 is the exact target photo: copy its pose, camera angle, framing, light and colour as closely as possible. Three-quarter view: my head turned about 30 degrees to my right and tilted slightly, chin a little down, looking past the camera, exactly like image 4. NOT frontal, NOT a passport photo, NOT looking straight into the lens.
+The face is ME from image 2, not the face in image 4.
+SKIN: freshly and closely shaved: chin, jaw, cheeks and upper lip completely smooth, not a single dot of stubble, grey or dark, no grain along the jaw.
+EARRING: small hoop in shiny YELLOW GOLD, never silver.
+HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png"), join(D, "refs", "v611-look.png")] },
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
