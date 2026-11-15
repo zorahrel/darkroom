@@ -1030,6 +1030,24 @@ EARRING: small hoop in shiny YELLOW GOLD, never silver.
 HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png"), join(D, "refs", "v611-look.png")] },
     // Giro pelle (v611-pelle): come v611-guida ma la pelle di v647-v650 aveva un reticolo a carta
     // stropicciata; qui pori, peluria e tono irregolare veri, e il reticolo vietato per nome.
+    // Giro v611-vera: le guide generate (v611-look, v581-look) portavano il reticolo a carta stropicciata
+    // in ogni versione; v624/v636, nate solo da foto vere, avevano pelle naturale. Qui nessuna guida
+    // generata: posa e luce di v611 scritte, riferimenti solo foto vere.
+    { nome: "v611-vera", pura: true, prompt: promptPovFresco12() + `
+
+FINAL OVERRIDES (these win over everything above):
+POSE: three-quarter view, my head turned about 30 degrees to my right and tilted slightly, chin a little down, looking past the camera, the extended arm holding the camera entering from the lower left. NOT frontal, NOT a passport photo, NOT looking straight into the lens.
+LIGHT AND COLOUR: the cyan-blue light-speed tunnel behind me, cool clean frontal light on my face, skin keeps its natural warm tone, deep blacks in the T-shirt.
+The face is ME from image 2.
+SKIN: shaved this morning: no stubble dots, grey or dark, on chin, jaw, cheeks or upper lip.
+SKIN MUST LOOK LIKE A REAL UNRETOUCHED MACRO PHOTO OF A 30-YEAR-OLD MAN, matching the real skin in image 2:
+- visible individual pores, larger on the nose and inner cheeks, finer on the forehead and outer cheeks;
+- fine soft vellus hair catching the light on the cheek line;
+- natural uneven tone: slightly redder around the nostrils and on the cheeks, a few tiny capillaries, small natural blemishes, no makeup;
+- a gentle natural sheen on nose and forehead, matte elsewhere.
+FORBIDDEN skin: any uniform crackle or craquelure net, crinkled-paper or tissue texture, reptile-scale or cell pattern, embossed lines, plastic, waxy, airbrushed, CGI or porcelain skin, beauty-filter smoothing, oversharpened texture.
+EARRING: small hoop in shiny YELLOW GOLD, never silver.
+HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "v611-pelle", pura: true, prompt: promptPovFresco13() + `
 
 FINAL OVERRIDES (these win over everything above):
