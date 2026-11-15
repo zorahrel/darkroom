@@ -74,7 +74,9 @@ withProject(PROGETTO, () => {
       foto, p.prompt, null, "chatgpt", null, "edit", input, null,
       JSON.stringify({ recipe: `sheet-${nome}`, sources: [p.da], giro: g, cambiato: `pannello ${nome}, giro ${g} di ${giri}` }),
       "openbrowser",
-      JSON.stringify([p.da]),
+      // La foto vera e' l'immagine da modificare, non un riferimento allegato:
+      // dichiararla come riferimento fa fermare il worker (non la trova fra gli allegati).
+      null,
     );
     console.log(`[sheet-${nome}] job ${job.id}  giro ${g}/${giri}`);
   }
