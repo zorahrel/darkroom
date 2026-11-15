@@ -813,6 +813,22 @@ Photorealistic, sharp focus on the face, real camera photo, not an illustration.
 
 // Il foglio del viso (scripts/foglio_viso.py) sostituisce io-tre-foto come immagine 2:
 // le frasi del prompt base che la descrivono come «tre foto» vanno riscritte.
+const sheetSei = (t: string) => {
+  const sost: [string, string][] = [
+    ["My face comes from image 2, three real unretouched photos of me that I chose myself (see LIKENESS below).",
+     "My face comes from image 2, my FACE SHEET: six studio views of my face, the same man in each (see LIKENESS below)."],
+    ["LIKENESS: image 2 shows three real, unretouched photos of me, chosen by me as my reference set.",
+     "LIKENESS: image 2 is my face sheet: six views of my head at the same scale (profiles, three-quarters, front, close-up), approved by me as my likeness."],
+    ["Ignore everything else in image 2: the prescription glasses, the hand on the face, the peace sign, the phone, the mirror, the clothes, the necklace, the backgrounds and the warm indoor light.",
+     "Ignore everything else in image 2: the grey studio background, the flat studio light, the grid layout, the silver colour of the earring and the light stubble."],
+  ];
+  for (const [a, b] of sost) {
+    if (!t.includes(a)) throw new Error(`sheetSei: frase non trovata: ${a.slice(0, 50)}`);
+    t = t.split(a).join(b);
+  }
+  return t;
+};
+
 const foglioViso = (t: string) => {
   const sost: [string, string][] = [
     ["My face comes from image 2, three real unretouched photos of me that I chose myself (see LIKENESS below).",
@@ -1081,6 +1097,21 @@ SKIN MUST LOOK LIKE A REAL UNRETOUCHED MACRO PHOTO OF A 30-YEAR-OLD MAN, matchin
 FORBIDDEN skin: any uniform crackle or craquelure net, crinkled-paper or tissue texture, reptile-scale or cell pattern, embossed lines, plastic, waxy, airbrushed, CGI or porcelain skin, beauty-filter smoothing, oversharpened texture.
 EARRING: small hoop in shiny YELLOW GOLD, never silver.
 HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-foglio-viso.jpg")] },
+    { nome: "v611-sheet3", pura: true, prompt: sheetSei(promptPovFresco12()) + `
+
+FINAL OVERRIDES (these win over everything above):
+POSE: three-quarter view, my head turned about 30 degrees to my right and tilted slightly, chin a little down, looking past the camera, the extended arm holding the camera entering from the lower left. NOT frontal, NOT a passport photo, NOT looking straight into the lens.
+LIGHT AND COLOUR: the cyan-blue light-speed tunnel behind me, cool clean frontal light on my face, skin keeps its natural warm tone, deep blacks in the T-shirt.
+The face is ME from image 2, my face sheet: copy its exact proportions from the view closest to this pose: full rounded cheeks, wide nose with a full tip, heavy upper eyelids, low thick eyebrows, the curls and hairline, the moles where the sheet shows them. Do NOT slim the face, sharpen the jaw or cheekbones, or make me look younger than the sheet.
+SKIN: shaved this morning: no stubble dots, grey or dark, on chin, jaw, cheeks or upper lip.
+SKIN MUST LOOK LIKE A REAL UNRETOUCHED MACRO PHOTO OF A 30-YEAR-OLD MAN, matching the real skin in image 2:
+- visible individual pores, larger on the nose and inner cheeks, finer on the forehead and outer cheeks;
+- fine soft vellus hair catching the light on the cheek line;
+- natural uneven tone: slightly redder around the nostrils and on the cheeks, a few tiny capillaries, small natural blemishes, no makeup;
+- a gentle natural sheen on nose and forehead, matte elsewhere.
+FORBIDDEN skin: any uniform crackle or craquelure net, crinkled-paper or tissue texture, reptile-scale or cell pattern, embossed lines, plastic, waxy, airbrushed, CGI or porcelain skin, beauty-filter smoothing, oversharpened texture.
+EARRING: small hoop in shiny YELLOW GOLD, never silver.
+HIGHLIGHTS: the brightest screens of the tunnel stay bright but keep their detail: no large flat blown-out white areas.`, refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-face-sheet-v03.png")] },
     { nome: "v611-pelle", pura: true, prompt: promptPovFresco13() + `
 
 FINAL OVERRIDES (these win over everything above):
