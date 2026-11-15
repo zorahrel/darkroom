@@ -789,6 +789,28 @@ const promptPovFresco14 = () => {
 // esserci una volta sola, altrimenti si ferma invece di mandare un prompt storto.
 // Giro v364: «il viso non sei tu» su v634 (26/10). Si torna alla ricetta di v364 (v368 = v364 + LUT,
 // la preferita): prompt esatto letto dal DB, stessa foto 1 e stesse tavole, piu' le correzioni di oggi.
+// Giro «reference intera» (Attilio 26/10: «mi piaceva piu' la reference», scelta «tutta: posa,
+// inquadratura, luce»). La reference e' la foto della modella su fondo cobalto: se ne prende
+// posa, taglio, set e luce, non il viso ne' gli occhiali bianchi. Struttura di v364-corretta
+// (la mia foto come immagine 1 + tavola dei nei), che e' quella che mi ha somigliato di piu'.
+const promptReferenceIntera = () => `Square 1:1 high-end fashion editorial portrait of ME, recreating image 3 as faithfully as possible with me in place of the model.
+
+IMAGES: image 1 is a real photo of me. Image 2 is my identity sheet: real photos of my face with my moles marked. Image 3 is the REFERENCE photo to recreate. Image 4 is a real photo of my own sunglasses seen from the side.
+
+FROM IMAGE 3 COPY EVERYTHING EXCEPT THE PERSON AND HER SUNGLASSES:
+POSE: the same pose. Body leaning forward toward the camera, shoulders hunched and rounded forward, upper body low in the frame. One hand raised and cupped softly against the side of my face, fingers along the cheek and jaw, the wrist and forearm close to the chest. The other arm folded across the body below. Head tilted very slightly, chin a little down, face turned toward the camera.
+FRAMING: the same crop: head in the upper part of the frame, shoulders, hand and folded arms filling the lower part, a little empty background around the head. Camera at eye level, about two metres away, 85mm portrait lens look, no wide-angle distortion.
+SET: a seamless studio background, deep cobalt-navy at the top fading smoothly to a brighter clear cobalt blue at the bottom, exactly the gradient of image 3. Nothing else in the background.
+LIGHT: exactly the light of image 3: one hard, bright, clean white key light from the front and slightly above, making the skin luminous and pale-bright with crisp, defined shadows under the chin, the nose and the hand; the cobalt of the background bouncing softly into the shadow side. High-end studio flash look, sharp, clean, not moody. Skin tone like the model in image 3: clear, bright, neutral-warm, never grey, never orange.
+WARDROBE: all black like image 3: a fitted black long-sleeve top with a wide open neckline that shows my collarbones and the top of my shoulders, sleeves tight down to the wrists like the long black gloves in image 3. No logos, no prints.
+
+ME: the face must be recognisable as ME from images 1 and 2, not a model who resembles me. Copy the full face shape, the nose, the distance between the eyes, the thick straight eyebrows, the lips, the hairline and the volume of my short dark-brown curls. If you have to choose between beauty and likeness, choose likeness. My moles exactly where image 2 shows them, and nowhere else.
+SKIN: freshly and closely shaved: chin, jaw, cheeks and upper lip completely smooth, not a single dot of stubble, grey or dark, no grain along the jaw. Natural skin texture, no plastic retouching.
+SUNGLASSES: MY sunglasses, not the white ones of image 3: the black glossy Oakley Gascan of image 4, thick wraparound frame, one curved lens wrapping around the face, wide temple arm. Dark smoke lenses that hide the eyes, with a soft CURVED white reflection of the key light along the top and outer edge of each lens and one small sharp highlight. No flat mirror, no straight lines, no transparent lens.
+EARRING: one small hoop earring in shiny YELLOW GOLD, warm, never silver, never steel.
+
+Photorealistic, sharp focus on the face, real camera photo, not an illustration. Do not add text, watermark, frame or border.`;
+
 const promptV364Corretta = () => {
   const row = db().query("SELECT prompt_used FROM versions WHERE photo_id = ? AND version_number = 364").get(PHOTO) as { prompt_used: string } | null;
   if (!row?.prompt_used) throw new Error("prompt di v364 non trovato");
@@ -998,6 +1020,7 @@ await withProject(PROGETTO, async () => {
     { nome: "pura-pov-fresco13d", pura: true, prompt: promptPovFresco13(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
     { nome: "pura-pov-fresco14", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v565-look.png")] },
     { nome: "pura-pov-fresco14d", pura: true, prompt: promptPovFresco14(), refs: [join(D, "refs", "occhiali-vero.png"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "v581-look.png")] },
+    { nome: "reference-intera", prompt: promptReferenceIntera(), refs: [join(D, "refs", "io-identita-nei.png"), join(D, "refs", "luce-bg-studio-blu.png"), join(D, "refs", "occhiali-laterale.jpg")] },
     { nome: "v364-corretta", prompt: promptV364Corretta(), refs: [join(D, "refs", "io-identita-nei.png"), lookT3, join(D, "refs", "occhiali-laterale.jpg")] },
     { nome: "ricrea-528", pura: true, prompt: promptRicrea528(false), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png")] },
     { nome: "ricrea-528-gascan", pura: true, prompt: promptRicrea528(true, true, true), refs: [join(D, "refs", "occhiali-laterale.jpg"), join(D, "refs", "io-tre-foto.png"), join(D, "refs", "occhiali-gascan-frontale.jpg")] },
