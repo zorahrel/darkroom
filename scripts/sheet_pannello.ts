@@ -71,15 +71,17 @@ function arg(nome: string, def?: string): string | undefined {
 // foto: ogni giro avvicina il viso a quella foto senza toccare griglia, pose e luce.
 const RITOCCO = (foto: string) => [
   "Image 1 is my face reference sheet: six photographic panels of me in a 3x2 grid. Image 2 is a REAL, unretouched photo of me.",
-  "Edit image 1 so that the man in EVERY panel looks exactly like the man in image 2. Correct only the face: face width and fullness, round cheeks, jawline and chin, nose width, bridge and tip, eye shape, heavy eyelids, low thick eyebrows, lips, ears, hairline and the real age of image 2.",
-  "EYES: dark brown irises, never grey, blue or green; slightly hooded lids but eyes normally open and alert, never sleepy or droopy.",
-  "If in doubt, make the face FULLER and the jaw SOFTER, never slimmer or sharper. Do NOT beautify, do NOT de-age, do NOT make it more symmetrical than image 2.",
+  "Edit image 1 so the man in EVERY panel has EXACTLY the facial proportions of image 2. Proportions matter more than anything else:",
+  "- face width relative to face height; jaw width relative to cheekbone width; chin shape and length;",
+  "- distance between the eyes, eye size, eyelid shape; eyebrow height and thickness;",
+  "- nose length, bridge width and tip shape; mouth width and lip thickness; ear size and position.",
+  "Copy these ratios from image 2, do not invent them: do NOT widen or narrow the jaw, do NOT make the face fuller or slimmer than image 2, do NOT beautify or de-age.",
   foto.includes("selfie")
     ? "Image 2 is a selfie at arm's length: ignore the wide-angle distortion (bigger nose and forehead from the lens), keep the real proportions as seen from two metres."
     : "",
-  "Keep EVERYTHING else of image 1 identical: the same grid, panel positions and gaps, the same view and head angle in each panel, plain light grey background, the same soft even light, black t-shirt, my short dark-brown curls, small YELLOW-GOLD hoop earring on the same ear, no glasses, the same stubble as image 1, no text.",
-  "From image 2 take ONLY the face. Ignore its background, light, clothes, necklace, beard, glasses, hands and phone.",
-  "Real photograph, real skin pores, no smoothing, no painterly or CGI look.",
+  "Keep EVERYTHING else of image 1 identical: grid, panel positions, view and head angle of each panel, light grey background, soft even light, black t-shirt, curls, small YELLOW-GOLD hoop earring on the same ear, no glasses, the same stubble as image 1, the gaze and open eyes of image 1, no text.",
+  "From image 2 take ONLY the face proportions and the moles. Ignore its background, light, clothes, glasses, hands.",
+  "Real photograph, real skin pores, no smoothing, no CGI look.",
 ].filter(Boolean).join("\n");
 
 // Correzione mirata della sola pelle: il viso dello sheet scelto resta com'e' (occhi,
