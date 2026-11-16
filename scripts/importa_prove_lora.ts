@@ -6,6 +6,7 @@
  *
  * Uso: bun run scripts/importa_prove_lora.ts <cartella-samples> [step...]
  */
+import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { withProject, dirsFor } from "../server/project.ts";
@@ -31,7 +32,7 @@ withProject(PROGETTO, () => {
   const now = Date.now();
   db().run(
     `INSERT OR IGNORE INTO photos (id, original_path, original_ext, kind, created_at, updated_at)
-     VALUES (?, '', '.jpg', 'generated', ?, ?)`,
+     VALUES (?, '', '.png', 'generated', ?, ?)`,
     [FOTO, now, now],
   );
   // Ritratti generati a parte (prova_lora.py sul PC): un file per versione, la nota
@@ -39,8 +40,9 @@ withProject(PROGETTO, () => {
   if (dir === "--ritratti") {
     for (const f of stepArg) {
       const n = nextVersionNumber(FOTO);
-      const dest = join(out, `v${String(n).padStart(2, "0")}.jpg`);
-      copyFileSync(f, dest);
+      // Darkroom serve le versioni solo come vNN.png (client/src/api/urls.ts): un .jpg resta invisibile.
+      const dest = join(out, `v${String(n).padStart(2, "0")}.png`);
+      execFileSync("sips", ["-s", "format", "png", f, "--out", dest]);
       const m = f.match(/_0*(\d+)_([a-z]+)_s([\d.]+)_(\d+)\.jpg$/);
       const [ck, scena, forza, seme] = m ? [m[1], m[2], m[3], m[4]] : ["?", "?", "?", "?"];
       const cfg = JSON.stringify({ recipe: "lora-zimage-attilio", checkpoint: Number(ck), scena, forza: Number(forza), seme: Number(seme) });
@@ -59,8 +61,8 @@ withProject(PROGETTO, () => {
       const f = file.find((x) => x.endsWith(`__${String(s).padStart(9, "0")}_${k}.jpg`));
       if (!f) continue;
       const n = nextVersionNumber(FOTO);
-      const dest = join(out, `v${String(n).padStart(2, "0")}.jpg`);
-      copyFileSync(join(dir, f), dest);
+      const dest = join(out, `v${String(n).padStart(2, "0")}.png`);
+      execFileSync("sips", ["-s", "format", "png", join(dir, f), "--out", dest]);
       const cfg = JSON.stringify({ recipe: "lora-zimage-attilio", checkpoint: s, prompt_index: k });
       db().run(
         `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, source, note, created_at)
