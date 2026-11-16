@@ -22,7 +22,7 @@ const PROMPT = [
 
 const [dir, ...stepArg] = process.argv.slice(2);
 if (!dir) throw new Error("manca la cartella dei samples");
-const step = stepArg.length ? stepArg.map(Number) : [1250, 1750, 2000];
+const step = dir === "--ritratti" ? [] : stepArg.length ? stepArg.map(Number) : [1250, 1750, 2000];
 
 withProject(PROGETTO, () => {
   initSchema();
@@ -34,6 +34,25 @@ withProject(PROGETTO, () => {
      VALUES (?, '', '.jpg', 'generated', ?, ?)`,
     [FOTO, now, now],
   );
+  // Ritratti generati a parte (prova_lora.py sul PC): un file per versione, la nota
+  // dal nome (checkpoint_scena_sForza_seme). Si riconoscono dal primo argomento «--ritratti».
+  if (dir === "--ritratti") {
+    for (const f of stepArg) {
+      const n = nextVersionNumber(FOTO);
+      const dest = join(out, `v${String(n).padStart(2, "0")}.jpg`);
+      copyFileSync(f, dest);
+      const m = f.match(/_0*(\d+)_([a-z]+)_s([\d.]+)_(\d+)\.jpg$/);
+      const [ck, scena, forza, seme] = m ? [m[1], m[2], m[3], m[4]] : ["?", "?", "?", "?"];
+      const cfg = JSON.stringify({ recipe: "lora-zimage-attilio", checkpoint: Number(ck), scena, forza: Number(forza), seme: Number(seme) });
+      db().run(
+        `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, source, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'local', 'generated', ?, ?)`,
+        [FOTO, n, dest, scena, cfg, cfg, `modello personale ${ck} step, ${scena}, forza ${forza}, seme ${seme}`, Date.now()],
+      );
+      console.log(`v${n} ← ${scena} forza ${forza} seme ${seme}`);
+    }
+    return;
+  }
   const file = readdirSync(dir);
   for (const s of step) {
     for (const k of [0, 1, 2, 3]) {
