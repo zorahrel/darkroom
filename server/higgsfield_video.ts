@@ -134,6 +134,8 @@ export type VideoRequest = {
   endOnStart?: boolean;
   /** Ultimo fotogramma diverso dal primo (end_image): dove deve arrivare il clip. */
   endMediaId?: string;
+  /** Fotogrammi intermedi in ordine (Kling 4.0 image-to-video: image_references). */
+  middleMediaIds?: string[];
 };
 
 const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
@@ -145,6 +147,7 @@ const buildParams = (r: VideoRequest, extra: Record<string, unknown> = {}) => ({
     ? [{ value: r.mediaId, role: "image_references" }, ...(r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : [])]
     : [
         { value: r.mediaId, role: "start_image" },
+        ...(r.middleMediaIds ?? []).map((id) => ({ value: id, role: "image_references" })),
         ...(r.endMediaId ? [{ value: r.endMediaId, role: "end_image" }] : r.endOnStart ? [{ value: r.mediaId, role: "end_image" }] : []),
         ...(r.preset.startWithMotion && r.motionMediaId ? [{ value: r.motionMediaId, role: "video_references" }] : []),
       ],

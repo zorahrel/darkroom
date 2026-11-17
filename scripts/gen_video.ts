@@ -76,7 +76,16 @@ const endMediaId = endVersion
       return r.image_path;
     }))
   : undefined;
-const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId, endMediaId, endOnStart: argv.includes("--end-on-start") } as VideoRequest }));
+// --middle-versions N,M: fotogrammi intermedi in ordine (solo Kling 4.0 image-to-video).
+const middleMediaIds = flag("middle-versions")
+  ? await Promise.all(flag("middle-versions")!.split(",").map((v) => uploadStartFrame(withProject(progetto, () => {
+      const r = db().query("SELECT image_path FROM versions WHERE photo_id = ? AND version_number = ?").get(foto, Number(v)) as { image_path: string } | null;
+      if (!r) throw new Error(`${foto} non ha una v${v}`);
+      console.log(`fotogramma intermedio: ${r.image_path}`);
+      return r.image_path;
+    }))))
+  : undefined;
+const reqs = keys.map((k) => ({ key: k, req: { preset: VIDEO_PRESETS[k]!, prompt, mediaId, duration, aspect, motionMediaId, endMediaId, middleMediaIds, endOnStart: argv.includes("--end-on-start") } as VideoRequest }));
 const costs = await Promise.all(reqs.map(async (x) => ({ ...x, credits: await quote(x.req) })));
 let total = 0;
 for (const c of costs) {
