@@ -80,7 +80,7 @@ studioRoutes.get("/api/health", async (c) => {
   // lanciatore c'e'; login e sfide le riporta il job stesso.
   const darkroomBrowser = process.env.DARKROOM_BROWSER || "cft";
   if (WORKER_BACKEND === "openbrowser" && darkroomBrowser === "cft") {
-    const launcher = process.env.DARKROOM_CFT_BIN || `${process.env.HOME}/.openclaw/bin/agent-browser`;
+    const launcher = process.env.DARKROOM_CFT_BIN || `${process.env.HOME}/.topics/agents/jarvis/bin/agent-browser`;
     const ready = existsSync(launcher);
     return c.json({
       browser: ready,

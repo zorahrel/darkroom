@@ -14,7 +14,7 @@ sfida managed («Ci siamo quasi…») e non passa da sola. Si clicca da qui:
 scelta di Attilio del 09/10. Misurato lo stesso giorno sul CfT di OpenClaw:
 la sfida managed e la pagina-sfida passano al primo click CDP.
 
-IL LANCIATORE. Si usa ~/.openclaw/bin/agent-browser, quello del browser
+IL LANCIATORE. Si usa ~/.topics/agents/jarvis/bin/agent-browser, quello del browser
 agenti: toglie il --disable-gpu (senza WebGL Cloudflare vede un bot), mette
 lo user agent normale al posto di "HeadlessChrome" e segue gli aggiornamenti
 settimanali di Chrome for Testing. `DARKROOM_CFT_BIN` lo sostituisce.
@@ -40,7 +40,7 @@ from wk_browser import CHATGPT, cookie_chatgpt_da_openbrowser, ha_sessione
 
 PROFILE = Path(os.environ.get("DARKROOM_CFT_PROFILE", str(Path.home() / ".cache/darkroom/cft-profile")))
 PORT = int(os.environ.get("DARKROOM_CFT_PORT", "19225"))
-LAUNCHER = os.environ.get("DARKROOM_CFT_BIN", str(Path.home() / ".openclaw/bin/agent-browser"))
+LAUNCHER = os.environ.get("DARKROOM_CFT_BIN", str(Path.home() / ".topics/agents/jarvis/bin/agent-browser"))
 COMPOSER = 'div[contenteditable="true"][id^="prompt-textarea"], div[contenteditable="true"].ProseMirror'
 CHALLENGE_TITLES = ("Ci siamo quasi", "Just a moment", "Un momento")
 
