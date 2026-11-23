@@ -20,15 +20,24 @@ lo user agent normale al posto di "HeadlessChrome" e segue gli aggiornamenti
 settimanali di Chrome for Testing. `DARKROOM_CFT_BIN` lo sostituisce.
 
 IL LOGIN. Se nel profilo manca la sessione, i cookie di chatgpt.com si
-copiano UNA volta dal Cookies.binarycookies di OpenBrowser (sola lettura, come
-fa wk_browser.py); poi restano nel profilo e OpenBrowser non serve piu'.
+copiano dal browser di Attilio (Helium, sola lettura) e, se li' non ci sono,
+da OpenBrowser (Cookies.binarycookies, come fa wk_browser.py); poi restano
+nel profilo. Dal 17/11 la sessione del profilo era sparita e quella di
+OpenBrowser era scaduta il 21/10: l'import «riusciva» ma i cookie scaduti
+venivano scartati da Chrome, e ogni job cadeva su «composer assente».
+Per questo si copiano solo cookie non scaduti, si prova prima Helium (il
+browser che Attilio usa davvero, quindi con la sessione fresca) e a pagina
+caricata si controlla che ChatGPT non mostri il pulsante «Accedi».
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
+import sqlite3
 import subprocess
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -45,8 +54,77 @@ COMPOSER = 'div[contenteditable="true"][id^="prompt-textarea"], div[contentedita
 CHALLENGE_TITLES = ("Ci siamo quasi", "Just a moment", "Un momento")
 
 
+HELIUM_COOKIES = Path.home() / "Library/Application Support/net.imput.helium/Default/Cookies"
+# Cookie legati al browser d'origine: portarli qui darebbe 403 (stessa regola di wk_browser).
+SKIP_COOKIES = {"cf_clearance", "__cf_bm", "_cfuvid"}
+
+
 class CFTError(RuntimeError):
     pass
+
+
+def cookie_chatgpt_da_helium(sorgente: Path = HELIUM_COOKIES) -> list[dict]:
+    """I cookie di chatgpt.com non scaduti dal profilo Helium, in formato Playwright.
+
+    Chromium cifra i valori con AES-128-CBC; la chiave deriva (PBKDF2,
+    «saltysalt», 1003 giri) dalla voce «Helium Storage Key» del Portachiavi.
+    Si legge una copia sqlite: Helium resta acceso e non se ne accorge.
+    """
+    if not sorgente.exists():
+        return []
+    try:
+        from cryptography.hazmat.primitives import padding
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        pw = subprocess.run(["security", "find-generic-password", "-s", "Helium Storage Key", "-w"],
+                            capture_output=True, text=True, timeout=10, check=True).stdout.strip()
+    except Exception:
+        return []
+    key = hashlib.pbkdf2_hmac("sha1", pw.encode(), b"saltysalt", 1003, 16)
+    ora = time.time()
+    out: list[dict] = []
+    with tempfile.TemporaryDirectory() as d:
+        copia = Path(d) / "c.db"
+        subprocess.run(["/usr/bin/sqlite3", "-cmd", ".timeout 5000", str(sorgente), f".backup '{copia}'"],
+                       capture_output=True, timeout=30, check=True)
+        db = sqlite3.connect(copia)
+        righe = db.execute(
+            "select host_key,name,path,encrypted_value,expires_utc,is_secure,is_httponly,samesite,is_persistent "
+            "from cookies where host_key = 'chatgpt.com' or host_key like '%.chatgpt.com'").fetchall()
+        db.close()
+    for host, name, path, ev, exp_utc, secure, httponly, samesite, persistent in righe:
+        if name in SKIP_COOKIES or ev[:3] != b"v10":
+            continue
+        exp = int(exp_utc / 1e6 - 11644473600) if persistent else -1
+        if exp != -1 and exp < ora:
+            continue
+        try:
+            dec = Cipher(algorithms.AES(key), modes.CBC(b" " * 16)).decryptor()
+            pt = dec.update(ev[3:]) + dec.finalize()
+            un = padding.PKCS7(128).unpadder()
+            pt = un.update(pt) + un.finalize()
+        except Exception:
+            continue
+        # Dalla versione 24 del db i primi 32 byte sono lo sha256 dell'host.
+        if pt[:32] == hashlib.sha256(host.encode()).digest():
+            pt = pt[32:]
+        dove = {"url": CHATGPT} if name.startswith("__Host-") else {"domain": host, "path": path or "/"}
+        out.append({"name": name, "value": pt.decode("utf8", "replace"), **dove, "expires": exp,
+                    "secure": bool(secure), "httpOnly": bool(httponly),
+                    "sameSite": {0: "None", 1: "Lax", 2: "Strict"}.get(samesite, "Lax")})
+    return out
+
+
+def cookie_sessione_chatgpt() -> list[dict]:
+    """Cookie con una sessione valida: prima Helium, poi OpenBrowser (scaduti scartati)."""
+    ora = time.time()
+    for fonte in (cookie_chatgpt_da_helium, cookie_chatgpt_da_openbrowser):
+        try:
+            cookies = [c for c in fonte() if not (0 < c.get("expires", -1) < ora)]
+        except Exception:
+            continue
+        if ha_sessione(cookies):
+            return cookies
+    return []
 
 
 # 20 s bastavano a Mac scarico; il 14/10 con load average ~100 l'avvio ne ha chiesti piu' di 20
@@ -169,16 +247,34 @@ async def open_cft():
         async with websockets.connect(_page_ws(), max_size=100 * 1024 * 1024) as ws:
             cdp = CDP(ws)
             await cdp.call("Network.enable")
-            if not await _has_session(cdp):
-                imported = cookie_chatgpt_da_openbrowser()
-                if not ha_sessione(imported):
+            imported = False
+
+            async def importa() -> None:
+                cookies = cookie_sessione_chatgpt()
+                if not cookies:
                     raise CFTError("Chrome for Testing di Darkroom: ChatGPT non e' loggato e "
-                                   "non c'e' una sessione da copiare da OpenBrowser")
-                await cdp.call("Network.setCookies", {"cookies": [_to_cdp_cookie(c) for c in imported]})
+                                   "non c'e' una sessione valida da copiare da Helium o OpenBrowser")
+                await cdp.call("Network.setCookies", {"cookies": [_to_cdp_cookie(c) for c in cookies]})
+
+            async def ospite() -> bool:
+                return bool(await cdp.js("[...document.querySelectorAll('button')].some(b => /^(Accedi|Log in)$/.test(b.innerText.trim()))"))
+
+            if not await _has_session(cdp):
+                await importa()
+                imported = True
             await cdp.call("Page.navigate", {"url": CHATGPT})
             if not await composer_ready(cdp, wait_s=60):
                 raise CFTError("Chrome for Testing di Darkroom: composer di ChatGPT assente "
                                "dopo 60 s (sfida Cloudflare non superata?)")
+            if await ospite() and not imported:
+                # Il cookie nel profilo c'e' ma il server l'ha scaduto: si riprende quello fresco.
+                await importa()
+                await cdp.call("Page.navigate", {"url": CHATGPT})
+                if not await composer_ready(cdp, wait_s=60):
+                    raise CFTError("Chrome for Testing di Darkroom: composer di ChatGPT assente dopo il nuovo login")
+            if await ospite():
+                raise CFTError("Chrome for Testing di Darkroom: ChatGPT mostra «Accedi», la sessione "
+                               "e' scaduta: serve un login nuovo in Helium")
             yield cdp
             try:
                 await cdp.call("Browser.close", timeout=5)
