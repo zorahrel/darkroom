@@ -7,6 +7,7 @@
  *
  *   bun run scripts/ritocca_foto_profilo.ts [--da 611] [--giri 8] [--stampa]
  *   bun run scripts/ritocca_foto_profilo.ts --luce --da 694   (cambia SOLO la luce, una variante per schema)
+ *   bun run scripts/ritocca_foto_profilo.ts --sfondo --da 704  (toglie il tunnel di schermi: sfondo a sfumatura)
  *
  * --luce: Attilio il 25/11 («già così son fighi, solo la luce più figa, in ombra con contrasto»):
  * nessuna foto allegata, perché qui il viso non si tocca e un riferimento lo farebbe derivare.
@@ -54,6 +55,19 @@ const PROMPT_LUCE = (luce: string) => [
   "The result must look like an untouched photograph shot that way, not a filter: no vignette added, no glow, no smoothing, no CGI look, no text.",
 ].join("\n");
 
+// Attilio il 25/11: «togliamo gli schermi dietro, facciamo solo sfumatura ad alto contrasto».
+const SFONDI = [
+  "a seamless studio backdrop with a high-contrast radial gradient: a soft cyan-blue glow right behind the head falling off fast into pure black at the edges",
+  "a seamless studio backdrop with a high-contrast radial gradient: a cool steel-grey glow behind the head falling off fast into pure black at the edges, no colour cast",
+];
+const PROMPT_SFONDO = (sfondo: string) => [
+  "Image 1 is my profile photo: keep it. Change ONLY the background behind me.",
+  `Remove completely the tunnel of screens and lights. Replace it with ${sfondo}. Smooth, clean, no objects, no patterns, no screens, no bokeh shapes, no text.`,
+  "Keep the lighting on me exactly as it is (same direction, same shadows, same rim light if there is one), only make it consistent with the new background.",
+  "Keep EVERYTHING else identical: the face and its proportions (do NOT reshape, slim, beautify or de-age it), skin tone and texture, the mole, the sunglasses (their reflections may show the new dark background), the curls, the small gold hoop earring on the same ear, the black t-shirt, pose, head angle, framing, lens and perspective. Same size and square format.",
+  "The result must look like an untouched photograph shot in a studio, not a cut-out: hair edges natural, no halo, no smoothing, no CGI look.",
+].join("\n");
+
 function arg(n: string, d?: string) { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; }
 
 withProject(PROGETTO, () => {
@@ -66,6 +80,17 @@ withProject(PROGETTO, () => {
   const evid = new Set(db().query<{ file: string }, []>("SELECT file FROM reference_pick").all().map((r) => r.file));
   const refsDir = join(dirsFor(PROGETTO).DATA_DIR, "refs");
   if (process.argv.includes("--stampa")) { console.log(`da v${da}: ${src}\n${PROMPT}`); return; }
+  if (process.argv.includes("--sfondo")) {
+    for (const [i, sfondo] of SFONDI.entries()) {
+      const job = enqueueJob(
+        FOTO, PROMPT_SFONDO(sfondo), null, "chatgpt", null, "edit", src, null,
+        JSON.stringify({ recipe: "profilo-sfondo-sfumatura", sources: [`1/v${da}.png`], sfondo: i + 1, cambiato: `solo lo sfondo: ${i === 0 ? "sfumatura ciano-nero" : "sfumatura grigio-nero"}` }),
+        "openbrowser", null,
+      );
+      console.log(`job ${job.id}  da v${da}  sfondo ${i === 0 ? "ciano" : "grigio"}`);
+    }
+    return;
+  }
   if (process.argv.includes("--luce")) {
     for (const [i, luce] of LUCI.entries()) {
       const job = enqueueJob(
