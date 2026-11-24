@@ -14,6 +14,12 @@ import { db, initSchema, nextVersionNumber } from "../server/db.ts";
 const PROGETTO = "profilo";
 const FOTO = "1";
 const file = process.argv.slice(2);
+// Quali foto vere hanno dato il viso, per impostazione (dal nome del file).
+const RASATO = ["io-rasato-2025-03-08-m08.jpg", "io-rasato-2025-03-08-m13.jpg", "io-rasato-2025-03-08-m16.jpg"];
+const sorgentiDi = (imp: string) =>
+  imp === "rasatoA" ? RASATO
+  : imp === "rasatoB" ? [...RASATO, "io-felpa-mano-1.png"]
+  : ["io-felpa-mano-1.png", "io-libreria-48.jpg"];
 if (!file.length) throw new Error("uso: <file.png>...");
 
 withProject(PROGETTO, () => {
@@ -26,7 +32,7 @@ withProject(PROGETTO, () => {
     const n = nextVersionNumber(FOTO);
     const dest = join(out, `v${n}.png`);
     execFileSync("sips", ["-s", "format", "png", f, "--out", dest]);
-    const cfg = JSON.stringify({ recipe: "scambio-viso-facefusion", sources: [`1/v${da}.png`], impostazione, sorgenti: ["io-felpa-mano-1.png", "io-libreria-48.jpg"] });
+    const cfg = JSON.stringify({ recipe: "scambio-viso-facefusion", sources: [`1/v${da}.png`], impostazione, sorgenti: sorgentiDi(impostazione) });
     db().run(
       `INSERT INTO versions (photo_id, version_number, image_path, prompt_used, config, lineage, provider, source, note, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'local', 'generated', ?, ?)`,
