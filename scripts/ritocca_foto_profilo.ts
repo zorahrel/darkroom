@@ -8,6 +8,7 @@
  *   bun run scripts/ritocca_foto_profilo.ts [--da 611] [--giri 8] [--stampa]
  *   bun run scripts/ritocca_foto_profilo.ts --luce --da 694   (cambia SOLO la luce, una variante per schema)
  *   bun run scripts/ritocca_foto_profilo.ts --sfondo --da 704  (toglie il tunnel di schermi: sfondo a sfumatura)
+ *   bun run scripts/ritocca_foto_profilo.ts --stile --da 716   (luce della reference G, trap-cover-12: 3 job con la foto allegata, 3 solo a parole)
  *
  * --luce: Attilio il 25/11 («già così son fighi, solo la luce più figa, in ombra con contrasto»):
  * nessuna foto allegata, perché qui il viso non si tocca e un riferimento lo farebbe derivare.
@@ -68,6 +69,28 @@ const PROMPT_SFONDO = (sfondo: string) => [
   "The result must look like an untouched photograph shot in a studio, not a cut-out: hair edges natural, no halo, no smoothing, no CGI look.",
 ].join("\n");
 
+// Attilio il 26/11 sceglie come luce da raggiungere la G (refs/trap-cover-12.jpg): lama di luce calda
+// solo sulla fascia degli occhi, resto del viso in ombra, corpo in blu freddo, fondo blu notte → blu acciaio,
+// grana da pellicola. Tre posizioni della lama; ognuna una volta con la reference allegata e una solo a parole
+// (la reference allegata rischia di portarsi dietro berretto e giaccone, il solo testo rischia di mancare il look).
+const LAME = [
+  "a narrow horizontal band of warm hard light falls exactly across the eyes, brows and sunglasses; above it the curls catch only cool blue light, below it nose, mouth and chin fall into deep shadow",
+  "a narrow band of warm hard light crosses the face at the height of the sunglasses and cheekbones, slightly diagonal from camera-left; forehead and jaw stay in cool blue shadow",
+  "a slightly wider band of warm hard light from a snoot, centred on the sunglasses and the bridge of the nose, edges falling off fast; the rest of the face and the neck in deep cool blue shadow",
+];
+const PROMPT_STILE = (lama: string, conRef: boolean) => [
+  conRef
+    ? "Image 1 is my profile photo: keep it. Image 2 is a LIGHTING REFERENCE only: copy its light, colour and backdrop, never its subject, beanie, jacket, hand or pose."
+    : "Image 1 is my profile photo: keep it.",
+  "Relight image 1 as a moody editorial portrait shot on film: low-key, high contrast, one shaped light plus cool blue everywhere else.",
+  `Light: ${lama}.`,
+  "The t-shirt, shoulders and the outline of the curls pick up a soft cool blue rim, true blacks in the clothes.",
+  "Backdrop: a seamless studio backdrop in deep navy blue with a smooth gradient brightening towards a pale steel-blue glow at the lower left; no objects, no screens, no text, no vignette added.",
+  "Colour and texture: warm natural skin only inside the light band, everything else cool blue; fine analog film grain, slightly soft like a medium-format film scan.",
+  "Keep EVERYTHING else identical: the face and its proportions (do NOT reshape, slim, beautify or de-age it), skin texture, the mole, the sunglasses (the warm band reflects on the lenses), the curls, the small gold hoop earring on the same ear, the black t-shirt, pose, head angle, framing, lens and perspective. Same size and square format.",
+  "The result must look like an untouched photograph shot that way, not a filter: no glow, no smoothing, no CGI look.",
+].join("\n");
+
 function arg(n: string, d?: string) { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; }
 
 withProject(PROGETTO, () => {
@@ -88,6 +111,19 @@ withProject(PROGETTO, () => {
         "openbrowser", null,
       );
       console.log(`job ${job.id}  da v${da}  sfondo ${i === 0 ? "ciano" : "grigio"}`);
+    }
+    return;
+  }
+  if (process.argv.includes("--stile")) {
+    const ref = join(refsDir, "trap-cover-12.jpg");
+    if (!existsSync(ref)) throw new Error("trap-cover-12.jpg mancante");
+    for (const conRef of [true, false]) for (const [i, lama] of LAME.entries()) {
+      const job = enqueueJob(
+        FOTO, PROMPT_STILE(lama, conRef), null, "chatgpt", null, "edit", src, conRef ? JSON.stringify([ref]) : null,
+        JSON.stringify({ recipe: "profilo-luce-reference-G", sources: [`1/v${da}.png`], lama: i + 1, refs: conRef ? ["trap-cover-12.jpg"] : [], cambiato: `solo luce e fondo, verso la reference G (lama ${i + 1}, ${conRef ? "con" : "senza"} reference allegata)` }),
+        "openbrowser", conRef ? JSON.stringify(["trap-cover-12.jpg"]) : null,
+      );
+      console.log(`job ${job.id}  da v${da}  lama ${i + 1}  ${conRef ? "con" : "senza"} reference`);
     }
     return;
   }
