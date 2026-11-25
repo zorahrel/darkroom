@@ -8,6 +8,7 @@
  *   bun run scripts/ritocca_foto_profilo.ts [--da 611] [--giri 8] [--stampa]
  *   bun run scripts/ritocca_foto_profilo.ts --luce --da 694   (cambia SOLO la luce, una variante per schema)
  *   bun run scripts/ritocca_foto_profilo.ts --sfondo --da 704  (toglie il tunnel di schermi: sfondo a sfumatura)
+ *   bun run scripts/ritocca_foto_profilo.ts --senza-occhiali --da 722   (toglie gli occhiali da sole, la lama di luce cade sugli occhi)
  *   bun run scripts/ritocca_foto_profilo.ts --stile --da 716   (luce della reference G, trap-cover-12: 3 job con la foto allegata, 3 solo a parole)
  *
  * --luce: Attilio il 25/11 («già così son fighi, solo la luce più figa, in ombra con contrasto»):
@@ -91,6 +92,21 @@ const PROMPT_STILE = (lama: string, conRef: boolean) => [
   "The result must look like an untouched photograph shot that way, not a filter: no glow, no smoothing, no CGI look.",
 ].join("\n");
 
+// Attilio il 26/11, davanti a v728-v732: «proviamo senza occhiali». Con la luce G la lama calda finisce
+// sugli occhi, come nella reference. Il viso poi lo rimette FaceFusion, quindi qui conta solo la luce sugli occhi.
+const SGUARDI = [
+  "looking straight into the lens, calm and confident, eyelids relaxed",
+  "eyes looking slightly down past the lens, calm, eyelids relaxed",
+];
+const PROMPT_SENZA_OCCHIALI = (sguardo: string) => [
+  "Image 1 is my profile photo: keep it. Remove the sunglasses completely and show my natural eyes.",
+  `Eyes: ${sguardo}; both eyes open, aligned and symmetrical, natural iris and catchlights, fresh rested look: NO dark circles, NO eye bags, NO hollow or sunken eyes, NO heavy lids.`,
+  "The narrow band of warm hard light now falls exactly across the eyes and brows, like a snoot: the eyes are the brightest part of the face; above and below the band the face stays in cool blue shadow.",
+  "No marks of glasses on the nose, no glasses pushed up on the head, no glasses anywhere.",
+  "Keep EVERYTHING else identical: the face and its proportions (do NOT reshape, slim, beautify or de-age it), skin texture, the curls, the small gold hoop earring on the same ear, the black t-shirt, pose, head angle, framing, the navy blue gradient backdrop, the film grain and colours. Same size and square format.",
+  "The result must look like an untouched film photograph, no smoothing, no CGI look.",
+].join("\n");
+
 function arg(n: string, d?: string) { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; }
 
 withProject(PROGETTO, () => {
@@ -111,6 +127,17 @@ withProject(PROGETTO, () => {
         "openbrowser", null,
       );
       console.log(`job ${job.id}  da v${da}  sfondo ${i === 0 ? "ciano" : "grigio"}`);
+    }
+    return;
+  }
+  if (process.argv.includes("--senza-occhiali")) {
+    for (const [i, sguardo] of SGUARDI.entries()) {
+      const job = enqueueJob(
+        FOTO, PROMPT_SENZA_OCCHIALI(sguardo), null, "chatgpt", null, "edit", src, null,
+        JSON.stringify({ recipe: "profilo-senza-occhiali", sources: [`1/v${da}.png`], sguardo: i + 1, cambiato: `tolti gli occhiali, lama di luce sugli occhi (${i === 0 ? "sguardo in macchina" : "sguardo in basso"})` }),
+        "openbrowser", null,
+      );
+      console.log(`job ${job.id}  da v${da}  sguardo ${i + 1}`);
     }
     return;
   }
